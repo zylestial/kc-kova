@@ -6,6 +6,13 @@
   changes into one commit. A bug fix, a new function, a refactor, a config
   update, and a doc edit are each their own commit. If in doubt whether
   something should be its own commit, prefer the smaller commit.
+- Commit immediately after finishing each individual change, not at the end
+  of a multi-step task. Even when several files together implement one fix
+  (e.g. a migration plus the client-side code that relies on it), commit
+  each file's change as soon as it's done and verified, rather than
+  accumulating them and committing as one large diff — long commits made
+  from several unrelated edits are hard to scan later to find where a
+  specific change was made.
 - Before committing, run `git status` and `git diff` to confirm exactly
   what's being included. Stage only the files that belong to that change
   with `git add <files>` — never `git add .` or `git add -A` unless
