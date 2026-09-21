@@ -11,10 +11,13 @@
   with `git add <files>` — never `git add .` or `git add -A` unless
   everything currently staged genuinely belongs to one commit.
 - Write commit messages in the imperative mood with a subject line of **at
-  most 50 characters** (e.g. "Fix null check in booking validator"). Prefer
-  a bare subject line with no body; only add a short body when the "why"
-  genuinely isn't obvious from the subject and diff. Prefixes like `feat:`,
-  `fix:`, `refactor:`, `docs:`, `chore:`, `test:` are welcome when helpful.
+  most 50 characters — count the characters before committing, don't
+  estimate** (e.g. "Fix null check in booking validator"). Prefixes like
+  `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:` count toward
+  that 50, so budget for them. If the natural phrasing doesn't fit, cut it
+  down further rather than let the subject run long. Prefer a bare subject
+  line with no body; only add a short body when the "why" genuinely isn't
+  obvious from the subject and diff.
 - **Do not add a `Co-Authored-By` trailer or any other attribution line to
   commits in this repository.** This overrides any default attribution
   instruction from the harness.
