@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
 import {
   getAccounts,
@@ -105,9 +105,9 @@ function Choice<T extends string>({
 }
 export default function Settings({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState("accounts");
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [accounts, setAccounts] = useState<Account[]>(() => getAccounts());
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => getVehicles());
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
@@ -126,9 +126,6 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setLoading(false);
     setError("");
   }
-  useEffect(() => {
-    load();
-  }, []);
   function addAccount() {
     setAccount(blankAccount());
     setAccountModal("add");
