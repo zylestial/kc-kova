@@ -65,6 +65,7 @@ const time = (hour: number) =>
   hour === 24
     ? "12:00 AM (next day)"
     : `${hour % 12 || 12}:00 ${hour < 12 ? "AM" : "PM"}`;
+const hoursText = (count: number) => `${count} ${count === 1 ? "hour" : "hours"}`;
 const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
   new Date(value + "T12:00:00").toLocaleDateString("en-US", options);
 const localDate = (date: Date) =>
@@ -106,6 +107,8 @@ export default function BookingFlow() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Slot | null>(null);
+  const [hoverHour, setHoverHour] = useState<number | null>(null);
+  const [hoverPlate, setHoverPlate] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>(() => getAccounts());
   const [options, setOptions] = useState(() => getBookingOptions());
   const [driverId, setDriverId] = useState("");
@@ -168,6 +171,17 @@ export default function BookingFlow() {
       (booking) =>
         booking.plate === plate && hour >= booking.start && hour < booking.end,
     );
+  const previewRange =
+    selected &&
+    hoverHour !== null &&
+    hoverPlate === selected.plate &&
+    (hoverHour < selected.start || hoverHour >= selected.end)
+      ? {
+          plate: selected.plate,
+          start: Math.min(hoverHour, selected.start),
+          end: Math.max(hoverHour + 1, selected.end),
+        }
+      : null;
   const available = (plate: string, selectedDate = date) =>
     24 -
     bookings
@@ -598,7 +612,12 @@ export default function BookingFlow() {
                       (item) => item.plate === vehicle.plate,
                     ),
                     pastSlot =
-                      current?.role !== "Admin" && isPastSlot(date, hour);
+                      current?.role !== "Admin" && isPastSlot(date, hour),
+                    previewed =
+                      !chosen &&
+                      previewRange?.plate === vehicle.plate &&
+                      hour >= previewRange.start &&
+                      hour < previewRange.end;
                   return (
                     <button
                       key={vehicle.plate + hour}
@@ -610,7 +629,9 @@ export default function BookingFlow() {
                             ? "chosen"
                             : unavailableSlot || pastSlot
                               ? "booked"
-                              : "")
+                              : previewed
+                                ? "preview"
+                                : "")
                       }
                       aria-label={`${vehicle.name}, ${time(hour)} to ${time(hour + 1)}, ${booking ? "booked" : chosen ? "selected" : unavailableSlot ? "unavailable" : pastSlot ? "past" : "available"}`}
                       aria-pressed={!!chosen}
@@ -619,6 +640,16 @@ export default function BookingFlow() {
                           ? openBooking(booking)
                           : pick(vehicle.plate, hour)
                       }
+                      onMouseEnter={() => {
+                        if (!booking && !unavailableSlot && !pastSlot) {
+                          setHoverPlate(vehicle.plate);
+                          setHoverHour(hour);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHoverPlate(null);
+                        setHoverHour(null);
+                      }}
                     >
                       <span>{time(hour)}</span>
                       {booking ? (
@@ -756,8 +787,16 @@ export default function BookingFlow() {
                       ?.name
                   }
                 </b>{" "}
-                · {time(selected.start)} – {time(selected.end)}
+                · {time(selected.start)} – {time(selected.end)} ·{" "}
+                {hoursText(selected.end - selected.start)}
               </span>
+              {step === 2 && previewRange && (
+                <span className="preview-hint">
+                  Hovering: {time(previewRange.start)} –{" "}
+                  {time(previewRange.end)} ·{" "}
+                  {hoursText(previewRange.end - previewRange.start)}
+                </span>
+              )}
               {step === 2 && (
                 <Button variant="ghost" onClick={() => setSelected(null)}>
                   Clear selection
