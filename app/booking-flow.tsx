@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Truck,
   ChevronLeft,
@@ -84,14 +84,22 @@ export default function BookingFlow() {
   const [date, setDate] = useState(() => localDate(new Date()));
   const [anchor, setAnchor] = useState(() => localDate(new Date()));
   const [step, setStep] = useState(1);
-  const [fleet, setFleet] = useState<Vehicle[]>([]);
-  const [unavailable, setUnavailable] = useState<Vehicle[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fleet, setFleet] = useState<Vehicle[]>(() =>
+    getVehicles()
+      .filter((vehicle) => vehicle.status === "Active")
+      .map(({ plate, name }) => ({ plate, name })),
+  );
+  const [unavailable, setUnavailable] = useState<Vehicle[]>(() =>
+    getVehicles()
+      .filter((vehicle) => vehicle.status === "Inactive")
+      .map(({ plate, name }) => ({ plate, name })),
+  );
+  const [bookings, setBookings] = useState<Booking[]>(() => getActiveBookings());
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Slot | null>(null);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>(() => getAccounts());
   const [options, setOptions] = useState(() => getBookingOptions());
   const [driverId, setDriverId] = useState("");
   const [destination, setDestination] = useState("");
@@ -122,10 +130,6 @@ export default function BookingFlow() {
     setOptions(getBookingOptions());
     setLoading(false);
   }
-  useEffect(() => {
-    load();
-  }, []);
-
   const current = currentAccount();
   const drivers = accounts.filter(
     (account) => account.role === "Driver" && account.status === "Active",
