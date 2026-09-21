@@ -1,6 +1,6 @@
 # Role-Based QA Test Plan
 
-Manual test plan for Booker, Driver, and Admin flows. Pairs UI checks with
+Manual test plan for Admin, Booker, and Driver flows. Pairs UI checks with
 direct API/RPC checks so a hidden button never counts as a passed
 permission test. Aligns with the flows and enforcement described in
 `docs/ARCHITECTURE.md` and `docs/RULES.md` — this document does not
@@ -48,9 +48,80 @@ Login is via username, mapped internally to
 
 ---
 
-## 1. Booker flow
+## 1. Admin flow
 
-### 1.1 Sign in and view bookings/availability
+### 1.1 Settings — Accounts, Vehicles, Booking Options
+1. Sign in as `admin1`.
+2. Create/edit an Account (e.g. add a new Driver), reset a password.
+3. Create/edit a Vehicle (add plate, rename existing per
+   `0003_vehicle_rename.sql`).
+4. Edit Booking Options (Projects/Destinations/Purposes/People).
+
+**Expected:** All operations succeed and reflect immediately elsewhere in
+the app (e.g. new vehicle selectable in booking flow).
+
+- [ ] Pass/Fail
+
+**API check (non-admin bypass):** Repeat each of the above calls
+(`POST/PUT /api/accounts*`, `POST/PUT /api/vehicles*`,
+`PUT /api/booking-options/**`) as booker1 and as driver1 → expect 403 on
+every one (route-level Admin check + RLS `..._admin_insert/update/delete`
+policies).
+
+- [ ] Pass/Fail
+
+### 1.2 Schedule — manage eligible bookings
+1. As admin1, open Schedule and edit/cancel a booking that belongs to
+   another Booker (e.g. Booking C).
+
+**Expected:** Admin can manage bookings beyond their own, unlike a
+Booker.
+
+- [ ] Pass/Fail
+
+### 1.3 Finished Trips — review, edit with history, Finance, PDF, Done
+1. As admin1, open Booking B's submitted record under Finished Trips.
+2. Edit a field (e.g. correct a leg destination) and save.
+3. Confirm a history entry is recorded (action `EDIT`, before/after diff).
+4. Complete Finance fields (submitted/received/reference/finance/
+   financeDate).
+5. Print/save the official PDF and confirm it reflects current data.
+6. Mark the record as Done.
+
+**Expected:**
+- Edit succeeds and appends an immutable history entry rather than
+  silently overwriting (`diffFields`).
+- Finance fields save (Admin-only).
+- PDF export matches the record's current values.
+- Marking Done requires the record to already be `SUBMITTED FOR REVIEW`
+  (attempt to mark a still-`Scheduled` or already-`DONE` record as Done
+  should fail).
+
+- [ ] Pass/Fail — edit + history entry
+- [ ] Pass/Fail — Finance completion
+- [ ] Pass/Fail — PDF output
+- [ ] Pass/Fail — Done requires prior SUBMITTED FOR REVIEW state
+
+### 1.4 Done records are read-only
+1. After marking Booking B's record Done, attempt further edits (any
+   field, including Finance) as admin1.
+
+**Expected:** UI shows the record as locked/read-only; no save controls
+work.
+
+- [ ] Pass/Fail (UI)
+
+**API check:** `PUT /api/records/{bookingB}` as admin1 with any field
+change → expect rejection once status is `DONE` (route blocks further
+writes on DONE records per `app/api/records/[recordId]/route.ts`).
+
+- [ ] Pass/Fail
+
+---
+
+## 2. Booker flow
+
+### 2.1 Sign in and view bookings/availability
 1. Sign in as `booker1`.
 2. Open the schedule/calendar view.
 
@@ -60,7 +131,7 @@ unavailable.
 
 - [ ] Pass/Fail
 
-### 1.2 Create a booking (Choose Date → Vehicle & Time → Booking Details)
+### 2.2 Create a booking (Choose Date → Vehicle & Time → Booking Details)
 1. As `booker1`, start a new booking.
 2. Choose Date: pick an open future date.
 3. Vehicle & Time: pick a vehicle and a free hour range.
@@ -86,12 +157,12 @@ unavailable.
 shows booker1 as requester (values are server-assigned, not client
 input, per `docs/RULES.md`).
 
-### 1.2a Custom Destination/Purpose via "Other"
+### 2.2a Custom Destination/Purpose via "Other"
 1. As `booker1`, in Booking Details open the Destination dropdown and
    choose "Other…"; type a destination not in the existing list.
 2. Repeat for Purpose.
 3. Submit the booking.
-4. Repeat steps 1–2 from the "Edit booking" dialog (§1.3) on an existing
+4. Repeat steps 1–2 from the "Edit booking" dialog (§2.3) on an existing
    scheduled booking, confirming a previously-typed custom value shows
    as an editable text field (not silently reset) when reopened.
 
@@ -119,7 +190,7 @@ strings, not a match against `booking_options`.
 
 - [ ] Pass/Fail
 
-### 1.3 Edit/delete own scheduled booking
+### 2.3 Edit/delete own scheduled booking
 1. As `booker1`, open Booking A (own, SCHEDULED).
 2. Edit destination/time; save.
 3. Cancel/delete a different own SCHEDULED booking.
@@ -135,7 +206,7 @@ backed by `update_booking`/`cancel_booking` RPCs.
 
 - [ ] Pass/Fail
 
-### 1.4 View-only on another Booker's booking
+### 2.4 View-only on another Booker's booking
 1. As `booker1`, open Booking B (owned by booker2).
 
 **Expected:** Booking details are viewable (read-only) but no edit/delete
@@ -150,8 +221,8 @@ controls are available in the UI.
 
 - [ ] Pass/Fail
 
-### 1.5 Cannot change a submitted or completed trip
-1. Have driver1 submit the Daily Vehicle Record for Booking B (see §2.2)
+### 2.5 Cannot change a submitted or completed trip
+1. Have driver1 submit the Daily Vehicle Record for Booking B (see §3.2)
    so it moves to `SUBMITTED FOR REVIEW`.
 2. As booker2 (owner), attempt to edit or cancel Booking B via UI.
 
@@ -167,7 +238,7 @@ been submitted for that booking.
 
 - [ ] Pass/Fail
 
-### 1.6 Cancellation releases Vehicle/Driver time
+### 2.6 Cancellation releases Vehicle/Driver time
 1. As booker1, note the vehicle+hour slot held by a SCHEDULED booking.
 2. Cancel it.
 3. As booker1 (or booker2), attempt to create a new booking for the same
@@ -180,9 +251,9 @@ vehicle or driver for that window.
 
 ---
 
-## 2. Driver flow
+## 3. Driver flow
 
-### 2.1 See only assigned trips
+### 3.1 See only assigned trips
 1. Sign in as `driver1`.
 2. Open "My Schedule"/trip list.
 
@@ -198,7 +269,7 @@ Also attempt `GET`/`PUT` on Booking C's record as driver1 → expect 403.
 
 - [ ] Pass/Fail
 
-### 2.2 Finish Trip availability and DVR submission
+### 3.2 Finish Trip availability and DVR submission
 1. As driver1, open Booking A (future/ongoing window) → confirm "Finish
    Trip" is disabled/hidden until the scheduled end time has passed.
 2. Open Booking B (window already ended) → "Finish Trip" is available.
@@ -229,7 +300,7 @@ Also attempt `GET`/`PUT` on Booking C's record as driver1 → expect 403.
 
 - [ ] Pass/Fail
 
-### 2.3 Finished Trips is read-only and scoped
+### 3.3 Finished Trips is read-only and scoped
 1. After submitting Booking B's record, reopen it as driver1 under
    Finished Trips.
 
@@ -244,7 +315,7 @@ trying to change a leg) → expect 403, since status is no longer
 
 - [ ] Pass/Fail
 
-### 2.4 No access to other drivers' trips or Finance controls
+### 3.4 No access to other drivers' trips or Finance controls
 1. As driver1, attempt to open Booking C (driver2's trip) directly by
    URL/id if the app exposes one.
 2. Attempt to access any Finance-related UI.
@@ -253,77 +324,6 @@ trying to change a leg) → expect 403, since status is no longer
 
 **API check:** `GET`/`PUT /api/records/{bookingC}` as driver1 → expect
 403 (RLS `vehicle_records_select`/route check scoped to own `driver_id`).
-
-- [ ] Pass/Fail
-
----
-
-## 3. Admin flow
-
-### 3.1 Settings — Accounts, Vehicles, Booking Options
-1. Sign in as `admin1`.
-2. Create/edit an Account (e.g. add a new Driver), reset a password.
-3. Create/edit a Vehicle (add plate, rename existing per
-   `0003_vehicle_rename.sql`).
-4. Edit Booking Options (Projects/Destinations/Purposes/People).
-
-**Expected:** All operations succeed and reflect immediately elsewhere in
-the app (e.g. new vehicle selectable in booking flow).
-
-- [ ] Pass/Fail
-
-**API check (non-admin bypass):** Repeat each of the above calls
-(`POST/PUT /api/accounts*`, `POST/PUT /api/vehicles*`,
-`PUT /api/booking-options/**`) as booker1 and as driver1 → expect 403 on
-every one (route-level Admin check + RLS `..._admin_insert/update/delete`
-policies).
-
-- [ ] Pass/Fail
-
-### 3.2 Schedule — manage eligible bookings
-1. As admin1, open Schedule and edit/cancel a booking that belongs to
-   another Booker (e.g. Booking C).
-
-**Expected:** Admin can manage bookings beyond their own, unlike a
-Booker.
-
-- [ ] Pass/Fail
-
-### 3.3 Finished Trips — review, edit with history, Finance, PDF, Done
-1. As admin1, open Booking B's submitted record under Finished Trips.
-2. Edit a field (e.g. correct a leg destination) and save.
-3. Confirm a history entry is recorded (action `EDIT`, before/after diff).
-4. Complete Finance fields (submitted/received/reference/finance/
-   financeDate).
-5. Print/save the official PDF and confirm it reflects current data.
-6. Mark the record as Done.
-
-**Expected:**
-- Edit succeeds and appends an immutable history entry rather than
-  silently overwriting (`diffFields`).
-- Finance fields save (Admin-only).
-- PDF export matches the record's current values.
-- Marking Done requires the record to already be `SUBMITTED FOR REVIEW`
-  (attempt to mark a still-`Scheduled` or already-`DONE` record as Done
-  should fail).
-
-- [ ] Pass/Fail — edit + history entry
-- [ ] Pass/Fail — Finance completion
-- [ ] Pass/Fail — PDF output
-- [ ] Pass/Fail — Done requires prior SUBMITTED FOR REVIEW state
-
-### 3.4 Done records are read-only
-1. After marking Booking B's record Done, attempt further edits (any
-   field, including Finance) as admin1.
-
-**Expected:** UI shows the record as locked/read-only; no save controls
-work.
-
-- [ ] Pass/Fail (UI)
-
-**API check:** `PUT /api/records/{bookingB}` as admin1 with any field
-change → expect rejection once status is `DONE` (route blocks further
-writes on DONE records per `app/api/records/[recordId]/route.ts`).
 
 - [ ] Pass/Fail
 
@@ -371,9 +371,9 @@ writes on DONE records per `app/api/records/[recordId]/route.ts`).
 
 ## Pass/Fail summary checklist
 
-- [ ] 1. Booker flow (incl. 1.2a Other Destination/Purpose) — all subsections pass
-- [ ] 2. Driver flow — all subsections pass
-- [ ] 3. Admin flow — all subsections pass
+- [ ] 1. Admin flow — all subsections pass
+- [ ] 2. Booker flow (incl. 2.2a Other Destination/Purpose) — all subsections pass
+- [ ] 3. Driver flow — all subsections pass
 - [ ] 4. Cross-role tests — all pass
 - [ ] 5. Error/edge cases — all pass
 
