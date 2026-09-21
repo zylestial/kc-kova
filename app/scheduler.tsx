@@ -1119,13 +1119,10 @@ function PrintForm({ r, booking }: { r: RecordData; booking?: Booking }) {
   return (
     <article className="print-form">
       <header className="print-header">
-        <img src="/images/kova-print-logo.png" alt="Kayelen company logo" />
-        <div>
-          <strong>KOVA</strong>
-          <span>Kayelen&apos;s Operations and Vehicle Allocation</span>
-          <h1>DAILY VEHICLE RECORD</h1>
-        </div>
+        <span className="print-header-tag">COMPANY TRIP FORM - TRUCK UTILIZATION</span>
+        <img src="/images/kova-print-logo.png" alt="Kayelen's Construction logo" />
       </header>
+      <h1>DAILY VEHICLE TRIP &amp; UTILIZATION FORM</h1>
       <div className="print-info">
         <div>
           DATE <b>{val(r.date)}</b>
@@ -1139,11 +1136,12 @@ function PrintForm({ r, booking }: { r: RecordData; booking?: Booking }) {
         <div>
           DRIVER <b>{val(r.driver)}</b>
         </div>
-        {r.project && (
-          <div>
-            PROJECT / DEPARTMENT <b>{r.project}</b>
-          </div>
-        )}
+        <div>
+          PROJECT / DEPARTMENT <b>{r.project || "________________"}</b>
+        </div>
+        <div>
+          STARTING ODOMETER <b>{val(r.start)} km</b>
+        </div>
         <div>
           REQUESTED BY <b>{val(booking?.requestedBy || "")}</b>
         </div>
@@ -1152,9 +1150,6 @@ function PrintForm({ r, booking }: { r: RecordData; booking?: Booking }) {
         </div>
         <div>
           PURPOSE <b>{val(booking?.purpose || "")}</b>
-        </div>
-        <div>
-          STARTING ODOMETER <b>{val(r.start)} km</b>
         </div>
       </div>
       <h2>ROUTE & RECORDING RULE</h2>
