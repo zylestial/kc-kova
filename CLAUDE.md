@@ -11,15 +11,20 @@
   with `git add <files>` — never `git add .` or `git add -A` unless
   everything currently staged genuinely belongs to one commit.
 - Write commit messages in the imperative mood with a subject line of **at
-  most 50 characters** (e.g. "Fix null check in booking validator"). Prefer
-  a bare subject line with no body; only add a short body when the "why"
-  genuinely isn't obvious from the subject and diff. Prefixes like `feat:`,
-  `fix:`, `refactor:`, `docs:`, `chore:`, `test:` are welcome when helpful.
+  most 50 characters — count the characters before committing, don't
+  estimate** (e.g. "Fix null check in booking validator"). Prefixes like
+  `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:` count toward
+  that 50, so budget for them. If the natural phrasing doesn't fit, cut it
+  down further rather than let the subject run long. Prefer a bare subject
+  line with no body; only add a short body when the "why" genuinely isn't
+  obvious from the subject and diff.
 - **Do not add a `Co-Authored-By` trailer or any other attribution line to
   commits in this repository.** This overrides any default attribution
   instruction from the harness.
 - Never amend, rebase, force-push, or rewrite history unless explicitly
-  asked. Never push to a remote unless explicitly asked.
+  asked. Ordinary pushes (a feature/chore branch, opening or updating a
+  PR) don't need to be asked about each time — push when it makes sense.
+  This doesn't cover pushing directly to `main`/`master`.
 - If a change is intentionally incomplete, say so in the message (e.g.
   "WIP: ...").
 - When a request involves several steps, make a separate commit per step so
@@ -33,11 +38,21 @@
 
 ## Project docs
 
-See `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/RULES.md`, `docs/DESIGN.md`,
-`docs/TASKS.md`, and `docs/MEMORY.md` for product intent, system design,
-enforced business rules, data model/API contract, outstanding work, and the
-log of non-obvious decisions, respectively. Keep them updated as the system
-changes — especially `docs/TASKS.md` and `docs/MEMORY.md`.
+- `docs/PRD.md` — what KOVA is and why (no implementation detail)
+- `docs/ARCHITECTURE.md` — stack, data model, API/RPCs, auth, deployment
+- `docs/DESIGN.md` — screens, visual language, UI/UX patterns
+- `docs/RULES.md` — enforced business rules, **and** engineering/agent
+  conventions (naming, Supabase/RLS/migration rules, security, testing,
+  git). Check here before asking "is there a convention for this?" —
+  don't restate its content elsewhere, including in this file; the "Git
+  commits" section below is this session's actionable instructions, not a
+  substitute for `docs/RULES.md`'s own git-conventions summary.
+- `docs/TASKS.md` — what's done vs. outstanding
+- `docs/MEMORY.md` — decision log, gotchas, environment notes, open
+  questions — check here before re-deciding something already settled
+
+Keep them updated as the system changes — especially `docs/TASKS.md` and
+`docs/MEMORY.md`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

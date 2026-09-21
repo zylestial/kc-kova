@@ -108,6 +108,20 @@ KOVA enforces permissions in two places, and both must independently hold:
      `ON UPDATE CASCADE` and a multi-statement client-side rename could
      leave the tables inconsistent if interrupted.
 
+   Every `security definer` function (`is_admin` plus the four above) sets
+   `search_path = ''` with every table reference schema-qualified as
+   `public.<table>` (`0006_harden_definer_functions.sql`), and is granted
+   `EXECUTE` only to `authenticated` — explicitly revoked from both `PUBLIC`
+   and `anon`, since Supabase's default-privilege template grants `anon`
+   execute independently of `PUBLIC` (see `docs/MEMORY.md`). The two
+   `0001_init.sql` trigger functions a booking insert can fire
+   (`enforce_same_daily_driver`, `block_inactive_vehicle`) get the same
+   `search_path=''` + schema-qualification treatment
+   (`0009_fix_trigger_search_path.sql`) — a trigger invoked from inside a
+   `security definer` call inherits that call's overridden search_path, not
+   its own default, so this matters even though the triggers themselves
+   aren't `security definer`.
+
 3. **Application code (route handlers), using the service-role client** —
    used only where (1) and (2) aren't available or aren't the right tool:
    - **Auth user management** (`app/api/accounts/**`) — creating/updating a
@@ -123,6 +137,170 @@ KOVA enforces permissions in two places, and both must independently hold:
      service-role client. See `docs/RULES.md` for the exact rules enforced
      and `docs/TASKS.md` for the tracked follow-up (moving this into an RPC
      for stronger atomicity guarantees).
+
+## Data model
+
+### `accounts`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid PK | Same value as `auth.users.id` |
+| `username` | text, unique | Display login name; mapped to a synthetic email for Supabase Auth |
+| `name` | text | Display name |
+| `role` | text | `Booker` \| `Driver` \| `Admin` |
+| `status` | text | `Active` \| `Inactive` |
+| `project` | text, nullable | Free-text label, not a foreign key |
+| `created_at` | timestamptz | |
+
+### `vehicles`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `plate` | text PK | |
+| `name` | text | |
+| `status` | text | `Active` \| `Inactive` |
+
+### `vehicle_aliases`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `old_plate` | text PK | |
+| `new_plate` | text | FK -> `vehicles.plate`; lets an old plate keep resolving after a rename. Indexed (`vehicle_aliases_new_plate_idx`). |
+
+### `bookings`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid PK | |
+| `date` | date | |
+| `plate` | text | FK -> `vehicles.plate`. Indexed (`bookings_plate_idx`). |
+| `start_hour`, `end_hour` | smallint | `0 <= start < end <= 24` |
+| `driver_id` | uuid | FK -> `accounts.id`, role must be Driver. Indexed (`bookings_driver_id_idx`) — also the column `bookings_select`'s RLS policy filters on. |
+| `driver_name` | text | Denormalized for display without a join |
+| `project` | text | |
+| `requested_by_account_id` | uuid | FK -> `accounts.id`. Indexed (`bookings_requested_by_account_id_idx`) — also RLS-filtered. |
+| `requested_by_name` | text | |
+| `destination`, `purpose`, `notes` | text | |
+| `created_by_account_id` | uuid | FK -> `accounts.id`; always equals the requester today. Indexed (`bookings_created_by_account_id_idx`) — also RLS-filtered. |
+| `created_at` | timestamptz | |
+| `status` | text | `SCHEDULED` \| `CANCELLED` |
+
+### `booking_slots`
+One row per hour of an active booking. Purely an internal conflict-tracking
+table — never read or written directly by API routes except through the
+booking RPC functions.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `booking_id` | uuid | FK -> `bookings.id`, cascades on delete. Indexed (`booking_slots_booking_id_idx`). |
+| `date` | date | |
+| `plate` | text | |
+| `driver_id` | uuid | |
+| `hour` | smallint | |
+
+Unique constraints: `(date, plate, hour)` and `(date, driver_id, hour)` —
+these two indexes are the actual conflict-prevention mechanism.
+
+### `vehicle_records`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid PK | Client-generated on first save (see "Vehicle records" below) |
+| `date` | date | |
+| `plate` | text | |
+| `data` | jsonb | Everything else — see shape below. The `data->>'bookingId'` expression is indexed (`vehicle_records_booking_id_idx`), since both `vehicle_records_select`'s RLS policy and the booking RPCs' lock checks filter on it. |
+
+Unique constraint: `(date, plate)` — one record per vehicle per day.
+
+**`data` jsonb shape** (fields referenced across `app/scheduler.tsx`,
+`app/driver-trips.tsx`, `app/admin-finished-trips.tsx`,
+`app/record-history.tsx`):
+
+```jsonc
+{
+  "vehicle": "string",       // vehicle display name
+  "driver": "string",        // driver display name
+  "project": "string",
+  "bookingId": "uuid",       // links back to the triggering booking
+  "status": "Scheduled" | "SUBMITTED FOR REVIEW" | "DONE",
+  "submittedAt": "ISO8601?", // server-set on submission only
+  "start": "string",         // starting odometer, kept as a string
+  "end": "string",           // ending odometer
+  "legs": [
+    { "requestor": "", "purpose": "", "origin": "", "destination": "",
+      "out": "", "arrival": "", "contact": "", "phone": "" }
+  ],
+  "full": false,             // returned with a full tank
+  "card": false,             // fleet card used
+  "receipt": false,          // gas receipt attached
+  "pm": "Joedel Capillan",   // fixed, Admin-only
+  "coo": "President Vargas", // fixed, Admin-only
+  "submitted": "string?",    // Finance: date submitted, Admin-only
+  "received": "string?",     // Finance: received by, Admin-only
+  "reference": "string?",    // Finance: reference #, Admin-only
+  "finance": "Pending" | "Complete" | "Returned" | "Invalid / late",
+  "financeDate": "string?",
+  "history": [ /* HistoryEntry[], server-appended only */ ]
+}
+```
+
+`id`, `date`, and `plate` live as real columns and are **not** duplicated
+inside `data` by the API layer (`lib/supabase/mappers.ts` overlays the
+column values onto the spread `data` object when reading).
+
+### `booking_options`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `group` | text | `projects` \| `destinations` \| `purposes` |
+| `id` | text | Client-generated (`crypto.randomUUID()`) |
+| `name` | text | |
+| `status` | text | `Active` \| `Inactive` |
+
+PK: `(group, id)`.
+
+### `people`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | text PK | Client-generated |
+| `name` | text | |
+| `project_ids` | text[] | References `booking_options` entries in the `projects` group, by convention (not FK-enforced) |
+| `status` | text | `Active` \| `Inactive` |
+| `account_id` | uuid, nullable | FK -> `accounts.id`, when this person also has a login. Indexed (`people_account_id_idx`). |
+
+### `login_attempts`
+| Column | Type | Notes |
+| --- | --- | --- |
+| `key` | text PK | Lowercased username |
+| `count` | integer | |
+| `window_start` | timestamptz | |
+
+Touched only by the service-role client (`lib/supabase/login-rate-limit.ts`)
+— no RLS policy is granted to any other role.
+
+## API contract
+
+The authoritative, human-readable version of this table lives in
+`BACKEND_INTEGRATION.md` at the repo root (written before implementation, as
+the target the frontend adapter — `lib/kova-api.ts` — was built against).
+Summary, with the implementing route file:
+
+| Method | Path | Route file | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/auth/sign-in` | `app/api/auth/sign-in/route.ts` | — |
+| GET | `/api/auth/session` | `app/api/auth/session/route.ts` | — |
+| POST | `/api/auth/sign-out` | `app/api/auth/sign-out/route.ts` | any session |
+| GET | `/api/bootstrap` | `app/api/bootstrap/route.ts` | any session |
+| POST | `/api/accounts` | `app/api/accounts/route.ts` | Admin |
+| PUT | `/api/accounts/:accountId` | `app/api/accounts/[accountId]/route.ts` | Admin |
+| POST | `/api/accounts/:accountId/password` | `app/api/accounts/[accountId]/password/route.ts` | Admin |
+| POST | `/api/vehicles` | `app/api/vehicles/route.ts` | Admin |
+| PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
+| POST | `/api/bookings` | `app/api/bookings/route.ts` | Booker, Admin |
+| PUT | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Booker, Admin |
+| DELETE | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Booker, Admin |
+| PUT | `/api/records/:recordId` | `app/api/records/[recordId]/route.ts` | Assigned Driver (pre-submission), Admin (review) |
+| PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
+| PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |
+
+Request/response bodies match the TypeScript types in `lib/kova-api.ts`
+(`Account`, `Vehicle`, `Booking`, `VehicleRecord`, `BookingOption`,
+`Person`, `BootstrapData`) — that file is the single source of truth for
+field names and is shared between the frontend and this doc.
 
 ## Data flow: bootstrap
 
@@ -145,3 +323,44 @@ Configuration is entirely in environment variables (`.env.example`):
   the browser.
 - `NEXT_PUBLIC_KOVA_API_BASE_URL` — left blank when the API is same-origin
   (the default; this repo serves both frontend and API from one Next.js app).
+
+All three Supabase variables are validated as present at server startup
+(`instrumentation.ts` -> `lib/env.ts`) — a missing/misconfigured one fails
+fast with a clear error instead of surfacing later as an opaque runtime
+error the first time a route touches Supabase.
+
+`next.config.ts` sets baseline security response headers
+(`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+`Permissions-Policy`) on every response. A `Content-Security-Policy` header
+is deliberately not set yet — see `docs/TASKS.md`.
+
+## Deployment and migrations
+
+CI (`.github/workflows/ci.yml`) runs `pnpm install`, `pnpm exec tsc
+--noEmit`, `pnpm lint`, `pnpm test`, and `pnpm build` on every push and pull
+request to `main`/`master`. Dependabot (`.github/dependabot.yml`) opens
+weekly PRs for npm and GitHub Actions dependency updates.
+
+Schema changes are new files in `supabase/migrations/`, applied in order,
+never edited once applied anywhere (see `docs/RULES.md`). The intended flow
+for a schema change:
+
+1. Write the migration as a new `supabase/migrations/NNNN_description.sql`
+   file.
+2. Test it locally: `supabase init` (once, if `supabase/config.toml` isn't
+   already present — it is, as of this repo) -> `supabase start` (requires
+   Docker) -> `supabase db reset`, which applies every migration from
+   `0001` onward against a disposable local Postgres instance.
+3. Apply to a real project with `supabase link --project-ref <ref>` then
+   `supabase db push`, which applies only migrations not yet recorded as
+   applied on that project.
+
+**Gotcha, hit for real during this project's own migration `0006`–`0009`
+rollout:** `db push` tracks what's "already applied" via a migration
+history table on the target project. If a table was created by some other
+means (a manual SQL Editor run, a dashboard action) rather than through
+`supabase db push` itself, that history table won't have a row for it, and
+`db push` will try to re-run that migration and fail with a `relation
+already exists` error. Fix with `supabase migration repair --status
+applied <migration-id>...` for the migrations whose *tables* already exist,
+before pushing the new ones. See `docs/MEMORY.md` for the full account.
