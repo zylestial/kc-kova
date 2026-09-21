@@ -43,7 +43,7 @@ const groups: [Group, string, string, string][] = [
 ];
 export default function BookingOptions() {
   const [options, setOptions] = useState(() => getBookingOptions());
-  const [people, setPeople] = useState<Person[]>([]);
+  const [people, setPeople] = useState<Person[]>(() => getPeople());
   const [modal, setModal] = useState<{
     group: Group;
     mode: "add" | "edit";
@@ -62,7 +62,6 @@ export default function BookingOptions() {
     setPeople(getPeople());
   }
   useEffect(() => {
-    load();
     window.addEventListener("kova-data-update", load);
     return () => window.removeEventListener("kova-data-update", load);
   }, []);
