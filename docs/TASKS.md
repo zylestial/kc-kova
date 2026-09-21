@@ -81,18 +81,25 @@ this file whenever a task's status changes.
       via `pnpm-workspace.yaml` overrides. See `docs/MEMORY.md` for the
       full list and rationale, and the open items below for what this
       pass explicitly deferred.
+- [x] **Migrations 0006–0009 verified against a local `supabase start`
+      instance** and a manual RLS regression pass (anon isolation, Driver
+      ownership isolation, Admin full access, all four RPCs end-to-end).
+      Found and fixed two real bugs that code review alone had missed —
+      an `anon` execute grant on every RPC that `revoke ... from public`
+      never touched, and a `search_path=''` regression that broke two
+      `0001_init.sql` triggers when actually invoked. See `docs/MEMORY.md`
+      for the full account. `supabase/config.toml` is now committed so
+      this is repeatable for anyone with Docker.
 
 ## Outstanding / follow-ups
 
-- [ ] **Migrations 0006–0008 were never run against a real Postgres
-      instance.** No Supabase CLI / local or branch project was available
-      in the environment this pass ran in, so `supabase db reset` could
-      not be used to validate them before commit. Run them against a local
-      or dev Supabase project first. In particular, verify
-      `0008_indexes_for_rls_and_fks.sql`'s
-      `((data->>'bookingId')::uuid)` expression index against real
-      `vehicle_records` data — it will fail to create if any row has a
-      non-UUID, non-null `bookingId` in its `data` column.
+- [ ] **`0008_indexes_for_rls_and_fks.sql`'s expression index
+      `((data->>'bookingId')::uuid)` was only tested against a freshly
+      reset, empty database** — the local verification pass above could
+      not exercise what happens against pre-existing data. It will fail to
+      create if any real `vehicle_records` row has a non-UUID, non-null
+      `bookingId`. Check that against production's actual data before
+      applying there (see the query in `docs/MEMORY.md`).
 - [ ] **Content-Security-Policy header was deliberately not added** in this
       pass (`next.config.ts` only got the risk-free headers). Getting
       `script-src` right for Next's own inline bootstrap scripts needs

@@ -161,22 +161,76 @@ A repo-wide audit (see `docs/TASKS.md`) surfaced and this pass fixed:
   expression on `vehicle_records`) — added in
   `0008_indexes_for_rls_and_fks.sql`.
 
-**None of migrations 0006–0008 change any table's columns**, so no
+**None of migrations 0006–0009 change any table's columns**, so no
 generated-types regeneration was needed (this repo hand-writes its
 Supabase row types in `lib/supabase/mappers.ts`/route files rather than
 using `supabase gen types typescript`, and that remains unaffected).
 
-**Important limitation on this pass**: this environment has no Supabase
-CLI installed and no local/branch Supabase project reachable, so
-`supabase db reset` could not be run and these migrations were never
-executed against a real Postgres instance — they're reviewed carefully
-line-by-line but **unverified**. In particular
+## Migrations 0006–0009 verified against a local `supabase start` instance (2026-09-21)
+
+The Docker/WSL2 environment needed for local Supabase wasn't available when
+the hardening pass above first shipped 0006–0008 (no Docker installed, then
+no free disk space); once both were resolved, `supabase init` +
+`supabase start` + `supabase db reset` were run and surfaced two real bugs
+that pure code review had missed — both fixed in follow-up migrations
+rather than by editing the already-applied-to-production `0001`–`0008`
+(only `0006`, not yet applied anywhere, was safe to edit directly):
+
+- **`revoke execute ... from public` never actually blocked `anon`.** This
+  project's Supabase template applies `alter default privileges ... grant
+  execute on functions to anon, authenticated, service_role` for functions
+  created by `postgres`/`supabase_admin` — a grant to `anon` specifically,
+  independent of `PUBLIC`. Every RPC (`is_admin` and all four booking/
+  vehicle functions, including `create_booking`/`rename_vehicle` from
+  `0002`/`0003`, years before this pass) was therefore still directly
+  callable by `anon` despite their `revoke all ... from public`. Each
+  RPC's own `auth.uid()` check denies an anon caller in practice (confirmed
+  live: `set role anon; select create_booking(...)` → `ERROR: Not
+  authorized to create bookings`), so this was never exploitable, but it's
+  a real least-privilege gap. Fixed by adding an explicit `revoke ... from
+  anon` alongside `from public` on every RPC (`0006`, amended in place
+  since it had never reached production).
+- **`search_path = ''` on `create_booking`/`update_booking` broke the
+  `enforce_same_daily_driver`/`block_inactive_vehicle` triggers**
+  (`0001_init.sql`) the first time an RPC call actually fired them
+  (`ERROR: relation "vehicles" does not exist`). A trigger fired by a
+  statement inside a function with `SET search_path` runs under that
+  *overridden* search_path for the duration of the call — not the
+  trigger's own default — so the triggers' unqualified `bookings`/
+  `vehicles` references stopped resolving. Since `0001_init.sql` is
+  already applied to production and must not be edited, this needed a new
+  migration: `0009_fix_trigger_search_path.sql` gives both trigger
+  functions their own `search_path = ''` and schema-qualified references,
+  the same fix already applied to the `security definer` functions.
+
+After both fixes, a full local regression pass confirmed against a seeded
+Admin + two Drivers + a booking: `anon` sees zero rows on every table and
+is denied every RPC/function call directly; a Driver sees exactly their
+own booking and the shared accounts roster, and cannot write to `accounts`
+(RLS `UPDATE 0`, silently no-opped, not an error — normal Postgres RLS
+behavior); an Admin can write to `accounts` and see every booking;
+`create_booking`, `cancel_booking`, and `rename_vehicle` all ran
+end-to-end correctly (including `rename_vehicle` cascading a plate change
+across `bookings` and `vehicle_aliases`, and the inactive-vehicle trigger
+correctly blocking a new booking with a clean error rather than crashing).
+
+**What this local pass does *not* cover**: it ran against a freshly reset,
+empty database, so it did not — and could not — exercise
 `0008_indexes_for_rls_and_fks.sql`'s expression index
-`((data->>'bookingId')::uuid)` will fail to create if any existing
-`vehicle_records` row has a non-UUID, non-null `data->>'bookingId'` value
-— this needs to be checked against real data (or run in a environment
-where it can be verified) before applying to any project with existing
-data. See `docs/TASKS.md` for the recommended follow-up.
+`((data->>'bookingId')::uuid)` against pre-existing data. That index will
+still fail to create if any real `vehicle_records` row has a non-UUID,
+non-null `bookingId`. Check before applying `0008` to any project with
+existing data:
+
+```sql
+select id, date, plate, data->>'bookingId' as booking_id
+from vehicle_records
+where data->>'bookingId' is not null
+  and data->>'bookingId' !~ '^[0-9a-fA-F-]{36}$';
+```
+
+If that returns rows, resolve them (fix the data or adjust the index to
+exclude them with a `where` clause) before running `0008` there.
 
 ## Docs vs. code as source of truth
 
