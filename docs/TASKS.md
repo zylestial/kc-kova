@@ -24,6 +24,18 @@ this file whenever a task's status changes.
       DB-row-to-API-type mapper (`lib/supabase/records.test.ts`,
       `accounts.test.ts`, `mappers.test.ts`, `lib/kova-api.test.ts`) — run
       with `pnpm test`
+- [x] Fixed 9 pre-existing lint errors in the original frontend scaffold
+      (`booking-flow.tsx`, `booking-options.tsx`, `driver-trips.tsx`,
+      `scheduler.tsx`, `settings.tsx`): render-time hydration moved to lazy
+      `useState` initializers, two genuinely prop-reactive state syncs in
+      `scheduler.tsx` deferred to a microtask so the setState call isn't
+      direct-in-effect, an impure `Date.now()` call during render replaced
+      by a lazy-initialized clock tick, and one `any` replaced with a
+      generic in the record field updater. `eslint .` is now error-clean
+      (one unrelated `<img>` warning remains).
+- [x] GitHub Actions CI (`.github/workflows/ci.yml`): runs
+      `tsc --noEmit`, `eslint`, `vitest run`, and `next build` on every
+      push and pull request.
 
 ## Outstanding / follow-ups
 
@@ -50,10 +62,6 @@ this file whenever a task's status changes.
       atomicity guarantee bookings get, especially the read-modify-write
       history diff, which has a narrow race window under concurrent writes
       to the same record.
-- [ ] **CI is not configured** — `tsc`, `eslint`, `next build`, and
-      `pnpm test` are being
-      run manually after each change; wiring these into a CI pipeline would
-      catch regressions automatically.
 - [ ] **Password policy** is currently just "8+ characters" — revisit if the
       organization has stronger requirements.
 - [ ] **Rate limiting** only covers sign-in. If abuse becomes a concern on
