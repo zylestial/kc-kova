@@ -6,6 +6,32 @@ or contradict them. Append to this file as new non-obvious decisions get
 made; don't remove old entries even if later superseded — note the
 supersession instead.
 
+## Fresh Supabase projects may need explicit GRANTs alongside RLS policies
+
+Wiring this project up to a real (freshly created) Supabase project
+surfaced a bug that no amount of static checking or unit testing could have
+caught: every table access failed with `permission denied for table X`
+(Postgres error `42501`), for both `service_role` and `authenticated`,
+despite `0001_init.sql`'s RLS policies being logically correct. The cause:
+**Row Level Security policies only ever narrow what a query can see or
+touch — Postgres still requires an ordinary `GRANT` on the table before RLS
+policies are even evaluated.** Supabase's dashboard-created projects
+usually come with those grants pre-seeded for `anon`/`authenticated`/
+`service_role` on the `public` schema, but this isn't something to rely on
+for every project (template changes, project age, or an unusual creation
+path can all affect it) — and there is no way to detect the gap short of
+actually running a query against a real project. Two follow-up migrations
+fix it explicitly rather than assuming it: `0004_service_role_grants.sql`
+(`GRANT ALL ... TO service_role`, plus `ALTER DEFAULT PRIVILEGES` so future
+tables inherit it) and `0005_authenticated_grants.sql` (grants scoped to
+exactly what the `_select`/`_admin_write` RLS policies in `0001_init.sql`
+already expect to gate). **Any new migration that adds a table other
+migrations need to read or write must also grant the relevant privilege to
+`authenticated` and/or `service_role`** — adding an RLS policy alone is not
+sufficient, and the failure mode (a generic "permission denied") looks
+identical to a missing or wrong RLS policy, which is what makes this easy
+to misdiagnose.
+
 ## `queueMicrotask` around setState in scheduler.tsx's prop-reactive effects
 
 `scheduler.tsx` has two `useEffect`s that don't run once on mount — they

@@ -36,23 +36,29 @@ this file whenever a task's status changes.
 - [x] GitHub Actions CI (`.github/workflows/ci.yml`): runs
       `tsc --noEmit`, `eslint`, `vitest run`, and `next build` on every
       push and pull request.
-
-## Outstanding / follow-ups
-
-- [ ] **No live Supabase project has been exercised yet.** Everything above
-      has been verified by static type-checking, a production build, and
-      unit tests of pure logic — not by running against a real database.
-      The unit tests deliberately don't cover anything that touches
-      Supabase itself (RLS policies, the RPC functions, or the route
-      handlers' own database calls), since that needs a real project to
-      run against. Before shipping: create a Supabase project, run the
-      three migrations in order, populate `.env.local` from
-      `.env.example`, and walk every workflow in `docs/PRD.md` end to end
-      (sign in as each role; book; submit a trip; review and mark done;
-      rename a vehicle; add a booking option). Once a project is available,
-      add integration tests for the route handlers themselves and for the
-      RPC functions' conflict/atomicity guarantees — the highest-value
-      remaining test gap.
+- [x] Repo pushed to GitHub as `zylestial/kc-kova` (private), CI verified
+      green there.
+- [x] **Exercised end to end against a live Supabase project.** Every route
+      was hit with real HTTP requests against a running `next dev` server
+      wired to a real project: sign-in/session/sign-out, role-scoped
+      bootstrap, vehicle create + rename (with cascading plate updates onto
+      existing bookings), account creation, booking create with conflict
+      rejection (409 on overlap) and cancel (which correctly freed the slot
+      for rebooking), and the full record lifecycle — submission blocked
+      before the scheduled end time, blocked for a non-ANONANG round trip,
+      accepted with server-set `submittedAt`, locked against further Driver
+      edits, Admin edit producing a correct history diff, mark-done
+      producing a `MARK AS DONE` history entry, and locked again after
+      `DONE`. All test data created during this pass was cleaned up
+      afterward. Two real bugs were found and fixed this way (see
+      `docs/MEMORY.md`): `service_role` and `authenticated` both lacked the
+      ordinary Postgres table GRANTs that RLS policies depend on — a fresh
+      Supabase project doesn't pre-seed those the way older/dashboard-
+      created projects sometimes do, so every table access failed with
+      `permission denied` despite the RLS policies themselves being
+      correct. Neither gap could have been caught by `tsc`, `eslint`, unit
+      tests, or `next build` — only a real request against a real database
+      surfaced them.
 - [ ] **`vehicle_records` writes run through application code + the
       service-role client, not a Postgres RPC** (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.
@@ -72,3 +78,12 @@ this file whenever a task's status changes.
       existing frontend components — they have not been reviewed against
       what the actual stakeholders (KOVA's operators) want. Treat them as a
       first draft to correct, not a finished spec.
+- [ ] **The live-Supabase verification above was manual (curl against a
+      running dev server), not automated.** Worth turning into a real
+      integration test suite (e.g. against a Supabase local/CI instance)
+      so the RLS-grant class of bug and the RPC conflict/atomicity
+      guarantees are checked on every change, not just once by hand.
+- [ ] **The UI itself hasn't been exercised against the live project yet**
+      — only the API routes, via direct HTTP requests. `pnpm dev` plus a
+      browser walkthrough of each screen (`docs/DESIGN.md`'s UI structure
+      table) is still worth doing before calling this shippable.
