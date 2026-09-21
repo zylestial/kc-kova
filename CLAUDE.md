@@ -22,7 +22,9 @@
   commits in this repository.** This overrides any default attribution
   instruction from the harness.
 - Never amend, rebase, force-push, or rewrite history unless explicitly
-  asked. Never push to a remote unless explicitly asked.
+  asked. Ordinary pushes (a feature/chore branch, opening or updating a
+  PR) don't need to be asked about each time — push when it makes sense.
+  This doesn't cover pushing directly to `main`/`master`.
 - If a change is intentionally incomplete, say so in the message (e.g.
   "WIP: ...").
 - When a request involves several steps, make a separate commit per step so
