@@ -21,6 +21,11 @@ export async function GET() {
     supabase.from("people").select("*"),
   ]);
 
+  const firstError = [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes].find((res) => res.error)?.error;
+  if (firstError) {
+    return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
+  }
+
   return NextResponse.json({
     accounts: (accountsRes.data ?? []).map(toAccount),
     vehicles: vehiclesRes.data ?? [],

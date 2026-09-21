@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canFinishTrip, diffFields, isAnonangRoundTrip, omit, stripAdminOnlyFields } from "@/lib/supabase/records";
+import { canFinishTrip, diffFields, isAnonangRoundTrip, matchesBookingKey, omit, stripAdminOnlyFields } from "@/lib/supabase/records";
 
 describe("diffFields", () => {
   it("reports only fields whose value actually changed", () => {
@@ -63,6 +63,20 @@ describe("canFinishTrip", () => {
 
   it("is false for a non-integer end hour", () => {
     expect(canFinishTrip("2026-01-01", 17.5, new Date("2026-01-01T20:00:00"))).toBe(false);
+  });
+});
+
+describe("matchesBookingKey", () => {
+  it("accepts a date/plate that matches the booking", () => {
+    expect(matchesBookingKey("2026-01-01", "ABC-123", { date: "2026-01-01", plate: "ABC-123" })).toBe(true);
+  });
+
+  it("rejects a plate that doesn't match the booking's vehicle", () => {
+    expect(matchesBookingKey("2026-01-01", "OTHER-999", { date: "2026-01-01", plate: "ABC-123" })).toBe(false);
+  });
+
+  it("rejects a date that doesn't match the booking's day", () => {
+    expect(matchesBookingKey("2026-02-02", "ABC-123", { date: "2026-01-01", plate: "ABC-123" })).toBe(false);
   });
 });
 

@@ -34,6 +34,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local database dumps/backups (contain real secrets: password hashes,
+# session tokens) — never commit these
+*.sql
+!supabase/migrations/*.sql
+!supabase/seed.sql
+
 # typescript
 next-env.d.ts
 *.tsbuildinfo

@@ -80,14 +80,18 @@ since RLS grants it no policies at all.
 
 KOVA enforces permissions in two places, and both must independently hold:
 
-1. **Row Level Security policies** (`supabase/migrations/0001_init.sql`) —
-   the default and preferred layer. `accounts`, `vehicles`,
-   `vehicle_aliases`, `booking_options`, and `people` all have a
-   `for select` policy open to any authenticated user and a
-   `for all ... using (is_admin(auth.uid()))` policy restricting writes to
-   Admins. Route handlers for these tables use the **cookie-scoped session
-   client** and let Postgres itself reject a non-Admin write — the route
-   only does a cheap pre-check for a friendlier error message.
+1. **Row Level Security policies** (`supabase/migrations/0001_init.sql`,
+   restructured by `0007_rls_policies_per_operation.sql`) — the default and
+   preferred layer. `accounts`, `vehicles`, `vehicle_aliases`,
+   `booking_options`, and `people` all have a `for select` policy open to
+   any authenticated user and separate `for insert` / `for update` /
+   `for delete` policies (`using (is_admin((select auth.uid())))`, `insert`/
+   `update` also `with check`) restricting writes to Admins. Route handlers
+   for these tables use the **cookie-scoped session client** and let
+   Postgres itself reject a non-Admin write — the route only does a cheap
+   pre-check for a friendlier error message. Every `auth.uid()`/`auth.role()`
+   call in a policy is wrapped as `(select auth.uid())` so Postgres caches
+   it once per statement instead of re-evaluating it per row.
 
 2. **Postgres RPC functions**, `security definer`, for anything that must be
    atomic across multiple rows or needs logic RLS can't express:
