@@ -70,8 +70,50 @@ this file whenever a task's status changes.
       screens built on it work end to end against the real backend, not
       just the API in isolation.
 
+- [x] **Phase 2 audit fix-up (2026-09-21)**: fixed the `vehicle_records`
+      date/plate spoofing gap, unchecked `bootstrap` query errors, the
+      `is_admin()` PUBLIC-execute grant, `search_path` on every
+      `security definer` function, split RLS policies per-operation with
+      cached `auth.uid()`/`auth.role()`, added FK/RLS-column indexes,
+      added env-var validation at startup (`instrumentation.ts` +
+      `lib/env.ts`), added baseline (non-CSP) security response headers,
+      and closed 4 dependency advisories in next's build-time toolchain
+      via `pnpm-workspace.yaml` overrides. See `docs/MEMORY.md` for the
+      full list and rationale, and the open items below for what this
+      pass explicitly deferred.
+
 ## Outstanding / follow-ups
 
+- [ ] **Migrations 0006–0008 were never run against a real Postgres
+      instance.** No Supabase CLI / local or branch project was available
+      in the environment this pass ran in, so `supabase db reset` could
+      not be used to validate them before commit. Run them against a local
+      or dev Supabase project first. In particular, verify
+      `0008_indexes_for_rls_and_fks.sql`'s
+      `((data->>'bookingId')::uuid)` expression index against real
+      `vehicle_records` data — it will fail to create if any row has a
+      non-UUID, non-null `bookingId` in its `data` column.
+- [ ] **Content-Security-Policy header was deliberately not added** in this
+      pass (`next.config.ts` only got the risk-free headers). Getting
+      `script-src` right for Next's own inline bootstrap scripts needs
+      verification against a real running build/browser before it ships,
+      or it risks silently breaking the app.
+- [ ] **Zod (or similar) boundary validation was not rolled out to every
+      API route** — most routes already do manual `typeof body?.x ===
+      "string"` checks, which are correct but inconsistent in shape and
+      easy to get subtly wrong on a new route. `zod` is already a
+      dependency (via `@hookform/resolvers`); worth a dedicated pass to
+      define one schema per route body and parse with it up front, rather
+      than mixing this into an unrelated fix.
+- [ ] **pgTAP / integration tests proving RLS isolation (user A can't
+      read/write user B's rows, anon is denied) were not added** — same
+      root cause as the migration-testing gap above: no local/CI Supabase
+      instance was reachable to run them against. The manual
+      live-Supabase verification already on record (see the "Done"
+      section) exercised the *old* policy shape; it should be re-run
+      against the new per-operation policies before they reach production,
+      and turning it into a committed automated suite remains the
+      still-open follow-up noted below.
 - [ ] **`vehicle_records` writes run through application code + the
       service-role client, not a Postgres RPC** (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.

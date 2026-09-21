@@ -120,6 +120,64 @@ functions and translate their Postgres error codes (`42501` -> 403,
 business logic was re-implemented at the route layer, deliberately, so
 there is exactly one place (the RPC) that can create a double-booking bug.
 
+## Phase 2 security/perf hardening pass (2026-09-21)
+
+A repo-wide audit (see `docs/TASKS.md`) surfaced and this pass fixed:
+
+- **`PUT /api/records/:recordId` didn't verify a Driver's request `date`/
+  `plate` matched the linked booking's actual `date`/`plate`** — only that
+  `bookingId` referenced one of the Driver's own bookings. A Driver could
+  therefore plant a fabricated `vehicle_records` row (including a forged
+  `SUBMITTED FOR REVIEW` state) for a vehicle/day unrelated to any real
+  trip. Fixed by adding `matchesBookingKey()` (`lib/supabase/records.ts`)
+  and calling it before any write in the Driver branch.
+- **`GET /api/bootstrap` never checked the `error` half of any of its six
+  parallel Supabase queries** — a failing query silently rendered as empty
+  data (e.g. "0 vehicles") instead of a visible error. Fixed by checking
+  all six results before responding.
+- **`is_admin()` was never revoked from `PUBLIC`**, so any authenticated
+  user could call it directly (not just via RLS policy evaluation) to
+  probe whether an arbitrary uuid belonged to an active Admin. Revoked
+  from `PUBLIC`, granted only to `authenticated` (still required for RLS
+  policies that call it, since policy evaluation checks the querying
+  role's own `EXECUTE` privilege regardless of the callee being
+  `security definer`).
+- **Every `security definer` function used `search_path = public`**, which
+  was already safe against the classic mutable-search-path hijack (it was
+  fixed, not mutable) but not the stricter recommended form. All five
+  (`is_admin`, `create_booking`, `update_booking`, `cancel_booking`,
+  `rename_vehicle`) now use `search_path = ''` with every table reference
+  schema-qualified as `public.<table>` — see `0006_harden_definer_functions.sql`.
+- **RLS policies weren't split per-operation and called `auth.uid()`/
+  `auth.role()` unwrapped**, re-evaluating per row instead of once per
+  statement. `0007_rls_policies_per_operation.sql` splits every `for all`
+  admin-write policy into explicit insert/update/delete policies (same
+  predicates, so this is semantics-preserving, not a permission change)
+  and wraps every auth function call as `(select auth.uid())`.
+- **No indexes existed on any foreign-key or RLS-filtered column**
+  (`bookings.driver_id`/`requested_by_account_id`/`created_by_account_id`/
+  `plate`, `booking_slots.booking_id`, `people.account_id`,
+  `vehicle_aliases.new_plate`, and the `(data->>'bookingId')::uuid`
+  expression on `vehicle_records`) — added in
+  `0008_indexes_for_rls_and_fks.sql`.
+
+**None of migrations 0006–0008 change any table's columns**, so no
+generated-types regeneration was needed (this repo hand-writes its
+Supabase row types in `lib/supabase/mappers.ts`/route files rather than
+using `supabase gen types typescript`, and that remains unaffected).
+
+**Important limitation on this pass**: this environment has no Supabase
+CLI installed and no local/branch Supabase project reachable, so
+`supabase db reset` could not be run and these migrations were never
+executed against a real Postgres instance — they're reviewed carefully
+line-by-line but **unverified**. In particular
+`0008_indexes_for_rls_and_fks.sql`'s expression index
+`((data->>'bookingId')::uuid)` will fail to create if any existing
+`vehicle_records` row has a non-UUID, non-null `data->>'bookingId'` value
+— this needs to be checked against real data (or run in a environment
+where it can be verified) before applying to any project with existing
+data. See `docs/TASKS.md` for the recommended follow-up.
+
 ## Docs vs. code as source of truth
 
 `BACKEND_INTEGRATION.md` (repo root) was written *before* any backend code,
