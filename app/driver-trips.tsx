@@ -53,7 +53,7 @@ export default function DriverTrips({
   const [vehicleNames, setVehicleNames] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Booking | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [clock, setClock] = useState(0);
+  const [clock, setClock] = useState(() => Date.now());
   const [error, setError] = useState("");
   useEffect(() => {
     function refresh() {
@@ -270,15 +270,13 @@ export default function DriverTrips({
                 </Button>
                 <Button
                   className="primary"
-                  disabled={
-                    !canFinishTrip(selected, new Date(clock || Date.now()))
-                  }
+                  disabled={!canFinishTrip(selected, new Date(clock))}
                   onClick={() => setConfirming(true)}
                 >
                   Finish Trip
                 </Button>
               </DialogFooter>
-              {!canFinishTrip(selected, new Date(clock || Date.now())) && (
+              {!canFinishTrip(selected, new Date(clock)) && (
                 <p className="driver-trip-help">
                   Available after the scheduled trip time has passed.
                 </p>
