@@ -67,6 +67,37 @@ unavailable.
 shows booker1 as requester (values are server-assigned, not client
 input, per `docs/RULES.md`).
 
+### 1.2a Custom Destination/Purpose via "Other"
+1. As `booker1`, in Booking Details open the Destination dropdown and
+   choose "Other…"; type a destination not in the existing list.
+2. Repeat for Purpose.
+3. Submit the booking.
+4. Repeat steps 1–2 from the "Edit booking" dialog (§1.3) on an existing
+   scheduled booking, confirming a previously-typed custom value shows
+   as an editable text field (not silently reset) when reopened.
+
+**Expected:**
+- "Choose from list" link returns the field to the dropdown and clears
+  the typed value.
+- Submitted booking stores the typed text verbatim in `destination`/
+  `purpose` — these are free-text fields on the `bookings` row with no
+  foreign key into `booking_options`, so no Admin approval step is
+  required for a Booker to use a new value.
+- Typing does not create or modify anything under Admin's Booking
+  Options list; the typed value is scoped to that booking only.
+
+- [ ] Pass/Fail — Other → type → submit succeeds
+- [ ] Pass/Fail — "Choose from list" reverts to dropdown
+- [ ] Pass/Fail — editing a booking with a pre-existing custom value shows it in the text field, not blank
+
+**API check:** `POST /api/bookings` and `PUT /api/bookings/{id}` as
+booker1 with a `destination`/`purpose` string that matches no
+`booking_options` row → expect success (200/201), since
+`app/api/bookings/route.ts` only requires the fields be non-empty
+strings, not a match against `booking_options`.
+
+- [ ] Pass/Fail
+
 - [ ] Pass/Fail
 
 ### 1.3 Edit/delete own scheduled booking
@@ -321,7 +352,7 @@ writes on DONE records per `app/api/records/[recordId]/route.ts`).
 
 ## Pass/Fail summary checklist
 
-- [ ] 1. Booker flow — all subsections pass
+- [ ] 1. Booker flow (incl. 1.2a Other Destination/Purpose) — all subsections pass
 - [ ] 2. Driver flow — all subsections pass
 - [ ] 3. Admin flow — all subsections pass
 - [ ] 4. Cross-role tests — all pass
