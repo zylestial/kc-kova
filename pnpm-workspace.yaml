@@ -1,2 +1,11 @@
 allowBuilds:
   unrs-resolver: false
+
+# Pin transitive devDependency versions to close published advisories in
+# next's own build-time dependency chain (next > styled-jsx > @babel/core >
+# browserslist). Remove once next ships an updated styled-jsx/babel range
+# upstream and these are no longer needed.
+overrides:
+  browserslist: ">=4.28.7"
+  "@babel/core": ">=7.29.6"
+  baseline-browser-mapping: ">=2.11.0"
