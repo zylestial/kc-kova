@@ -10,17 +10,24 @@
 --      types, etc.) resolves regardless of search_path, so only
 --      application-schema references needed qualifying.
 -- CREATE OR REPLACE preserves each function's existing REVOKE/GRANT state,
--- so the authenticated-only execute grants already set on create_booking/
--- update_booking/cancel_booking/rename_vehicle (and service_role's
--- schema-wide grant from 0004) are untouched by this migration.
+-- so those are re-asserted explicitly below rather than relied upon.
 --
--- is_admin is the one exception: it was never explicitly revoked from
--- PUBLIC, so any authenticated user could call it directly (not just via
--- RLS policies) and probe whether an arbitrary uuid belongs to an active
--- Admin. It's only ever meant to be used from inside RLS policy
--- expressions and the functions below, so its direct-call grant is
--- narrowed to authenticated (needed because policy evaluation still
--- checks the querying role's EXECUTE privilege) and revoked from PUBLIC.
+-- Verified against a local `supabase start` instance: this project's
+-- template applies `alter default privileges ... grant execute on
+-- functions to anon, authenticated, service_role` for functions created
+-- by postgres/supabase_admin. That means every function here — including
+-- create_booking/update_booking/cancel_booking/rename_vehicle, despite
+-- their original `revoke all ... from public` in 0002/0003 — was
+-- executable by `anon` all along; revoking from PUBLIC alone never
+-- touched anon's own separate default-privilege grant. Each RPC's
+-- internal `auth.uid()`/role check still denies an anon caller (auth.uid()
+-- is null with no session), so this was not an exploitable gap, but an
+-- anonymous caller shouldn't be able to invoke these at all as a matter of
+-- least privilege. `revoke ... from anon` is now explicit everywhere.
+--
+-- is_admin is also revoked from PUBLIC (it never was before) and granted
+-- only to authenticated, which policy evaluation still requires even
+-- though is_admin itself is security definer.
 
 create or replace function is_admin(uid uuid)
 returns boolean
@@ -36,6 +43,7 @@ as $$
 $$;
 
 revoke execute on function is_admin(uuid) from public;
+revoke execute on function is_admin(uuid) from anon;
 grant execute on function is_admin(uuid) to authenticated;
 
 create or replace function create_booking(
@@ -93,6 +101,10 @@ exception
     raise exception 'This vehicle or driver is already booked for that time' using errcode = '23505';
 end;
 $$;
+
+revoke execute on function create_booking(date, text, int, int, uuid, text, text, text) from public;
+revoke execute on function create_booking(date, text, int, int, uuid, text, text, text) from anon;
+grant execute on function create_booking(date, text, int, int, uuid, text, text, text) to authenticated;
 
 create or replace function update_booking(
   p_booking_id uuid,
@@ -174,6 +186,10 @@ exception
 end;
 $$;
 
+revoke execute on function update_booking(uuid, date, text, int, int, uuid, text, text, text) from public;
+revoke execute on function update_booking(uuid, date, text, int, int, uuid, text, text, text) from anon;
+grant execute on function update_booking(uuid, date, text, int, int, uuid, text, text, text) to authenticated;
+
 create or replace function cancel_booking(p_booking_id uuid)
 returns void
 language plpgsql
@@ -210,6 +226,10 @@ begin
   delete from public.booking_slots where booking_id = p_booking_id;
 end;
 $$;
+
+revoke execute on function cancel_booking(uuid) from public;
+revoke execute on function cancel_booking(uuid) from anon;
+grant execute on function cancel_booking(uuid) to authenticated;
 
 create or replace function rename_vehicle(
   p_old_plate text,
@@ -268,3 +288,7 @@ exception
     raise exception 'Plate already in use' using errcode = '23505';
 end;
 $$;
+
+revoke execute on function rename_vehicle(text, text, text, text) from public;
+revoke execute on function rename_vehicle(text, text, text, text) from anon;
+grant execute on function rename_vehicle(text, text, text, text) to authenticated;
