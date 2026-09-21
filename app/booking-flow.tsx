@@ -69,6 +69,13 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
   new Date(value + "T12:00:00").toLocaleDateString("en-US", options);
 const localDate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const isPastSlot = (dateValue: string, hour: number) => {
+  const now = new Date();
+  const today = localDate(now);
+  if (dateValue < today) return true;
+  if (dateValue > today) return false;
+  return hour < now.getHours();
+};
 const toDraft = (booking: Booking): EditDraft => ({
   date: booking.date,
   plate: booking.plate,
@@ -187,7 +194,8 @@ export default function BookingFlow() {
   function pick(plate: string, hour: number) {
     if (
       occupied(plate, hour) ||
-      !fleet.some((vehicle) => vehicle.plate === plate)
+      !fleet.some((vehicle) => vehicle.plate === plate) ||
+      (current?.role !== "Admin" && isPastSlot(date, hour))
     )
       return;
     let next = { plate, start: hour, end: hour + 1 };
@@ -588,7 +596,9 @@ export default function BookingFlow() {
                       hour < selected.end,
                     unavailableSlot = !fleet.some(
                       (item) => item.plate === vehicle.plate,
-                    );
+                    ),
+                    pastSlot =
+                      current?.role !== "Admin" && isPastSlot(date, hour);
                   return (
                     <button
                       key={vehicle.plate + hour}
@@ -598,11 +608,11 @@ export default function BookingFlow() {
                           ? "booked"
                           : chosen
                             ? "chosen"
-                            : unavailableSlot
+                            : unavailableSlot || pastSlot
                               ? "booked"
                               : "")
                       }
-                      aria-label={`${vehicle.name}, ${time(hour)} to ${time(hour + 1)}, ${booking ? "booked" : chosen ? "selected" : unavailableSlot ? "unavailable" : "available"}`}
+                      aria-label={`${vehicle.name}, ${time(hour)} to ${time(hour + 1)}, ${booking ? "booked" : chosen ? "selected" : unavailableSlot ? "unavailable" : pastSlot ? "past" : "available"}`}
                       aria-pressed={!!chosen}
                       onClick={() =>
                         booking
