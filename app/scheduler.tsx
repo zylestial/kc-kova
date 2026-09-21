@@ -164,11 +164,11 @@ export default function Scheduler({
   driverBackLabel?: string;
   reviewRecordId?: string;
 }) {
-  const [date, setDate] = useState("");
-  const [records, setRecords] = useState<RecordData[]>([]);
+  const [date, setDate] = useState(() => today());
+  const [records, setRecords] = useState<RecordData[]>(() => getRecords() as RecordData[]);
   const [edit, setEdit] = useState<RecordData | null>(null);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState("details");
   const [dirty, setDirty] = useState(false);
@@ -176,10 +176,6 @@ export default function Scheduler({
   const [review, setReview] = useState(false);
   const [adminEditing, setAdminEditing] = useState(false);
   const [markConfirm, setMarkConfirm] = useState(false);
-  useEffect(() => {
-    setDate(today());
-    refresh();
-  }, []);
   useEffect(() => {
     document.title = `KOVA — ${edit ? "Daily Vehicle Record" : "Schedule"}`;
   }, [edit]);
@@ -206,8 +202,13 @@ export default function Scheduler({
     draft.pm = draft.pm || "Joedel Capillan";
     draft.coo = draft.coo || "President Vargas";
     if (!linked) draft.legs[0].destination = driverBooking.destination;
-    setEdit(draft);
-    setDate(driverBooking.date);
+    // Deferred to a microtask: this reacts to the driverBooking prop
+    // changing (not a one-time mount hydration), so it can't be replaced by
+    // a lazy state initializer.
+    queueMicrotask(() => {
+      setEdit(draft);
+      setDate(driverBooking.date);
+    });
   }, [role, driverBooking]);
   useEffect(() => {
     if (
@@ -220,9 +221,11 @@ export default function Scheduler({
       (r) => r.id === reviewRecordId && r.submittedAt,
     ) as RecordData | undefined;
     if (record) {
-      setEdit(structuredClone(record));
-      setDate(record.date);
-      setTab("details");
+      queueMicrotask(() => {
+        setEdit(structuredClone(record));
+        setDate(record.date);
+        setTab("details");
+      });
     }
   }, [role, reviewRecordId]);
   function refresh() {
