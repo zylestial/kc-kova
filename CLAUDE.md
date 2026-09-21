@@ -33,11 +33,21 @@
 
 ## Project docs
 
-See `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/RULES.md`, `docs/DESIGN.md`,
-`docs/TASKS.md`, and `docs/MEMORY.md` for product intent, system design,
-enforced business rules, data model/API contract, outstanding work, and the
-log of non-obvious decisions, respectively. Keep them updated as the system
-changes — especially `docs/TASKS.md` and `docs/MEMORY.md`.
+- `docs/PRD.md` — what KOVA is and why (no implementation detail)
+- `docs/ARCHITECTURE.md` — stack, data model, API/RPCs, auth, deployment
+- `docs/DESIGN.md` — screens, visual language, UI/UX patterns
+- `docs/RULES.md` — enforced business rules, **and** engineering/agent
+  conventions (naming, Supabase/RLS/migration rules, security, testing,
+  git). Check here before asking "is there a convention for this?" —
+  don't restate its content elsewhere, including in this file; the "Git
+  commits" section below is this session's actionable instructions, not a
+  substitute for `docs/RULES.md`'s own git-conventions summary.
+- `docs/TASKS.md` — what's done vs. outstanding
+- `docs/MEMORY.md` — decision log, gotchas, environment notes, open
+  questions — check here before re-deciding something already settled
+
+Keep them updated as the system changes — especially `docs/TASKS.md` and
+`docs/MEMORY.md`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
