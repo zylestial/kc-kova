@@ -245,7 +245,7 @@ export default function Scheduler({
     (role === "Booker" && !!edit?.submittedAt) ||
     (role === "Admin" && edit?.status === "DONE") ||
     (adminReviewMode && !adminEditing);
-  function update(k: keyof RecordData, v: any) {
+  function update<K extends keyof RecordData>(k: K, v: RecordData[K]) {
     if (edit && !readOnly) {
       setEdit({ ...edit, [k]: v });
       setDirty(true);
