@@ -59,6 +59,19 @@ this file whenever a task's status changes.
       correct. Neither gap could have been caught by `tsc`, `eslint`, unit
       tests, or `next build` — only a real request against a real database
       surfaced them.
+- [x] **Walked the actual UI in a browser against the live Supabase
+      project** (headless Chromium via Playwright, driven ad hoc — not a
+      committed test): signed in as the seeded `admin` account, landed on
+      Admin Home, navigated into the Schedule/booking-flow screen (which
+      correctly showed "0 vehicle-hours open" against the now-empty
+      project) and into Settings → Accounts (which correctly listed the
+      real seeded account). Zero browser console errors across all three
+      screens. This confirms `lib/kova-api.ts`'s fetch layer and the
+      screens built on it work end to end against the real backend, not
+      just the API in isolation.
+
+## Outstanding / follow-ups
+
 - [ ] **`vehicle_records` writes run through application code + the
       service-role client, not a Postgres RPC** (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.
@@ -78,12 +91,12 @@ this file whenever a task's status changes.
       existing frontend components — they have not been reviewed against
       what the actual stakeholders (KOVA's operators) want. Treat them as a
       first draft to correct, not a finished spec.
-- [ ] **The live-Supabase verification above was manual (curl against a
-      running dev server), not automated.** Worth turning into a real
-      integration test suite (e.g. against a Supabase local/CI instance)
-      so the RLS-grant class of bug and the RPC conflict/atomicity
-      guarantees are checked on every change, not just once by hand.
-- [ ] **The UI itself hasn't been exercised against the live project yet**
-      — only the API routes, via direct HTTP requests. `pnpm dev` plus a
-      browser walkthrough of each screen (`docs/DESIGN.md`'s UI structure
-      table) is still worth doing before calling this shippable.
+- [ ] **The live-Supabase and UI verification above was manual (curl and an
+      ad hoc Playwright script against a running dev server), not
+      automated.** Worth turning into a real, committed integration/e2e
+      test suite (e.g. against a Supabase local/CI instance) so the
+      RLS-grant class of bug and the RPC conflict/atomicity guarantees are
+      checked on every change, not just once by hand. Only Admin Home,
+      Schedule, and Settings/Accounts were walked — Driver-trip submission,
+      Admin review, and Booking Options/Vehicles tabs still haven't been
+      clicked through in a real browser.
