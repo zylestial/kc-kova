@@ -90,16 +90,18 @@ this file whenever a task's status changes.
       `0001_init.sql` triggers when actually invoked. See `docs/MEMORY.md`
       for the full account. `supabase/config.toml` is now committed so
       this is repeatable for anyone with Docker.
+- [x] **Migrations 0006–0009 applied to production** (`kc-kova`,
+      ref `rhzqdtgruhpdhopkksuf`) via `supabase db push`, after a manual
+      schema+data backup and confirming production's `vehicle_records` had
+      no rows that would break `0008`'s expression index (it was in fact
+      completely empty except the seeded Admin account, so the concern
+      raised below didn't materialize). Verified post-push with a
+      read-only schema dump: all 22 expected per-operation RLS policies
+      and all 8 expected indexes present. PR #1 (`chore/audit-and-cleanup`)
+      merged to `master`.
 
 ## Outstanding / follow-ups
 
-- [ ] **`0008_indexes_for_rls_and_fks.sql`'s expression index
-      `((data->>'bookingId')::uuid)` was only tested against a freshly
-      reset, empty database** — the local verification pass above could
-      not exercise what happens against pre-existing data. It will fail to
-      create if any real `vehicle_records` row has a non-UUID, non-null
-      `bookingId`. Check that against production's actual data before
-      applying there (see the query in `docs/MEMORY.md`).
 - [ ] **Content-Security-Policy header was deliberately not added** in this
       pass (`next.config.ts` only got the risk-free headers). Getting
       `script-src` right for Next's own inline bootstrap scripts needs
@@ -112,15 +114,14 @@ this file whenever a task's status changes.
       dependency (via `@hookform/resolvers`); worth a dedicated pass to
       define one schema per route body and parse with it up front, rather
       than mixing this into an unrelated fix.
-- [ ] **pgTAP / integration tests proving RLS isolation (user A can't
-      read/write user B's rows, anon is denied) were not added** — same
-      root cause as the migration-testing gap above: no local/CI Supabase
-      instance was reachable to run them against. The manual
-      live-Supabase verification already on record (see the "Done"
-      section) exercised the *old* policy shape; it should be re-run
-      against the new per-operation policies before they reach production,
-      and turning it into a committed automated suite remains the
-      still-open follow-up noted below.
+- [ ] **pgTAP / integration tests proving RLS isolation are still not a
+      committed, automated suite.** The manual verification exists (see
+      the local-instance and production Done items above: anon denied
+      everywhere, Driver ownership isolation, Admin full access, all four
+      RPCs end-to-end) but was run by hand against a local instance, not
+      as CI-checked tests. Turning it into a real pgTAP or integration
+      suite (e.g. against a Supabase instance spun up in CI) so this is
+      checked on every change, not just once by hand, remains open.
 - [ ] **`vehicle_records` writes run through application code + the
       service-role client, not a Postgres RPC** (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.
@@ -140,6 +141,10 @@ this file whenever a task's status changes.
       existing frontend components — they have not been reviewed against
       what the actual stakeholders (KOVA's operators) want. Treat them as a
       first draft to correct, not a finished spec.
+- [ ] **`docs/PRD.md` has no Success metrics or Acceptance criteria
+      sections.** Not invented here since no stakeholder input or
+      analytics exist to source them from — logged as an open question in
+      `docs/MEMORY.md`. Fill in once that input exists.
 - [ ] **The live-Supabase and UI verification above was manual (curl and an
       ad hoc Playwright script against a running dev server), not
       automated.** Worth turning into a real, committed integration/e2e
