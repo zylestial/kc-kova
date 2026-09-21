@@ -18,16 +18,29 @@ this file whenever a task's status changes.
 - [x] `PUT /api/records/:recordId` — submission validation, Admin review, history
 - [x] `PUT /api/booking-options/:group/:id`, `PUT /api/booking-options/people/:id`
 - [x] `tsc --noEmit`, `eslint`, and `next build` all pass on every route added
+- [x] Vitest unit tests for the pure business-rule/mapping helpers: ANONANG
+      round-trip check, odometer/time-eligibility validation, history
+      diffing, admin-only field stripping, auth-email mapping, and every
+      DB-row-to-API-type mapper (`lib/supabase/records.test.ts`,
+      `accounts.test.ts`, `mappers.test.ts`, `lib/kova-api.test.ts`) — run
+      with `pnpm test`
 
 ## Outstanding / follow-ups
 
 - [ ] **No live Supabase project has been exercised yet.** Everything above
-      has been verified by static type-checking and a production build, not
-      by running against a real database. Before shipping: create a
-      Supabase project, run the three migrations in order, populate
-      `.env.local` from `.env.example`, and walk every workflow in
-      `docs/PRD.md` end to end (sign in as each role; book; submit a trip;
-      review and mark done; rename a vehicle; add a booking option).
+      has been verified by static type-checking, a production build, and
+      unit tests of pure logic — not by running against a real database.
+      The unit tests deliberately don't cover anything that touches
+      Supabase itself (RLS policies, the RPC functions, or the route
+      handlers' own database calls), since that needs a real project to
+      run against. Before shipping: create a Supabase project, run the
+      three migrations in order, populate `.env.local` from
+      `.env.example`, and walk every workflow in `docs/PRD.md` end to end
+      (sign in as each role; book; submit a trip; review and mark done;
+      rename a vehicle; add a booking option). Once a project is available,
+      add integration tests for the route handlers themselves and for the
+      RPC functions' conflict/atomicity guarantees — the highest-value
+      remaining test gap.
 - [ ] **`vehicle_records` writes run through application code + the
       service-role client, not a Postgres RPC** (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.
@@ -37,11 +50,8 @@ this file whenever a task's status changes.
       atomicity guarantee bookings get, especially the read-modify-write
       history diff, which has a narrow race window under concurrent writes
       to the same record.
-- [ ] **No automated tests exist yet** for any API route (unit or
-      integration). Given the amount of business logic living in
-      `app/api/records/[recordId]/route.ts` and the RPC functions, this is
-      the highest-value place to start.
-- [ ] **CI is not configured** — `tsc`, `eslint`, and `next build` are being
+- [ ] **CI is not configured** — `tsc`, `eslint`, `next build`, and
+      `pnpm test` are being
       run manually after each change; wiring these into a CI pipeline would
       catch regressions automatically.
 - [ ] **Password policy** is currently just "8+ characters" — revisit if the
