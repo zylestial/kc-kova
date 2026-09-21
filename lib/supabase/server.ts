@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 /**
  * Server-side Supabase client for use inside Next.js route handlers.
@@ -17,7 +17,7 @@ export async function createSupabaseServerClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           for (const { name, value, options } of cookiesToSet) {
             cookieStore.set(name, value, options);
           }
