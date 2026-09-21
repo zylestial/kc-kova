@@ -49,6 +49,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 
+const OTHER_OPTION = "__other__";
 type Vehicle = { plate: string; name: string };
 type Slot = { plate: string; start: number; end: number };
 type EditDraft = {
@@ -114,6 +115,8 @@ export default function BookingFlow() {
   const [driverId, setDriverId] = useState("");
   const [destination, setDestination] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [destinationOther, setDestinationOther] = useState(false);
+  const [purposeOther, setPurposeOther] = useState(false);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState<Booking | null>(null);
@@ -122,6 +125,8 @@ export default function BookingFlow() {
   const [requestId, setRequestId] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [draft, setDraft] = useState<EditDraft | null>(null);
+  const [draftDestinationOther, setDraftDestinationOther] = useState(false);
+  const [draftPurposeOther, setDraftPurposeOther] = useState(false);
 
   function load() {
     const vehicles = getVehicles();
@@ -238,6 +243,8 @@ export default function BookingFlow() {
     setDriverId("");
     setDestination("");
     setPurpose("");
+    setDestinationOther(false);
+    setPurposeOther(false);
     setNotes("");
   }
   async function book() {
@@ -288,6 +295,12 @@ export default function BookingFlow() {
   function openEdit() {
     if (!active || !canManageBooking(active)) return;
     setDraft(toDraft(active));
+    setDraftDestinationOther(
+      !options.destinations.some((item) => item.name === active.destination),
+    );
+    setDraftPurposeOther(
+      !options.purposes.some((item) => item.name === active.purpose),
+    );
     setEditOpen(true);
   }
   async function saveChanges() {
@@ -719,37 +732,101 @@ export default function BookingFlow() {
             </label>
             <label className="field">
               <span>DESTINATION *</span>
-              <Select value={destination} onValueChange={setDestination}>
-                <SelectTrigger aria-label="Destination">
-                  <SelectValue placeholder="Select Destination" />
-                </SelectTrigger>
-                <SelectContent>
-                  {options.destinations
-                    .filter((item) => item.status === "Active")
-                    .map((item) => (
-                      <SelectItem key={item.id} value={item.name}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              {destinationOther ? (
+                <div className="field-other">
+                  <Input
+                    aria-label="Destination"
+                    placeholder="Type a destination"
+                    value={destination}
+                    onChange={(event) => setDestination(event.target.value)}
+                    maxLength={120}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="field-other-back"
+                    onClick={() => {
+                      setDestinationOther(false);
+                      setDestination("");
+                    }}
+                  >
+                    Choose from list
+                  </button>
+                </div>
+              ) : (
+                <Select
+                  value={destination}
+                  onValueChange={(value) => {
+                    if (value === OTHER_OPTION) {
+                      setDestinationOther(true);
+                      setDestination("");
+                    } else setDestination(value);
+                  }}
+                >
+                  <SelectTrigger aria-label="Destination">
+                    <SelectValue placeholder="Select Destination" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {options.destinations
+                      .filter((item) => item.status === "Active")
+                      .map((item) => (
+                        <SelectItem key={item.id} value={item.name}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    <SelectItem value={OTHER_OPTION}>Other…</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </label>
             <label className="field">
               <span>PURPOSE *</span>
-              <Select value={purpose} onValueChange={setPurpose}>
-                <SelectTrigger aria-label="Purpose">
-                  <SelectValue placeholder="Select Purpose" />
-                </SelectTrigger>
-                <SelectContent>
-                  {options.purposes
-                    .filter((item) => item.status === "Active")
-                    .map((item) => (
-                      <SelectItem key={item.id} value={item.name}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              {purposeOther ? (
+                <div className="field-other">
+                  <Input
+                    aria-label="Purpose"
+                    placeholder="Type a purpose"
+                    value={purpose}
+                    onChange={(event) => setPurpose(event.target.value)}
+                    maxLength={120}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="field-other-back"
+                    onClick={() => {
+                      setPurposeOther(false);
+                      setPurpose("");
+                    }}
+                  >
+                    Choose from list
+                  </button>
+                </div>
+              ) : (
+                <Select
+                  value={purpose}
+                  onValueChange={(value) => {
+                    if (value === OTHER_OPTION) {
+                      setPurposeOther(true);
+                      setPurpose("");
+                    } else setPurpose(value);
+                  }}
+                >
+                  <SelectTrigger aria-label="Purpose">
+                    <SelectValue placeholder="Select Purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {options.purposes
+                      .filter((item) => item.status === "Active")
+                      .map((item) => (
+                        <SelectItem key={item.id} value={item.name}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    <SelectItem value={OTHER_OPTION}>Other…</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </label>
             <label className="field booking-notes">
               <span>NOTES</span>
@@ -1032,57 +1109,113 @@ export default function BookingFlow() {
               </label>
               <label className="field">
                 <span>DESTINATION *</span>
-                <Select
-                  value={draft.destination}
-                  onValueChange={(value) =>
-                    setDraft({ ...draft, destination: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.destinations
-                      .filter(
-                        (item) =>
-                          item.status === "Active" ||
-                          item.name === draft.destination,
-                      )
-                      .map((item) => (
-                        <SelectItem key={item.id} value={item.name}>
-                          {item.name}
-                          {item.status === "Inactive" ? " (Inactive)" : ""}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                {draftDestinationOther ? (
+                  <div className="field-other">
+                    <Input
+                      aria-label="Destination"
+                      placeholder="Type a destination"
+                      value={draft.destination}
+                      onChange={(event) =>
+                        setDraft({ ...draft, destination: event.target.value })
+                      }
+                      maxLength={120}
+                    />
+                    <button
+                      type="button"
+                      className="field-other-back"
+                      onClick={() => {
+                        setDraftDestinationOther(false);
+                        setDraft({ ...draft, destination: "" });
+                      }}
+                    >
+                      Choose from list
+                    </button>
+                  </div>
+                ) : (
+                  <Select
+                    value={draft.destination}
+                    onValueChange={(value) => {
+                      if (value === OTHER_OPTION) {
+                        setDraftDestinationOther(true);
+                        setDraft({ ...draft, destination: "" });
+                      } else setDraft({ ...draft, destination: value });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {options.destinations
+                        .filter(
+                          (item) =>
+                            item.status === "Active" ||
+                            item.name === draft.destination,
+                        )
+                        .map((item) => (
+                          <SelectItem key={item.id} value={item.name}>
+                            {item.name}
+                            {item.status === "Inactive" ? " (Inactive)" : ""}
+                          </SelectItem>
+                        ))}
+                      <SelectItem value={OTHER_OPTION}>Other…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </label>
               <label className="field">
                 <span>PURPOSE *</span>
-                <Select
-                  value={draft.purpose}
-                  onValueChange={(value) =>
-                    setDraft({ ...draft, purpose: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.purposes
-                      .filter(
-                        (item) =>
-                          item.status === "Active" ||
-                          item.name === draft.purpose,
-                      )
-                      .map((item) => (
-                        <SelectItem key={item.id} value={item.name}>
-                          {item.name}
-                          {item.status === "Inactive" ? " (Inactive)" : ""}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                {draftPurposeOther ? (
+                  <div className="field-other">
+                    <Input
+                      aria-label="Purpose"
+                      placeholder="Type a purpose"
+                      value={draft.purpose}
+                      onChange={(event) =>
+                        setDraft({ ...draft, purpose: event.target.value })
+                      }
+                      maxLength={120}
+                    />
+                    <button
+                      type="button"
+                      className="field-other-back"
+                      onClick={() => {
+                        setDraftPurposeOther(false);
+                        setDraft({ ...draft, purpose: "" });
+                      }}
+                    >
+                      Choose from list
+                    </button>
+                  </div>
+                ) : (
+                  <Select
+                    value={draft.purpose}
+                    onValueChange={(value) => {
+                      if (value === OTHER_OPTION) {
+                        setDraftPurposeOther(true);
+                        setDraft({ ...draft, purpose: "" });
+                      } else setDraft({ ...draft, purpose: value });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {options.purposes
+                        .filter(
+                          (item) =>
+                            item.status === "Active" ||
+                            item.name === draft.purpose,
+                        )
+                        .map((item) => (
+                          <SelectItem key={item.id} value={item.name}>
+                            {item.name}
+                            {item.status === "Inactive" ? " (Inactive)" : ""}
+                          </SelectItem>
+                        ))}
+                      <SelectItem value={OTHER_OPTION}>Other…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </label>
               <label className="field booking-notes">
                 <span>NOTES</span>
