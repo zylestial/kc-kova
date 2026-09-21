@@ -10,19 +10,38 @@ propose changes to the app.
 
 | Username     | Role   | Notes                          |
 |--------------|--------|---------------------------------|
+| admin1       | Admin  | Full access                     |
 | booker1      | Booker | Owns Bookings A, C              |
 | booker2      | Booker | Owns Booking B                  |
 | driver1      | Driver | Assigned to Bookings A, B       |
 | driver2      | Driver | Assigned to Booking C           |
-| admin1       | Admin  | Full access                     |
 
-Seed data needed before testing:
-- Vehicle(s) with distinct plates, at least one Project/Destination/Purpose
-  option set in Booking Options.
-- Booking A: booker1 → driver1, future date, status SCHEDULED.
-- Booking B: booker2 → driver1, a date/time window that has already ended
-  (for Driver DVR tests), status SCHEDULED.
-- Booking C: booker1 → driver2, future date, status SCHEDULED.
+## Step 0: reset and bootstrap
+
+Every account is provisioned by an Admin — there's no public sign-up (see
+`README.md`). A fresh/reset database has zero accounts, so before any role
+testing:
+
+1. Reset the database (`supabase db reset --linked` against the QA
+   project, or `supabase db reset --local`) — this drops all data,
+   including every account.
+2. Bootstrap the first Admin (`admin1`) directly with the service-role
+   client, since no account yet exists to create one through the app:
+   create the Auth user for `admin1@accounts.kova.internal` (Studio →
+   Authentication → Add user, or `auth.admin.createUser`), then insert a
+   matching `public.accounts` row with that same `id` and `role = 'Admin'`.
+3. Sign in as `admin1` and use the app's Admin account management to
+   create `booker1`, `booker2`, `driver1`, and `driver2` — this exercises
+   the normal account-creation flow and confirms it as part of the test
+   pass, rather than provisioning every account out-of-band.
+4. Seed data needed before role testing, created as `admin1`/`booker1`/etc.
+   through the app:
+   - Vehicle(s) with distinct plates, at least one Project/Destination/
+     Purpose option set in Booking Options.
+   - Booking A: booker1 → driver1, future date, status SCHEDULED.
+   - Booking B: booker2 → driver1, a date/time window that has already
+     ended (for Driver DVR tests), status SCHEDULED.
+   - Booking C: booker1 → driver2, future date, status SCHEDULED.
 
 Login is via username, mapped internally to
 `<username>@accounts.kova.internal` (`lib/supabase/accounts.ts`).
