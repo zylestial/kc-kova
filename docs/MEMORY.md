@@ -236,7 +236,94 @@ exclude them with a `where` clause) before running `0008` there.
 
 `BACKEND_INTEGRATION.md` (repo root) was written *before* any backend code,
 as the contract the frontend adapter (`lib/kova-api.ts`) was built against.
-It remains the primary contract reference. `docs/DESIGN.md`'s API table is
-a derived summary pointing at the implementing route files — if the two
-ever disagree, treat that as a bug to fix, not a reason to trust one over
-the other blindly; check which one the frontend actually relies on.
+It remains the primary contract reference. `docs/ARCHITECTURE.md`'s API
+table (moved there from `docs/DESIGN.md` during the Phase 3 docs pass — see
+below) is a derived summary pointing at the implementing route files — if
+the two ever disagree, treat that as a bug to fix, not a reason to trust
+one over the other blindly; check which one the frontend actually relies
+on.
+
+## Phase 3 docs pass (2026-09-21): updated, not rewritten
+
+Ran a gap analysis of all six core docs plus `README.md`/`CLAUDE.md`
+against the actual code and Phase 2's changes, then updated in place —
+approved plan is summarized here rather than repeated in full (see the PR
+history / commit messages for the itemized diffs):
+
+- `DESIGN.md`'s data-model and API-contract sections were moved into
+  `ARCHITECTURE.md` (that's their correct home per this repo's file-scope
+  convention: ARCHITECTURE owns the Supabase data model and API surface,
+  DESIGN owns UI/UX). `DESIGN.md` was then filled in with real content
+  derived from `app/globals.css`/`components.json` (design tokens,
+  breakpoints, the print-form layout, one confirmed focus-visible rule) —
+  loading states, form-validation UX, and a full accessibility pass are
+  explicitly marked as not yet audited rather than guessed at.
+- `RULES.md` kept its existing business rules and gained a new
+  "Engineering & agent conventions" section covering code, Supabase/
+  migration, security, testing, and git conventions, including this
+  project's own concrete audit findings.
+- `ARCHITECTURE.md` gained the env-validation/security-header/
+  search_path-hardening/index facts that Phase 2 introduced but never
+  documented, plus a new "Deployment and migrations" section.
+- `README.md` was rewritten to reflect that this repo *is* the full
+  backend (not a frontend expecting an external one), with local Supabase
+  setup and testing instructions added.
+- `TASKS.md`/`MEMORY.md` updated per their normal living-document
+  convention (this entry, and the production-deployment entry below).
+
+## Open questions
+
+- **`docs/PRD.md` has no "Success metrics" or "Acceptance criteria"
+  content.** Nothing in the existing docs or code establishes what KOVA's
+  actual operators consider success, or how a feature is formally accepted
+  — this needs stakeholder input, not an invented number. Marked `TBD` in
+  `docs/PRD.md` rather than guessed at.
+
+## Production deployment: migrations 0006–0009 (2026-09-21)
+
+Applied to the `kc-kova` Supabase project (ref `rhzqdtgruhpdhopkksuf`) via
+`supabase link` + `supabase db push`, after:
+
+- A read-only check confirming `vehicle_records` had no rows that would
+  break `0008`'s expression index (production turned out to have no
+  `vehicles`/`bookings`/`vehicle_records`/etc. rows at all yet — just the
+  seeded Admin account and one `login_attempts` row).
+- A manual schema **and** data backup via `supabase db dump --linked`
+  (schema) and `--linked --data-only` (data) — note that `db dump` without
+  `--data-only` dumps schema only, despite its log output unhelpfully
+  saying "Dumped schema to..." even when `--data-only` is passed; verify
+  a data dump actually contains `INSERT`/`COPY` statements, don't trust
+  the log line.
+
+**Gotcha:** the first `supabase db push` attempt failed trying to
+re-apply `0001_init.sql` (`relation "accounts" already exists`).
+Production's migration-history table had zero rows recorded, even though
+`0001`–`0005`'s tables already existed there (they'd originally been
+applied by some means other than `supabase db push`). Fixed with
+`supabase migration repair --status applied 0001 0002 0003 0004 0005`
+before retrying — this only updates the tracking table, it doesn't touch
+actual schema/data. Worth checking `supabase migration list --linked` (compares
+local migration files against what the target project's tracking table
+says is applied) *before* the first `db push` against any project this
+CLI hasn't pushed to before.
+
+Post-push, verified with a read-only schema dump (`supabase db dump
+--linked --schema public`) that all 22 expected per-operation RLS policies
+and all 8 expected indexes were actually present — not just that `db push`
+exited without error.
+
+**Operational lessons, not architecture decisions, but worth keeping:**
+- `supabase link` needs `supabase login` first (a one-time browser-based
+  CLI auth, separate from the database password).
+- A Postgres connection URL's password segment can't safely contain an
+  unencoded `@` or `?` (they collide with the URL's own delimiters) —
+  percent-encode them, or better, avoid raw `--db-url` connection strings
+  entirely and use `supabase link` + `--linked` flags instead, which never
+  requires the password to be typed into a command or chat at all.
+- **Never paste a real database password or connection string into a
+  chat/agent session.** It persists in that session's history/logs. This
+  happened during this deployment; the exposed password was rotated
+  immediately after (Supabase dashboard -> Project Settings -> Database ->
+  Reset database password). No production data was affected — this is
+  purely a "don't do this" lesson for next time, not a record of what the
+  password was.
