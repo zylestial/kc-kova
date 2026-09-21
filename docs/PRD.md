@@ -67,3 +67,19 @@ account.
 - **Booking conflicts must be impossible even under concurrent requests.**
   Two people racing to book the same vehicle/hour, or the same driver for two
   trips at once, must never both succeed.
+
+## Acceptance criteria
+
+TBD. The core workflows above imply the natural acceptance checks (a
+booking can't be double-booked, a record can't be submitted before the
+trip's scheduled end, Finance fields can't be set by a Driver, etc.), and
+those are enforced and tested in code (see `docs/RULES.md`,
+`docs/TASKS.md`). A formal, stakeholder-reviewed acceptance criteria list
+doesn't exist yet — see `docs/MEMORY.md` "Open questions".
+
+## Success metrics
+
+TBD. No stakeholder input or analytics exist yet to define what KOVA's
+actual operators consider success (e.g. adoption vs. the paper process it
+replaces, time-to-log a trip, Admin review turnaround). See
+`docs/MEMORY.md` "Open questions".
