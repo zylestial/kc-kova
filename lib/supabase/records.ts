@@ -44,3 +44,12 @@ export function canFinishTrip(date: string, endHour: number, now = new Date()) {
   end.setHours(endHour, 0, 0, 0);
   return now.getTime() >= end.getTime();
 }
+
+/**
+ * A Driver's record write must target the vehicle/day their own booking is
+ * actually for — otherwise a valid booking id could be paired with an
+ * unrelated date/plate to plant a fabricated vehicle_records row.
+ */
+export function matchesBookingKey(date: string, plate: string, booking: { date: string; plate: string }) {
+  return date === booking.date && plate === booking.plate;
+}

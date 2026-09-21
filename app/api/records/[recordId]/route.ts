@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAccount } from "@/lib/supabase/session";
 import { toVehicleRecord } from "@/lib/supabase/mappers";
-import { canFinishTrip, diffFields, isAnonangRoundTrip, omit, stripAdminOnlyFields } from "@/lib/supabase/records";
+import { canFinishTrip, diffFields, isAnonangRoundTrip, matchesBookingKey, omit, stripAdminOnlyFields } from "@/lib/supabase/records";
 import type { HistoryEntry } from "@/lib/kova-api";
 
 // vehicle_records grants no direct write policies (see 0001_init.sql); this
@@ -40,6 +40,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ reco
     const { data: booking } = await admin.from("bookings").select("*").eq("id", bookingId).maybeSingle();
     if (!booking || booking.driver_id !== account.id) {
       return NextResponse.json({ message: "Not authorized to edit this trip record." }, { status: 403 });
+    }
+    if (!matchesBookingKey(date, plate, booking)) {
+      return NextResponse.json({ message: "Record date/plate must match the linked booking." }, { status: 422 });
     }
 
     const cleaned = stripAdminOnlyFields(incoming);
