@@ -114,7 +114,6 @@ export default function Home() {
       <div className="sign-shell">
         <form className="sign-card" onSubmit={submit}>
           <KovaBrand signIn />
-          <div className="eyebrow">OPERATIONS & VEHICLE ALLOCATION</div>
           <h1>
             Sign In<span className="title-dot">.</span>
           </h1>
