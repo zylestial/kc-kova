@@ -170,7 +170,7 @@ post-v1.0 hardening, not blockers to this milestone.
       Admin review, and Booking Options/Vehicles tabs still haven't been
       clicked through in a real browser.
 
-## Planned — v1.1 (Booking Type + Admin Approval, not started)
+## Planned — v1.1 (Booking Type + Admin Approval, code-complete 2026-09-22)
 
 Scoped 2026-09-22 while v1.0 is in UAT, refined 2026-09-22 into its own
 milestone (previously one bullet among several prospected v1.1 items — see
@@ -180,20 +180,39 @@ for a *conflicting* booking; this is broader — **every** new booking (or
 rescheduled existing one) requires explicit Admin approval before it's
 confirmed, not just a conflicting one.
 
-- [ ] **Booking Type (Regular/Urgent) + universal Admin approval.** A
+- [x] **Booking Type (Regular/Urgent) + universal Admin approval** — code
+      complete on `feat/booking-approval-flow`, not yet merged or UAT'd. A
       required Booking Type on every request: Regular needs 7 Asia/Manila
       calendar days' notice; Urgent is same/next-day only and requires a
-      stated reason. Applies to everyone, Admin included, with zero
-      exceptions (the existing Admin "log an already-elapsed slot"
-      exemption is untouched — a separate, older rule). Every new request
-      is created `PENDING` and holds no `booking_slots`, so it never
-      blocks a slot for anyone, including itself; an Admin reviews each
-      one and either **approves** it (cancelling any currently `SCHEDULED`
-      booking(s) that conflict with it, then promoting it to `SCHEDULED`
-      and reserving its slots) or **denies** it (`REJECTED`, any
-      conflicting booking untouched). Editing an already-`SCHEDULED`
-      booking's date/time/vehicle/driver drops it back to `PENDING` and
-      needs re-approval; editing only non-schedule fields does not.
+      stated reason. Applies to everyone, Admin included, with one
+      confirmed exception: an Admin logging a date before today (the
+      existing "log an already-elapsed slot" rule) bypasses the deadline
+      checks entirely, same as before. Every new request is created
+      `PENDING` and holds no `booking_slots`, so it never blocks a slot for
+      anyone, including itself; an Admin reviews each one on a new
+      "Booking Approvals" screen and either **approves** it (cancelling any
+      currently `SCHEDULED` booking(s) that conflict with it, then
+      promoting it to `SCHEDULED` and reserving its slots) or **denies** it
+      (`REJECTED`, any conflicting booking untouched). Editing an
+      already-`SCHEDULED` booking's date/time/vehicle/driver *or* Booking
+      Type/Urgent Reason drops it back to `PENDING` and needs re-approval;
+      editing only destination/purpose/notes does not.
+      `supabase/migrations/0011_booking_type_and_approval.sql` was verified
+      by hand against a local `supabase db reset` instance (deadline
+      acceptance/rejection for both types, the Admin past-date bypass,
+      `approve_booking`'s conflict-cancellation and slot reservation,
+      `deny_booking`, non-Admin rejection, and `update_booking`'s
+      PENDING-reversion on schedule changes vs. no-reversion on
+      destination/purpose/notes-only edits) — one real bug (`FOR UPDATE`
+      combined with `DISTINCT` is invalid in Postgres) was found and fixed
+      this way. `tsc --noEmit`, `eslint`, `vitest run`, and `next build`
+      all pass. **Not yet done**: a real-browser click-through of the new
+      booking-flow UI (Booking Type toggle, date disabling, Urgent Reason
+      field, "Your pending requests" panel) and the new Admin Booking
+      Approvals screen against a running app — the DB/API layer is
+      verified but the UI has only been read and type-checked, not
+      exercised live. Do that (and the RLS spot-check that a non-owner
+      Booker can't see another Booker's `PENDING` row) before merging.
 
 ## Planned — v1.2 (prospecting only, not started)
 
