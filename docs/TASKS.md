@@ -336,25 +336,17 @@ authoritative data.
       strip, Approve/Deny, Cancel) must be real tap targets. Desktop
       layout is unaffected.
 
+- [x] **Booking notes not shown on Admin Booking Approvals** — resolved
+      while building the v1.1 approval flow: `app/admin-booking-approvals.tsx`
+      pending-request rows are now clickable and open a detail dialog that
+      shows Notes (when present), Destination, Purpose, and Urgent Reason,
+      mirroring the requester's own booking-detail dialog. No longer an
+      open item; kept here (rather than deleted) as a record that this gap
+      was found and closed, not overlooked.
+
 Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
-
-## Planned — v1.3 (prospecting only, not started)
-
-- [ ] **Booking notes not shown on Admin Booking Approvals.** Notes are
-      captured and saved correctly (`app/booking-flow.tsx`, `notes` column
-      round-trips through `create_booking`/`update_booking` and
-      `toBooking()` with no name mismatch), and they render fine in the
-      requester's own booking-detail dialog
-      (`app/booking-flow.tsx:1077-1081`). But
-      `app/admin-booking-approvals.tsx`'s pending-requests table has no
-      Notes column and no row expand/detail view, so an Admin reviewing a
-      request has no way to see the Booker's note before approving/denying
-      it — it isn't lost in storage, just never rendered on that screen.
-      Fix: add a Notes (and consider Destination/Purpose) column or a
-      row-expand/detail popover to the pending-requests table, mirroring
-      the existing `{active.notes && ...}` pattern.
 
 ## Noted for future consideration (unscoped, not v1.1)
 
