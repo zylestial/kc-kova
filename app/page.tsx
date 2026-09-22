@@ -252,9 +252,6 @@ export default function Home() {
           </>
         ) : (
           <>
-            <div className="breadcrumb">
-              Operations <span>/</span> {account.role} Home
-            </div>
             <div className="page-heading">
               <div>
                 <div className="eyebrow">{account.role.toUpperCase()}</div>
