@@ -3,6 +3,17 @@
 Kept as a living checklist of what's implemented vs. outstanding. Update
 this file whenever a task's status changes.
 
+## Status: v1.0 complete — in UAT (2026-09-22)
+
+All planned v1.0 functionality is implemented and verified: `tsc --noEmit`,
+`eslint`, `vitest`, and `next build` all pass clean; the app has been
+exercised end to end against the live `kc-kova` Supabase project (API,
+RLS, and RPC layers) and walked in a real browser. The app is deployed via
+Vercel and is now in UAT — see `docs/QA_ROLE_TESTS.md` for the test plan
+and its seeded accounts, kept current via `scripts/seed-uat.mjs`. Items
+under "Outstanding / follow-ups" below are tracked technical debt and
+post-v1.0 hardening, not blockers to this milestone.
+
 ## Done
 
 - [x] Postgres schema + RLS policies for all core tables (`0001_init.sql`)

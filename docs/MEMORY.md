@@ -297,6 +297,22 @@ third-party script, or an inline `<script>` tag with dynamic content,
 re-verify the CSP against a running browser** — the static policy assumes
 none of those exist today.
 
+## v1.0 marked done, moved into UAT (2026-09-22)
+
+With `tsc`/`eslint`/`vitest`/`next build` all clean and the CSP header
+shipped, v1.0 was declared feature-complete and the app moved into UAT:
+deployed via Vercel (project `kc-kova`, connected to the `master` branch),
+seeded with the five role accounts `docs/QA_ROLE_TESTS.md` expects
+(`admin1`/`booker1`/`booker2`/`driver1`/`driver2`, all sharing one known
+UAT password) plus two UAT vehicles and a project/destination/purpose
+booking-option set, via the new idempotent `scripts/seed-uat.mjs` (safe to
+re-run — skips existing rows, resets passwords on existing test accounts
+so a login is always known-good). The "Outstanding / follow-ups" items in
+`docs/TASKS.md` (Zod boundary validation, pgTAP RLS tests, the
+`vehicle_records` RPC migration, password policy, broader rate limiting,
+stakeholder review of PRD/RULES/DESIGN) remain open as post-v1.0 hardening
+and were explicitly not required to reach this milestone.
+
 ## Open questions
 
 - **`docs/PRD.md` has no "Success metrics" or "Acceptance criteria"
