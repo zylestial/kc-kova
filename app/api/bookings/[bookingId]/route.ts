@@ -25,8 +25,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ book
   const destination = typeof body?.destination === "string" ? body.destination : "";
   const purpose = typeof body?.purpose === "string" ? body.purpose : "";
   const notes = typeof body?.notes === "string" ? body.notes : "";
-  if (!date || !plate || !driverId || !destination || !purpose || !Number.isInteger(start) || !Number.isInteger(end)) {
-    return NextResponse.json({ message: "Date, plate, driver, time range, destination, and purpose are required." }, { status: 422 });
+  const bookingType = typeof body?.bookingType === "string" ? body.bookingType : "";
+  const urgentReason = typeof body?.urgentReason === "string" ? body.urgentReason : "";
+  if (
+    !date || !plate || !driverId || !destination || !purpose ||
+    !Number.isInteger(start) || !Number.isInteger(end) ||
+    !["REGULAR", "URGENT"].includes(bookingType)
+  ) {
+    return NextResponse.json({ message: "Date, plate, driver, time range, destination, purpose, and booking type are required." }, { status: 422 });
   }
 
   const { data, error } = await supabase.rpc("update_booking", {
@@ -39,6 +45,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ book
     p_destination: destination,
     p_purpose: purpose,
     p_notes: notes,
+    p_booking_type: bookingType,
+    p_urgent_reason: urgentReason,
   });
   if (error || !data) return errorResponse(error ?? { message: "Could not update the booking." }, "update");
 
