@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Truck,
   ChevronLeft,
@@ -13,6 +13,7 @@ import {
   getAccounts,
   getActiveBookings,
   getBookingOptions,
+  getPendingBookings,
   getVehicles,
   saveBooking,
   updateBooking,
@@ -20,6 +21,7 @@ import {
   type Account,
   type Booking,
 } from "@/lib/kova-api";
+import { isUrgentEligibleDate, regularMinDate } from "@/lib/timezone";
 import {
   Select,
   SelectContent,
@@ -61,6 +63,14 @@ type EditDraft = {
   destination: string;
   purpose: string;
   notes: string;
+  bookingType: "REGULAR" | "URGENT";
+  urgentReason: string;
+};
+const statusLabel: Record<Booking["status"], string> = {
+  PENDING: "Pending Admin approval",
+  SCHEDULED: "Scheduled",
+  REJECTED: "Rejected",
+  CANCELLED: "Cancelled",
 };
 const time = (hour: number) =>
   hour === 24
@@ -87,6 +97,8 @@ const toDraft = (booking: Booking): EditDraft => ({
   destination: booking.destination,
   purpose: booking.purpose,
   notes: booking.notes,
+  bookingType: booking.bookingType,
+  urgentReason: booking.urgentReason,
 });
 
 export default function BookingFlow() {
@@ -104,6 +116,7 @@ export default function BookingFlow() {
       .map(({ plate, name }) => ({ plate, name })),
   );
   const [bookings, setBookings] = useState<Booking[]>(() => getActiveBookings());
+  const [pending, setPending] = useState<Booking[]>(() => getPendingBookings());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
@@ -115,6 +128,8 @@ export default function BookingFlow() {
   const [driverId, setDriverId] = useState("");
   const [destination, setDestination] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [bookingType, setBookingType] = useState<"REGULAR" | "URGENT">("REGULAR");
+  const [urgentReason, setUrgentReason] = useState("");
   const [destinationOther, setDestinationOther] = useState(false);
   const [purposeOther, setPurposeOther] = useState(false);
   const [notes, setNotes] = useState("");
@@ -141,10 +156,15 @@ export default function BookingFlow() {
         .map(({ plate, name }) => ({ plate, name })),
     );
     setBookings(getActiveBookings());
+    setPending(getPendingBookings());
     setAccounts(getAccounts());
     setOptions(getBookingOptions());
     setLoading(false);
   }
+  useEffect(() => {
+    window.addEventListener("kova-data-update", load);
+    return () => window.removeEventListener("kova-data-update", load);
+  }, []);
   const current = currentAccount();
   const drivers = accounts.filter(
     (account) => account.role === "Driver" && account.status === "Active",
@@ -199,11 +219,26 @@ export default function BookingFlow() {
     day.setDate(day.getDate() + index);
     return localDate(day);
   });
+  const minRegularDate = regularMinDate();
+  const dateAllowed = (candidate: string) =>
+    bookingType === "REGULAR" ? candidate >= minRegularDate : isUrgentEligibleDate(candidate);
 
   function changeDate(nextDate: string) {
+    if (!dateAllowed(nextDate)) return;
     setDate(nextDate);
     setSelected(null);
     setError("");
+  }
+  function changeBookingType(next: "REGULAR" | "URGENT") {
+    setBookingType(next);
+    const nextMin = next === "REGULAR" ? regularMinDate() : "";
+    const allowed = next === "REGULAR" ? date >= nextMin : isUrgentEligibleDate(date);
+    if (!allowed) {
+      const snapped = next === "REGULAR" ? nextMin : localDate(new Date());
+      setDate(snapped);
+      setAnchor(snapped);
+    }
+    setSelected(null);
   }
   function shift(amount: number) {
     const day = new Date(anchor + "T12:00:00");
@@ -246,6 +281,8 @@ export default function BookingFlow() {
     setDestinationOther(false);
     setPurposeOther(false);
     setNotes("");
+    setBookingType("REGULAR");
+    setUrgentReason("");
   }
   async function book() {
     if (!selected) return;
@@ -271,10 +308,14 @@ export default function BookingFlow() {
         createdBy: creator.id,
         createdByAccountId: creator.id,
         createdAt: new Date().toISOString(),
-        status: "SCHEDULED",
+        // The server always creates PENDING regardless of this value; it's
+        // only here to satisfy the Booking type for the request payload.
+        status: "PENDING",
+        bookingType,
+        urgentReason: bookingType === "URGENT" ? urgentReason.trim() : "",
       };
-      await saveBooking(booking);
-      setActive(booking);
+      const created = await saveBooking(booking);
+      setActive(created);
       setSaved(true);
       setStep(2);
       setSelected(null);
@@ -316,6 +357,7 @@ export default function BookingFlow() {
         driverId: driver.id,
         driver: driver.name,
         notes: draft.notes.trim(),
+        urgentReason: draft.bookingType === "URGENT" ? draft.urgentReason.trim() : "",
       });
       setActive(updated);
       setEditOpen(false);
@@ -350,7 +392,20 @@ export default function BookingFlow() {
     !draft.driverId ||
     !draft.destination ||
     !draft.purpose ||
-    draft.start >= draft.end;
+    draft.start >= draft.end ||
+    (draft.bookingType === "URGENT" && !draft.urgentReason.trim());
+  const draftScheduleChanged =
+    !!active &&
+    !!draft &&
+    (active.date !== draft.date ||
+      active.plate !== draft.plate ||
+      active.start !== draft.start ||
+      active.end !== draft.end ||
+      active.driverId !== draft.driverId ||
+      active.bookingType !== draft.bookingType);
+  const myPending = pending.filter(
+    (booking) => (booking.createdByAccountId || booking.createdBy) === current?.id,
+  );
 
   return (
     <div className="booking-flow">
@@ -424,6 +479,42 @@ export default function BookingFlow() {
 
       {step === 1 && (
         <>
+          <div className="field booking-type-toggle">
+            <span>BOOKING TYPE *</span>
+            <div className="fleet-chips">
+              <button
+                type="button"
+                className={bookingType === "REGULAR" ? "active" : ""}
+                onClick={() => changeBookingType("REGULAR")}
+              >
+                Regular · 7 days notice
+              </button>
+              <button
+                type="button"
+                className={bookingType === "URGENT" ? "active" : ""}
+                onClick={() => changeBookingType("URGENT")}
+              >
+                Urgent · today/tomorrow
+              </button>
+            </div>
+          </div>
+          {myPending.length > 0 && (
+            <section className="availability-card">
+              <div className="section-heading">
+                <h2>Your pending requests</h2>
+                <span className="availability-total">{myPending.length} awaiting approval</span>
+              </div>
+              <div className="fleet-chips">
+                {myPending.map((booking) => (
+                  <button key={booking.id} onClick={() => openBooking(booking)}>
+                    {dateLabel(booking.date, { month: "short", day: "numeric" })} ·{" "}
+                    {allVehicles.find((vehicle) => vehicle.plate === booking.plate)?.name || booking.plate} ·{" "}
+                    {booking.bookingType === "URGENT" ? "Urgent" : "Regular"}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           <div className="date-strip-wrap">
             <Button
               variant="outline"
@@ -434,26 +525,32 @@ export default function BookingFlow() {
               <ChevronLeft size={18} />
             </Button>
             <div className="date-strip">
-              {days.map((day) => (
-                <button
-                  key={day}
-                  className={"date-card " + (date === day ? "selected" : "")}
-                  onClick={() => changeDate(day)}
-                  aria-pressed={date === day}
-                >
-                  <span>{dateLabel(day, { weekday: "short" })}</span>
-                  <b>{dateLabel(day, { day: "numeric" })}</b>
-                  <small>
-                    {fleet.length
-                      ? fleet.some(
-                          (vehicle) => available(vehicle.plate, day) > 0,
-                        )
-                        ? "● ● ●"
-                        : "—"
-                      : "—"}
-                  </small>
-                </button>
-              ))}
+              {days.map((day) => {
+                const allowed = dateAllowed(day);
+                return (
+                  <button
+                    key={day}
+                    className={"date-card " + (date === day ? "selected" : "") + (allowed ? "" : " disabled")}
+                    onClick={() => changeDate(day)}
+                    disabled={!allowed}
+                    aria-pressed={date === day}
+                  >
+                    <span>{dateLabel(day, { weekday: "short" })}</span>
+                    <b>{dateLabel(day, { day: "numeric" })}</b>
+                    <small>
+                      {!allowed
+                        ? "Not eligible"
+                        : fleet.length
+                          ? fleet.some(
+                              (vehicle) => available(vehicle.plate, day) > 0,
+                            )
+                            ? "● ● ●"
+                            : "—"
+                          : "—"}
+                    </small>
+                  </button>
+                );
+              })}
             </div>
             <Button
               variant="outline"
@@ -471,7 +568,7 @@ export default function BookingFlow() {
                 type="date"
                 value={date}
                 onChange={(event) => {
-                  if (event.target.value) {
+                  if (event.target.value && dateAllowed(event.target.value)) {
                     changeDate(event.target.value);
                     setAnchor(event.target.value);
                   }
@@ -837,10 +934,21 @@ export default function BookingFlow() {
                 maxLength={500}
               />
             </label>
+            {bookingType === "URGENT" && (
+              <label className="field booking-notes">
+                <span>URGENT REASON *</span>
+                <Textarea
+                  placeholder="Why does this need to be booked urgently?"
+                  value={urgentReason}
+                  onChange={(event) => setUrgentReason(event.target.value)}
+                  maxLength={500}
+                />
+              </label>
+            )}
           </div>
           <p className="helper">
-            Only active Drivers and booking choices appear. Vehicle and Driver
-            conflicts are checked before confirmation.
+            This request needs Admin approval before it&apos;s confirmed. Only
+            active Drivers and booking choices appear.
           </p>
         </section>
       )}
@@ -891,7 +999,11 @@ export default function BookingFlow() {
             loading ||
             !fleet.length ||
             (step === 2 && !selected) ||
-            (step === 3 && (!driverId || !destination || !purpose))
+            (step === 3 &&
+              (!driverId ||
+                !destination ||
+                !purpose ||
+                (bookingType === "URGENT" && !urgentReason.trim())))
           }
           onClick={() => {
             if (step === 1) setStep(2);
@@ -926,7 +1038,11 @@ export default function BookingFlow() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {saved ? "Booking confirmed" : "Booking details"}
+              {saved
+                ? active?.status === "PENDING"
+                  ? "Request submitted — pending approval"
+                  : "Booking confirmed"
+                : "Booking details"}
             </DialogTitle>
             <DialogDescription>
               {active &&
@@ -964,7 +1080,18 @@ export default function BookingFlow() {
                   </p>
                 )}
                 <p>
-                  <b>Status:</b> Scheduled
+                  <b>Type:</b> {active.bookingType === "URGENT" ? "Urgent" : "Regular"}
+                </p>
+                {active.bookingType === "URGENT" && active.urgentReason && (
+                  <p>
+                    <b>Urgent reason:</b> {active.urgentReason}
+                  </p>
+                )}
+                <p>
+                  <b>Status:</b>{" "}
+                  <span className={"status-pill " + active.status.toLowerCase()}>
+                    {statusLabel[active.status]}
+                  </span>
                 </p>
               </div>
               <DialogFooter className="booking-dialog-actions">
@@ -986,7 +1113,13 @@ export default function BookingFlow() {
                 )}
               </DialogFooter>
               {!canChange && !saved && (
-                <p className="helper">This booking is read-only.</p>
+                <p className="helper">
+                  {active.status === "REJECTED"
+                    ? "This booking was rejected."
+                    : active.status === "CANCELLED"
+                      ? "This booking was cancelled."
+                      : "This booking is read-only."}
+                </p>
               )}
             </>
           )}
@@ -1012,6 +1145,36 @@ export default function BookingFlow() {
           </DialogHeader>
           {draft && (
             <div className="modal-fields edit-booking-fields">
+              <label className="field">
+                <span>BOOKING TYPE *</span>
+                <div className="fleet-chips">
+                  <button
+                    type="button"
+                    className={draft.bookingType === "REGULAR" ? "active" : ""}
+                    onClick={() => setDraft({ ...draft, bookingType: "REGULAR" })}
+                  >
+                    Regular
+                  </button>
+                  <button
+                    type="button"
+                    className={draft.bookingType === "URGENT" ? "active" : ""}
+                    onClick={() => setDraft({ ...draft, bookingType: "URGENT" })}
+                  >
+                    Urgent
+                  </button>
+                </div>
+              </label>
+              {draft.bookingType === "URGENT" && (
+                <label className="field booking-notes">
+                  <span>URGENT REASON *</span>
+                  <Textarea
+                    placeholder="Why does this need to be booked urgently?"
+                    value={draft.urgentReason}
+                    onChange={(event) => setDraft({ ...draft, urgentReason: event.target.value })}
+                    maxLength={500}
+                  />
+                </label>
+              )}
               <label className="field">
                 <span>DATE *</span>
                 <Input
@@ -1229,6 +1392,12 @@ export default function BookingFlow() {
                 />
               </label>
             </div>
+          )}
+          {active?.status === "SCHEDULED" && draftScheduleChanged && (
+            <p className="helper">
+              Changing the date, time, vehicle, driver, or booking type will
+              require re-approval.
+            </p>
           )}
           {error && (
             <p className="modal-error" role="alert">
