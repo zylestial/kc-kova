@@ -268,6 +268,22 @@ accounts or browser-only-authoritative data.
       Vehicle Allocation" in smaller text beneath KOVA. Must wrap/scale
       cleanly on narrow screens without colliding with nav or Sign Out,
       and must still print clearly in the Daily Vehicle Record PDF header.
+- [ ] **Booking conflict waitlist.** When a Booker/Admin tries to book a
+      vehicle/time slot already taken, offer submitting the request as
+      `WAITLISTED` instead of a hard rejection, rather than auto-cancelling
+      or auto-bumping the existing booking. The existing booking is
+      untouched and keeps its `booking_slots` rows; a waitlisted request
+      holds no slots itself, so it can never itself create a conflict. An
+      Admin sees pending waitlist requests and either **approves** (which
+      cancels the conflicting booking through the existing cancel path —
+      same slot-freeing and notification behavior as today — then promotes
+      the request to a real `SCHEDULED` booking) or **denies** it (sets
+      `REJECTED`, existing booking untouched). Needs a new status value (or
+      small `booking_waitlist` table) with its own per-operation RLS
+      policies, per this repo's Supabase conventions. Nice-to-have, not
+      required for v1: auto-flag a waitlisted request as no-longer-
+      conflicting if the original booking is separately cancelled/edited
+      away from that slot before an Admin acts on it.
 - [ ] **Mobile Driver experience.** Audit and fix the full Driver journey
       (Driver Home, My Schedule, Trip Details popup, DVR's Vehicle
       Details/Trip Record+Add Leg/Return steps, Review Trip, Submit Trip,
