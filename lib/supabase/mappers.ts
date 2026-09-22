@@ -16,7 +16,9 @@ type BookingRow = {
   notes: string;
   created_by_account_id: string;
   created_at: string;
-  status: "SCHEDULED" | "CANCELLED";
+  status: "PENDING" | "SCHEDULED" | "REJECTED" | "CANCELLED";
+  booking_type: "REGULAR" | "URGENT";
+  urgent_reason: string;
 };
 
 export function toBooking(row: BookingRow): Booking {
@@ -41,6 +43,8 @@ export function toBooking(row: BookingRow): Booking {
     createdByAccountId: row.created_by_account_id,
     createdAt: row.created_at,
     status: row.status,
+    bookingType: row.booking_type,
+    urgentReason: row.urgent_reason,
   };
 }
 

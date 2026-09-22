@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
+  ClipboardCheck,
   Settings as SettingsIcon,
   ArrowLeft,
 } from "lucide-react";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Scheduler from "./scheduler";
 import {
+  getPendingBookings,
   restoreSession,
   signIn,
   signOut as endSession,
@@ -19,19 +21,24 @@ import {
 import Settings from "./settings";
 import DriverTrips from "./driver-trips";
 import AdminFinishedTrips from "./admin-finished-trips";
+import AdminBookingApprovals from "./admin-booking-approvals";
+import MyBookings from "./my-bookings";
 import KovaBrand from "./kova-brand";
 type Screen =
   | "schedule"
   | "driver-home"
   | "admin-home"
+  | "booker-home"
   | "settings"
   | "my-schedule"
   | "finished"
+  | "approvals"
+  | "my-bookings"
   | "driver-record"
   | "admin-record";
 const home = (role: Account["role"]): Screen =>
   role === "Booker"
-    ? "schedule"
+    ? "booker-home"
     : role === "Driver"
       ? "driver-home"
       : "admin-home";
@@ -47,6 +54,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
   useEffect(() => {
     restoreSession()
       .then((saved) => {
@@ -57,13 +65,24 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
+    function refresh() {
+      setPendingCount(getPendingBookings().length);
+    }
+    refresh();
+    window.addEventListener("kova-data-update", refresh);
+    return () => window.removeEventListener("kova-data-update", refresh);
+  }, []);
+  useEffect(() => {
     const titles: Record<Screen, string> = {
       schedule: "Schedule",
       "driver-home": "Driver Home",
       "admin-home": "Admin Home",
+      "booker-home": "Booker Home",
       settings: "Settings",
       "my-schedule": "My Schedule",
       finished: "Finished Trips",
+      approvals: "Booking Approvals",
+      "my-bookings": "My Bookings",
       "driver-record": "Daily Vehicle Record",
       "admin-record": "Daily Vehicle Record",
     };
@@ -149,19 +168,11 @@ export default function Home() {
         </form>
       </div>
     );
-  if (account.role === "Booker")
+  if (screen === "schedule" && (account.role === "Admin" || account.role === "Booker"))
     return (
       <Scheduler
-        role="Booker"
-        onHome={() => setScreen("schedule")}
-        onSignOut={signOut}
-      />
-    );
-  if (screen === "schedule" && account.role === "Admin")
-    return (
-      <Scheduler
-        role="Admin"
-        onHome={() => setScreen("admin-home")}
+        role={account.role}
+        onHome={() => setScreen(home(account.role))}
         onSignOut={signOut}
       />
     );
@@ -205,7 +216,7 @@ export default function Home() {
       <main className="role-main">
         {screen === "settings" && account.role === "Admin" ? (
           <Settings onBack={() => setScreen("admin-home")} />
-        ) : screen === "finished" || screen === "my-schedule" ? (
+        ) : screen === "finished" || screen === "my-schedule" || screen === "approvals" || screen === "my-bookings" ? (
           <>
             <Button
               variant="ghost"
@@ -226,6 +237,10 @@ export default function Home() {
                   setScreen("driver-record");
                 }}
               />
+            ) : account.role === "Booker" ? (
+              <MyBookings />
+            ) : screen === "approvals" ? (
+              <AdminBookingApprovals />
             ) : (
               <AdminFinishedTrips
                 onOpen={(id) => {
@@ -237,16 +252,13 @@ export default function Home() {
           </>
         ) : (
           <>
-            <div className="breadcrumb">
-              Operations <span>/</span> {account.role} Home
-            </div>
             <div className="page-heading">
               <div>
                 <div className="eyebrow">{account.role.toUpperCase()}</div>
                 <h1>
-                  {account.role === "Driver"
-                    ? `Welcome, ${account.name}`
-                    : "Admin Home"}
+                  {account.role === "Admin"
+                    ? "Admin Home"
+                    : `Welcome, ${account.name}`}
                   <span className="title-dot">.</span>
                 </h1>
               </div>
@@ -267,6 +279,21 @@ export default function Home() {
                     <CheckCircle2 size={24} /> Finished Trips
                   </Button>
                 </>
+              ) : account.role === "Booker" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setScreen("schedule")}
+                  >
+                    <CalendarDays size={24} /> Book a Vehicle
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setScreen("my-bookings")}
+                  >
+                    <ClipboardCheck size={24} /> My Bookings
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button
@@ -274,6 +301,13 @@ export default function Home() {
                     onClick={() => setScreen("schedule")}
                   >
                     <CalendarDays size={24} /> Schedule
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setScreen("approvals")}
+                  >
+                    <ClipboardCheck size={24} /> Booking Approvals
+                    {pendingCount > 0 && <span className="count">{pendingCount}</span>}
                   </Button>
                   <Button
                     variant="outline"

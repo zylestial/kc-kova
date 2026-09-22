@@ -18,7 +18,7 @@ function loadEnvLocal() {
 }
 loadEnvLocal();
 
-const UAT_PASSWORD = "Uat-Test1234!";
+const UAT_PASSWORD = "test1234";
 const AUTH_EMAIL_DOMAIN = "accounts.kova.internal";
 const usernameToAuthEmail = (username) => `${username.toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
 

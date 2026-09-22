@@ -382,32 +382,19 @@ export default function Scheduler({
         </header>
         <main>
           <div className="breadcrumb">
-            {role !== "Booker" && (
-              <Button
-                variant="ghost"
-                onClick={adminReviewMode ? close : onHome}
-              >
-                <ArrowLeft size={15} />{" "}
-                {role === "Driver"
-                  ? driverBackLabel
-                  : adminReviewMode
-                    ? "Finished Trips"
-                    : "Admin Home"}
-              </Button>
-            )}{" "}
-            Operations <span>/</span>{" "}
-            {role === "Driver"
-              ? "My Schedule"
-              : adminReviewMode
-                ? "Finished Trips"
-                : "Schedule"}{" "}
-            {edit && (
-              <>
-                <span>/</span> Daily record
-              </>
-            )}
+            <Button
+              variant="ghost"
+              onClick={adminReviewMode ? close : onHome}
+            >
+              <ArrowLeft size={15} />{" "}
+              {role === "Driver"
+                ? driverBackLabel
+                : adminReviewMode
+                  ? "Finished Trips"
+                  : `${role} Home`}
+            </Button>
           </div>
-          {!edit && role !== "Driver" && !adminReviewMode && (
+          {!edit && role === "Admin" && !adminReviewMode && (
             <Tabs value={view} onValueChange={setView} className="main-nav">
               <TabsList>
                 <TabsTrigger value="book">Book a vehicle</TabsTrigger>

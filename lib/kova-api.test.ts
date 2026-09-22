@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canFinishTrip, validateDriverSubmission, type Booking, type VehicleRecord } from "@/lib/kova-api";
+import { canFinishTrip, canManageBooking, validateDriverSubmission, type Account, type Booking, type VehicleRecord } from "@/lib/kova-api";
 
 function makeBooking(overrides: Partial<Booking> = {}): Booking {
   return {
@@ -17,10 +17,17 @@ function makeBooking(overrides: Partial<Booking> = {}): Booking {
     purpose: "Delivery",
     notes: "",
     createdBy: "Requester One",
+    createdByAccountId: "r1",
     createdAt: "2020-01-01T00:00:00Z",
     status: "SCHEDULED",
+    bookingType: "REGULAR",
+    urgentReason: "",
     ...overrides,
   };
+}
+
+function makeAccount(overrides: Partial<Account> = {}): Account {
+  return { id: "r1", name: "Requester One", username: "requester", role: "Booker", status: "Active", ...overrides };
 }
 
 function makeRecord(overrides: Partial<VehicleRecord> = {}): VehicleRecord {
@@ -51,6 +58,10 @@ describe("canFinishTrip", () => {
   it("is false for a cancelled booking", () => {
     expect(canFinishTrip(makeBooking({ status: "CANCELLED" }), new Date("2020-01-01T13:00:00"))).toBe(false);
   });
+
+  it("is false for a still-pending booking", () => {
+    expect(canFinishTrip(makeBooking({ status: "PENDING" }), new Date("2020-01-01T13:00:00"))).toBe(false);
+  });
 });
 
 describe("validateDriverSubmission", () => {
@@ -80,5 +91,35 @@ describe("validateDriverSubmission", () => {
 
   it("rejects a trip with no legs at all", () => {
     expect(() => validateDriverSubmission(makeRecord({ legs: [] }), makeBooking(), "d1")).toThrow("ANONANG");
+  });
+});
+
+describe("canManageBooking", () => {
+  it("allows the owning Booker to manage a PENDING booking", () => {
+    expect(canManageBooking(makeBooking({ status: "PENDING" }), makeAccount())).toBe(true);
+  });
+
+  it("allows the owning Booker to manage a SCHEDULED booking", () => {
+    expect(canManageBooking(makeBooking({ status: "SCHEDULED" }), makeAccount())).toBe(true);
+  });
+
+  it("allows an Admin to manage any PENDING booking", () => {
+    expect(canManageBooking(makeBooking({ status: "PENDING" }), makeAccount({ id: "admin1", role: "Admin" }))).toBe(true);
+  });
+
+  it("denies managing a REJECTED booking", () => {
+    expect(canManageBooking(makeBooking({ status: "REJECTED" }), makeAccount())).toBe(false);
+  });
+
+  it("denies managing a CANCELLED booking", () => {
+    expect(canManageBooking(makeBooking({ status: "CANCELLED" }), makeAccount())).toBe(false);
+  });
+
+  it("denies a Booker who doesn't own the booking", () => {
+    expect(canManageBooking(makeBooking({ status: "PENDING" }), makeAccount({ id: "someone-else" }))).toBe(false);
+  });
+
+  it("denies with no signed-in account", () => {
+    expect(canManageBooking(makeBooking({ status: "PENDING" }), null)).toBe(false);
   });
 });

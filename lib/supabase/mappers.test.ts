@@ -20,6 +20,8 @@ describe("toBooking", () => {
       created_by_account_id: "r1",
       created_at: "2026-01-01T00:00:00Z",
       status: "SCHEDULED",
+      booking_type: "REGULAR",
+      urgent_reason: "",
     });
     expect(booking).toEqual({
       id: "b1",
@@ -40,6 +42,8 @@ describe("toBooking", () => {
       createdByAccountId: "r1",
       createdAt: "2026-01-01T00:00:00Z",
       status: "SCHEDULED",
+      bookingType: "REGULAR",
+      urgentReason: "",
     });
   });
 });
