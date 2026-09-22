@@ -281,8 +281,6 @@ export default function BookingFlow() {
     setDestinationOther(false);
     setPurposeOther(false);
     setNotes("");
-    setBookingType("REGULAR");
-    setUrgentReason("");
   }
   async function book() {
     if (!selected) return;
@@ -320,6 +318,8 @@ export default function BookingFlow() {
       setStep(2);
       setSelected(null);
       resetForm();
+      setBookingType("REGULAR");
+      setUrgentReason("");
       load();
     } catch (caught) {
       setError((caught as Error).message);
