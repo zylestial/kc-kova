@@ -348,7 +348,7 @@ Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
 
-## Noted for future consideration (unscoped, not v1.1)
+## Planned — v1.3 (Notifications, prospecting only, not started)
 
 - [ ] **Notifications** (email/push/in-app). No notification system exists
       anywhere in this codebase today — every status change (a booking
