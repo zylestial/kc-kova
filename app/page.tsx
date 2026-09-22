@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
+  ClipboardCheck,
   Settings as SettingsIcon,
   ArrowLeft,
 } from "lucide-react";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Scheduler from "./scheduler";
 import {
+  getPendingBookings,
   restoreSession,
   signIn,
   signOut as endSession,
@@ -19,6 +21,7 @@ import {
 import Settings from "./settings";
 import DriverTrips from "./driver-trips";
 import AdminFinishedTrips from "./admin-finished-trips";
+import AdminBookingApprovals from "./admin-booking-approvals";
 import KovaBrand from "./kova-brand";
 type Screen =
   | "schedule"
@@ -27,6 +30,7 @@ type Screen =
   | "settings"
   | "my-schedule"
   | "finished"
+  | "approvals"
   | "driver-record"
   | "admin-record";
 const home = (role: Account["role"]): Screen =>
@@ -47,6 +51,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
   useEffect(() => {
     restoreSession()
       .then((saved) => {
@@ -57,6 +62,14 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
+    function refresh() {
+      setPendingCount(getPendingBookings().length);
+    }
+    refresh();
+    window.addEventListener("kova-data-update", refresh);
+    return () => window.removeEventListener("kova-data-update", refresh);
+  }, []);
+  useEffect(() => {
     const titles: Record<Screen, string> = {
       schedule: "Schedule",
       "driver-home": "Driver Home",
@@ -64,6 +77,7 @@ export default function Home() {
       settings: "Settings",
       "my-schedule": "My Schedule",
       finished: "Finished Trips",
+      approvals: "Booking Approvals",
       "driver-record": "Daily Vehicle Record",
       "admin-record": "Daily Vehicle Record",
     };
@@ -205,7 +219,7 @@ export default function Home() {
       <main className="role-main">
         {screen === "settings" && account.role === "Admin" ? (
           <Settings onBack={() => setScreen("admin-home")} />
-        ) : screen === "finished" || screen === "my-schedule" ? (
+        ) : screen === "finished" || screen === "my-schedule" || screen === "approvals" ? (
           <>
             <Button
               variant="ghost"
@@ -226,6 +240,8 @@ export default function Home() {
                   setScreen("driver-record");
                 }}
               />
+            ) : screen === "approvals" ? (
+              <AdminBookingApprovals />
             ) : (
               <AdminFinishedTrips
                 onOpen={(id) => {
@@ -274,6 +290,13 @@ export default function Home() {
                     onClick={() => setScreen("schedule")}
                   >
                     <CalendarDays size={24} /> Schedule
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setScreen("approvals")}
+                  >
+                    <ClipboardCheck size={24} /> Booking Approvals
+                    {pendingCount > 0 && <span className="count">{pendingCount}</span>}
                   </Button>
                   <Button
                     variant="outline"
