@@ -223,17 +223,35 @@ accounts or browser-only-authoritative data.
       affect ownership or Requested By. Edit Booking must correctly
       reshow all three cases (empty, saved option, custom Other,
       including a since-Inactive one).
-- [ ] **Automatic ANONANG return leg.** First leg's Origin is always
-      ANONANG; last leg's Destination is always ANONANG and read-only for
-      the Driver; every other leg's Origin auto-derives from the
-      preceding leg's Destination and re-links on insert/edit/remove of
-      an intermediate leg, without discarding Driver-entered values
-      (times stay manual/optional). A new record pre-populates as
-      `ANONANG → booked destination` / `booked destination → ANONANG`
-      from the booking's scheduled Destination. Submission validation (and
-      the equivalent backend validation) confirms the route starts/ends
-      at ANONANG and adjacent legs connect; older saved records must load
-      without data loss under the new rule. Carries through to the PDF.
+- [ ] **Trip leg buttons and final return.** Reworks Trip Record leg entry
+      to be Driver-button-driven instead of auto-generating a return leg.
+      - **Initial leg:** a new record starts with just LEG 01, Origin fixed
+        to ANONANG, Destination pre-filled from the booking's scheduled
+        Destination when available (Driver may edit the actual
+        Destination). No return leg is auto-created.
+      - **Buttons:** `+ ADD LEG` and `+ ADD FINAL LEG` render side by side
+        beneath the last leg's fields, and the row moves down to stay below
+        the last leg as more legs are added (stack instead of side-by-side
+        on narrow/mobile widths, both remaining easily tappable).
+      - **Add Leg:** appends a normal leg with Origin auto-set to the
+        preceding leg's Destination, Destination left editable, and every
+        previously entered field untouched.
+      - **Add Final Leg:** appends the one allowed return leg, with Origin
+        auto-set to the preceding leg's Destination and Destination fixed
+        to ANONANG (read-only); Time Out/Time In/Requestor/Purpose-Activity/
+        contact fields stay optional and editable. Only one final leg is
+        allowed at a time — both buttons hide while it exists. The Driver
+        may remove it before submission, which re-shows both buttons below
+        the new last leg. While present, its Origin stays in sync if the
+        preceding leg's Destination changes.
+      - **Validation:** the route must start and end at ANONANG, and every
+        Origin after the first must match the preceding leg's Destination,
+        both enforced client-side and re-checked server-side on submission;
+        a missing final leg blocks submission with "Add a final leg to
+        return to ANONANG." Actual trip times (Time Out/Time In) are never
+        auto-filled. Older saved records must still load and submit without
+        data loss under the new rule, and the leg list carries through to
+        the PDF as today.
 - [ ] **Finance "Date Submitted" from `submittedAt`.** Backend sets
       `submittedAt` once, authoritatively, on the Driver's successful
       submission — never reset by Admin edits, printing, or Mark as Done,
