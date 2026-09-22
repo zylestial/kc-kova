@@ -100,13 +100,17 @@ this file whenever a task's status changes.
       and all 8 expected indexes present. PR #1 (`chore/audit-and-cleanup`)
       merged to `master`.
 
+- [x] **Content-Security-Policy header** (`next.config.ts`) — static
+      (non-nonce) policy locked to `'self'`/`'none'` on every directive
+      except `script-src`/`style-src` (`'unsafe-inline'`, required by
+      Next's hydration script and this app's inline `style={{...}}` usage).
+      Verified against a real `next dev` build in headless Chromium: the
+      sign-in page rendered correctly with zero CSP-violation console
+      messages. See `docs/MEMORY.md` for why the static approach was chosen
+      over proxy-based nonces.
+
 ## Outstanding / follow-ups
 
-- [ ] **Content-Security-Policy header was deliberately not added** in this
-      pass (`next.config.ts` only got the risk-free headers). Getting
-      `script-src` right for Next's own inline bootstrap scripts needs
-      verification against a real running build/browser before it ships,
-      or it risks silently breaking the app.
 - [ ] **Zod (or similar) boundary validation was not rolled out to every
       API route** — most routes already do manual `typeof body?.x ===
       "string"` checks, which are correct but inconsistent in shape and

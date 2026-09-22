@@ -271,6 +271,32 @@ history / commit messages for the itemized diffs):
 - `TASKS.md`/`MEMORY.md` updated per their normal living-document
   convention (this entry, and the production-deployment entry below).
 
+## Content-Security-Policy: static header, not proxy-based nonces (2026-09-22)
+
+`next.config.ts` previously shipped without a CSP header at all, deferred
+pending verification. Next 16's own docs (`node_modules/next/dist/docs/
+01-app/02-guides/content-security-policy.md`) offer two approaches: a
+per-request nonce generated in `proxy.ts` (this version's renamed
+`middleware.ts`), or a static header set directly in `next.config.ts`.
+Nonces require every page to opt into dynamic rendering (`await
+connection()`), which this app doesn't currently need — no page reads
+`cookies()`/`headers()`, `/` prerenders as fully static, and there are no
+third-party scripts to gate behind a nonce. Decision: use the static
+header instead, with `'unsafe-inline'` on `script-src` (Next's hydration
+payload script) and `style-src` (a handful of `style={{...}}` inline
+styles in `app/`/`components/`) — every other directive is locked to
+`'self'`/`'none'` (`object-src 'none'`, `base-uri 'self'`, `form-action
+'self'`, `frame-ancestors 'none'`, `frame-ancestors` blocking clickjacking
+in particular). `connect-src 'self'` is sufficient because this app has no
+direct browser-to-Supabase calls — every data operation goes through this
+app's own `/api/*` routes. Verified safe by running a real `next dev`
+build and loading the sign-in page in headless Chromium: zero
+CSP-violation console messages, and inline styles/hydration rendered
+correctly. **If a future change adds a client-side Supabase call, a
+third-party script, or an inline `<script>` tag with dynamic content,
+re-verify the CSP against a running browser** — the static policy assumes
+none of those exist today.
+
 ## Open questions
 
 - **`docs/PRD.md` has no "Success metrics" or "Acceptance criteria"
