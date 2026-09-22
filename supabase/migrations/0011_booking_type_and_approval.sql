@@ -338,13 +338,16 @@ begin
   -- the authoritative conflict surface (it's exactly what the unique
   -- constraints protect).
   for v_conflict in
-    select distinct b.id
-    from public.booking_slots s
-    join public.bookings b on b.id = s.booking_id
+    select b.id
+    from public.bookings b
     where b.status = 'SCHEDULED'
-      and s.date = v_existing.date
-      and s.hour >= v_existing.start_hour and s.hour < v_existing.end_hour
-      and (s.plate = v_existing.plate or s.driver_id = v_existing.driver_id)
+      and exists (
+        select 1 from public.booking_slots s
+        where s.booking_id = b.id
+          and s.date = v_existing.date
+          and s.hour >= v_existing.start_hour and s.hour < v_existing.end_hour
+          and (s.plate = v_existing.plate or s.driver_id = v_existing.driver_id)
+      )
     for update of b
   loop
     update public.bookings set status = 'CANCELLED' where id = v_conflict.id;
