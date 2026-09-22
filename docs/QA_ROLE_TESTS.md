@@ -42,19 +42,14 @@ fresh UI logins.
 
 ## 1. Session: admin1 — setup
 
-### 1.0 Reset and bootstrap
+### 1.0 Bootstrap
 Every account is provisioned by an Admin — there's no public sign-up (see
-`README.md`). A fresh/reset database has zero accounts, so before any role
-testing:
-
-1. Reset the database (`supabase db reset --linked` against the QA
-   project, or `supabase db reset --local`) — this drops all data,
-   including every account.
-2. Bootstrap the first Admin (`admin1`) directly with the service-role
-   client, since no account yet exists to create one through the app:
-   create the Auth user for `admin1@accounts.kova.internal` (Studio →
-   Authentication → Add user, or `auth.admin.createUser`), then insert a
-   matching `public.accounts` row with that same `id` and `role = 'Admin'`.
+`README.md`). If `admin1` doesn't already exist, bootstrap it directly
+with the service-role client, since no account yet exists to create one
+through the app: create the Auth user for
+`admin1@accounts.kova.internal` (Studio → Authentication → Add user, or
+`auth.admin.createUser`), then insert a matching `public.accounts` row
+with that same `id` and `role = 'Admin'`.
 
 Login is via username, mapped internally to
 `<username>@accounts.kova.internal` (`lib/supabase/accounts.ts`).
