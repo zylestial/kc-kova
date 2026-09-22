@@ -42,6 +42,8 @@
 - If tests or a build exist, run them before committing (this project:
   `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`), and don't commit code
   known to be broken.
+- When adding a new feature, create a new branch for it first — don't
+  build features directly on `master`.
 
 ## Project docs
 
