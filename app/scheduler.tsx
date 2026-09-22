@@ -407,7 +407,7 @@ export default function Scheduler({
               </>
             )}
           </div>
-          {!edit && role !== "Driver" && !adminReviewMode && (
+          {!edit && role === "Admin" && !adminReviewMode && (
             <Tabs value={view} onValueChange={setView} className="main-nav">
               <TabsList>
                 <TabsTrigger value="book">Book a vehicle</TabsTrigger>
