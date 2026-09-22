@@ -85,13 +85,8 @@ begin
       if p_date < v_today_manila + 7 then
         raise exception 'Regular bookings require at least 7 days'' notice' using errcode = '22023';
       end if;
-    else
-      if p_date < v_today_manila or p_date > v_today_manila + 1 then
-        raise exception 'Urgent bookings must be for today or tomorrow' using errcode = '22023';
-      end if;
-      if coalesce(trim(p_urgent_reason), '') = '' then
-        raise exception 'Urgent bookings require a stated reason' using errcode = '22023';
-      end if;
+    elsif coalesce(trim(p_urgent_reason), '') = '' then
+      raise exception 'Urgent bookings require a stated reason' using errcode = '22023';
     end if;
   end if;
 
@@ -202,13 +197,8 @@ begin
         if p_date < v_today_manila + 7 then
           raise exception 'Regular bookings require at least 7 days'' notice' using errcode = '22023';
         end if;
-      else
-        if p_date < v_today_manila or p_date > v_today_manila + 1 then
-          raise exception 'Urgent bookings must be for today or tomorrow' using errcode = '22023';
-        end if;
-        if coalesce(trim(p_urgent_reason), '') = '' then
-          raise exception 'Urgent bookings require a stated reason' using errcode = '22023';
-        end if;
+      elsif coalesce(trim(p_urgent_reason), '') = '' then
+        raise exception 'Urgent bookings require a stated reason' using errcode = '22023';
       end if;
     end if;
   end if;
