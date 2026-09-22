@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     email_confirm: true,
   });
   if (createError || !created.user) {
+    console.error("[api/accounts] createUser failed:", createError);
     const isDuplicate = createError?.code === "email_exists" || /already been registered/i.test(createError?.message ?? "");
     return NextResponse.json({ message: isDuplicate ? "Username already exists." : "Could not create the account." }, { status: isDuplicate ? 409 : 422 });
   }
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
     .select("*")
     .single();
   if (insertError || !accountRow) {
+    console.error("[api/accounts] accounts insert failed:", insertError);
     await admin.auth.admin.deleteUser(created.user.id);
     const isDuplicate = insertError?.code === "23505";
     return NextResponse.json({ message: isDuplicate ? "Username already exists." : "Could not create the account." }, { status: isDuplicate ? 409 : 422 });
