@@ -170,18 +170,43 @@ post-v1.0 hardening, not blockers to this milestone.
       Admin review, and Booking Options/Vehicles tabs still haven't been
       clicked through in a real browser.
 
-## Planned — v1.1 (prospecting only, not started)
+## Planned — v1.1 (Booking Type + Admin Approval, not started)
 
-Scoped 2026-09-22 while v1.0 is in UAT. **Nothing below is built yet** —
-this is a prospect list to build from once UAT feedback comes in; more
-items will be added after that pass. Constraints that apply to all of it:
-keep exactly the three existing roles (Booker, Driver, Admin) and the
-existing three-step booking flow (Choose Date → Vehicle & Time → Booking
-Details); extend existing components rather than rebuilding; no Company
-Trip Form and no Form Type choice — remove either if found on a working
-branch; small Add/Edit actions stay popups; never rely on a hidden button
-as permission enforcement (every rule needs a real backend check); no demo
-accounts or browser-only-authoritative data.
+Scoped 2026-09-22 while v1.0 is in UAT, refined 2026-09-22 into its own
+milestone (previously one bullet among several prospected v1.1 items — see
+v1.2 below for the rest of that original list). Supersedes the earlier
+"Booking conflict waitlist" bullet: that item only required Admin review
+for a *conflicting* booking; this is broader — **every** new booking (or
+rescheduled existing one) requires explicit Admin approval before it's
+confirmed, not just a conflicting one.
+
+- [ ] **Booking Type (Regular/Urgent) + universal Admin approval.** A
+      required Booking Type on every request: Regular needs 7 Asia/Manila
+      calendar days' notice; Urgent is same/next-day only and requires a
+      stated reason. Applies to everyone, Admin included, with zero
+      exceptions (the existing Admin "log an already-elapsed slot"
+      exemption is untouched — a separate, older rule). Every new request
+      is created `PENDING` and holds no `booking_slots`, so it never
+      blocks a slot for anyone, including itself; an Admin reviews each
+      one and either **approves** it (cancelling any currently `SCHEDULED`
+      booking(s) that conflict with it, then promoting it to `SCHEDULED`
+      and reserving its slots) or **denies** it (`REJECTED`, any
+      conflicting booking untouched). Editing an already-`SCHEDULED`
+      booking's date/time/vehicle/driver drops it back to `PENDING` and
+      needs re-approval; editing only non-schedule fields does not.
+
+## Planned — v1.2 (prospecting only, not started)
+
+**Nothing below is built yet** — this is a prospect list to build from
+once UAT feedback comes in; more items will be added after that pass.
+Constraints that apply to all of it: keep exactly the three existing roles
+(Booker, Driver, Admin) and the existing three-step booking flow (Choose
+Date → Vehicle & Time → Booking Details); extend existing components
+rather than rebuilding; no Company Trip Form and no Form Type choice —
+remove either if found on a working branch; small Add/Edit actions stay
+popups; never rely on a hidden button as permission enforcement (every
+rule needs a real backend check); no demo accounts or browser-only-
+authoritative data.
 
 - [ ] **Vehicle → Driver assignment.** Selecting a Vehicle in booking Step
       2 auto-resolves its one current active Driver (no separate Driver
@@ -268,22 +293,6 @@ accounts or browser-only-authoritative data.
       Vehicle Allocation" in smaller text beneath KOVA. Must wrap/scale
       cleanly on narrow screens without colliding with nav or Sign Out,
       and must still print clearly in the Daily Vehicle Record PDF header.
-- [ ] **Booking conflict waitlist.** When a Booker/Admin tries to book a
-      vehicle/time slot already taken, offer submitting the request as
-      `WAITLISTED` instead of a hard rejection, rather than auto-cancelling
-      or auto-bumping the existing booking. The existing booking is
-      untouched and keeps its `booking_slots` rows; a waitlisted request
-      holds no slots itself, so it can never itself create a conflict. An
-      Admin sees pending waitlist requests and either **approves** (which
-      cancels the conflicting booking through the existing cancel path —
-      same slot-freeing and notification behavior as today — then promotes
-      the request to a real `SCHEDULED` booking) or **denies** it (sets
-      `REJECTED`, existing booking untouched). Needs a new status value (or
-      small `booking_waitlist` table) with its own per-operation RLS
-      policies, per this repo's Supabase conventions. Nice-to-have, not
-      required for v1: auto-flag a waitlisted request as no-longer-
-      conflicting if the original booking is separately cancelled/edited
-      away from that slot before an Admin acts on it.
 - [ ] **Mobile Driver experience.** Audit and fix the full Driver journey
       (Driver Home, My Schedule, Trip Details popup, DVR's Vehicle
       Details/Trip Record+Add Leg/Return steps, Review Trip, Submit Trip,
@@ -305,9 +314,11 @@ section is scope capture, not a build order.
 
 - [ ] **Notifications** (email/push/in-app). No notification system exists
       anywhere in this codebase today — every status change (a booking
-      cancelled by an Admin's waitlist Approve, a waitlisted request
-      approved/denied, a Trip Record reviewed) is only visible the next
-      time the affected user opens the app. Flagged during the booking
-      conflict waitlist design as a real gap, but deliberately kept out of
-      v1.1: it's a separate, larger feature (delivery channel, preferences,
-      read state) rather than an extension of an existing screen.
+      cancelled by an Admin's Approve, a request approved/denied, a Trip
+      Record reviewed) is only visible the next time the affected user
+      opens the app. Flagged during the Booking Type + Admin Approval
+      design as a real gap — and a bigger one there than elsewhere, since
+      that feature makes *every* booking wait on Admin action — but
+      deliberately kept out of v1.1: it's a separate, larger feature
+      (delivery channel, preferences, read state) rather than an extension
+      of an existing screen.
