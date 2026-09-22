@@ -49,7 +49,9 @@ export type Booking = {
   createdBy: string;
   createdByAccountId?: string;
   createdAt: string;
-  status: "SCHEDULED" | "CANCELLED";
+  status: "PENDING" | "SCHEDULED" | "REJECTED" | "CANCELLED";
+  bookingType: "REGULAR" | "URGENT";
+  urgentReason: string;
 };
 export type HistoryEntry = {
   adminId: string;
@@ -159,6 +161,7 @@ export const getAccounts = () => cache.accounts;
 export const getVehicles = () => cache.vehicles;
 export const getBookings = () => cache.bookings;
 export const getActiveBookings = () => cache.bookings.filter((booking) => booking.status === "SCHEDULED");
+export const getPendingBookings = () => cache.bookings.filter((booking) => booking.status === "PENDING");
 export const getRecords = () => cache.records;
 export const getBookingOptions = () => cache.options;
 export const getPeople = () => cache.people;
@@ -167,7 +170,7 @@ export const getRecordForBooking = (booking: Booking) => cache.records.find((rec
 
 const ownerId = (booking: Booking) => booking.createdByAccountId || booking.createdBy;
 export function canManageBooking(booking: Booking, account: Account | null = currentAccount()) {
-  if (!account || booking.status !== "SCHEDULED" || cache.records.some((record) => record.bookingId === booking.id && !!record.submittedAt)) return false;
+  if (!account || !["PENDING", "SCHEDULED"].includes(booking.status) || cache.records.some((record) => record.bookingId === booking.id && !!record.submittedAt)) return false;
   return account.role === "Admin" || (account.role === "Booker" && ownerId(booking) === account.id);
 }
 
@@ -200,6 +203,8 @@ export const saveVehicle = (vehicle: Vehicle, originalPlate?: string) => refresh
 export const saveBooking = (booking: Booking) => refreshAfter(request<Booking>("/api/bookings", { method: "POST", body: JSON.stringify(booking) }));
 export const updateBooking = (booking: Booking) => refreshAfter(request<Booking>(`/api/bookings/${encodeURIComponent(booking.id)}`, { method: "PUT", body: JSON.stringify(booking) }));
 export const cancelBooking = (id: string) => refreshAfter(request<void>(`/api/bookings/${encodeURIComponent(id)}`, { method: "DELETE" }));
+export const approveBooking = (id: string) => refreshAfter(request<Booking>(`/api/bookings/${encodeURIComponent(id)}/approve`, { method: "POST" }));
+export const denyBooking = (id: string) => refreshAfter(request<Booking>(`/api/bookings/${encodeURIComponent(id)}/deny`, { method: "POST" }));
 export const saveRecord = <T extends VehicleRecord>(record: T) => refreshAfter(request<T>(`/api/records/${encodeURIComponent(record.id)}`, { method: "PUT", body: JSON.stringify(record) }));
 export const saveBookingOption = (group: "projects" | "destinations" | "purposes", option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 export const savePerson = (person: Person) => refreshAfter(request<Person>(`/api/booking-options/people/${encodeURIComponent(person.id)}`, { method: "PUT", body: JSON.stringify(person) }));
