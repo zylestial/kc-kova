@@ -300,3 +300,14 @@ accounts or browser-only-authoritative data.
 Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
+
+## Noted for future consideration (unscoped, not v1.1)
+
+- [ ] **Notifications** (email/push/in-app). No notification system exists
+      anywhere in this codebase today — every status change (a booking
+      cancelled by an Admin's waitlist Approve, a waitlisted request
+      approved/denied, a Trip Record reviewed) is only visible the next
+      time the affected user opens the app. Flagged during the booking
+      conflict waitlist design as a real gap, but deliberately kept out of
+      v1.1: it's a separate, larger feature (delivery channel, preferences,
+      read state) rather than an extension of an existing screen.
