@@ -3,6 +3,14 @@ import { useEffect, useState } from "react";
 import { ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogHeader,
@@ -21,10 +29,13 @@ import {
 } from "@/lib/kova-api";
 
 const time = (hour: number) => `${hour % 12 || 12}:00 ${hour < 12 ? "AM" : "PM"}`;
+const dateLabel = (date: string) =>
+  new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
 export default function AdminBookingApprovals() {
   const [pending, setPending] = useState<Booking[]>([]);
   const [scheduled, setScheduled] = useState<Booking[]>([]);
+  const [selected, setSelected] = useState<Booking | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -61,6 +72,7 @@ export default function AdminBookingApprovals() {
     try {
       await approveBooking(id);
       setConfirmId(null);
+      setSelected(null);
     } catch (caught) {
       setError((caught as Error).message);
     } finally {
@@ -73,6 +85,7 @@ export default function AdminBookingApprovals() {
     setError("");
     try {
       await denyBooking(id);
+      setSelected(null);
     } catch (caught) {
       setError((caught as Error).message);
     } finally {
@@ -124,7 +137,7 @@ export default function AdminBookingApprovals() {
                 {pending.map((booking) => {
                   const conflicts = conflictsFor(booking);
                   return (
-                    <tr key={booking.id}>
+                    <tr key={booking.id} onClick={() => { setSelected(booking); setError(""); }}>
                       <td>
                         <span className={"badge " + (booking.bookingType === "URGENT" ? "urgent" : "")}>
                           {booking.bookingType}
@@ -173,6 +186,56 @@ export default function AdminBookingApprovals() {
           </div>
         )}
       </section>
+
+      <Dialog open={!!selected && !confirmId} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Booking Request Details</DialogTitle>
+            <DialogDescription>{selected && dateLabel(selected.date)}</DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <>
+              <div className="driver-trip-details">
+                {[
+                  ["Vehicle", selected.plate],
+                  ["Time", `${time(selected.start)} – ${time(selected.end)}`],
+                  ["Driver", selected.driver],
+                  ["Requested By", selected.requestedBy],
+                  ["Destination", selected.destination],
+                  ["Purpose", selected.purpose],
+                  ...(selected.notes ? [["Notes", selected.notes]] : []),
+                  ["Type", selected.bookingType === "URGENT" ? "Urgent" : "Regular"],
+                  ...(selected.bookingType === "URGENT" && selected.urgentReason
+                    ? [["Urgent reason", selected.urgentReason]]
+                    : []),
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              {conflictsFor(selected).length > 0 && (
+                <p className="helper">
+                  Approving this will cancel {conflictsFor(selected).length} currently scheduled booking
+                  {conflictsFor(selected).length === 1 ? "" : "s"} that conflict with it.
+                </p>
+              )}
+              <DialogFooter className="booking-dialog-actions">
+                <Button variant="outline" onClick={() => setSelected(null)}>
+                  Close
+                </Button>
+                <Button variant="ghost" disabled={busy} onClick={() => deny(selected.id)}>
+                  Deny
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={() => setConfirmId(selected.id)}>
+                  Approve
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!confirmId} onOpenChange={(open) => { if (!open) setConfirmId(null); }}>
         <AlertDialogContent>
