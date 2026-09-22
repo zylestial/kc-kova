@@ -324,6 +324,17 @@ authoritative data.
       reachable while content scrolls, and an on-screen keyboard that
       never blocks the active field or the submit action. Desktop layout
       is unaffected.
+- [ ] **Mobile-responsive Booking Type + Approval flow.** The v1.1 screens
+      (Booker Home, the 3-step booking flow including its new Booking Type
+      dropdown/Urgent Reason field and "Your pending requests" panel, My
+      Bookings, and Admin Booking Approvals) were built and verified on
+      desktop widths only. Audit and fix all of them at ~320/375/430px:
+      the step-2 time grid and admin/my-bookings tables need a card-based
+      or scrollable layout instead of horizontal table scroll, dialogs
+      (booking details, edit, approve/deny confirmation) must stay fully
+      reachable and scrollable on small screens, and touch targets (date
+      strip, Approve/Deny, Cancel) must be real tap targets. Desktop
+      layout is unaffected.
 
 Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
