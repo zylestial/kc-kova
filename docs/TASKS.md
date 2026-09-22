@@ -169,3 +169,100 @@ post-v1.0 hardening, not blockers to this milestone.
       Schedule, and Settings/Accounts were walked — Driver-trip submission,
       Admin review, and Booking Options/Vehicles tabs still haven't been
       clicked through in a real browser.
+
+## Planned — v1.1 (prospecting only, not started)
+
+Scoped 2026-09-22 while v1.0 is in UAT. **Nothing below is built yet** —
+this is a prospect list to build from once UAT feedback comes in; more
+items will be added after that pass. Constraints that apply to all of it:
+keep exactly the three existing roles (Booker, Driver, Admin) and the
+existing three-step booking flow (Choose Date → Vehicle & Time → Booking
+Details); extend existing components rather than rebuilding; no Company
+Trip Form and no Form Type choice — remove either if found on a working
+branch; small Add/Edit actions stay popups; never rely on a hidden button
+as permission enforcement (every rule needs a real backend check); no demo
+accounts or browser-only-authoritative data.
+
+- [ ] **Vehicle → Driver assignment.** Selecting a Vehicle in booking Step
+      2 auto-resolves its one current active Driver (no separate Driver
+      picker in the normal flow). Admin Settings → Vehicles gets an
+      "Assigned Driver" dropdown (active Drivers only) in the existing
+      Add/Edit popup, and the Vehicles list shows each Vehicle's assigned
+      Driver or "No Driver assigned." One Driver ↔ one Vehicle at a time,
+      enforced server-side (uniqueness, inactive Drivers unassignable, a
+      Vehicle with no active Driver isn't bookable). Reassigning a Driver
+      must not rewrite or silently change the Driver on already-confirmed
+      bookings — each booking snapshots the Vehicle/Driver it was
+      confirmed with, by stable ID, not by name. Edit Booking re-resolves
+      the proposed Driver when the Vehicle changes and rechecks
+      availability before saving. Vehicle and Driver conflict checks stay
+      independent (a different Vehicle referencing the same Driver must
+      still conflict correctly).
+- [ ] **Paste multiple Destinations/Purposes.** Admin → Settings → Booking
+      Options gets a "Paste List" action next to the existing single-item
+      Add, opening a popup with a multiline textbox ("Paste one item per
+      line"), a preview of what will actually be added, and counts for
+      skipped blank lines / in-paste duplicates / already-saved entries.
+      Dedup case/whitespace-insensitively against both Active and
+      Inactive saved options (an Inactive match is reported as existing,
+      never auto-reactivated or re-created under a new ID); valid new
+      entries save as Active. A save failure keeps the pasted text on
+      screen and surfaces the real backend error. Existing single-item
+      Add/Edit and historical option values are untouched.
+- [ ] **Date-strip month clarity.** Choose Date shows the visible month/year
+      before any date is clicked; if the strip spans two months, each date
+      is labeled or grouped by its own month, including at phone widths
+      and after navigating forward/back.
+- [ ] **Optional Project/Department field.** New optional Step 3 dropdown
+      (Purpose's styling) of Active saved Projects/Departments plus
+      "Other" (reveals a trimmed text input). Never blocks confirmation
+      when empty; never invents a value if "Other" is picked with no text
+      typed. Stores the option's stable ID plus a display snapshot (or the
+      typed custom value for Other) so a later-Inactive option or custom
+      value still renders correctly on old bookings/records. Does not
+      affect ownership or Requested By. Edit Booking must correctly
+      reshow all three cases (empty, saved option, custom Other,
+      including a since-Inactive one).
+- [ ] **Automatic ANONANG return leg.** First leg's Origin is always
+      ANONANG; last leg's Destination is always ANONANG and read-only for
+      the Driver; every other leg's Origin auto-derives from the
+      preceding leg's Destination and re-links on insert/edit/remove of
+      an intermediate leg, without discarding Driver-entered values
+      (times stay manual/optional). A new record pre-populates as
+      `ANONANG → booked destination` / `booked destination → ANONANG`
+      from the booking's scheduled Destination. Submission validation (and
+      the equivalent backend validation) confirms the route starts/ends
+      at ANONANG and adjacent legs connect; older saved records must load
+      without data loss under the new rule. Carries through to the PDF.
+- [ ] **Finance "Date Submitted" from `submittedAt`.** Backend sets
+      `submittedAt` once, authoritatively, on the Driver's successful
+      submission — never reset by Admin edits, printing, or Mark as Done,
+      and rejected if a client tries to supply/forge it directly. Finance
+      displays it read-only, derived from the org's configured business
+      timezone (default `Asia/Manila` if none is configured — document
+      this default), distinct from the scheduled trip date, Finance
+      processing date, and Done date. Carries through to the PDF.
+      Historical `submittedAt` values must not be migrated/overwritten.
+- [ ] **Official logo + KOVA lockup.** Replace the placeholder logo with
+      the official company logo (used as-is: no redraw/crop/stretch/
+      recolor/substitute) on Sign In, the app header, and compact/mobile
+      headers, arranged as `[logo] · KOVA` with "Kayelen's Operations and
+      Vehicle Allocation" in smaller text beneath KOVA. Must wrap/scale
+      cleanly on narrow screens without colliding with nav or Sign Out,
+      and must still print clearly in the Daily Vehicle Record PDF header.
+- [ ] **Mobile Driver experience.** Audit and fix the full Driver journey
+      (Driver Home, My Schedule, Trip Details popup, DVR's Vehicle
+      Details/Trip Record+Add Leg/Return steps, Review Trip, Submit Trip,
+      Finished Trips, and the read-only submitted view) at ~320/375/430px
+      widths: no horizontal scroll or clipped fields, card-based layouts
+      where a desktop table would otherwise need sideways scrolling,
+      stacked form fields with associated labels, real touch targets for
+      Add/Remove Leg and Back/Review/Submit, a usable (even if
+      horizontally scrollable) tab row, popup titles/actions that stay
+      reachable while content scrolls, and an on-screen keyboard that
+      never blocks the active field or the submit action. Desktop layout
+      is unaffected.
+
+Each item above needs its own confirm-before-building pass per this
+repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
+section is scope capture, not a build order.
