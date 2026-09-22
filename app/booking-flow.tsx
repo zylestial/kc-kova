@@ -21,7 +21,7 @@ import {
   type Account,
   type Booking,
 } from "@/lib/kova-api";
-import { isUrgentEligibleDate, regularMinDate } from "@/lib/timezone";
+import { regularMinDate } from "@/lib/timezone";
 import {
   Select,
   SelectContent,
@@ -220,25 +220,12 @@ export default function BookingFlow() {
     return localDate(day);
   });
   const minRegularDate = regularMinDate();
-  const dateAllowed = (candidate: string) =>
-    bookingType === "REGULAR" ? candidate >= minRegularDate : isUrgentEligibleDate(candidate);
+  const typeDateValid = bookingType === "REGULAR" ? date >= minRegularDate : true;
 
   function changeDate(nextDate: string) {
-    if (!dateAllowed(nextDate)) return;
     setDate(nextDate);
     setSelected(null);
     setError("");
-  }
-  function changeBookingType(next: "REGULAR" | "URGENT") {
-    setBookingType(next);
-    const nextMin = next === "REGULAR" ? regularMinDate() : "";
-    const allowed = next === "REGULAR" ? date >= nextMin : isUrgentEligibleDate(date);
-    if (!allowed) {
-      const snapped = next === "REGULAR" ? nextMin : localDate(new Date());
-      setDate(snapped);
-      setAnchor(snapped);
-    }
-    setSelected(null);
   }
   function shift(amount: number) {
     const day = new Date(anchor + "T12:00:00");
@@ -479,25 +466,6 @@ export default function BookingFlow() {
 
       {step === 1 && (
         <>
-          <div className="field booking-type-toggle">
-            <span>BOOKING TYPE *</span>
-            <div className="fleet-chips">
-              <button
-                type="button"
-                className={bookingType === "REGULAR" ? "active" : ""}
-                onClick={() => changeBookingType("REGULAR")}
-              >
-                Regular · 7 days notice
-              </button>
-              <button
-                type="button"
-                className={bookingType === "URGENT" ? "active" : ""}
-                onClick={() => changeBookingType("URGENT")}
-              >
-                Urgent · today/tomorrow
-              </button>
-            </div>
-          </div>
           {myPending.length > 0 && (
             <section className="availability-card">
               <div className="section-heading">
@@ -525,32 +493,26 @@ export default function BookingFlow() {
               <ChevronLeft size={18} />
             </Button>
             <div className="date-strip">
-              {days.map((day) => {
-                const allowed = dateAllowed(day);
-                return (
-                  <button
-                    key={day}
-                    className={"date-card " + (date === day ? "selected" : "") + (allowed ? "" : " disabled")}
-                    onClick={() => changeDate(day)}
-                    disabled={!allowed}
-                    aria-pressed={date === day}
-                  >
-                    <span>{dateLabel(day, { weekday: "short" })}</span>
-                    <b>{dateLabel(day, { day: "numeric" })}</b>
-                    <small>
-                      {!allowed
-                        ? "Not eligible"
-                        : fleet.length
-                          ? fleet.some(
-                              (vehicle) => available(vehicle.plate, day) > 0,
-                            )
-                            ? "● ● ●"
-                            : "—"
-                          : "—"}
-                    </small>
-                  </button>
-                );
-              })}
+              {days.map((day) => (
+                <button
+                  key={day}
+                  className={"date-card " + (date === day ? "selected" : "")}
+                  onClick={() => changeDate(day)}
+                  aria-pressed={date === day}
+                >
+                  <span>{dateLabel(day, { weekday: "short" })}</span>
+                  <b>{dateLabel(day, { day: "numeric" })}</b>
+                  <small>
+                    {fleet.length
+                      ? fleet.some(
+                          (vehicle) => available(vehicle.plate, day) > 0,
+                        )
+                        ? "● ● ●"
+                        : "—"
+                      : "—"}
+                  </small>
+                </button>
+              ))}
             </div>
             <Button
               variant="outline"
@@ -568,7 +530,7 @@ export default function BookingFlow() {
                 type="date"
                 value={date}
                 onChange={(event) => {
-                  if (event.target.value && dateAllowed(event.target.value)) {
+                  if (event.target.value) {
                     changeDate(event.target.value);
                     setAnchor(event.target.value);
                   }
@@ -813,6 +775,23 @@ export default function BookingFlow() {
           </div>
           <div className="fields booking-fields">
             <label className="field">
+              <span>BOOKING TYPE *</span>
+              <Select value={bookingType} onValueChange={(value) => setBookingType(value as "REGULAR" | "URGENT")}>
+                <SelectTrigger aria-label="Booking Type">
+                  <SelectValue placeholder="Select Booking Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="REGULAR">Regular · 7 days notice</SelectItem>
+                  <SelectItem value="URGENT">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+              {!typeDateValid && (
+                <small className="field-hint">
+                  This date is less than 7 days away — choose Urgent, or go back and pick a later date.
+                </small>
+              )}
+            </label>
+            <label className="field">
               <span>DRIVER *</span>
               <Select value={driverId} onValueChange={setDriverId}>
                 <SelectTrigger aria-label="Driver">
@@ -1003,6 +982,7 @@ export default function BookingFlow() {
               (!driverId ||
                 !destination ||
                 !purpose ||
+                !typeDateValid ||
                 (bookingType === "URGENT" && !urgentReason.trim())))
           }
           onClick={() => {
@@ -1147,22 +1127,18 @@ export default function BookingFlow() {
             <div className="modal-fields edit-booking-fields">
               <label className="field">
                 <span>BOOKING TYPE *</span>
-                <div className="fleet-chips">
-                  <button
-                    type="button"
-                    className={draft.bookingType === "REGULAR" ? "active" : ""}
-                    onClick={() => setDraft({ ...draft, bookingType: "REGULAR" })}
-                  >
-                    Regular
-                  </button>
-                  <button
-                    type="button"
-                    className={draft.bookingType === "URGENT" ? "active" : ""}
-                    onClick={() => setDraft({ ...draft, bookingType: "URGENT" })}
-                  >
-                    Urgent
-                  </button>
-                </div>
+                <Select
+                  value={draft.bookingType}
+                  onValueChange={(value) => setDraft({ ...draft, bookingType: value as "REGULAR" | "URGENT" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="REGULAR">Regular</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
               </label>
               {draft.bookingType === "URGENT" && (
                 <label className="field booking-notes">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, isUrgentEligibleDate, manilaToday, regularMinDate } from "@/lib/timezone";
+import { addDays, manilaToday, regularMinDate } from "@/lib/timezone";
 
 describe("manilaToday", () => {
   it("returns the Manila calendar date for a UTC time still on the same day", () => {
@@ -43,25 +43,5 @@ describe("regularMinDate", () => {
 
   it("accounts for the Manila day already having rolled over", () => {
     expect(regularMinDate(new Date("2026-01-01T17:00:00Z"))).toBe("2026-01-09");
-  });
-});
-
-describe("isUrgentEligibleDate", () => {
-  const now = new Date("2026-01-01T09:00:00Z"); // 2026-01-01 in Manila
-
-  it("accepts today", () => {
-    expect(isUrgentEligibleDate("2026-01-01", now)).toBe(true);
-  });
-
-  it("accepts tomorrow", () => {
-    expect(isUrgentEligibleDate("2026-01-02", now)).toBe(true);
-  });
-
-  it("rejects two days out", () => {
-    expect(isUrgentEligibleDate("2026-01-03", now)).toBe(false);
-  });
-
-  it("rejects yesterday", () => {
-    expect(isUrgentEligibleDate("2025-12-31", now)).toBe(false);
   });
 });

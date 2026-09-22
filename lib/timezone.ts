@@ -1,6 +1,6 @@
 /**
- * Asia/Manila calendar-day helpers used for the Regular/Urgent booking
- * deadline rules, independent of the browser's or server's local timezone.
+ * Asia/Manila calendar-day helpers used for the Regular booking deadline
+ * rule, independent of the browser's or server's local timezone.
  */
 const MANILA_TZ = "Asia/Manila";
 
@@ -18,10 +18,4 @@ export function addDays(date: string, days: number): string {
 /** Earliest date string a Regular booking may target (today + 7 in Manila). */
 export function regularMinDate(now: Date = new Date()): string {
   return addDays(manilaToday(now), 7);
-}
-
-/** Whether `date` ("YYYY-MM-DD") is same-day or next-day relative to "today" in Manila. */
-export function isUrgentEligibleDate(date: string, now: Date = new Date()): boolean {
-  const today = manilaToday(now);
-  return date === today || date === addDays(today, 1);
 }
