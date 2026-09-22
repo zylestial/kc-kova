@@ -776,7 +776,14 @@ export default function BookingFlow() {
           <div className="fields booking-fields">
             <label className="field">
               <span>BOOKING TYPE *</span>
-              <Select value={bookingType} onValueChange={(value) => setBookingType(value as "REGULAR" | "URGENT")}>
+              <Select
+                value={bookingType}
+                onValueChange={(value) => {
+                  setBookingType(value as "REGULAR" | "URGENT");
+                  if (value === "URGENT") setNotes("");
+                  else setUrgentReason("");
+                }}
+              >
                 <SelectTrigger aria-label="Booking Type">
                   <SelectValue placeholder="Select Booking Type" />
                 </SelectTrigger>
@@ -904,16 +911,17 @@ export default function BookingFlow() {
                 </Select>
               )}
             </label>
-            <label className="field booking-notes">
-              <span>NOTES</span>
-              <Textarea
-                placeholder="Optional"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                maxLength={500}
-              />
-            </label>
-            {bookingType === "URGENT" && (
+            {bookingType === "REGULAR" ? (
+              <label className="field booking-notes">
+                <span>NOTES</span>
+                <Textarea
+                  placeholder="Optional"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  maxLength={500}
+                />
+              </label>
+            ) : (
               <label className="field booking-notes">
                 <span>URGENT REASON *</span>
                 <Textarea
@@ -1129,7 +1137,14 @@ export default function BookingFlow() {
                 <span>BOOKING TYPE *</span>
                 <Select
                   value={draft.bookingType}
-                  onValueChange={(value) => setDraft({ ...draft, bookingType: value as "REGULAR" | "URGENT" })}
+                  onValueChange={(value) =>
+                    setDraft({
+                      ...draft,
+                      bookingType: value as "REGULAR" | "URGENT",
+                      notes: value === "URGENT" ? "" : draft.notes,
+                      urgentReason: value === "REGULAR" ? "" : draft.urgentReason,
+                    })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1356,17 +1371,19 @@ export default function BookingFlow() {
                   </Select>
                 )}
               </label>
-              <label className="field booking-notes">
-                <span>NOTES</span>
-                <Textarea
-                  placeholder="Optional"
-                  value={draft.notes}
-                  onChange={(event) =>
-                    setDraft({ ...draft, notes: event.target.value })
-                  }
-                  maxLength={500}
-                />
-              </label>
+              {draft.bookingType === "REGULAR" && (
+                <label className="field booking-notes">
+                  <span>NOTES</span>
+                  <Textarea
+                    placeholder="Optional"
+                    value={draft.notes}
+                    onChange={(event) =>
+                      setDraft({ ...draft, notes: event.target.value })
+                    }
+                    maxLength={500}
+                  />
+                </label>
+              )}
             </div>
           )}
           {active?.status === "SCHEDULED" && draftScheduleChanged && (
