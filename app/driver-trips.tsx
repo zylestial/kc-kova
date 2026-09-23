@@ -215,7 +215,46 @@ export default function DriverTrips({
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : null}
+        {visible.length ? (
+          <div className="driver-trip-cards">
+            {visible.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className="driver-trip-card"
+                onClick={
+                  finished
+                    ? () => onOpenRecord(b)
+                    : () => {
+                        setSelected(b);
+                        setError("");
+                      }
+                }
+              >
+                <div className="driver-trip-card-top">
+                  <strong>{dateLabel(b.date)}</strong>
+                  <span className={"badge " + (finished ? "complete" : "")}>
+                    {finished
+                      ? records[b.id]?.status === "Completed"
+                        ? "Completed"
+                        : "Submitted for review"
+                      : "Scheduled"}
+                  </span>
+                </div>
+                {!finished && <span>{tripTime(b)}</span>}
+                <span>
+                  {records[b.id]?.vehicle || vehicleNames[b.plate] || b.plate}{" "}
+                  · {b.plate}
+                </span>
+                <span>{b.destination}</span>
+                {!finished && <span>{b.purpose}</span>}
+                {!finished && <span>Requested by {b.requestedBy}</span>}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {!visible.length && (
           <div className="empty">
             <div className="empty-icon">
               <Truck size={30} />
