@@ -13,6 +13,7 @@ import {
   type Booking,
   type HistoryEntry,
 } from "@/lib/kova-api";
+import { dateInBusinessTimezone } from "@/lib/timezone";
 import { Plus, Printer, Save, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,6 @@ export type RecordData = {
   receipt: boolean;
   pm: string;
   coo: string;
-  submitted: string;
   received: string;
   reference: string;
   finance: string;
@@ -100,7 +100,6 @@ const fresh = (date: string): RecordData => ({
   receipt: false,
   pm: "",
   coo: "",
-  submitted: "",
   received: "",
   reference: "",
   finance: "Pending",
@@ -766,12 +765,17 @@ export default function Scheduler({
                           Submit completed trip forms by the next business day.
                         </p>
                         <div className="fields">
-                          <Field
-                            label="Date submitted"
-                            type="date"
-                            value={edit.submitted}
-                            onChange={(v) => update("submitted", v)}
-                          />
+                          <label className="field">
+                            <span>Date submitted</span>
+                            <Input
+                              value={
+                                edit.submittedAt
+                                  ? dateInBusinessTimezone(edit.submittedAt)
+                                  : "Not yet submitted"
+                              }
+                              readOnly
+                            />
+                          </label>
                           <Field
                             label="Received by"
                             value={edit.received}
@@ -1037,7 +1041,9 @@ function PrintForm({ r, booking }: { r: RecordData; booking?: Booking }) {
       </div>
       <h2>FOR FINANCE USE</h2>
       <div className="print-row">
-        <span>DATE SUBMITTED {val(r.submitted)}</span>
+        <span>
+          DATE SUBMITTED {val(r.submittedAt ? dateInBusinessTimezone(r.submittedAt) : "")}
+        </span>
         <span>RECEIVED BY {val(r.received)}</span>
         <span>REF. NO. {val(r.reference)}</span>
       </div>
