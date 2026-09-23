@@ -15,6 +15,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ plat
   const plate = typeof body?.plate === "string" ? body.plate.trim() : "";
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const status = body?.status;
+  const assignedDriverId = typeof body?.assignedDriverId === "string" && body.assignedDriverId ? body.assignedDriverId : null;
   if (!plate || !name || !STATUSES.includes(status)) {
     return NextResponse.json({ message: "Plate, name, and status are required." }, { status: 422 });
   }
@@ -24,12 +25,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ plat
     p_new_plate: plate,
     p_name: name,
     p_status: status,
+    p_assigned_driver_id: assignedDriverId,
   });
   if (error) {
     if (error.code === "23505") return NextResponse.json({ message: "Plate already in use." }, { status: 409 });
+    if (error.message.includes("already assigned to another vehicle")) {
+      return NextResponse.json({ message: "That Driver is already assigned to another vehicle." }, { status: 409 });
+    }
     if (error.code === "P0002") return NextResponse.json({ message: "Vehicle not found." }, { status: 404 });
     if (error.code === "42501") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
-    return NextResponse.json({ message: "Could not update the vehicle." }, { status: 422 });
+    return NextResponse.json({ message: error.message || "Could not update the vehicle." }, { status: 422 });
   }
 
   return NextResponse.json(data);
