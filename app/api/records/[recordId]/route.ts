@@ -75,7 +75,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ reco
       return NextResponse.json({ message: "Only a submitted trip can be marked done." }, { status: 422 });
     }
 
-    const merged = { ...existingData, ...incoming, status: wantsDone ? "DONE" : (incoming.status ?? existingData.status) };
+    // submittedAt is set once, authoritatively, by the Driver's own
+    // submission (above) — an Admin edit (including Mark as Done) must
+    // never move or forge it, so it's excluded from `incoming` entirely
+    // and always carried over from the existing row.
+    const merged = {
+      ...existingData,
+      ...omit(incoming, ["submittedAt"]),
+      submittedAt: existingData.submittedAt,
+      status: wantsDone ? "DONE" : (incoming.status ?? existingData.status),
+    };
     const changes = diffFields(
       Object.fromEntries(Object.entries(existingData).filter(([key]) => key !== "history")),
       Object.fromEntries(Object.entries(merged).filter(([key]) => key !== "history")),
