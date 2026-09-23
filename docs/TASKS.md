@@ -336,16 +336,3 @@ authoritative data.
 Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
-
-## Planned — v2.0 (Notifications, prospecting only, not started)
-
-- [ ] **Notifications** (email/push/in-app). No notification system exists
-      anywhere in this codebase today — every status change (a booking
-      cancelled by an Admin's Approve, a request approved/denied, a Trip
-      Record reviewed) is only visible the next time the affected user
-      opens the app. Flagged during the Booking Type + Admin Approval
-      design as a real gap — and a bigger one there than elsewhere, since
-      that feature makes *every* booking wait on Admin action — but
-      deliberately kept out of v1.1: it's a separate, larger feature
-      (delivery channel, preferences, read state) rather than an extension
-      of an existing screen.
