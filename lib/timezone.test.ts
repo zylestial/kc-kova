@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, manilaToday, regularMinDate } from "@/lib/timezone";
+import { addDays, dateInBusinessTimezone, manilaToday, regularMinDate } from "@/lib/timezone";
 
 describe("manilaToday", () => {
   it("returns the Manila calendar date for a UTC time still on the same day", () => {
@@ -43,5 +43,23 @@ describe("regularMinDate", () => {
 
   it("accounts for the Manila day already having rolled over", () => {
     expect(regularMinDate(new Date("2026-01-01T17:00:00Z"))).toBe("2026-01-09");
+  });
+});
+
+describe("dateInBusinessTimezone", () => {
+  it("renders a UTC timestamp still on the same Manila day", () => {
+    expect(dateInBusinessTimezone("2026-01-01T09:00:00Z")).toBe("2026-01-01");
+  });
+
+  it("rolls over to the next Manila calendar day before UTC midnight", () => {
+    expect(dateInBusinessTimezone("2026-01-01T17:00:00Z")).toBe("2026-01-02");
+  });
+
+  it("returns an empty string for a missing timestamp", () => {
+    expect(dateInBusinessTimezone(undefined)).toBe("");
+  });
+
+  it("returns an empty string for an invalid timestamp", () => {
+    expect(dateInBusinessTimezone("not a date")).toBe("");
   });
 });
