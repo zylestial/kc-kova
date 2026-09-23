@@ -313,6 +313,44 @@ so a login is always known-good). The "Outstanding / follow-ups" items in
 stakeholder review of PRD/RULES/DESIGN) remain open as post-v1.0 hardening
 and were explicitly not required to reach this milestone.
 
+## Vehicle → Driver assignment: two bugs only local testing caught (2026-09-23)
+
+Building `0012_vehicle_driver_assignment.sql` (v1.2, see `docs/TASKS.md`)
+surfaced two real bugs that code review alone missed, both only visible once
+the migration was actually run against a local `supabase db reset` instance:
+
+- **`rename_vehicle`'s insert-then-delete rename sequence briefly duplicated
+  the driver assignment.** The function inserts the new-plate row before
+  deleting the old-plate row (needed because `bookings.plate` has a real FK
+  to `vehicles.plate`, so the new row must exist before repointing
+  `bookings`/`booking_slots`/`vehicle_records` to it). Carrying
+  `assigned_driver_id` straight into that insert meant both rows briefly held
+  the same driver, tripping the new
+  `vehicles_assigned_driver_id_unique` partial index — surfaced as a
+  confusing "Plate already in use" error on a rename that never touched the
+  plate's uniqueness at all. Fixed by inserting the new row with
+  `assigned_driver_id` left null and setting it in a separate `update` only
+  after the old row is deleted.
+- **A custom `raise exception ... using errcode = '23505'` was swallowed by
+  the function's own `exception when unique_violation` handler.** `23505` *is*
+  the `unique_violation` SQLSTATE, so a manual raise using that code to
+  produce a friendly "That Driver is already assigned to another vehicle"
+  message got caught by the same function's blanket
+  `when unique_violation then raise exception 'Plate already in use'` handler
+  and silently rewritten to the wrong message — a self-inflicted collision
+  between application-level validation and a generic catch-all inside the
+  same `begin...exception...end` block. **Any manual `raise exception` inside
+  a function that also has its own `exception when unique_violation` (or
+  other class) handler must use a different SQLSTATE than the one that
+  handler catches**, or the handler will intercept it too. Fixed by omitting
+  `errcode` on the manual raise (defaults to `P0001`, which the handler
+  doesn't match).
+
+Both were only found by actually calling the RPCs against a live local
+Postgres instance and checking the *returned message*, not just that an error
+was raised — a unit test or type check would have passed either way. See the
+commit history on `feat/vehicle-driver-assignment` (PR #20) for the fixes.
+
 ## Open questions
 
 - **`docs/PRD.md` has no "Success metrics" or "Acceptance criteria"
