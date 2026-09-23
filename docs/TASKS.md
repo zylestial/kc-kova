@@ -206,13 +206,21 @@ confirmed, not just a conflicting one.
       destination/purpose/notes-only edits) — one real bug (`FOR UPDATE`
       combined with `DISTINCT` is invalid in Postgres) was found and fixed
       this way. `tsc --noEmit`, `eslint`, `vitest run`, and `next build`
-      all pass. **Not yet done**: a real-browser click-through of the new
-      booking-flow UI (Booking Type toggle, date disabling, Urgent Reason
-      field, "Your pending requests" panel) and the new Admin Booking
-      Approvals screen against a running app — the DB/API layer is
-      verified but the UI has only been read and type-checked, not
-      exercised live. Do that (and the RLS spot-check that a non-owner
-      Booker can't see another Booker's `PENDING` row) before merging.
+      all pass. **Real-browser click-through completed (2026-09-23)**,
+      headless Chromium against the local Supabase instance with the
+      seeded UAT accounts: booker flow (date selection, Booking Type
+      toggle showing the 7-day-notice warning, switching to Urgent
+      revealing the required Urgent Reason field, submitting a request,
+      "Your pending requests" panel, My Bookings listing it as `Pending
+      Admin approval`), and Admin Booking Approvals (pending-count badge
+      on Admin Home, list, detail dialog showing Driver/Destination/
+      Purpose/Urgent reason, and Approve — including the confirm-dialog
+      warning "This will cancel N currently scheduled booking(s) that
+      conflict with it" and the pending row disappearing after approval).
+      Zero browser console errors throughout. RLS spot-check also passed:
+      signed in as a second Booker (`booker2`) and confirmed neither the
+      "Your pending requests" panel nor My Bookings shows the first
+      Booker's `PENDING` rows.
 
 ## Planned — v1.2 (prospecting only, not started)
 
