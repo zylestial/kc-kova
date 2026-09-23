@@ -235,46 +235,27 @@ popups; never rely on a hidden button as permission enforcement (every
 rule needs a real backend check); no demo accounts or browser-only-
 authoritative data.
 
-- [ ] **Vehicle → Driver assignment.** Selecting a Vehicle in booking Step
-      2 auto-resolves its one current active Driver (no separate Driver
-      picker in the normal flow). Admin Settings → Vehicles gets an
-      "Assigned Driver" dropdown (active Drivers only) in the existing
-      Add/Edit popup, and the Vehicles list shows each Vehicle's assigned
-      Driver or "No Driver assigned." One Driver ↔ one Vehicle at a time,
-      enforced server-side (uniqueness, inactive Drivers unassignable, a
-      Vehicle with no active Driver isn't bookable). Reassigning a Driver
-      must not rewrite or silently change the Driver on already-confirmed
-      bookings — each booking snapshots the Vehicle/Driver it was
-      confirmed with, by stable ID, not by name. Edit Booking re-resolves
-      the proposed Driver when the Vehicle changes and rechecks
-      availability before saving. Vehicle and Driver conflict checks stay
-      independent (a different Vehicle referencing the same Driver must
-      still conflict correctly).
-- [ ] **Paste multiple Destinations/Purposes.** Admin → Settings → Booking
-      Options gets a "Paste List" action next to the existing single-item
-      Add, opening a popup with a multiline textbox ("Paste one item per
-      line"), a preview of what will actually be added, and counts for
-      skipped blank lines / in-paste duplicates / already-saved entries.
-      Dedup case/whitespace-insensitively against both Active and
-      Inactive saved options (an Inactive match is reported as existing,
-      never auto-reactivated or re-created under a new ID); valid new
-      entries save as Active. A save failure keeps the pasted text on
-      screen and surfaces the real backend error. Existing single-item
-      Add/Edit and historical option values are untouched.
-- [ ] **Date-strip month clarity.** Choose Date shows the visible month/year
-      before any date is clicked; if the strip spans two months, each date
-      is labeled or grouped by its own month, including at phone widths
-      and after navigating forward/back.
-- [ ] **Optional Project/Department field.** New optional Step 3 dropdown
-      (Purpose's styling) of Active saved Projects/Departments plus
-      "Other" (reveals a trimmed text input). Never blocks confirmation
-      when empty; never invents a value if "Other" is picked with no text
-      typed. Stores the option's stable ID plus a display snapshot (or the
-      typed custom value for Other) so a later-Inactive option or custom
-      value still renders correctly on old bookings/records. Does not
-      affect ownership or Requested By. Edit Booking must correctly
-      reshow all three cases (empty, saved option, custom Other,
-      including a since-Inactive one).
+- [x] **Vehicle → Driver assignment.** Merged to `master` via PR #20
+      (`feat/vehicle-driver-assignment`). Selecting
+      a Vehicle in booking Step 2 auto-resolves its one current active Driver
+      (no separate Driver picker in the normal flow). Admin Settings →
+      Vehicles gets an "Assigned Driver" dropdown (active Drivers only) in the
+      existing Add/Edit popup, and the Vehicles list shows each Vehicle's
+      assigned Driver or "No Driver assigned." One Driver ↔ one Vehicle at a
+      time, enforced server-side (`vehicles_assigned_driver_id_unique`
+      partial index, a trigger requiring an active Driver, and an
+      auto-unassign trigger when a Driver is deactivated — a Vehicle with no
+      active Driver isn't bookable, checked by `create_booking`/
+      `update_booking` themselves rather than trusting a client-supplied
+      Driver). Reassigning a Driver never rewrites already-confirmed
+      bookings, since `bookings.driver_id`/`driver_name` are snapshotted at
+      create/update time, not read live off the Vehicle's current
+      assignment. Edit Booking re-resolves the proposed Driver when the
+      Vehicle changes and rechecks availability before saving. Verified
+      against a local `supabase db reset` instance and with a real
+      end-to-end pass against the running dev server + local Supabase; see
+      `docs/MEMORY.md` for two real bugs found and fixed during that
+      verification.
 - [ ] **Trip leg buttons and final return.** Reworks Trip Record leg entry
       to be Driver-button-driven instead of auto-generating a return leg.
       - **Initial leg:** a new record starts with just LEG 01, Origin fixed
