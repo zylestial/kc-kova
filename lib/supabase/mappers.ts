@@ -1,4 +1,15 @@
-import type { Booking, BookingOption, BookingOptions, Person, VehicleRecord } from "@/lib/kova-api";
+import type { Booking, BookingOption, BookingOptions, Person, Vehicle, VehicleRecord } from "@/lib/kova-api";
+
+type VehicleRow = { plate: string; name: string; status: "Active" | "Inactive"; assigned_driver_id: string | null };
+
+export function toVehicle(row: VehicleRow): Vehicle {
+  return {
+    plate: row.plate,
+    name: row.name,
+    status: row.status,
+    assignedDriverId: row.assigned_driver_id ?? undefined,
+  };
+}
 
 type BookingRow = {
   id: string;
