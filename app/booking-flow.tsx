@@ -52,14 +52,13 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const OTHER_OPTION = "__other__";
-type Vehicle = { plate: string; name: string };
+type Vehicle = { plate: string; name: string; assignedDriverId?: string | null };
 type Slot = { plate: string; start: number; end: number };
 type EditDraft = {
   date: string;
   plate: string;
   start: number;
   end: number;
-  driverId: string;
   destination: string;
   purpose: string;
   notes: string;
@@ -93,7 +92,6 @@ const toDraft = (booking: Booking): EditDraft => ({
   plate: booking.plate,
   start: booking.start,
   end: booking.end,
-  driverId: booking.driverId,
   destination: booking.destination,
   purpose: booking.purpose,
   notes: booking.notes,
@@ -108,12 +106,12 @@ export default function BookingFlow() {
   const [fleet, setFleet] = useState<Vehicle[]>(() =>
     getVehicles()
       .filter((vehicle) => vehicle.status === "Active")
-      .map(({ plate, name }) => ({ plate, name })),
+      .map(({ plate, name, assignedDriverId }) => ({ plate, name, assignedDriverId })),
   );
   const [unavailable, setUnavailable] = useState<Vehicle[]>(() =>
     getVehicles()
       .filter((vehicle) => vehicle.status === "Inactive")
-      .map(({ plate, name }) => ({ plate, name })),
+      .map(({ plate, name, assignedDriverId }) => ({ plate, name, assignedDriverId })),
   );
   const [bookings, setBookings] = useState<Booking[]>(() => getActiveBookings());
   const [pending, setPending] = useState<Booking[]>(() => getPendingBookings());
@@ -125,7 +123,6 @@ export default function BookingFlow() {
   const [hoverPlate, setHoverPlate] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>(() => getAccounts());
   const [options, setOptions] = useState(() => getBookingOptions());
-  const [driverId, setDriverId] = useState("");
   const [destination, setDestination] = useState("");
   const [purpose, setPurpose] = useState("");
   const [bookingType, setBookingType] = useState<"REGULAR" | "URGENT">("REGULAR");
@@ -148,12 +145,12 @@ export default function BookingFlow() {
     setFleet(
       vehicles
         .filter((vehicle) => vehicle.status === "Active")
-        .map(({ plate, name }) => ({ plate, name })),
+        .map(({ plate, name, assignedDriverId }) => ({ plate, name, assignedDriverId })),
     );
     setUnavailable(
       vehicles
         .filter((vehicle) => vehicle.status === "Inactive")
-        .map(({ plate, name }) => ({ plate, name })),
+        .map(({ plate, name, assignedDriverId }) => ({ plate, name, assignedDriverId })),
     );
     setBookings(getActiveBookings());
     setPending(getPendingBookings());
@@ -169,6 +166,14 @@ export default function BookingFlow() {
   const drivers = accounts.filter(
     (account) => account.role === "Driver" && account.status === "Active",
   );
+  // The Driver is resolved from the selected Vehicle's assignment, never
+  // picked directly — a hidden field wouldn't be a real permission check,
+  // so this same lookup is re-derived server-side on every create/update.
+  function vehicleDriver(plate: string) {
+    const vehicle = fleet.find((item) => item.plate === plate);
+    const id = vehicle?.assignedDriverId;
+    return id ? drivers.find((driver) => driver.id === id) : undefined;
+  }
   const daily = bookings.filter((booking) => booking.date === date);
   const archived = daily
     .filter(
@@ -262,7 +267,6 @@ export default function BookingFlow() {
     setError("");
   }
   function resetForm() {
-    setDriverId("");
     setDestination("");
     setPurpose("");
     setDestinationOther(false);
@@ -274,9 +278,9 @@ export default function BookingFlow() {
     setBusy(true);
     setError("");
     try {
-      const driver = drivers.find((account) => account.id === driverId),
+      const driver = vehicleDriver(selected.plate),
         creator = currentAccount();
-      if (!driver || !creator) throw Error("Select an active Driver.");
+      if (!driver || !creator) throw Error("This vehicle has no Driver assigned.");
       const booking: Booking = {
         id: requestId,
         date,
@@ -336,8 +340,8 @@ export default function BookingFlow() {
     setBusy(true);
     setError("");
     try {
-      const driver = drivers.find((account) => account.id === draft.driverId);
-      if (!driver) throw Error("Select an active Driver.");
+      const driver = vehicleDriver(draft.plate);
+      if (!driver) throw Error("This vehicle has no Driver assigned.");
       const updated = await updateBooking({
         ...active,
         ...draft,
@@ -376,7 +380,7 @@ export default function BookingFlow() {
     !draft ||
     !draft.date ||
     !draft.plate ||
-    !draft.driverId ||
+    !vehicleDriver(draft.plate) ||
     !draft.destination ||
     !draft.purpose ||
     draft.start >= draft.end ||
@@ -388,7 +392,7 @@ export default function BookingFlow() {
       active.plate !== draft.plate ||
       active.start !== draft.start ||
       active.end !== draft.end ||
-      active.driverId !== draft.driverId ||
+      active.driverId !== (vehicleDriver(draft.plate)?.id ?? "") ||
       active.bookingType !== draft.bookingType);
   const myPending = pending.filter(
     (booking) => (booking.createdByAccountId || booking.createdBy) === current?.id,
@@ -799,19 +803,15 @@ export default function BookingFlow() {
               )}
             </label>
             <label className="field">
-              <span>DRIVER *</span>
-              <Select value={driverId} onValueChange={setDriverId}>
-                <SelectTrigger aria-label="Driver">
-                  <SelectValue placeholder="Select Driver" />
-                </SelectTrigger>
-                <SelectContent>
-                  {drivers.map((driver) => (
-                    <SelectItem key={driver.id} value={driver.id}>
-                      {driver.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <span>DRIVER</span>
+              {vehicleDriver(selected.plate) ? (
+                <p>{vehicleDriver(selected.plate)?.name}</p>
+              ) : (
+                <small className="field-hint">
+                  This vehicle has no Driver assigned. Ask an Admin to assign one in
+                  Settings before booking it.
+                </small>
+              )}
             </label>
             <label className="field">
               <span>DESTINATION *</span>
@@ -987,7 +987,7 @@ export default function BookingFlow() {
             !fleet.length ||
             (step === 2 && !selected) ||
             (step === 3 &&
-              (!driverId ||
+              (!vehicleDriver(selected?.plate ?? "") ||
                 !destination ||
                 !purpose ||
                 !typeDateValid ||
@@ -1242,24 +1242,15 @@ export default function BookingFlow() {
                 </Select>
               </label>
               <label className="field">
-                <span>DRIVER *</span>
-                <Select
-                  value={draft.driverId}
-                  onValueChange={(value) =>
-                    setDraft({ ...draft, driverId: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {drivers.map((driver) => (
-                      <SelectItem key={driver.id} value={driver.id}>
-                        {driver.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <span>DRIVER</span>
+                {vehicleDriver(draft.plate) ? (
+                  <p>{vehicleDriver(draft.plate)?.name}</p>
+                ) : (
+                  <small className="field-hint">
+                    This vehicle has no Driver assigned. Ask an Admin to assign
+                    one in Settings before saving.
+                  </small>
+                )}
               </label>
               <label className="field">
                 <span>DESTINATION *</span>
