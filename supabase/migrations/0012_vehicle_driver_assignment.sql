@@ -93,6 +93,16 @@ begin
     raise exception 'Vehicle not found' using errcode = 'P0002';
   end if;
 
+  -- Deliberately NOT errcode '23505' (unique_violation): this function's own
+  -- "exception when unique_violation" handler below would catch a raise with
+  -- that code too and rewrite it to "Plate already in use", masking this
+  -- distinct error. Default (P0001) avoids that self-catch.
+  if p_assigned_driver_id is not null and exists (
+    select 1 from public.vehicles where assigned_driver_id = p_assigned_driver_id and plate <> p_old_plate
+  ) then
+    raise exception 'That Driver is already assigned to another vehicle';
+  end if;
+
   if p_new_plate = p_old_plate then
     update public.vehicles set name = p_name, status = p_status, assigned_driver_id = p_assigned_driver_id
     where plate = p_old_plate
