@@ -18,6 +18,7 @@ export type Vehicle = {
   plate: string;
   name: string;
   status: "Active" | "Inactive";
+  assignedDriverId?: string | null;
 };
 export type BookingOption = {
   id: string;

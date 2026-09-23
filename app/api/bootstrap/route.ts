@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { toAccount } from "@/lib/supabase/accounts";
 import { requireAccount } from "@/lib/supabase/session";
-import { toBooking, toBookingOptions, toPerson, toVehicleRecord } from "@/lib/supabase/mappers";
+import { toBooking, toBookingOptions, toPerson, toVehicle, toVehicleRecord } from "@/lib/supabase/mappers";
 
 // Row Level Security already scopes bookings/vehicle_records/accounts to
 // what the signed-in role may see (see supabase/migrations/0001_init.sql),
@@ -28,7 +28,7 @@ export async function GET() {
 
   return NextResponse.json({
     accounts: (accountsRes.data ?? []).map(toAccount),
-    vehicles: vehiclesRes.data ?? [],
+    vehicles: (vehiclesRes.data ?? []).map(toVehicle),
     bookings: (bookingsRes.data ?? []).map(toBooking),
     records: (recordsRes.data ?? []).map(toVehicleRecord),
     options: toBookingOptions(optionsRes.data ?? []),

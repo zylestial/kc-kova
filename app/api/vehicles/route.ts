@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAccount } from "@/lib/supabase/session";
+import { toVehicle } from "@/lib/supabase/mappers";
 
 const STATUSES = ["Active", "Inactive"] as const;
 
@@ -37,5 +38,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: error?.message || "Could not create the vehicle." }, { status: 422 });
   }
 
-  return NextResponse.json(data, { status: 201 });
+  return NextResponse.json(toVehicle(data), { status: 201 });
 }
