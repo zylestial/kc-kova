@@ -34,7 +34,13 @@ type Account = {
   status: "Active" | "Inactive";
   project?: string;
 };
-type Vehicle = { plate: string; name: string; status: "Active" | "Inactive" };
+type Vehicle = {
+  plate: string;
+  name: string;
+  status: "Active" | "Inactive";
+  assignedDriverId?: string | null;
+};
+const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
   name: "",
   username: "",
@@ -47,6 +53,7 @@ const blankVehicle = () => ({
   plate: "",
   name: "",
   status: "Active" as Vehicle["status"],
+  assignedDriverId: UNASSIGNED,
 });
 function TextField({
   label,
@@ -120,6 +127,11 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   const [originalPlate, setOriginalPlate] = useState("");
   const [passwordFor, setPasswordFor] = useState<Account | null>(null);
   const [passwords, setPasswords] = useState({ next: "", confirm: "" });
+  const drivers = accounts.filter(
+    (a) => a.role === "Driver" && a.status === "Active",
+  );
+  const driverName = (id?: string | null) =>
+    (id && accounts.find((a) => a.id === id)?.name) || "No Driver assigned";
   function load() {
     setAccounts(getAccounts());
     setVehicles(getVehicles());
@@ -181,7 +193,12 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setFormError("");
   }
   function editVehicle(v: Vehicle) {
-    setVehicle({ plate: v.plate, name: v.name, status: v.status });
+    setVehicle({
+      plate: v.plate,
+      name: v.name,
+      status: v.status,
+      assignedDriverId: v.assignedDriverId || UNASSIGNED,
+    });
     setOriginalPlate(v.plate);
     setVehicleModal("edit");
     setFormError("");
@@ -199,6 +216,10 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           plate: vehicle.plate,
           name: vehicle.name.trim(),
           status: vehicle.status,
+          assignedDriverId:
+            vehicle.assignedDriverId === UNASSIGNED
+              ? undefined
+              : vehicle.assignedDriverId,
         },
         vehicleModal === "edit" ? originalPlate : undefined,
       );
@@ -339,6 +360,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
                   <tr>
                     <th>PLATE NUMBER</th>
                     <th>VEHICLE NAME / MODEL</th>
+                    <th>ASSIGNED DRIVER</th>
                     <th>STATUS</th>
                     <th></th>
                   </tr>
@@ -350,6 +372,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
                         <b>{v.plate}</b>
                       </td>
                       <td>{v.name}</td>
+                      <td>{driverName(v.assignedDriverId)}</td>
                       <td>
                         <span
                           className={
@@ -544,6 +567,27 @@ export default function Settings({ onBack }: { onBack: () => void }) {
               value={vehicle.name}
               onChange={(v) => setVehicle({ ...vehicle, name: v })}
             />
+            <label className="field">
+              <span>Assigned Driver</span>
+              <Select
+                value={vehicle.assignedDriverId}
+                onValueChange={(v) =>
+                  setVehicle({ ...vehicle, assignedDriverId: v })
+                }
+              >
+                <SelectTrigger aria-label="Assigned Driver">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNASSIGNED}>No Driver assigned</SelectItem>
+                  {drivers.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
             <Choice
               label="Status"
               value={vehicle.status}
