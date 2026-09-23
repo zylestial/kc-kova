@@ -351,19 +351,21 @@ export default function Scheduler({
           </Button>
         </header>
         <main>
-          <div className="breadcrumb">
-            <Button
-              variant="ghost"
-              onClick={adminReviewMode ? close : onHome}
-            >
-              <ArrowLeft size={15} />{" "}
-              {role === "Driver"
-                ? driverBackLabel
-                : adminReviewMode
-                  ? "Finished Trips"
-                  : `${role} Home`}
-            </Button>
-          </div>
+          {!(adminReviewMode && edit) && (
+            <div className="breadcrumb">
+              <Button
+                variant="ghost"
+                onClick={adminReviewMode ? close : onHome}
+              >
+                <ArrowLeft size={15} />{" "}
+                {role === "Driver"
+                  ? driverBackLabel
+                  : adminReviewMode
+                    ? "Finished Trips"
+                    : `${role} Home`}
+              </Button>
+            </div>
+          )}
           {(role === "Driver" || adminReviewMode) && !edit ? null : !edit ? (
             <BookingFlow />
           ) : (
