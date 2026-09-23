@@ -13,18 +13,7 @@ import {
   type Booking,
   type HistoryEntry,
 } from "@/lib/kova-api";
-import {
-  Truck,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  Printer,
-  ArrowUpRight,
-  CalendarDays,
-  Save,
-  ArrowLeft,
-  MapPin,
-} from "lucide-react";
+import { Plus, Printer, Save, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -164,15 +153,13 @@ export default function Scheduler({
   driverBackLabel?: string;
   reviewRecordId?: string;
 }) {
-  const [date, setDate] = useState(() => today());
+  const [, setDate] = useState(() => today());
   const [records, setRecords] = useState<RecordData[]>(() => getRecords() as RecordData[]);
   const [edit, setEdit] = useState<RecordData | null>(null);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState("details");
   const [dirty, setDirty] = useState(false);
-  const [view, setView] = useState("book");
   const [review, setReview] = useState(false);
   const [adminEditing, setAdminEditing] = useState(false);
   const [markConfirm, setMarkConfirm] = useState(false);
@@ -228,10 +215,6 @@ export default function Scheduler({
       });
     }
   }, [role, reviewRecordId]);
-  function refresh() {
-    setRecords(getRecords() as RecordData[]);
-    setLoading(false);
-  }
   const adminReviewMode = role === "Admin" && !!reviewRecordId;
   const reviewBooking =
     adminReviewMode && edit?.bookingId
@@ -349,12 +332,6 @@ export default function Scheduler({
       setBusy(false);
     }
   }
-  function open(r: RecordData) {
-    setEdit(structuredClone(r));
-    setTab("details");
-    setMessage("");
-    setDirty(false);
-  }
   function close() {
     if (dirty && !confirm("May unsaved changes. Discard changes?")) return;
     setEdit(null);
@@ -362,13 +339,6 @@ export default function Scheduler({
     setDirty(false);
     if (role === "Driver" || adminReviewMode) onHome();
   }
-  function shift(n: number) {
-    const d = new Date(date + "T12:00:00");
-    d.setDate(d.getDate() + n);
-    setDate(d.toLocaleDateString("en-CA"));
-  }
-  const visible = records.filter((r) => r.date === date);
-  const closed = visible.filter((r) => r.status === "Completed").length;
   return (
     <>
       <div className="app-shell">
@@ -394,194 +364,8 @@ export default function Scheduler({
                   : `${role} Home`}
             </Button>
           </div>
-          {!edit && role === "Admin" && !adminReviewMode && (
-            <Tabs value={view} onValueChange={setView} className="main-nav">
-              <TabsList>
-                <TabsTrigger value="book">Book a vehicle</TabsTrigger>
-                <TabsTrigger value="records">Daily records & PDF</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
-          {(role === "Driver" || adminReviewMode) && !edit ? null : !edit &&
-            view === "book" ? (
+          {(role === "Driver" || adminReviewMode) && !edit ? null : !edit ? (
             <BookingFlow />
-          ) : !edit ? (
-            <>
-              <div className="page-heading">
-                <div>
-                  <div className="eyebrow">DISPATCH & RECORDS</div>
-                  <h1>
-                    Daily trip records<span className="title-dot">.</span>
-                  </h1>
-                  <p>
-                    Record actual movements and prepare the daily form for
-                    Finance.
-                  </p>
-                </div>
-                <Button
-                  className="primary"
-                  onClick={() => open(fresh(date || today()))}
-                >
-                  <Plus size={18} /> New daily record
-                </Button>
-              </div>
-              <div className="stats">
-                <div>
-                  <span>Scheduled vehicles</span>
-                  <strong>{visible.length.toString().padStart(2, "0")}</strong>
-                  <small>For the selected day</small>
-                </div>
-                <div>
-                  <span>On the road</span>
-                  <strong>
-                    {visible
-                      .filter((r) => r.status === "In progress")
-                      .length.toString()
-                      .padStart(2, "0")}
-                  </strong>
-                  <small>Trips in progress</small>
-                </div>
-                <div>
-                  <span>Returned & completed</span>
-                  <strong>{closed.toString().padStart(2, "0")}</strong>
-                  <small>Daily records closed</small>
-                </div>
-                <div className="rule-card">
-                  <MapPin size={21} />
-                  <span>
-                    Every day starts and
-                    <br />
-                    ends at <b>ANONANG.</b>
-                  </span>
-                </div>
-              </div>
-              <section className="schedule-panel">
-                <div className="panel-toolbar">
-                  <div>
-                    <CalendarDays size={20} />
-                    <h2>Daily records</h2>
-                    <span className="count">{visible.length}</span>
-                  </div>
-                  <div className="date-controls">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="Previous day"
-                      onClick={() => shift(-1)}
-                    >
-                      <ChevronLeft size={18} />
-                    </Button>
-                    <Input
-                      type="date"
-                      aria-label="Schedule date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="Next day"
-                      onClick={() => shift(1)}
-                    >
-                      <ChevronRight size={18} />
-                    </Button>
-                    <Button variant="outline" onClick={() => setDate(today())}>
-                      Today
-                    </Button>
-                  </div>
-                </div>
-                {loading ? (
-                  <div className="empty">Loading daily records…</div>
-                ) : visible.length ? (
-                  <div className="schedule-table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>VEHICLE / PLATE</th>
-                          <th>DRIVER</th>
-                          <th>PROJECT / DEPARTMENT</th>
-                          <th>TRIP LEGS</th>
-                          <th>STATUS</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visible.map((r) => (
-                          <tr key={r.id} onClick={() => open(r)}>
-                            <td>
-                              <b>{r.vehicle}</b>
-                              <small>{r.plate}</small>
-                            </td>
-                            <td>{r.driver}</td>
-                            <td>{r.project || "—"}</td>
-                            <td>{r.legs.length}</td>
-                            <td>
-                              <span
-                                className={
-                                  "badge " +
-                                  (r.status === "Completed" ? "complete" : "")
-                                }
-                              >
-                                {r.status}
-                              </span>
-                            </td>
-                            <td>
-                              <Button
-                                variant="ghost"
-                                onClick={() => open(r)}
-                                aria-label={"Open " + r.plate}
-                              >
-                                <ArrowUpRight size={19} />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="empty">
-                    <div className="empty-icon">
-                      <Truck size={30} />
-                    </div>
-                    <h3>A clear road ahead</h3>
-                    <p>No daily trip records for this day.</p>
-                    <Button variant="outline" onClick={() => open(fresh(date))}>
-                      <Plus size={16} /> Create the first record
-                    </Button>
-                  </div>
-                )}
-                <div className="panel-foot">
-                  <span>One vehicle. One day. One complete trip record.</span>
-                  <span>Daily utilization form ↗</span>
-                </div>
-              </section>
-              {message && (
-                <div role="alert" className="notice">
-                  {message}
-                  <Button variant="ghost" onClick={refresh}>
-                    Retry
-                  </Button>
-                </div>
-              )}
-              <div className="workflow">
-                <span>
-                  <b>01</b> Schedule vehicle
-                </span>
-                <i />
-                <span>
-                  <b>02</b> Record trip legs
-                </span>
-                <i />
-                <span>
-                  <b>03</b> Return & close
-                </span>
-                <i />
-                <span>
-                  <b>04</b> Print for Finance
-                </span>
-              </div>
-            </>
           ) : (
             <>
               <Button variant="ghost" className="back" onClick={close}>
