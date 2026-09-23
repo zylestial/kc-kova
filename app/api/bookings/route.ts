@@ -19,18 +19,17 @@ export async function POST(request: Request) {
   const plate = typeof body?.plate === "string" ? body.plate : "";
   const start = Number(body?.start);
   const end = Number(body?.end);
-  const driverId = typeof body?.driverId === "string" ? body.driverId : "";
   const destination = typeof body?.destination === "string" ? body.destination : "";
   const purpose = typeof body?.purpose === "string" ? body.purpose : "";
   const notes = typeof body?.notes === "string" ? body.notes : "";
   const bookingType = typeof body?.bookingType === "string" ? body.bookingType : "";
   const urgentReason = typeof body?.urgentReason === "string" ? body.urgentReason : "";
   if (
-    !date || !plate || !driverId || !destination || !purpose ||
+    !date || !plate || !destination || !purpose ||
     !Number.isInteger(start) || !Number.isInteger(end) ||
     !["REGULAR", "URGENT"].includes(bookingType)
   ) {
-    return NextResponse.json({ message: "Date, plate, driver, time range, destination, purpose, and booking type are required." }, { status: 422 });
+    return NextResponse.json({ message: "Date, plate, time range, destination, purpose, and booking type are required." }, { status: 422 });
   }
 
   const { data, error } = await supabase.rpc("create_booking", {
@@ -38,7 +37,6 @@ export async function POST(request: Request) {
     p_plate: plate,
     p_start: start,
     p_end: end,
-    p_driver_id: driverId,
     p_destination: destination,
     p_purpose: purpose,
     p_notes: notes,
