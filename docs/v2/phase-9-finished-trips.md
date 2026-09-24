@@ -6,8 +6,8 @@ Branch `feat/v2-finished-trips`, stacked on `feat/v2-cancellation`
 Admin RPCs, API routes and screens, and replaces the v1 Finished Trips
 screens. Local Docker database only.
 
-**Status: scope draft.** Items under "Open questions" need a decision
-before the migration is written.
+**Status: built, not yet walked through in a browser.** The decisions
+below were approved before the migrations were written.
 
 ## 1. Scope
 
@@ -42,29 +42,27 @@ before the migration is written.
   the form rendered), fed from v2 schedule data instead of the v1 record.
 - Routes: `PATCH /api/schedules/:id/completion` (correct),
   `POST /api/schedules/:id/completion/done`,
-  `POST /api/problems/:id/handle`. Bootstrap already returns
-  completions and problems; it will also return handling fields.
+  `POST /api/problems/:id/handle`. Bootstrap already returned
+  completions and problems; the mappers now include the Done and
+  handling fields.
 
-## 3. Open questions
+## 3. Decisions
 
-1. **Follow-up schedule link.** Phase 8 noted `problem_reports` has no
-   follow-up column. Options: add nullable `follow_up_schedule_id`
-   (migration 0030) and set it at handle time, or drop the link from v2
-   and keep the handling note only. Recommendation: add the column, since
-   the Phase 8 notes already promised it, and validate that the schedule
-   is a different, non-cancelled one.
-2. **Who may correct.** Admin only, or Scheduler too (Schedulers can
-   already read problem reports)? Recommendation: Admin only.
-3. **Print contents.** The v1 form has a company header, trip legs table,
-   return-condition checkboxes and a PM/COO approval block. v2 has no
-   return-condition data. Recommendation: keep header, route table
-   (legs and stops), Driver, vehicle, odometer pair and distance,
-   problem notes, and the approval block; drop return-condition
-   checkboxes.
-4. **Is Done manual?** Recommendation: yes, always an explicit Admin
-   action, never automatic after submission.
-5. **Cancellation after Done.** Already blocked by Phase 7/8 guards once
-   any completion exists; no change proposed.
+1. **Follow-up schedule link: added.** Migration 0030 adds nullable
+   `problem_reports.follow_up_schedule_id`. Only a `HANDLED` report can
+   carry it, and `handle_problem` requires it to be a different, active
+   schedule.
+2. **Only an Admin corrects, marks Done or handles.** Schedulers can read
+   problem reports (Phase 3 RLS) but not act on them.
+3. **Print contents:** header and logo, Driver, plate, both odometers,
+   distance, the eight-row route table from the approved version (planned
+   times), problem notes with how they were handled, and the PM/COO
+   approval block. The v1 return-condition checkboxes and Finance block
+   are dropped: v2 stores nothing for them.
+4. **Done is always a manual Admin action**, never automatic.
+5. **Cancellation after Done:** unchanged; Phase 7/8 guards already block it.
+6. **Repeating is safe:** marking Done or handling again returns the
+   existing row instead of an error.
 
 ## 4. Not in this phase
 
@@ -75,8 +73,29 @@ before the migration is written.
 
 ## 5. Verification plan
 
-pgTAP for the three RPCs (role limits, `SUBMITTED`-only corrections,
+Planned: pgTAP for the three RPCs (role limits, `SUBMITTED`-only corrections,
 Done locking, handling fields, audit rows, follow-up validation if kept),
 vitest for mappers and body parsing, API smoke as Admin and Driver, and a
 browser walkthrough covering correction, Done, handling a problem, and
 the print view.
+
+## 6. Results
+
+- Migrations `0030_v2_problem_follow_up.sql` and
+  `0031_v2_finished_trip_rpcs.sql`. pgTAP **35/35** for
+  `v2_finished_trips.test.sql`; all five files (214 tests) pass on a
+  fresh local reset. Covers role limits, unknown ids, odometer validation,
+  correcting only while `SUBMITTED`, Done and its lock (including direct
+  writes), repeat calls, follow-up validation (same, unknown and cancelled
+  schedules), and audit history.
+- vitest **121/121** (was 111): Done and handling mappers, handle-problem
+  body parsing, and the finished-trip builder. `tsc` clean, `lint` 0
+  errors, `next build` passes.
+- **Not done:** no browser walkthrough or API smoke test yet, so the two
+  screens and the print view are only type-checked and built. No
+  concurrency.sh race for Done against a correction.
+- **Left for cleanup:** the v1 record editor in `scheduler.tsx`
+  (`reviewRecordId` and `driverBooking` props, `PrintForm`) is no longer
+  reachable from any screen, and `getDriverTrips` in `kova-api.ts` is
+  unused. Removal belongs with Phase 10's v1 retirement.
+- **Local database only.** 0030 and 0031 are not applied to `kc-kova`.
