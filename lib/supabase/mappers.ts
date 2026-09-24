@@ -7,6 +7,8 @@ import type {
   Schedule,
   TransportRequest,
   CancellationRequest,
+  ProblemReport,
+  TripCompletion,
   Vehicle,
   VehicleRecord,
 } from "@/lib/kova-api";
@@ -190,6 +192,54 @@ export function toCancellationRequest(row: CancellationRow): CancellationRequest
     status: row.status,
     decidedAt: row.decided_at ?? undefined,
     decisionNote: row.decision_note,
+  };
+}
+
+type CompletionRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  driver_id: string;
+  start_odometer: number;
+  end_odometer: number;
+  distance: number;
+  submitted_at: string;
+  status: TripCompletion["status"];
+};
+
+export function toTripCompletion(row: CompletionRow): TripCompletion {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    driverId: row.driver_id,
+    startOdometer: row.start_odometer,
+    endOdometer: row.end_odometer,
+    distance: row.distance,
+    submittedAt: row.submitted_at,
+    status: row.status,
+  };
+}
+
+type ProblemRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  driver_id: string;
+  note: string;
+  created_at: string;
+  status: ProblemReport["status"];
+};
+
+export function toProblemReport(row: ProblemRow): ProblemReport {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    driverId: row.driver_id,
+    note: row.note,
+    createdAt: row.created_at,
+    status: row.status,
   };
 }
 

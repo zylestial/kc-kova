@@ -99,6 +99,28 @@ export type CancellationRequest = {
   decidedAt?: string;
   decisionNote: string;
 };
+/** A Driver's submitted odometer pair for a whole schedule (0017, 0029). */
+export type TripCompletion = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  driverId: string;
+  startOdometer: number;
+  endOdometer: number;
+  distance: number;
+  submittedAt: string;
+  status: "SUBMITTED" | "DONE";
+};
+/** A Driver's note that a trip couldn't go as planned (0017, 0029). */
+export type ProblemReport = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  driverId: string;
+  note: string;
+  createdAt: string;
+  status: "OPEN" | "HANDLED";
+};
 /** What the New request form and the Edit modal send. */
 export type RequestInput = {
   date: string;
