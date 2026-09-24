@@ -47,15 +47,18 @@ export default function Schedules({
   onCreate,
   onEdit,
   notice,
+  initialDate,
 }: {
   canEdit: boolean;
   onCreate?: () => void;
   onEdit: (scheduleId: string) => void;
   notice?: string;
+  /** The day to open on, e.g. the one just planned; defaults to today. */
+  initialDate?: string;
 }) {
   const [data, setData] = useState(readData);
   const [view, setView] = useState<"day" | "week">("week");
-  const [date, setDate] = useState(() => manilaToday());
+  const [date, setDate] = useState(() => initialDate ?? manilaToday());
   const [vehicle, setVehicle] = useState("all");
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState<"all" | ScheduleState>("all");
