@@ -21,7 +21,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     vehicles/           Admin: create/rename vehicles
     bookings/           Requester/Admin: create/update/cancel bookings (v1.2)
     requests/           Requester/Admin: create/edit v2 transport requests
-    schedules/          Scheduler: create, save, submit and discard v2 schedule drafts
+    schedules/          Scheduler: create, save, submit, discard; Admin: approve, return
     records/            Driver/Admin: submit and review Daily Vehicle Records
     booking-options/    Admin: Projects/Destinations/Purposes/People
   *.tsx                 Screens (scheduler, driver-trips, settings, etc.) — client components
@@ -314,6 +314,8 @@ Summary, with the implementing route file:
 | PUT | `/api/schedules/:scheduleId` | `app/api/schedules/[scheduleId]/route.ts` | Scheduler (DRAFT/RETURNED), Admin (SUBMITTED) |
 | POST | `/api/schedules/:scheduleId/submit` | `app/api/schedules/[scheduleId]/submit/route.ts` | Scheduler |
 | POST | `/api/schedules/:scheduleId/discard` | `app/api/schedules/[scheduleId]/discard/route.ts` | Scheduler |
+| POST | `/api/schedules/:scheduleId/approve` | `app/api/schedules/[scheduleId]/approve/route.ts` | Admin |
+| POST | `/api/schedules/:scheduleId/return` | `app/api/schedules/[scheduleId]/return/route.ts` | Admin (comment required) |
 | PUT | `/api/records/:recordId` | `app/api/records/[recordId]/route.ts` | Assigned Driver (pre-submission), Admin (review) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |

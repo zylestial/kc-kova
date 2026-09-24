@@ -62,3 +62,5 @@ conventions (see `docs/RULES.md`).
 - Phase 5 complete on `feat/v2-scheduling` — `docs/v2/phase-5-scheduling.md`
   (Create schedule, Schedules, Trip Record, migrations 0026–0027).
   Applied to the local database only.
+- Phase 6 complete on `feat/v2-approval` — `docs/v2/phase-6-approval.md`
+  (Admin Schedules, approve/return, Scheduler revisions; no migration).

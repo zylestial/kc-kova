@@ -52,6 +52,7 @@ import {
   matchingDestinations,
   moveLeg,
   newLeg,
+  currentRevision,
   openRevision,
   removeLeg,
   scheduleState,
@@ -99,7 +100,10 @@ export default function SchedulePlanner({
   scheduleId,
   onDone,
 }: {
-  /** An existing schedule whose DRAFT/RETURNED version is being continued. */
+  /**
+   * An existing schedule whose DRAFT/RETURNED version is being continued, or
+   * an approved one (no open version) to propose a revision of.
+   */
   scheduleId?: string;
   /** Called after submit or discard, with a notice and the planned date. */
   onDone: (notice: string, date: string) => void;
@@ -109,14 +113,16 @@ export default function SchedulePlanner({
 
   // The schedule and version this editor was opened on. Saves are checked
   // against that rowVersion so a stale tab can't overwrite a newer change.
-  const [editing, setEditing] = useState<{ id: string; rowVersion: number } | null>(() => {
+  // rowVersion is null while proposing a revision that isn't saved yet.
+  const [editing, setEditing] = useState<{ id: string; rowVersion: number | null } | null>(() => {
     const schedule = scheduleId ? getSchedules().find((item) => item.id === scheduleId) : undefined;
-    const open = schedule && openRevision(schedule);
-    return schedule && open ? { id: schedule.id, rowVersion: open.rowVersion } : null;
+    if (!schedule) return null;
+    const open = openRevision(schedule);
+    return { id: schedule.id, rowVersion: open ? open.rowVersion : null };
   });
   const opened = useMemo(() => {
     const schedule = scheduleId ? getSchedules().find((item) => item.id === scheduleId) : undefined;
-    return schedule ? { schedule, revision: openRevision(schedule) } : null;
+    return schedule ? { schedule, revision: currentRevision(schedule) } : null;
   }, [scheduleId]);
 
   const [step, setStep] = useState(opened ? 2 : 1);
@@ -248,6 +254,10 @@ export default function SchedulePlanner({
   const discard = () =>
     run(async () => {
       if (!editing) return;
+      if (editing.rowVersion === null) {
+        onDone("Nothing was saved. The approved schedule stays in force.", date);
+        return;
+      }
       await discardScheduleDraft(editing.id, editing.rowVersion);
       onDone("Draft discarded. Its requests are back to Not yet scheduled.", date);
     });
@@ -284,7 +294,7 @@ export default function SchedulePlanner({
       )}
       <div className="booking-heading">
         <div>
-          <h1>{step === 1 ? "Which day are you planning?" : editing ? "Edit schedule" : "Plan a schedule"}</h1>
+          <h1>{step === 1 ? "Which day are you planning?" : editing ? (editing.rowVersion === null ? "Propose a revision" : "Edit schedule") : "Plan a schedule"}</h1>
           <p>
             {step === 1
               ? "Each day shows how many requests are still waiting to be scheduled."

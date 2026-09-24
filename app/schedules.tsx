@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -12,7 +13,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getAccounts, getRequests, getSchedules, getVehicles, type Schedule } from "@/lib/kova-api";
+import {
+  approveSchedule,
+  getAccounts,
+  getRequests,
+  getSchedules,
+  getVehicles,
+  returnSchedule,
+  type Schedule,
+} from "@/lib/kova-api";
 import { addDays, manilaToday } from "@/lib/timezone";
 import {
   currentRevision,
@@ -40,18 +49,22 @@ const readData = () => ({
 /**
  * Schedules: every schedule by day or week, filtered by vehicle, Driver
  * and status, for weekly planning. A Scheduler opens a draft or returned
- * schedule to keep editing it; anything else opens read-only.
+ * schedule to keep editing it, or proposes a revision of an approved one;
+ * an Admin approves or returns a submitted one; anything else is read-only.
  */
 export default function Schedules({
   canEdit,
+  canReview,
   onCreate,
   onEdit,
   notice,
   initialDate,
 }: {
-  canEdit: boolean;
+  canEdit?: boolean;
+  /** Admin: approve or return a schedule that has been submitted. */
+  canReview?: boolean;
   onCreate?: () => void;
-  onEdit: (scheduleId: string) => void;
+  onEdit?: (scheduleId: string) => void;
   notice?: string;
   /** The day to open on, e.g. the one just planned; defaults to today. */
   initialDate?: string;
@@ -63,6 +76,11 @@ export default function Schedules({
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState<"all" | ScheduleState>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [returning, setReturning] = useState(false);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [decided, setDecided] = useState("");
 
   useEffect(() => {
     const refresh = () => setData(readData());
@@ -92,6 +110,31 @@ export default function Schedules({
   const selected = schedules.find((schedule) => schedule.id === selectedId);
   const selectedRevision = selected && currentRevision(selected);
   const editable = (schedule: Schedule) => canEdit && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
+  const revisable = (schedule: Schedule) => canEdit && scheduleState(schedule) === "APPROVED";
+  const reviewable = (schedule: Schedule) => canReview && scheduleState(schedule) === "SUBMITTED";
+
+  function closeDialog() {
+    setSelectedId(null);
+    setReturning(false);
+    setComment("");
+    setError("");
+  }
+
+  // Approving or returning refreshes the shared data, so the list and the
+  // open Trip Record update; a stale version comes back as a 409 message.
+  async function decide(action: () => Promise<Schedule>, message: string) {
+    setBusy(true);
+    setError("");
+    try {
+      await action();
+      closeDialog();
+      setDecided(message);
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const requesters = (requestIds: string[]) =>
     [...new Set(requestIds.map((id) => requestsById.get(id)?.ownerName).filter(Boolean))].join(", ");
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
@@ -129,9 +172,9 @@ export default function Schedules({
           </Button>
         )}
       </div>
-      {notice && (
+      {(decided || notice) && (
         <div className="notice success" role="status">
-          {notice}
+          {decided || notice}
         </div>
       )}
       <section className="schedule-panel">
@@ -252,7 +295,7 @@ export default function Schedules({
         )}
       </section>
 
-      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelectedId(null)}>
+      <Dialog open={!!selected} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="review-trip-modal">
           <DialogHeader>
             <DialogTitle>Trip Record</DialogTitle>
@@ -281,15 +324,61 @@ export default function Schedules({
                 </p>
               )}
               <TripRecordView legs={selectedRevision.legs} stopsById={stopsById} />
+              {returning && (
+                <label className="field">
+                  <span>What needs to change?</span>
+                  <Textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={500} />
+                </label>
+              )}
+              {error && (
+                <p className="modal-error" role="alert">
+                  {error}
+                </p>
+              )}
             </>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedId(null)}>
-              Close
+            <Button variant="outline" disabled={busy} onClick={returning ? () => setReturning(false) : closeDialog}>
+              {returning ? "Back" : "Close"}
             </Button>
-            {selected && editable(selected) && (
-              <Button className="primary" onClick={() => onEdit(selected.id)}>
+            {selected && selectedRevision && editable(selected) && (
+              <Button className="primary" onClick={() => onEdit?.(selected.id)}>
                 Edit draft
+              </Button>
+            )}
+            {selected && revisable(selected) && (
+              <Button className="primary" onClick={() => onEdit?.(selected.id)}>
+                Propose revision
+              </Button>
+            )}
+            {selected && selectedRevision && reviewable(selected) && !returning && (
+              <>
+                <Button variant="outline" disabled={busy} onClick={() => setReturning(true)}>
+                  Return
+                </Button>
+                <Button
+                  className="primary"
+                  disabled={busy}
+                  onClick={() =>
+                    decide(() => approveSchedule(selected.id, selectedRevision.rowVersion), "Schedule approved and published.")
+                  }
+                >
+                  {busy ? "Approving…" : "Approve"}
+                </Button>
+              </>
+            )}
+            {selected && selectedRevision && reviewable(selected) && returning && (
+              <Button
+                className="primary"
+                disabled={busy || !comment.trim()}
+                onClick={() =>
+                  decide(
+                    () => returnSchedule(selected.id, selectedRevision.rowVersion, comment.trim()),
+                    "Schedule returned to the Scheduler.",
+                  )
+                }
+              >
+                {busy ? "Returning…" : "Return to Scheduler"}
               </Button>
             )}
           </DialogFooter>

@@ -290,7 +290,7 @@ export default function Home() {
               }}
             />
           </>
-        ) : screen === "schedules" && account.role === "Scheduler" ? (
+        ) : screen === "schedules" && (account.role === "Scheduler" || account.role === "Admin") ? (
           <>
             <Button
               variant="ghost"
@@ -300,18 +300,23 @@ export default function Home() {
                 setScreen(home(account.role));
               }}
             >
-              <ArrowLeft size={17} /> Scheduler Home
+              <ArrowLeft size={17} /> {account.role} Home
             </Button>
             <Schedules
               key={scheduleDate ?? "today"}
-              canEdit
+              canEdit={account.role === "Scheduler"}
+              canReview={account.role === "Admin"}
               notice={scheduleNotice}
               initialDate={scheduleDate}
-              onCreate={() => {
-                setScheduleNotice("");
-                setEditScheduleId(undefined);
-                setScreen("create-schedule");
-              }}
+              onCreate={
+                account.role === "Scheduler"
+                  ? () => {
+                      setScheduleNotice("");
+                      setEditScheduleId(undefined);
+                      setScreen("create-schedule");
+                    }
+                  : undefined
+              }
               onEdit={(id) => {
                 setScheduleNotice("");
                 setEditScheduleId(id);
@@ -435,6 +440,16 @@ export default function Home() {
                     onClick={() => setScreen("schedule")}
                   >
                     <CalendarDays size={24} /> Schedule
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setScheduleDate(undefined);
+                      setScheduleNotice("");
+                      setScreen("schedules");
+                    }}
+                  >
+                    <CalendarDays size={24} /> Schedules
                   </Button>
                   <Button
                     variant="outline"

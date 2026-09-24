@@ -619,3 +619,19 @@ Decided by the project owner at the start of Phase 5:
   `transition-all` mid-animation.** Buttons and dialogs fade, so a
   selected button looked unselected in one screenshot. Wait for the
   transition before judging colours.
+
+## Phase 6 notes (2026-09-24)
+
+- **Admin editing a submitted schedule and Admin starting a revision are
+  not offered.** The RPCs allow the first; the second stays
+  Scheduler-only (decided this phase, no migration). Admin reviews by
+  approving, or returns with a required comment.
+- **Playwright isn't installed in the project or globally**, so browser
+  walkthroughs need `npx playwright` (or an added dev dependency, which
+  changes `package.json` and needs a go-ahead). Phase 6 shipped without
+  one; the Approve/Return/Propose revision dialogs still need a
+  click-through.
+- **Local test accounts `p6-admin`, `p6-sched`, `p6-req`** (password
+  `p6test1234`) exist in the local database, along with schedules moved
+  through Return/Approve on 2026-10-04. Reset the local database before
+  row-counting smoke tests.
