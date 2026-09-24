@@ -394,7 +394,22 @@ pending approval; nothing has started.
       release-time only. Deferred by design: cancellation RPCs (Phase 7),
       completion/problem RPCs (Phase 8), and v1 `booking_slots` vs. v2
       reservation cross-checks (Phase 10).
-- [ ] Phase 4 — Requester and Admin request creation
+- [x] Phase 4 — Requester and Admin request creation. See
+      `docs/v2/phase-4-requests.md`, branch `feat/v2-requests` (stacked
+      on `feat/v2-foundation`): New request (date only, Regular/Urgent,
+      Project / Site or Other, several destinations each with a purpose,
+      Review modal) and My requests with derived progress and editing
+      until scheduled, for Requester and Admin; `/api/requests` routes;
+      migrations 0024 (edits may keep since-deactivated options) and 0025
+      (stale edits return 409); `app/my-bookings.tsx` removed. pgTAP
+      83/83, concurrency 9/9, vitest 73/73, 22-step browser walkthrough.
+      **Local database only.**
+  - [ ] **Before Phase 5:** the schedule RPCs in 0021 raise SQLSTATE
+        `40001` for stale saves, which PostgREST retries forever, so the
+        HTTP call hangs. Switch them to `PT409` the way 0025 did for
+        `update_request`.
+  - [ ] Move `scripts/seed-uat.mjs` from `Booker` to `Requester` when
+        0023 is applied to `kc-kova`.
 - [ ] Phase 5 — Scheduler planning and Trip Record
 - [ ] Phase 6 — Approval, revisions and publication
 - [ ] Phase 7 — Cancellation and request unlocking
