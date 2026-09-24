@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   approveSchedule,
+  cancelSchedule,
   getAccounts,
   getRequests,
   getSchedules,
@@ -25,6 +26,8 @@ import {
 import { addDays, manilaToday } from "@/lib/timezone";
 import {
   currentRevision,
+  openRevision,
+  publishedRevision,
   scheduleState,
   scheduleStateLabel,
   scheduleStatePill,
@@ -32,6 +35,7 @@ import {
   tripWindow,
   type ScheduleState,
 } from "@/lib/trip-record";
+import CancellationRequests from "./cancellation-requests";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
@@ -77,6 +81,7 @@ export default function Schedules({
   const [status, setStatus] = useState<"all" | ScheduleState>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [returning, setReturning] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -111,11 +116,21 @@ export default function Schedules({
   const selectedRevision = selected && currentRevision(selected);
   const editable = (schedule: Schedule) => canEdit && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
   const revisable = (schedule: Schedule) => canEdit && scheduleState(schedule) === "APPROVED";
+  // Admin can cancel any schedule that is still in force and whose trip the
+  // Driver hasn't submitted (the server enforces that part).
+  const cancellable = (schedule: Schedule) => canReview && schedule.status === "ACTIVE";
   const reviewable = (schedule: Schedule) => canReview && scheduleState(schedule) === "SUBMITTED";
+
+  // The approved route still lists a request that has since been cancelled.
+  const needsUpdate = (schedule: Schedule) =>
+    schedule.status === "ACTIVE" &&
+    (publishedRevision(schedule)?.requestIds ?? []).some((id) => requestsById.get(id)?.status === "CANCELLED") &&
+    !openRevision(schedule);
 
   function closeDialog() {
     setSelectedId(null);
     setReturning(false);
+    setCancelling(false);
     setComment("");
     setError("");
   }
@@ -152,6 +167,8 @@ export default function Schedules({
       </span>
       <span>{revision?.driverName}</span>
       <small>{revision && requesters(revision.requestIds)}</small>
+      {revision?.requestIds.some((id) => requestsById.get(id)?.cancellationPending) && <small>Cancellation requested</small>}
+      {needsUpdate(schedule) && <small>Route needs updating</small>}
       <small>{revision?.legs.map((leg) => leg.destinationName).join(" → ")}</small>
     </button>
   );
@@ -177,6 +194,7 @@ export default function Schedules({
           {decided || notice}
         </div>
       )}
+      {canReview && <CancellationRequests />}
       <section className="schedule-panel">
         <div className="panel-toolbar schedules-toolbar">
           <div>
@@ -323,7 +341,21 @@ export default function Schedules({
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}
                 </p>
               )}
+              {selected.status === "CANCELLED" && (
+                <p className="notice">This schedule was cancelled. Its requests were released or cancelled with it.</p>
+              )}
+              {needsUpdate(selected) && (
+                <p className="notice">
+                  A request in this schedule was cancelled. The approved route still lists it until a new version is approved.
+                </p>
+              )}
               <TripRecordView legs={selectedRevision.legs} stopsById={stopsById} />
+              {cancelling && (
+                <label className="field">
+                  <span>Why is this schedule being cancelled? *</span>
+                  <Textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={500} />
+                </label>
+              )}
               {returning && (
                 <label className="field">
                   <span>What needs to change?</span>
@@ -338,8 +370,12 @@ export default function Schedules({
             </>
           )}
           <DialogFooter>
-            <Button variant="outline" disabled={busy} onClick={returning ? () => setReturning(false) : closeDialog}>
-              {returning ? "Back" : "Close"}
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={returning || cancelling ? () => { setReturning(false); setCancelling(false); setComment(""); setError(""); } : closeDialog}
+            >
+              {returning || cancelling ? "Back" : "Close"}
             </Button>
             {selected && selectedRevision && editable(selected) && (
               <Button className="primary" onClick={() => onEdit?.(selected.id)}>
@@ -351,7 +387,21 @@ export default function Schedules({
                 Propose revision
               </Button>
             )}
-            {selected && selectedRevision && reviewable(selected) && !returning && (
+            {selected && cancellable(selected) && !returning && !cancelling && (
+              <Button variant="outline" disabled={busy} onClick={() => { setCancelling(true); setComment(""); setError(""); }}>
+                Cancel schedule
+              </Button>
+            )}
+            {selected && cancelling && (
+              <Button
+                className="primary"
+                disabled={busy || !comment.trim()}
+                onClick={() => decide(() => cancelSchedule(selected.id, comment.trim()), "Schedule cancelled.")}
+              >
+                {busy ? "Cancelling…" : "Cancel schedule"}
+              </Button>
+            )}
+            {selected && selectedRevision && reviewable(selected) && !returning && !cancelling && (
               <>
                 <Button variant="outline" disabled={busy} onClick={() => setReturning(true)}>
                   Return
