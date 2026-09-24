@@ -64,3 +64,6 @@ conventions (see `docs/RULES.md`).
   Applied to the local database only.
 - Phase 6 complete on `feat/v2-approval` — `docs/v2/phase-6-approval.md`
   (Admin Schedules, approve/return, Scheduler revisions; no migration).
+- Phase 7 complete on `feat/v2-cancellation` — `docs/v2/phase-7-cancellation.md`
+  (cancel / ask to cancel, confirm / decline, Admin cancel schedule;
+  migration 0028). Applied to the local database only.
