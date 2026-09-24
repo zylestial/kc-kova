@@ -278,6 +278,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                     variant="outline"
                     onClick={() => {
                       setCancelling(shown);
+                      setSelected(null);
                       setReason("");
                       setError("");
                     }}
