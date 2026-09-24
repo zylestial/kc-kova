@@ -27,9 +27,12 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
     "destinations": [],
     "purposes": []
   },
-  "people": []
+  "people": [],
+  "requests": []
 }
 ```
+
+`requests` holds v2 transport requests (see "Requests (v2)" below), each with its active destinations in travel order and its derived `progress`. A Requester receives only their own; Scheduler and Admin receive all.
 
 Never include password hashes or session tokens. A Driver should receive only their own assigned bookings and records. A Requester may receive all active schedule bookings but not Admin settings or Finance data.
 
@@ -64,6 +67,17 @@ For new bookings, ignore any client-supplied ownership values and set these from
 The backend must atomically reject overlapping active bookings for the same Vehicle or Driver. When editing, exclude the current booking from conflict checks. `DELETE` changes the status to `CANCELLED`; it does not erase the row. Cancelled bookings must not block availability.
 
 A Requester may update or cancel only when `booking.createdByAccountId === session.account.id`. Admin is exempt from Requester ownership, but submitted or completed trips remain locked according to the workflow.
+
+## Requests (v2)
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| POST | `/api/requests` | Requester or Admin |
+| PUT | `/api/requests/:requestId` | Owner only (Requester or Admin), while not yet scheduled |
+
+Body (`RequestInput` in `lib/kova-api.ts`): `date`, `requestType` (`REGULAR` \| `URGENT`), optional `projectId` or `projectOther` (not both), and `destinations` — one or more `{ destinationId, purposeId }` in travel order. `PUT` also sends `rowVersion`, the version the form was opened on. There is no vehicle, Driver or time. Requested By is always the signed-in account.
+
+The database enforces the rules (`create_request` / `update_request`): Regular at least 7 Manila calendar days ahead, Urgent today or tomorrow, 2–6 days ahead refused, Admin may also pick a past date. New choices must be Active options; an edit may keep options the request already had. Responses: `403` wrong role, `404` not the owner, `409` the request changed since the form was opened, `422` anything else (date rule, inactive option, already being scheduled) with a message to show.
 
 ## Daily Vehicle Records
 
