@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
+  CalendarPlus,
   CheckCircle2,
   ClipboardCheck,
   ClipboardList,
@@ -26,6 +27,8 @@ import AdminFinishedTrips from "./admin-finished-trips";
 import AdminBookingApprovals from "./admin-booking-approvals";
 import MyRequests from "./my-requests";
 import RequestFlow from "./request-flow";
+import SchedulePlanner from "./schedule-planner";
+import Schedules from "./schedules";
 import KovaBrand from "./kova-brand";
 type Screen =
   | "schedule"
@@ -39,6 +42,8 @@ type Screen =
   | "approvals"
   | "new-request"
   | "my-requests"
+  | "create-schedule"
+  | "schedules"
   | "driver-record"
   | "admin-record";
 const home = (role: Account["role"]): Screen =>
@@ -63,6 +68,9 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
   const [requestNotice, setRequestNotice] = useState("");
+  // The draft being continued in Create schedule; undefined for a new one.
+  const [editScheduleId, setEditScheduleId] = useState<string | undefined>();
+  const [scheduleNotice, setScheduleNotice] = useState("");
   useEffect(() => {
     restoreSession()
       .then((saved) => {
@@ -93,6 +101,8 @@ export default function Home() {
       approvals: "Booking Approvals",
       "new-request": "New Request",
       "my-requests": "My Requests",
+      "create-schedule": "Create Schedule",
+      schedules: "Schedules",
       "driver-record": "Daily Vehicle Record",
       "admin-record": "Daily Vehicle Record",
     };
@@ -256,6 +266,52 @@ export default function Home() {
             </Button>
             <MyRequests notice={requestNotice} />
           </>
+        ) : screen === "create-schedule" && account.role === "Scheduler" ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => setScreen(editScheduleId ? "schedules" : home(account.role))}
+            >
+              <ArrowLeft size={17} /> {editScheduleId ? "Schedules" : "Scheduler Home"}
+            </Button>
+            <SchedulePlanner
+              key={editScheduleId ?? "new"}
+              scheduleId={editScheduleId}
+              onDone={(notice) => {
+                setScheduleNotice(notice);
+                setEditScheduleId(undefined);
+                setScreen("schedules");
+              }}
+            />
+          </>
+        ) : screen === "schedules" && account.role === "Scheduler" ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => {
+                setScheduleNotice("");
+                setScreen(home(account.role));
+              }}
+            >
+              <ArrowLeft size={17} /> Scheduler Home
+            </Button>
+            <Schedules
+              canEdit
+              notice={scheduleNotice}
+              onCreate={() => {
+                setScheduleNotice("");
+                setEditScheduleId(undefined);
+                setScreen("create-schedule");
+              }}
+              onEdit={(id) => {
+                setScheduleNotice("");
+                setEditScheduleId(id);
+                setScreen("create-schedule");
+              }}
+            />
+          </>
         ) : screen === "finished" || screen === "my-schedule" || screen === "approvals" ? (
           <>
             <Button
@@ -333,9 +389,23 @@ export default function Home() {
                   </Button>
                 </>
               ) : account.role === "Scheduler" ? (
-                // Scheduler screens (Create schedule, Schedules) arrive in
-                // v2 Phase 5; until then the role has no actions here.
-                <p>Scheduling tools are not available yet.</p>
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditScheduleId(undefined);
+                      setScreen("create-schedule");
+                    }}
+                  >
+                    <CalendarPlus size={24} /> Create schedule
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setScreen("schedules")}
+                  >
+                    <CalendarDays size={24} /> Schedules
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button
