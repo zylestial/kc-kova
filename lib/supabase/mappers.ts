@@ -4,6 +4,7 @@ import type {
   BookingOptions,
   Person,
   RequestProgress,
+  Schedule,
   TransportRequest,
   Vehicle,
   VehicleRecord,
@@ -164,5 +165,94 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
       })),
     progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : "NOT_YET_SCHEDULED"),
     cancellationPending: progressRow?.cancellation_pending ?? false,
+  };
+}
+
+type ScheduleLegRow = {
+  id: string;
+  leg_no: number;
+  origin: string;
+  destination_id: string | null;
+  destination_name: string;
+  planned_time_out: string;
+  planned_time_in: string;
+  contact_name: string;
+  contact_number: string;
+  is_final: boolean;
+  leg_stops?: Array<{ request_destination_id: string }>;
+};
+
+type ScheduleRevisionRow = {
+  id: string;
+  version: number;
+  status: Schedule["revisions"][number]["status"];
+  plate: string;
+  driver_id: string;
+  driver_name: string;
+  row_version: number;
+  created_at: string;
+  updated_at: string;
+  submitted_at: string | null;
+  decided_at: string | null;
+  decision_comment: string;
+  revision_requests?: Array<{ request_id: string }>;
+  schedule_legs?: ScheduleLegRow[];
+};
+
+type ScheduleRow = {
+  id: string;
+  schedule_date: string;
+  created_by_account_id: string;
+  status: Schedule["status"];
+  published_revision_id: string | null;
+  created_at: string;
+  updated_at: string;
+  schedule_revisions?: ScheduleRevisionRow[];
+};
+
+// Postgres time(0) comes back as "08:15:00"; the app works in "08:15".
+const hhmm = (value: string) => value.slice(0, 5);
+
+export function toSchedule(row: ScheduleRow): Schedule {
+  return {
+    id: row.id,
+    date: row.schedule_date,
+    createdByAccountId: row.created_by_account_id,
+    status: row.status,
+    publishedRevisionId: row.published_revision_id ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    revisions: [...(row.schedule_revisions ?? [])]
+      .sort((a, b) => a.version - b.version)
+      .map((revision) => ({
+        id: revision.id,
+        version: revision.version,
+        status: revision.status,
+        plate: revision.plate,
+        driverId: revision.driver_id,
+        driverName: revision.driver_name,
+        rowVersion: revision.row_version,
+        createdAt: revision.created_at,
+        updatedAt: revision.updated_at,
+        submittedAt: revision.submitted_at ?? undefined,
+        decidedAt: revision.decided_at ?? undefined,
+        decisionComment: revision.decision_comment,
+        requestIds: (revision.revision_requests ?? []).map((item) => item.request_id),
+        legs: [...(revision.schedule_legs ?? [])]
+          .sort((a, b) => a.leg_no - b.leg_no)
+          .map((leg) => ({
+            id: leg.id,
+            legNo: leg.leg_no,
+            origin: leg.origin,
+            destinationId: leg.destination_id ?? undefined,
+            destinationName: leg.destination_name,
+            plannedTimeOut: hhmm(leg.planned_time_out),
+            plannedTimeIn: hhmm(leg.planned_time_in),
+            contactName: leg.contact_name,
+            contactNumber: leg.contact_number,
+            isFinal: leg.is_final,
+            stops: (leg.leg_stops ?? []).map((stop) => stop.request_destination_id),
+          })),
+      })),
   };
 }

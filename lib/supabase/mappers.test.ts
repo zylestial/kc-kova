@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBooking, toBookingOption, toBookingOptions, toPerson, toTransportRequest, toVehicleRecord } from "@/lib/supabase/mappers";
+import { toBooking, toBookingOption, toBookingOptions, toPerson, toSchedule, toTransportRequest, toVehicleRecord } from "@/lib/supabase/mappers";
 
 describe("toBooking", () => {
   it("maps snake_case columns to the Booking shape", () => {
@@ -145,5 +145,64 @@ describe("toTransportRequest", () => {
     expect(toTransportRequest(row).progress).toBe("NOT_YET_SCHEDULED");
     expect(toTransportRequest({ ...row, status: "CANCELLED" }).progress).toBe("CANCELLED");
     expect(toTransportRequest({ ...row, request_destinations: undefined }).destinations).toEqual([]);
+  });
+});
+
+describe("toSchedule", () => {
+  const leg = {
+    origin: "ANONANG",
+    contact_name: "",
+    contact_number: "",
+  };
+  const row = {
+    id: "s1",
+    schedule_date: "2026-10-05",
+    created_by_account_id: "sched",
+    status: "ACTIVE" as const,
+    published_revision_id: null,
+    created_at: "2026-09-24T01:00:00Z",
+    updated_at: "2026-09-24T02:00:00Z",
+    schedule_revisions: [
+      {
+        id: "rev1",
+        version: 1,
+        status: "DRAFT" as const,
+        plate: "V1",
+        driver_id: "drv",
+        driver_name: "Dan Driver",
+        row_version: 3,
+        created_at: "2026-09-24T01:00:00Z",
+        updated_at: "2026-09-24T02:00:00Z",
+        submitted_at: null,
+        decided_at: null,
+        decision_comment: "",
+        revision_requests: [{ request_id: "r1" }, { request_id: "r2" }],
+        schedule_legs: [
+          { ...leg, id: "l2", leg_no: 2, origin: "City Hall", destination_id: null, destination_name: "ANONANG",
+            planned_time_out: "09:30:00", planned_time_in: "10:30:00", is_final: true, leg_stops: [] },
+          { ...leg, id: "l1", leg_no: 1, destination_id: "d1", destination_name: "City Hall",
+            planned_time_out: "08:15:00", planned_time_in: "09:00:00", is_final: false,
+            leg_stops: [{ request_destination_id: "rd1" }, { request_destination_id: "rd2" }] },
+        ],
+      },
+    ],
+  };
+
+  it("maps columns, orders legs and trims times to HH:MM", () => {
+    const schedule = toSchedule(row);
+    expect(schedule).toMatchObject({ id: "s1", date: "2026-10-05", status: "ACTIVE", publishedRevisionId: undefined });
+    const [revision] = schedule.revisions;
+    expect(revision).toMatchObject({ version: 1, status: "DRAFT", plate: "V1", driverName: "Dan Driver", rowVersion: 3 });
+    expect(revision.requestIds).toEqual(["r1", "r2"]);
+    expect(revision.legs.map((item) => [item.origin, item.destinationName, item.plannedTimeOut, item.plannedTimeIn])).toEqual([
+      ["ANONANG", "City Hall", "08:15", "09:00"],
+      ["City Hall", "ANONANG", "09:30", "10:30"],
+    ]);
+    expect(revision.legs[0].stops).toEqual(["rd1", "rd2"]);
+    expect(revision.legs[1]).toMatchObject({ isFinal: true, destinationId: undefined });
+  });
+
+  it("tolerates a schedule with no embedded revisions", () => {
+    expect(toSchedule({ ...row, schedule_revisions: undefined }).revisions).toEqual([]);
   });
 });
