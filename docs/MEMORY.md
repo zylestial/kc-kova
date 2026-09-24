@@ -446,3 +446,51 @@ relitigate them:
 
 Phase 0 was proposed the same day and is awaiting the owner's approval; no
 implementation work has started.
+
+## No live production data exists yet (confirmed 2026-09-24)
+
+The v2.0 plan's language throughout (backups, rollback rehearsal,
+in-place backfill, "never touch production without confirming," isolated
+Preview credentials) assumes a live system with real accounts/bookings/
+records to protect. **The project owner confirmed this Supabase project
+(`kc-kova`, `rhzqdtgruhpdhopkksuf`) currently holds no real data** — v1.2
+is still in UAT with only seeded test accounts (`docs/QA_ROLE_TESTS.md`),
+never launched to real users. The owner's stated plan: use this same
+database for v2 experimentation throughout development, then clear it out
+before the actual production launch.
+
+This materially lowers the stakes of several plan steps without
+eliminating them entirely — still worth doing carefully, but not under the
+same "irreversible mistake could lose real records" pressure:
+
+- **Phase 2's Preview-isolation gap** (Preview sharing production's
+  Supabase service-role key) is real hygiene, not a data-loss risk today —
+  there was no real data for a broken Preview build to have corrupted.
+  Removing Preview's credential scope (done 2026-09-24, see
+  `docs/v2/environment-map.md`) is still good practice going forward, but
+  standing up a *second* isolated Supabase project for Preview specifically
+  is now optional polish, not the safety-critical step the plan implies —
+  reusing the one project for both `master` and v2 experiments is an
+  acceptable, explicitly-chosen tradeoff for this project, as long as it's
+  actually cleared before the real go-live.
+- **Phase 3's migration risk** is lower — there's no production data an
+  expand/contract migration could corrupt or lose today, though the same
+  migration discipline (versioned files, local rehearsal, never editing an
+  applied migration) still applies since Docker/Supabase-CLI habits don't
+  change based on data volume.
+- **Phase 10's "in-place backfill from existing bookings" work is largely
+  moot** for this project specifically — there's nothing real to backfill.
+  Confirm actual row counts before Phase 10 in case any real data has
+  since been entered (e.g. through further UAT), rather than assuming this
+  note stays true indefinitely.
+- **Phase 11's release rehearsal** still matters (validating the deploy
+  order, role conversion, etc.) but the "freeze writes, take a final
+  backup, reconcile changes" ceremony is protecting a UAT dataset, not
+  real operational records — treat it as good practice, not a
+  point-of-no-return.
+
+**Still true regardless of data value**: never run destructive commands
+against production without confirming, never skip migration versioning
+discipline, and the owner's own plan is to clear the database before real
+launch — so nothing here licenses leaving test/experiment junk in place at
+go-live.
