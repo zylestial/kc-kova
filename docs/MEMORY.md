@@ -635,3 +635,24 @@ Decided by the project owner at the start of Phase 5:
   `p6test1234`) exist in the local database, along with schedules moved
   through Return/Approve on 2026-10-04. Reset the local database before
   row-counting smoke tests.
+
+## Phase 7 notes (2026-09-24)
+
+- **Confirming a cancellation doesn't rewrite the approved route.** The
+  approved version is immutable history, so it keeps listing the
+  cancelled request until the Scheduler proposes a version without it and
+  the Admin approves it. Only when no live request is left is the whole
+  schedule cancelled automatically. Decided this phase: no auto-created
+  proposal (route and times are the Scheduler's call).
+- **Cancelling a schedule keeps its approved version as APPROVED** (not
+  superseded) so the history and the Requester's/Driver's view of what
+  was cancelled survive; `schedules.status = 'CANCELLED'` is what ends it.
+- **A submitted `trip_completions` row blocks every cancellation path**
+  (request, ask, confirm, schedule). Correcting a submitted or Done trip
+  belongs to finished-record rules, Phase 8/9.
+- **`$$` in a JS `String.replace` replacement is a single `$`.** Patching
+  pgTAP files with `replace()` silently turned `$$ select ... $$` into
+  `$ select`; use a function replacement or sed.
+- **Local test accounts from Phase 6 (`p6-admin`, `p6-sched`, `p6-req`)
+  were reused** for the Phase 7 API smoke, which left cancelled
+  requests/schedules on a date 30 days out in the local database.
