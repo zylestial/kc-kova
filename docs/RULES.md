@@ -231,6 +231,12 @@ audit — see `docs/MEMORY.md` for the full incidents.
 - Run `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test`, and `pnpm build`
   after every change, before committing; don't commit code known to be
   broken.
+- Database behavior (RLS, RPC permissions, state transitions) is tested
+  with pgTAP in `supabase/tests/*.test.sql` (`supabase test db`), and
+  races with two real sessions in `supabase/tests/concurrency.sh`. Both run
+  against the local Docker database only. Run them after any migration
+  change. Scope assertions to the test's own fixtures rather than whole
+  tables, because the concurrency script leaves committed rows behind.
 - Add or update a test for every bug fix and security fix (see
   `lib/supabase/records.test.ts`'s `matchesBookingKey` tests for the
   pattern: a pure helper function, unit-tested, called from the route).
