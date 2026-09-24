@@ -370,15 +370,15 @@ pending approval; nothing has started.
       (Next.js preset, no custom domain, git-integrated with
       `master` -> Production / everything else -> Preview), all 12
       existing migrations replay cleanly on a fresh local Docker instance.
-      **Open finding, not yet fixed**: `SUPABASE_SERVICE_ROLE_KEY` and both
-      `NEXT_PUBLIC_SUPABASE_*` vars are scoped to Preview as well as
-      Production, so every Preview deployment currently has full
-      unrestricted write access to the live production database — a
-      pre-existing gap, not something this session introduced, but it
-      violates this phase's own "preview must not use live write
-      credentials" gate and needs a decision before v2 feature-branch
-      Previews start getting built. No production backup was taken this
-      session (needs separate explicit go-ahead per `docs/RULES.md`).
+      **Finding fixed (2026-09-24)**: `SUPABASE_SERVICE_ROLE_KEY` and both
+      `NEXT_PUBLIC_SUPABASE_*` vars were scoped to Preview as well as
+      Production — a pre-existing gap meaning every Preview deployment had
+      full unrestricted write access to the live production database. You
+      removed the Preview scope from all three (`vercel env rm <name>
+      preview`), verified via `vercel env ls`; Preview now holds no
+      Supabase credential at all. A real isolated Preview data source is
+      still worth setting up before Phase 4. No production backup was
+      taken this session (deferred until Phase 3/11 actually need one).
 - [ ] Phase 3 — Database model, permissions, state transitions, full
       `requester` role migration
 - [ ] Phase 4 — Requester and Admin request creation
