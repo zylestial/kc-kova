@@ -662,3 +662,22 @@ Decided by the project owner at the start of Phase 5:
   first call to each API route in `next dev` is slow, so wait a few
   seconds after each action, and give every run unique request tags:
   leftovers from earlier runs otherwise match the selectors.
+
+## Phase 8 notes (2026-09-24)
+
+- **Completion needs the last planned Time In to have passed** (from the
+  approved version's reservation range, Asia/Manila). Problem reports
+  have no such limit and can repeat. Repeating a submit returns the
+  existing completion.
+- **Correcting a submitted completion, marking it Done, handling problem
+  reports and linking a follow-up schedule are Phase 9**, not Phase 8.
+  `problem_reports` has no follow-up link column yet.
+- **PL/pgSQL gotcha:** `if v_row is not null` is false for a composite
+  row with any null column (e.g. `done_at`). Use `found` after
+  `select ... into`.
+- **Driver My Schedule is v2; Finished Trips is still v1** (`driver-trips.tsx`)
+  until Phase 9 replaces it.
+- **Local seed for Phase 8 walkthroughs** lives outside the repo (scratch
+  script): accounts `admin1`, `req1`, `sched1`, `drv1`, `drv2` (password
+  `test1234`), one approved trip yesterday on V1 and one 10 days ahead
+  on V2. Reset the local database before reusing.
