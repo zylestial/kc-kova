@@ -19,10 +19,9 @@ import {
   signIn,
   signOut as endSession,
   type Account,
-  type Booking,
 } from "@/lib/kova-api";
 import Settings from "./settings";
-import DriverTrips from "./driver-trips";
+import DriverFinishedTrips from "./driver-finished-trips";
 import DriverSchedules from "./driver-schedules";
 import AdminFinishedTrips from "./admin-finished-trips";
 import AdminBookingApprovals from "./admin-booking-approvals";
@@ -44,8 +43,7 @@ type Screen =
   | "new-request"
   | "my-requests"
   | "create-schedule"
-  | "schedules"
-  | "driver-record";
+  | "schedules";
 const home = (role: Account["role"]): Screen =>
   role === "Requester"
     ? "requester-home"
@@ -57,10 +55,6 @@ const home = (role: Account["role"]): Screen =>
 export default function Home() {
   const [account, setAccount] = useState<Account | null>(null);
   const [screen, setScreen] = useState<Screen>("schedule");
-  const [driverBooking, setDriverBooking] = useState<Booking | null>(null);
-  const [driverReturnScreen, setDriverReturnScreen] = useState<
-    "my-schedule" | "finished"
-  >("my-schedule");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
@@ -103,7 +97,6 @@ export default function Home() {
       "my-requests": "My Requests",
       "create-schedule": "Create Schedule",
       schedules: "Schedules",
-      "driver-record": "Daily Vehicle Record",
     };
     document.title = `KOVA — ${account ? titles[screen] : "Sign In"}`;
   }, [account, screen]);
@@ -127,7 +120,6 @@ export default function Home() {
     try {
       await endSession();
       setAccount(null);
-      setDriverBooking(null);
       setScreen("schedule");
       setPassword("");
       setError("");
@@ -191,21 +183,6 @@ export default function Home() {
       <Scheduler
         role={account.role}
         onHome={() => setScreen(home(account.role))}
-        onSignOut={signOut}
-      />
-    );
-  if (account.role === "Driver" && screen === "driver-record" && driverBooking)
-    return (
-      <Scheduler
-        role="Driver"
-        driverBooking={driverBooking}
-        driverBackLabel={
-          driverReturnScreen === "finished" ? "Finished Trips" : "My Schedule"
-        }
-        onHome={() => {
-          setDriverBooking(null);
-          setScreen(driverReturnScreen);
-        }}
         onSignOut={signOut}
       />
     );
@@ -321,17 +298,7 @@ export default function Home() {
             {account.role === "Driver" && screen === "my-schedule" ? (
               <DriverSchedules driverId={account.id} />
             ) : account.role === "Driver" ? (
-              <DriverTrips
-                driverId={account.id}
-                finished={screen === "finished"}
-                onOpenRecord={(booking) => {
-                  setDriverReturnScreen(
-                    screen === "finished" ? "finished" : "my-schedule",
-                  );
-                  setDriverBooking(booking);
-                  setScreen("driver-record");
-                }}
-              />
+              <DriverFinishedTrips />
             ) : screen === "approvals" ? (
               <AdminBookingApprovals />
             ) : (
