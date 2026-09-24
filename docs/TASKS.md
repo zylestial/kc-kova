@@ -432,7 +432,7 @@ pending approval; nothing has started.
       (stacked on `feat/v2-approval`): Requester cancel or ask to
       cancel, Admin confirm/decline and Cancel schedule, planner drops
       cancelled requests; migration 0028; pgTAP 68/68 for the new file,
-      vitest 101/101, API smoke passed; **no browser walkthrough**.
+      vitest 101/101, API smoke and an 11-check browser walkthrough passed.
       **Local database only.**
 - [ ] Phase 8 — Driver completion and problem reporting
 - [ ] Phase 9 — Admin finished trips and printing
