@@ -546,3 +546,21 @@ granularity" item):
 - **Roles are never cached in the auth token.** `requireAccount()` reads
   `accounts.role` on every request, so the Booker → Requester conversion
   needs no session invalidation or forced sign-in.
+
+## Phase 4 design decisions (2026-09-24)
+
+- **Historical (past-date) Admin requests are tested through approval
+  now, completion later.** Phase 4 tests past-date request → Scheduler
+  draft → submit → Admin approve. The completion RPCs don't exist until
+  Phase 8, which extends the same test to completion.
+- **An edit may keep an option the request already had, even if it has
+  since become Inactive** (migration 0024). New choices must still be
+  Active. Otherwise deactivating a destination would block a Requester
+  from changing just the date of a request that uses it.
+- **v1 screens are retired per role, not all at once.** Requesters lose
+  the v1 booking entry and My Bookings in Phase 4, replaced by New request
+  and My requests. Admin keeps the v1 Schedule and Booking Approvals
+  screens until Phases 5/6/8 replace the Daily Vehicle Record screens they
+  open. Requesters no longer see legacy bookings in the app; that's
+  acceptable because there is no real data, and Phase 10 carries legacy
+  bookings into v2.
