@@ -70,7 +70,7 @@ router/URL segments are used for in-app navigation.
 
 | Screen | Component | Shown to |
 | --- | --- | --- |
-| `schedule` | `app/scheduler.tsx` | Booker (home), Admin |
+| `schedule` | `app/scheduler.tsx` | Requester (home), Admin |
 | `driver-home`, `my-schedule`, `finished` | `app/driver-trips.tsx` | Driver |
 | `admin-home` | `app/admin-finished-trips.tsx` | Admin |
 | `driver-record`, `admin-record` | `app/scheduler.tsx` (record editor) | Driver / Admin |
