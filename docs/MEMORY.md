@@ -701,5 +701,5 @@ Decided by the project owner at the start of Phase 5:
   pgTAP file fails with `Key (plate)=(V1) already exists`. Run
   `supabase db reset` before `supabase test db`. A reset wipes the local
   walkthrough accounts (`admin1`, `drv1`, …); re-run the seed script.
-- **Dead v1 code kept for Phase 10:** `Scheduler`'s `reviewRecordId` and
+- **Dead v1 code kept, with no removal phase assigned yet:** `Scheduler`'s `reviewRecordId` and
   `driverBooking` props and `PrintForm`, plus `getDriverTrips`.
