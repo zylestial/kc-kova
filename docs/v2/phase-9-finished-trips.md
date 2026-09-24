@@ -105,5 +105,5 @@ the print view.
 - **Left for cleanup:** the v1 record editor in `scheduler.tsx`
   (`reviewRecordId` and `driverBooking` props, `PrintForm`) is no longer
   reachable from any screen, and `getDriverTrips` in `kova-api.ts` is
-  unused. Removal belongs with Phase 10's v1 retirement.
+  unused. No phase is assigned to remove the v1 screens and code yet.
 - **Local database only.** 0030 and 0031 are not applied to `kc-kova`.
