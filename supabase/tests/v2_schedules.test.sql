@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(48);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -268,6 +268,16 @@ select throws_ok(
   '22023', null, 'No revisions once the Driver has submitted completion');
 select is((select progress from request_progress where request_id = pg_temp.id('juan')), 'COMPLETED',
   'Progress is COMPLETED after the Driver submits');
+
+-- Renaming a plate carries schedule history with it --------------------------
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select lives_ok(
+  $$ select rename_vehicle('V1', 'V1-NEW', 'Van 1', 'Active', '00000000-0000-0000-0000-00000000000e') $$,
+  'Admin renames a vehicle that has approved and superseded schedule versions');
+reset role;
+select is(
+  (select count(*)::int from schedule_revisions where schedule_id = pg_temp.id('s1') and plate = 'V1-NEW'), 2,
+  'Every schedule version follows the new plate');
 
 select * from finish();
 rollback;
