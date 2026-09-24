@@ -1,4 +1,13 @@
-import type { Booking, BookingOption, BookingOptions, Person, Vehicle, VehicleRecord } from "@/lib/kova-api";
+import type {
+  Booking,
+  BookingOption,
+  BookingOptions,
+  Person,
+  RequestProgress,
+  TransportRequest,
+  Vehicle,
+  VehicleRecord,
+} from "@/lib/kova-api";
 
 type VehicleRow = { plate: string; name: string; status: "Active" | "Inactive"; assigned_driver_id: string | null };
 
@@ -98,5 +107,62 @@ export function toPerson(row: PersonRow): Person {
     projectIds: row.project_ids,
     status: row.status,
     accountId: row.account_id ?? undefined,
+  };
+}
+
+type RequestDestinationRow = {
+  id: string;
+  position: number;
+  destination_id: string;
+  destination_name: string;
+  purpose_id: string;
+  purpose_name: string;
+};
+
+type RequestRow = {
+  id: string;
+  owner_account_id: string;
+  owner_name: string;
+  requested_date: string;
+  request_type: "REGULAR" | "URGENT";
+  project_id: string | null;
+  project_name: string;
+  project_is_other: boolean;
+  status: "ACTIVE" | "CANCELLED";
+  row_version: number;
+  created_at: string;
+  updated_at: string;
+  // Embedded by the bootstrap select; absent on a bare RPC result.
+  request_destinations?: RequestDestinationRow[];
+};
+
+type RequestProgressRow = { progress: RequestProgress | null; cancellation_pending: boolean | null };
+
+export function toTransportRequest(row: RequestRow, progressRow?: RequestProgressRow): TransportRequest {
+  return {
+    id: row.id,
+    ownerAccountId: row.owner_account_id,
+    ownerName: row.owner_name,
+    date: row.requested_date,
+    requestType: row.request_type,
+    projectId: row.project_id ?? undefined,
+    projectName: row.project_name,
+    projectIsOther: row.project_is_other,
+    status: row.status,
+    rowVersion: row.row_version,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    destinations: [...(row.request_destinations ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .map((destination) => ({
+        id: destination.id,
+        position: destination.position,
+        destinationId: destination.destination_id,
+        destinationName: destination.destination_name,
+        purposeId: destination.purpose_id,
+        purposeName: destination.purpose_name,
+      })),
+    progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : "NOT_YET_SCHEDULED"),
+    cancellationPending: progressRow?.cancellation_pending ?? false,
   };
 }
