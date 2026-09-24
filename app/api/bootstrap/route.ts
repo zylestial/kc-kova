@@ -5,6 +5,8 @@ import { requireAccount } from "@/lib/supabase/session";
 import {
   liveRevisionStatuses,
   toCancellationRequest,
+  toProblemReport,
+  toTripCompletion,
   scheduleSelect,
   toBooking,
   toBookingOptions,
@@ -26,7 +28,7 @@ export async function GET() {
   const account = await requireAccount(supabase);
   if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
-  const [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes] = await Promise.all([
+  const [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes] = await Promise.all([
     supabase.from("accounts").select("*"),
     supabase.from("vehicles").select("*"),
     supabase.from("bookings").select("*"),
@@ -41,9 +43,11 @@ export async function GET() {
       .neq("status", "DISCARDED")
       .in("schedule_revisions.status", liveRevisionStatuses),
     supabase.from("request_cancellations").select("*"),
+    supabase.from("trip_completions").select("*"),
+    supabase.from("problem_reports").select("*"),
   ]);
 
-  const firstError = [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes].find((res) => res.error)?.error;
+  const firstError = [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes].find((res) => res.error)?.error;
   if (firstError) {
     return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
   }
@@ -61,5 +65,8 @@ export async function GET() {
     schedules: (schedulesRes.data ?? []).map(toSchedule),
     // Requesters get their own asks, Admin all of them (0014 policy).
     cancellations: (cancellationsRes.data ?? []).map(toCancellationRequest),
+    // A Driver gets their own; Admin all (0017 policies).
+    completions: (completionsRes.data ?? []).map(toTripCompletion),
+    problems: (problemsRes.data ?? []).map(toProblemReport),
   });
 }
