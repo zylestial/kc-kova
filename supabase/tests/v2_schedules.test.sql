@@ -153,7 +153,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok(
   $$ select save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')) - 1, null, 'V1',
        array[pg_temp.id('juan'), pg_temp.id('maria')], pg_temp.shared_legs('08:00', '09:00', '09:30', '10:30')) $$,
-  '40001', null, 'A stale Scheduler save is rejected instead of overwriting');
+  'PT409', null, 'A stale Scheduler save is rejected instead of overwriting');
 select throws_ok(
   $$ select submit_schedule(pg_temp.id('s2'), pg_temp.rv(pg_temp.id('s2'))) $$,
   '22023', null, 'A route without the final ANONANG leg cannot be submitted');
