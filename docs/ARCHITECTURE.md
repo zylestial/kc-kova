@@ -21,6 +21,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     vehicles/           Admin: create/rename vehicles
     bookings/           Requester/Admin: create/update/cancel bookings (v1.2)
     requests/           Requester/Admin: create/edit v2 transport requests
+    schedules/          Scheduler: create, save, submit and discard v2 schedule drafts
     records/            Driver/Admin: submit and review Daily Vehicle Records
     booking-options/    Admin: Projects/Destinations/Purposes/People
   *.tsx                 Screens (scheduler, driver-trips, settings, etc.) — client components
@@ -309,13 +310,17 @@ Summary, with the implementing route file:
 | DELETE | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Requester, Admin |
 | POST | `/api/requests` | `app/api/requests/route.ts` | Requester, Admin |
 | PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
+| POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403) |
+| PUT | `/api/schedules/:scheduleId` | `app/api/schedules/[scheduleId]/route.ts` | Scheduler (DRAFT/RETURNED), Admin (SUBMITTED) |
+| POST | `/api/schedules/:scheduleId/submit` | `app/api/schedules/[scheduleId]/submit/route.ts` | Scheduler |
+| POST | `/api/schedules/:scheduleId/discard` | `app/api/schedules/[scheduleId]/discard/route.ts` | Scheduler |
 | PUT | `/api/records/:recordId` | `app/api/records/[recordId]/route.ts` | Assigned Driver (pre-submission), Admin (review) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |
 
 Request/response bodies match the TypeScript types in `lib/kova-api.ts`
 (`Account`, `Vehicle`, `Booking`, `VehicleRecord`, `BookingOption`,
-`Person`, `TransportRequest`, `RequestInput`, `BootstrapData`) — that file is the single source of truth for
+`Person`, `TransportRequest`, `RequestInput`, `Schedule`, `ScheduleInput`, `BootstrapData`) — that file is the single source of truth for
 field names and is shared between the frontend and this doc.
 
 ## Data flow: bootstrap
@@ -323,7 +328,8 @@ field names and is shared between the frontend and this doc.
 `GET /api/bootstrap` is the single hydration call the frontend makes right
 after sign-in. It issues parallel `select *` queries (accounts, vehicles,
 bookings, vehicle_records, booking_options, people, and the v2 `requests`
-with their active destinations plus `request_progress`) through the
+with their active destinations plus `request_progress`, and the v2
+`schedules` with their live versions, legs and stops) through the
 **session-scoped client**, so RLS does the role-based filtering for free —
 a Driver's query for `bookings` only ever returns their own rows, without
 the route needing to know that rule itself. This is why `bootstrap`'s route
