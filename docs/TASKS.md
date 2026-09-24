@@ -226,6 +226,116 @@ confirmed, not just a conflicting one.
 
 **Nothing below is built yet** — this is a prospect list to build from
 once UAT feedback comes in; more items will be added after that pass.
+Constraints that apply to all of it: keep exactly the three existing roles
+(Booker, Driver, Admin) and the existing three-step booking flow (Choose
+Date → Vehicle & Time → Booking Details); extend existing components
+rather than rebuilding; no Company Trip Form and no Form Type choice —
+remove either if found on a working branch; small Add/Edit actions stay
+popups; never rely on a hidden button as permission enforcement (every
+rule needs a real backend check); no demo accounts or browser-only-
+authoritative data.
+
+- [x] **Vehicle → Driver assignment.** Merged to `master` via PR #20
+      (`feat/vehicle-driver-assignment`). Selecting
+      a Vehicle in booking Step 2 auto-resolves its one current active Driver
+      (no separate Driver picker in the normal flow). Admin Settings →
+      Vehicles gets an "Assigned Driver" dropdown (active Drivers only) in the
+      existing Add/Edit popup, and the Vehicles list shows each Vehicle's
+      assigned Driver or "No Driver assigned." One Driver ↔ one Vehicle at a
+      time, enforced server-side (`vehicles_assigned_driver_id_unique`
+      partial index, a trigger requiring an active Driver, and an
+      auto-unassign trigger when a Driver is deactivated — a Vehicle with no
+      active Driver isn't bookable, checked by `create_booking`/
+      `update_booking` themselves rather than trusting a client-supplied
+      Driver). Reassigning a Driver never rewrites already-confirmed
+      bookings, since `bookings.driver_id`/`driver_name` are snapshotted at
+      create/update time, not read live off the Vehicle's current
+      assignment. Edit Booking re-resolves the proposed Driver when the
+      Vehicle changes and rechecks availability before saving. Verified
+      against a local `supabase db reset` instance and with a real
+      end-to-end pass against the running dev server + local Supabase; see
+      `docs/MEMORY.md` for two real bugs found and fixed during that
+      verification.
+- [ ] **Trip leg buttons and final return.** Reworks Trip Record leg entry
+      to be Driver-button-driven instead of auto-generating a return leg.
+      - **Initial leg:** a new record starts with just LEG 01, Origin fixed
+        to ANONANG, Destination pre-filled from the booking's scheduled
+        Destination when available (Driver may edit the actual
+        Destination). No return leg is auto-created.
+      - **Buttons:** `+ ADD LEG` and `+ ADD FINAL LEG` render side by side
+        beneath the last leg's fields, and the row moves down to stay below
+        the last leg as more legs are added (stack instead of side-by-side
+        on narrow/mobile widths, both remaining easily tappable).
+      - **Add Leg:** appends a normal leg with Origin auto-set to the
+        preceding leg's Destination, Destination left editable, and every
+        previously entered field untouched.
+      - **Add Final Leg:** appends the one allowed return leg, with Origin
+        auto-set to the preceding leg's Destination and Destination fixed
+        to ANONANG (read-only); Time Out/Time In/Requestor/Purpose-Activity/
+        contact fields stay optional and editable. Only one final leg is
+        allowed at a time — both buttons hide while it exists. The Driver
+        may remove it before submission, which re-shows both buttons below
+        the new last leg. While present, its Origin stays in sync if the
+        preceding leg's Destination changes.
+      - **Validation:** the route must start and end at ANONANG, and every
+        Origin after the first must match the preceding leg's Destination,
+        both enforced client-side and re-checked server-side on submission;
+        a missing final leg blocks submission with "Add a final leg to
+        return to ANONANG." Actual trip times (Time Out/Time In) are never
+        auto-filled. Older saved records must still load and submit without
+        data loss under the new rule, and the leg list carries through to
+        the PDF as today.
+- [ ] **Finance "Date Submitted" from `submittedAt`.** Backend sets
+      `submittedAt` once, authoritatively, on the Driver's successful
+      submission — never reset by Admin edits, printing, or Mark as Done,
+      and rejected if a client tries to supply/forge it directly. Finance
+      displays it read-only, derived from the org's configured business
+      timezone (default `Asia/Manila` if none is configured — document
+      this default), distinct from the scheduled trip date, Finance
+      processing date, and Done date. Carries through to the PDF.
+      Historical `submittedAt` values must not be migrated/overwritten.
+- [ ] **Official logo + KOVA lockup.** Replace the placeholder logo with
+      the official company logo (used as-is: no redraw/crop/stretch/
+      recolor/substitute) on Sign In, the app header, and compact/mobile
+      headers, arranged as `[logo] · KOVA` with "Kayelen's Operations and
+      Vehicle Allocation" in smaller text beneath KOVA. Must wrap/scale
+      cleanly on narrow screens without colliding with nav or Sign Out,
+      and must still print clearly in the Daily Vehicle Record PDF header.
+- [ ] **Mobile Driver experience.** Audit and fix the full Driver journey
+      (Driver Home, My Schedule, Trip Details popup, DVR's Vehicle
+      Details/Trip Record+Add Leg/Return steps, Review Trip, Submit Trip,
+      Finished Trips, and the read-only submitted view) at ~320/375/430px
+      widths: no horizontal scroll or clipped fields, card-based layouts
+      where a desktop table would otherwise need sideways scrolling,
+      stacked form fields with associated labels, real touch targets for
+      Add/Remove Leg and Back/Review/Submit, a usable (even if
+      horizontally scrollable) tab row, popup titles/actions that stay
+      reachable while content scrolls, and an on-screen keyboard that
+      never blocks the active field or the submit action. Desktop layout
+      is unaffected.
+- [ ] **Mobile-responsive Booking Type + Approval flow.** The v1.1 screens
+      (Booker Home, the 3-step booking flow including its new Booking Type
+      dropdown/Urgent Reason field and "Your pending requests" panel, My
+      Bookings, and Admin Booking Approvals) were built and verified on
+      desktop widths only. Audit and fix all of them at ~320/375/430px:
+      the step-2 time grid and admin/my-bookings tables need a card-based
+      or scrollable layout instead of horizontal table scroll, dialogs
+      (booking details, edit, approve/deny confirmation) must stay fully
+      reachable and scrollable on small screens, and touch targets (date
+      strip, Approve/Deny, Cancel) must be real tap targets. Desktop
+      layout is unaffected.
+
+- [x] **Booking notes not shown on Admin Booking Approvals** — resolved
+      while building the v1.1 approval flow: `app/admin-booking-approvals.tsx`
+      pending-request rows are now clickable and open a detail dialog that
+      shows Notes (when present), Destination, Purpose, and Urgent Reason,
+      mirroring the requester's own booking-detail dialog. No longer an
+      open item; kept here (rather than deleted) as a record that this gap
+      was found and closed, not overlooked.
+
+Each item above needs its own confirm-before-building pass per this
+repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
+section is scope capture, not a build order.
 
 ## Planned — v2.0 (phased upgrade, not started)
 
