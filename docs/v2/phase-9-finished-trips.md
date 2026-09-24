@@ -6,7 +6,7 @@ Branch `feat/v2-finished-trips`, stacked on `feat/v2-cancellation`
 Admin RPCs, API routes and screens, and replaces the v1 Finished Trips
 screens. Local Docker database only.
 
-**Status: built, not yet walked through in a browser.** The decisions
+**Status: built; browser walkthrough passed (31 checks).** The decisions
 below were approved before the migrations were written.
 
 ## 1. Scope
@@ -91,9 +91,17 @@ the print view.
 - vitest **121/121** (was 111): Done and handling mappers, handle-problem
   body parsing, and the finished-trip builder. `tsc` clean, `lint` 0
   errors, `next build` passes.
-- **Not done:** no browser walkthrough or API smoke test yet, so the two
-  screens and the print view are only type-checked and built. No
-  concurrency.sh race for Done against a correction.
+- Browser walkthrough (Playwright, Chromium, 31 checks): Dan submits and
+  reports; the Admin filters the list, corrects odometers (validation and
+  the updated distance), handles the problem with a follow-up (the list
+  offers only the other schedule), checks the print view under print media
+  (form shown, shell and dialog hidden, contents present), and marks it
+  Done (buttons disabled, the API refuses a later correction with 422);
+  Dan then sees it Done with the handled note, and Dee sees nothing. It
+  found the route table and footer buttons overflowing the default dialog
+  width, fixed by widening both finished-trip dialogs.
+- **Not done:** no concurrency.sh race for Done against a correction, and
+  a real paper print hasn't been checked (only print-media emulation).
 - **Left for cleanup:** the v1 record editor in `scheduler.tsx`
   (`reviewRecordId` and `driverBooking` props, `PrintForm`) is no longer
   reachable from any screen, and `getDriverTrips` in `kova-api.ts` is
