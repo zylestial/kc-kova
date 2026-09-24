@@ -434,7 +434,14 @@ pending approval; nothing has started.
       cancelled requests; migration 0028; pgTAP 68/68 for the new file,
       vitest 101/101, API smoke and an 11-check browser walkthrough passed.
       **Local database only.**
-- [ ] Phase 8 — Driver completion and problem reporting
+- [x] Phase 8 — Driver completion and problem reporting. See
+      `docs/v2/phase-8-driver.md`, branch `feat/v2-driver-completion`
+      (stacked on `feat/v2-cancellation`): Driver My Schedule shows
+      published v2 trips with Complete trip (one odometer pair, after the
+      trip ends) and Report a problem; `/api/schedules/:id/completion`
+      and `/problems`; migration 0029; pgTAP 27/27 for the new file,
+      vitest 111/111, 13-check browser walkthrough passed. Driver
+      Finished Trips is still v1 until Phase 9. **Local database only.**
 - [ ] Phase 9 — Admin finished trips and printing
 - [ ] Phase 10 — End-to-end validation and migration rehearsal
 - [ ] Phase 11 — Release through the same Vercel project
