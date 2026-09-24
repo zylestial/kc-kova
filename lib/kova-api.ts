@@ -96,6 +96,66 @@ export type RequestInput = {
   projectOther: string;
   destinations: Array<{ destinationId: string; purposeId: string }>;
 };
+export type ScheduleRevisionStatus = "DRAFT" | "SUBMITTED" | "RETURNED" | "APPROVED" | "SUPERSEDED" | "DISCARDED";
+/** One Trip Record leg. Origins are derived by the server. */
+export type ScheduleLeg = {
+  id: string;
+  legNo: number;
+  origin: string;
+  destinationId?: string;
+  destinationName: string;
+  plannedTimeOut: string;
+  plannedTimeIn: string;
+  contactName: string;
+  contactNumber: string;
+  isFinal: boolean;
+  /** Request destination ids this leg serves; two or more is a shared stop. */
+  stops: string[];
+};
+/** One version of a schedule: its vehicle, Driver, requests and route. */
+export type ScheduleRevision = {
+  id: string;
+  version: number;
+  status: ScheduleRevisionStatus;
+  plate: string;
+  driverId: string;
+  driverName: string;
+  rowVersion: number;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string;
+  decidedAt?: string;
+  decisionComment: string;
+  requestIds: string[];
+  legs: ScheduleLeg[];
+};
+/** A v2 schedule: one vehicle's trip on one date, built by a Scheduler. */
+export type Schedule = {
+  id: string;
+  date: string;
+  createdByAccountId: string;
+  status: "ACTIVE" | "DISCARDED" | "CANCELLED";
+  publishedRevisionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Live versions only: the published one and any open draft. */
+  revisions: ScheduleRevision[];
+};
+/** What Save draft sends. Origins aren't sent; the server derives them. */
+export type ScheduleInput = {
+  date: string;
+  plate: string;
+  requestIds: string[];
+  legs: Array<{
+    destinationId?: string;
+    plannedTimeOut: string;
+    plannedTimeIn: string;
+    contactName: string;
+    contactNumber: string;
+    stops: string[];
+    isFinal: boolean;
+  }>;
+};
 export type HistoryEntry = {
   adminId: string;
   adminName: string;
@@ -129,6 +189,7 @@ export type BootstrapData = {
   options: BookingOptions;
   people: Person[];
   requests: TransportRequest[];
+  schedules: Schedule[];
 };
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
@@ -141,6 +202,7 @@ let cache: BootstrapData = {
   options: { projects: [], destinations: [], purposes: [] },
   people: [],
   requests: [],
+  schedules: [],
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -197,7 +259,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
-  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [] };
+  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [] };
   notify();
 }
 
@@ -212,6 +274,7 @@ export const getBookingOptions = () => cache.options;
 export const getPeople = () => cache.people;
 export const getRequests = () => cache.requests;
 export const getMyRequests = (accountId: string) => cache.requests.filter((item) => item.ownerAccountId === accountId);
+export const getSchedules = () => cache.schedules;
 export const getDriverTrips = (driverId: string) => cache.bookings.filter((booking) => booking.driverId === driverId && booking.status === "SCHEDULED");
 export const getRecordForBooking = (booking: Booking) => cache.records.find((record) => record.bookingId === booking.id);
 
