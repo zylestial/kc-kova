@@ -224,6 +224,8 @@ export type BootstrapData = {
   requests: TransportRequest[];
   schedules: Schedule[];
   cancellations: CancellationRequest[];
+  completions: TripCompletion[];
+  problems: ProblemReport[];
 };
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
@@ -238,6 +240,8 @@ let cache: BootstrapData = {
   requests: [],
   schedules: [],
   cancellations: [],
+  completions: [],
+  problems: [],
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -294,7 +298,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
-  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [], cancellations: [] };
+  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [], cancellations: [], completions: [], problems: [] };
   notify();
 }
 
@@ -312,6 +316,8 @@ export const getMyRequests = (accountId: string) => cache.requests.filter((item)
 export const getSchedules = () => cache.schedules;
 export const getCancellations = () => cache.cancellations;
 export const getPendingCancellations = () => cache.cancellations.filter((item) => item.status === "PENDING");
+export const getCompletions = () => cache.completions;
+export const getProblems = () => cache.problems;
 export const getDriverTrips = (driverId: string) => cache.bookings.filter((booking) => booking.driverId === driverId && booking.status === "SCHEDULED");
 export const getRecordForBooking = (booking: Booking) => cache.records.find((record) => record.bookingId === booking.id);
 
@@ -368,3 +374,5 @@ export const submitSchedule = (id: string, rowVersion: number) => refreshAfter(r
 export const approveSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const returnSchedule = (id: string, rowVersion: number, comment: string) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/return`, { method: "POST", body: JSON.stringify({ rowVersion, comment }) }));
 export const discardScheduleDraft =(id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/discard`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
+export const submitCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer }) }));
+export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));
