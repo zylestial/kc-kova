@@ -59,3 +59,6 @@ conventions (see `docs/RULES.md`).
 - Phase 4 complete on `feat/v2-requests` — `docs/v2/phase-4-requests.md`
   (request creation and My requests, migrations 0024–0025). Applied to the
   local database only.
+- Phase 5 complete on `feat/v2-scheduling` — `docs/v2/phase-5-scheduling.md`
+  (Create schedule, Schedules, Trip Record, migrations 0026–0027).
+  Applied to the local database only.
