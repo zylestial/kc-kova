@@ -2,7 +2,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(29);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -23,7 +23,9 @@ insert into booking_options ("group", id, name, status) values
   ('destinations', 'd3', 'Closed Site', 'Inactive'),
   ('purposes', 'p1', 'Inspection', 'Active'),
   ('purposes', 'p2', 'Document delivery', 'Active'),
-  ('projects', 'pr1', 'Harbor Project', 'Active');
+  ('projects', 'pr1', 'Harbor Project', 'Active'),
+  ('projects', 'pr2', 'Old Project', 'Active'),
+  ('destinations', 'd4', 'Warehouse', 'Active');
 
 create function pg_temp.act_as(p_uid uuid) returns void language plpgsql as $$
 begin
@@ -100,6 +102,35 @@ select is(
    where r.project_id = 'pr1' and rd.position = 1),
   'City Hall', 'Destination name snapshot survives an option rename');
 
+-- Edits keep options that were deactivated after the request was made -----
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select lives_ok(
+  $$ select create_request(pg_temp.today() + 10, 'REGULAR', 'pr2', null, '[{"destinationId":"d4","purposeId":"p2"}]') $$,
+  'Admin creates a request using options that are still Active');
+
+reset role;
+update booking_options set status = 'Inactive' where id in ('pr2', 'd4');
+update booking_options set name = 'Warehouse (old)' where id = 'd4';
+
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select lives_ok(
+  $$ select update_request(
+       (select id from requests where project_id = 'pr2'), 1, pg_temp.today() + 11, 'REGULAR', 'pr2', null,
+       '[{"destinationId":"d4","purposeId":"p2"}]') $$,
+  'An edit may keep a destination and Project / Site that are now Inactive');
+select is(
+  (select destination_name from request_destinations rd join requests r on r.id = rd.request_id
+   where r.project_id = 'pr2' and rd.active),
+  'Warehouse', 'A kept Inactive destination keeps its original name snapshot');
+select is(
+  (select project_name from requests where project_id = 'pr2'),
+  'Old Project', 'A kept Inactive Project / Site keeps its name snapshot');
+select throws_ok(
+  $$ select update_request(
+       (select id from requests where project_id = 'pr2'), 2, pg_temp.today() + 11, 'REGULAR', 'pr2', null,
+       '[{"destinationId":"d4","purposeId":"p2"},{"destinationId":"d3","purposeId":"p1"}]') $$,
+  '22023', null, 'An edit cannot newly choose an Inactive destination');
+
 -- Edit lock and stale edits ------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select lives_ok(
@@ -127,7 +158,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select is((select count(*)::int from requests), 3, 'Requester sees exactly their own requests');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select is((select count(*)::int from requests where owner_account_id::text like '00000000-0000-0000-0000-%'), 4, 'Scheduler sees the whole request pool');
+select is((select count(*)::int from requests where owner_account_id::text like '00000000-0000-0000-0000-%'), 5, 'Scheduler sees the whole request pool');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select is((select count(*)::int from requests), 0, 'Driver sees no unscheduled requests');
