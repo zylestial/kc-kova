@@ -23,3 +23,18 @@ export function parseProblemNote(body: unknown): string | null {
   if (typeof note !== "string") return null;
   return note.trim() || null;
 }
+
+export type HandleProblemInput = { handlingNote: string; followUpScheduleId: string | null };
+
+/**
+ * Shape-checks a Mark handled body: a required handling note (trimmed) and
+ * an optional follow-up schedule id. Whether that schedule is a different,
+ * active one is enforced in Postgres. Returns null when the body isn't usable.
+ */
+export function parseHandleProblemInput(body: unknown): HandleProblemInput | null {
+  if (!body || typeof body !== "object") return null;
+  const { handlingNote, followUpScheduleId } = body as Record<string, unknown>;
+  if (typeof handlingNote !== "string" || !handlingNote.trim()) return null;
+  if (followUpScheduleId != null && typeof followUpScheduleId !== "string") return null;
+  return { handlingNote: handlingNote.trim(), followUpScheduleId: followUpScheduleId || null };
+}
