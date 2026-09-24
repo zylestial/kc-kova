@@ -586,3 +586,19 @@ granularity" item):
   even across a restart, while `next build` had the new rules. Deleting
   `.next/dev` fixed it. If a style change doesn't show up in dev, check
   the build output before debugging the CSS itself.
+
+## Phase 5 design decisions (2026-09-24)
+
+Decided by the project owner at the start of Phase 5:
+
+- **A schedule has at most 8 legs, the final leg back to ANONANG
+  included.** The printed Daily Vehicle Record has 8 leg rows, and the
+  print layout must stay unchanged. The server enforces the cap, not only
+  the UI. A day that needs more legs is split into a second schedule.
+  This replaces Phase 3's 30-leg limit.
+- **There is no capacity check.** KOVA clears vehicle schedules for trips
+  to sites, hardware stores and similar destinations; it doesn't track
+  passengers, so there is no seat or capacity data and none is added. The
+  plan's "capacity" item is out of scope. Shared stops still exist, but
+  only when the Scheduler explicitly puts each request's destination on
+  a leg. Nothing is merged automatically.
