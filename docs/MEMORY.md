@@ -656,3 +656,9 @@ Decided by the project owner at the start of Phase 5:
 - **Local test accounts from Phase 6 (`p6-admin`, `p6-sched`, `p6-req`)
   were reused** for the Phase 7 API smoke, which left cancelled
   requests/schedules on a date 30 days out in the local database.
+- **Browser walkthroughs use Playwright installed outside the repo**
+  (`npm i playwright` and `npx playwright install chromium` in a scratch
+  folder, about 0.6 GB of disk), so `package.json` stays unchanged. The
+  first call to each API route in `next dev` is slow, so wait a few
+  seconds after each action, and give every run unique request tags:
+  leftovers from earlier runs otherwise match the selectors.
