@@ -360,8 +360,25 @@ pending approval; nothing has started.
       Booker-approval flow vs. the Requester/Scheduler model, Scheduler
       being a new role not a rename, an overlapping open v1.2 backlog
       item, and legacy-data Scheduler attribution).
-- [ ] Phase 1 — Git protection and development branches
-- [ ] Phase 2 — Reuse the v1.2 database and Vercel project
+- [x] Phase 1 — Git protection and development branches. See
+      `docs/v2/git-and-release.md`: `v1.2-stable` tag on master's verified
+      tip, `v1-maintenance` and `v2-development` branches created and
+      pushed, Phase 0 docs merged into `v2-development` via PR #27.
+      Feature branches deliberately not pre-created (cut per-phase).
+- [x] Phase 2 — Reuse the v1.2 database and Vercel project. See
+      `docs/v2/environment-map.md`: confirmed live `kc-kova` Vercel project
+      (Next.js preset, no custom domain, git-integrated with
+      `master` -> Production / everything else -> Preview), all 12
+      existing migrations replay cleanly on a fresh local Docker instance.
+      **Open finding, not yet fixed**: `SUPABASE_SERVICE_ROLE_KEY` and both
+      `NEXT_PUBLIC_SUPABASE_*` vars are scoped to Preview as well as
+      Production, so every Preview deployment currently has full
+      unrestricted write access to the live production database — a
+      pre-existing gap, not something this session introduced, but it
+      violates this phase's own "preview must not use live write
+      credentials" gate and needs a decision before v2 feature-branch
+      Previews start getting built. No production backup was taken this
+      session (needs separate explicit go-ahead per `docs/RULES.md`).
 - [ ] Phase 3 — Database model, permissions, state transitions, full
       `requester` role migration
 - [ ] Phase 4 — Requester and Admin request creation

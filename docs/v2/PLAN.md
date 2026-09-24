@@ -47,7 +47,10 @@ conventions (see `docs/RULES.md`).
 
 ## Status
 
-Phase 0 approved and completed 2026-09-24 — see `docs/v2/baseline.md` for
-the full report (verified capabilities, environment map, build/test
-results, cleanup inventory, and conflicts needing a decision before
-Phase 3). Phase 1 not yet proposed/approved.
+- Phase 0 complete — `docs/v2/baseline.md`.
+- Phase 1 complete — `docs/v2/git-and-release.md` (`v1.2-stable` tag,
+  `v1-maintenance`/`v2-development` branches).
+- Phase 2 complete — `docs/v2/environment-map.md`, with one open finding
+  requiring a decision before v2 feature-branch Preview builds start:
+  Preview currently shares production's Supabase service-role key.
+- Phase 3 not yet proposed/approved.
