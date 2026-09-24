@@ -19,7 +19,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     bootstrap/          GET: one-shot hydration payload for the signed-in role
     accounts/           Admin: create/update accounts, reset passwords
     vehicles/           Admin: create/rename vehicles
-    bookings/           Booker/Admin: create/update/cancel bookings
+    bookings/           Requester/Admin: create/update/cancel bookings
     records/            Driver/Admin: submit and review Daily Vehicle Records
     booking-options/    Admin: Projects/Destinations/Purposes/People
   *.tsx                 Screens (scheduler, driver-trips, settings, etc.) — client components
@@ -146,7 +146,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `id` | uuid PK | Same value as `auth.users.id` |
 | `username` | text, unique | Display login name; mapped to a synthetic email for Supabase Auth |
 | `name` | text | Display name |
-| `role` | text | `Booker` \| `Driver` \| `Admin` |
+| `role` | text | `Requester` \| `Scheduler` \| `Admin` \| `Driver` (v2; `Booker` is converted to `Requester` by migration 0023) |
 | `status` | text | `Active` \| `Inactive` |
 | `project` | text, nullable | Free-text label, not a foreign key |
 | `created_at` | timestamptz | |
@@ -272,6 +272,19 @@ PK: `(group, id)`.
 Touched only by the service-role client (`lib/supabase/login-rate-limit.ts`)
 — no RLS policy is granted to any other role.
 
+### v2 request/schedule tables (migrations 0013–0023)
+
+`requests`, `request_destinations`, `request_cancellations`, `schedules`,
+`schedule_revisions`, `revision_requests`, `schedule_requests`,
+`schedule_legs`, `leg_stops`, `schedule_reservations`, `trip_completions`,
+`problem_reports`, `audit_events`, plus the derived `request_progress`
+view. `authenticated` gets `SELECT` only (filtered by RLS); every write
+goes through a `security definer` RPC. The schema diagram, state
+transitions, permission matrix and release order live in
+`docs/v2/phase-3-schema.md`, the single source for them. The legacy
+`bookings`/`booking_slots`/`vehicle_records` tables above are kept
+unchanged for history.
+
 ## API contract
 
 The authoritative, human-readable version of this table lives in
@@ -290,9 +303,9 @@ Summary, with the implementing route file:
 | POST | `/api/accounts/:accountId/password` | `app/api/accounts/[accountId]/password/route.ts` | Admin |
 | POST | `/api/vehicles` | `app/api/vehicles/route.ts` | Admin |
 | PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
-| POST | `/api/bookings` | `app/api/bookings/route.ts` | Booker, Admin |
-| PUT | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Booker, Admin |
-| DELETE | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Booker, Admin |
+| POST | `/api/bookings` | `app/api/bookings/route.ts` | Requester, Admin |
+| PUT | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Requester, Admin |
+| DELETE | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Requester, Admin |
 | PUT | `/api/records/:recordId` | `app/api/records/[recordId]/route.ts` | Assigned Driver (pre-submission), Admin (review) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |
