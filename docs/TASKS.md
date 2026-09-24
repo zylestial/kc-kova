@@ -337,15 +337,39 @@ Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
 
-## Planned — v1.3 (Notifications, prospecting only, not started)
+## Planned — v2.0 (phased upgrade, not started)
 
-- [ ] **Notifications** (email/push/in-app). No notification system exists
-      anywhere in this codebase today — every status change (a booking
-      cancelled by an Admin's Approve, a request approved/denied, a Trip
-      Record reviewed) is only visible the next time the affected user
-      opens the app. Flagged during the Booking Type + Admin Approval
-      design as a real gap — and a bigger one there than elsewhere, since
-      that feature makes *every* booking wait on Admin action — but
-      deliberately kept out of v1.1: it's a separate, larger feature
-      (delivery channel, preferences, read state) rather than an extension
-      of an existing screen.
+Full plan adopted 2026-09-24: `KOVA-v2-Claude-Implementation-Plan.md` (repo
+root), indexed at `docs/v2/PLAN.md`. Upgrades the **same** repo, Vercel
+project and production database in place across four roles (Requester,
+Scheduler, Admin, Driver) and 13 phases (0–12); see `docs/v2/PLAN.md` for
+the phase table. Each phase requires explicit "May I start Phase N?"
+approval before starting — approving the overall plan is not approval for
+any individual phase. Phase 0 (inspect v1.2, verify reported behavior,
+build a cleanup inventory, list conflicts) was proposed 2026-09-24 and is
+pending approval; nothing has started.
+
+- [x] Phase 0 — Inspect v1.2 and establish the baseline. See
+      `docs/v2/baseline.md`: all reported capabilities verified against
+      actual code (booking RPCs, RLS, submission locks, print component);
+      `tsc`/`eslint`/`vitest` (62/62)/`next build` all pass clean; no git
+      tags exist yet; Vercel project settings unverified (no local CLI/
+      dashboard access this session); cleanup inventory found ~46 of 61
+      unused vendored shadcn UI components plus 6 backing npm deps; 4
+      conflicts flagged for a decision before Phase 3 (existing
+      Booker-approval flow vs. the Requester/Scheduler model, Scheduler
+      being a new role not a rename, an overlapping open v1.2 backlog
+      item, and legacy-data Scheduler attribution).
+- [ ] Phase 1 — Git protection and development branches
+- [ ] Phase 2 — Reuse the v1.2 database and Vercel project
+- [ ] Phase 3 — Database model, permissions, state transitions, full
+      `requester` role migration
+- [ ] Phase 4 — Requester and Admin request creation
+- [ ] Phase 5 — Scheduler planning and Trip Record
+- [ ] Phase 6 — Approval, revisions and publication
+- [ ] Phase 7 — Cancellation and request unlocking
+- [ ] Phase 8 — Driver completion and problem reporting
+- [ ] Phase 9 — Admin finished trips and printing
+- [ ] Phase 10 — End-to-end validation and migration rehearsal
+- [ ] Phase 11 — Release through the same Vercel project
+- [ ] Phase 12 — Stabilize and hand over
