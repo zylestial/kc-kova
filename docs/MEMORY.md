@@ -602,3 +602,20 @@ Decided by the project owner at the start of Phase 5:
   plan's "capacity" item is out of scope. Shared stops still exist, but
   only when the Scheduler explicitly puts each request's destination on
   a leg. Nothing is merged automatically.
+
+## Phase 5 gotchas (2026-09-24)
+
+- **Embedding `schedule_revisions` from `schedules` needs the foreign key
+  named.** The two tables are linked twice (`schedule_revisions.schedule_id`
+  and `schedules.published_revision_id`), so a plain
+  `schedule_revisions(...)` embed fails with `PGRST201` and bootstrap
+  returns 500. Use `scheduleSelect` in `lib/supabase/mappers.ts`, which
+  names `schedule_revisions_schedule_id_fkey` and keeps the key name.
+- **`supabase/tests/concurrency.sh` leaves committed fixtures behind**
+  (schedules and requests on other dates). Reset the local database before
+  API smoke tests or browser walkthroughs that count rows, and before
+  pgTAP if local fixtures reuse its plates (`V1`, `V2`).
+- **Screenshots and style checks right after a click can catch
+  `transition-all` mid-animation.** Buttons and dialogs fade, so a
+  selected button looked unselected in one screenshot. Wait for the
+  transition before judging colours.
