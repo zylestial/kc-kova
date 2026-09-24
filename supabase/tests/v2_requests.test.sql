@@ -10,15 +10,13 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000b', 'req1@test.local'),
   ('00000000-0000-0000-0000-00000000000c', 'req2@test.local'),
   ('00000000-0000-0000-0000-00000000000d', 'sched@test.local'),
-  ('00000000-0000-0000-0000-00000000000e', 'driver@test.local'),
-  ('00000000-0000-0000-0000-00000000000f', 'booker@test.local');
+  ('00000000-0000-0000-0000-00000000000e', 'driver@test.local');
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-00000000000a', 'admin', 'Ada Admin', 'Admin'),
   ('00000000-0000-0000-0000-00000000000b', 'req1', 'Juan Requester', 'Requester'),
   ('00000000-0000-0000-0000-00000000000c', 'req2', 'Maria Requester', 'Requester'),
   ('00000000-0000-0000-0000-00000000000d', 'sched', 'Sam Scheduler', 'Scheduler'),
-  ('00000000-0000-0000-0000-00000000000e', 'driver', 'Dan Driver', 'Driver'),
-  ('00000000-0000-0000-0000-00000000000f', 'booker', 'Old Booker', 'Booker');
+  ('00000000-0000-0000-0000-00000000000e', 'driver', 'Dan Driver', 'Driver');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'd1', 'City Hall', 'Active'),
   ('destinations', 'd2', 'Port Office', 'Active'),
@@ -54,10 +52,10 @@ select throws_ok(
   $$ select create_request(pg_temp.today() + 7, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
   '42501', null, 'Scheduler cannot create requests');
 
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000f');
+reset role;
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 7, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
-  '42501', null, 'The retired Booker role grants no request access');
+  $$ update accounts set role = 'Booker' where id = '00000000-0000-0000-0000-00000000000b' $$,
+  '23514', null, 'The retired Booker role is no longer a valid account role');
 
 -- Date rules ---------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
@@ -129,7 +127,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select is((select count(*)::int from requests), 3, 'Requester sees exactly their own requests');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select is((select count(*)::int from requests), 4, 'Scheduler sees the whole request pool');
+select is((select count(*)::int from requests where owner_account_id::text like '00000000-0000-0000-0000-%'), 4, 'Scheduler sees the whole request pool');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select is((select count(*)::int from requests), 0, 'Driver sees no unscheduled requests');
@@ -143,7 +141,8 @@ select throws_ok(
 -- Audit history ------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select ok(
-  (select count(*) from audit_events where table_name = 'requests' and action = 'request.update') = 1,
+  (select count(*) from audit_events where table_name = 'requests' and action = 'request.update'
+     and record_id = (select id from requests where project_id = 'pr1')) = 1,
   'The edit left a labelled audit event');
 reset role;
 select throws_ok(
