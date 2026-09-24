@@ -564,3 +564,25 @@ granularity" item):
   open. Requesters no longer see legacy bookings in the app; that's
   acceptable because there is no real data, and Phase 10 carries legacy
   bookings into v2.
+
+## Phase 4 gotchas (2026-09-24)
+
+- **Never raise SQLSTATE `40001` from an RPC as a business error.**
+  PostgREST treats `40001` (serialization failure) as transient and
+  retries the whole transaction. A deterministic check like "stale
+  row_version" fails the same way every time, so the HTTP call hangs until
+  the gateway's 60-second timeout while Postgres keeps re-running the
+  function. Use `PT409` instead: PostgREST answers HTTP 409 and doesn't
+  retry. pgTAP and `concurrency.sh` call functions through `psql`, so they
+  can't catch this. Only a call over HTTP shows it.
+- **Run the app locally against local Supabase by overriding env vars.**
+  `.env.local` points at the shared `kc-kova` project, which lacks the v2
+  migrations. Next.js never overwrites a variable already set in the
+  process, so starting `next dev` with `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` exported
+  from `supabase status -o json` targets the local database without
+  editing `.env.local`.
+- **`next dev` (Turbopack) served a stale `globals.css` after an append**,
+  even across a restart, while `next build` had the new rules. Deleting
+  `.next/dev` fixed it. If a style change doesn't show up in dev, check
+  the build output before debugging the CSS itself.
