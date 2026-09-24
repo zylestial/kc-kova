@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCompletionInput, parseProblemNote } from "@/lib/completion-input";
+import { parseCompletionInput, parseHandleProblemInput, parseProblemNote } from "@/lib/completion-input";
 
 describe("parseCompletionInput", () => {
   it("accepts whole-number odometers, including equal readings", () => {
@@ -30,5 +30,23 @@ describe("parseProblemNote", () => {
     expect(parseProblemNote({})).toBeNull();
     expect(parseProblemNote({ note: 5 })).toBeNull();
     expect(parseProblemNote(undefined)).toBeNull();
+  });
+});
+
+describe("parseHandleProblemInput", () => {
+  it("trims the note and keeps an optional follow-up", () => {
+    expect(parseHandleProblemInput({ handlingNote: "  Tyre replaced ", followUpScheduleId: "s2" })).toEqual({
+      handlingNote: "Tyre replaced",
+      followUpScheduleId: "s2",
+    });
+    expect(parseHandleProblemInput({ handlingNote: "Fixed" })).toEqual({ handlingNote: "Fixed", followUpScheduleId: null });
+    expect(parseHandleProblemInput({ handlingNote: "Fixed", followUpScheduleId: null })?.followUpScheduleId).toBeNull();
+  });
+
+  it("rejects a blank or missing note and a non-string follow-up", () => {
+    expect(parseHandleProblemInput({ handlingNote: "   " })).toBeNull();
+    expect(parseHandleProblemInput({})).toBeNull();
+    expect(parseHandleProblemInput({ handlingNote: "Fixed", followUpScheduleId: 5 })).toBeNull();
+    expect(parseHandleProblemInput(null)).toBeNull();
   });
 });
