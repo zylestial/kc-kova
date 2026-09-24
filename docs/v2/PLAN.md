@@ -53,4 +53,6 @@ conventions (see `docs/RULES.md`).
 - Phase 2 complete — `docs/v2/environment-map.md`, with one open finding
   requiring a decision before v2 feature-branch Preview builds start:
   Preview currently shares production's Supabase service-role key.
-- Phase 3 not yet proposed/approved.
+- Phase 3 complete on `feat/v2-foundation` — `docs/v2/phase-3-schema.md`
+  (migrations 0013–0023, permission matrix, transition rules, tests).
+  Applied to the local database only.
