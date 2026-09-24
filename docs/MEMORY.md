@@ -517,3 +517,8 @@ granularity" item):
   The shared `kc-kova` project still backs the v1.2 UAT site on `master`,
   and the `Booker` → `requester` rename would break it. Applying to
   `kc-kova` is a later, separately approved step.
+- **Role values stay capitalized: `Requester`, `Scheduler`, `Admin`,
+  `Driver`.** The plan spells the internal value `requester`, but every
+  existing value is capitalized, so the owner chose consistency. Anywhere
+  the plan says `requester`, read `Requester`. `Booker` is still fully
+  removed, not kept as an alias.
