@@ -45,8 +45,7 @@ type Screen =
   | "my-requests"
   | "create-schedule"
   | "schedules"
-  | "driver-record"
-  | "admin-record";
+  | "driver-record";
 const home = (role: Account["role"]): Screen =>
   role === "Requester"
     ? "requester-home"
@@ -59,7 +58,6 @@ export default function Home() {
   const [account, setAccount] = useState<Account | null>(null);
   const [screen, setScreen] = useState<Screen>("schedule");
   const [driverBooking, setDriverBooking] = useState<Booking | null>(null);
-  const [adminRecordId, setAdminRecordId] = useState<string | null>(null);
   const [driverReturnScreen, setDriverReturnScreen] = useState<
     "my-schedule" | "finished"
   >("my-schedule");
@@ -106,7 +104,6 @@ export default function Home() {
       "create-schedule": "Create Schedule",
       schedules: "Schedules",
       "driver-record": "Daily Vehicle Record",
-      "admin-record": "Daily Vehicle Record",
     };
     document.title = `KOVA — ${account ? titles[screen] : "Sign In"}`;
   }, [account, screen]);
@@ -131,7 +128,6 @@ export default function Home() {
       await endSession();
       setAccount(null);
       setDriverBooking(null);
-      setAdminRecordId(null);
       setScreen("schedule");
       setPassword("");
       setError("");
@@ -209,18 +205,6 @@ export default function Home() {
         onHome={() => {
           setDriverBooking(null);
           setScreen(driverReturnScreen);
-        }}
-        onSignOut={signOut}
-      />
-    );
-  if (account.role === "Admin" && screen === "admin-record" && adminRecordId)
-    return (
-      <Scheduler
-        role="Admin"
-        reviewRecordId={adminRecordId}
-        onHome={() => {
-          setAdminRecordId(null);
-          setScreen("finished");
         }}
         onSignOut={signOut}
       />
@@ -351,12 +335,7 @@ export default function Home() {
             ) : screen === "approvals" ? (
               <AdminBookingApprovals />
             ) : (
-              <AdminFinishedTrips
-                onOpen={(id) => {
-                  setAdminRecordId(id);
-                  setScreen("admin-record");
-                }}
-              />
+              <AdminFinishedTrips />
             )}
           </>
         ) : (
