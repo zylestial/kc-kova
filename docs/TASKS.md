@@ -420,9 +420,13 @@ pending approval; nothing has started.
       (stale schedule saves return 409) and 0027 (8-leg cap). pgTAP 84/84,
       concurrency 9/9, vitest 101/101, API smoke 29/29, 45-step browser
       walkthrough. **Local database only.**
-  - [ ] Phase 6: Admin v2 Schedules view, approve/return, and Scheduler
-        revisions of approved schedules.
-- [ ] Phase 6 — Approval, revisions and publication
+- [x] Phase 6 — Approval, revisions and publication. See
+      `docs/v2/phase-6-approval.md`, branch `feat/v2-approval` (stacked
+      on `feat/v2-scheduling`): Admin Schedules with Approve and Return
+      (comment required), and Scheduler Propose revision of an approved
+      schedule; `/api/schedules/:id/approve` and `/return`; no migration.
+      vitest 101/101, API smoke passed; **no browser walkthrough**
+      (Playwright not installed). **Local database only.**
 - [ ] Phase 7 — Cancellation and request unlocking
 - [ ] Phase 8 — Driver completion and problem reporting
 - [ ] Phase 9 — Admin finished trips and printing
