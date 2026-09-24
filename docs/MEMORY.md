@@ -681,3 +681,25 @@ Decided by the project owner at the start of Phase 5:
   script): accounts `admin1`, `req1`, `sched1`, `drv1`, `drv2` (password
   `test1234`), one approved trip yesterday on V1 and one 10 days ahead
   on V2. Reset the local database before reusing.
+
+## Phase 9 notes (2026-09-24)
+
+- **Branch base:** Phase 8's PR (#31) merged into `feat/v2-cancellation`,
+  not `master`. Phase 9 branches from `origin/feat/v2-cancellation`, so
+  its upstream is that branch; set the upstream to
+  `origin/feat/v2-finished-trips` before the first push.
+- **Only an Admin corrects, marks Done or handles problems.** Marking Done
+  and handling are idempotent (repeat returns the existing row); a
+  correction after Done is refused with 22023.
+- **`scheduleErrorResponse` takes a third argument** for the 404 message.
+  Its default, "Schedule not found.", is wrong for "no completion" and
+  "problem report not found", so the Phase 9 routes pass `error.message`.
+- **Print view is a portal into `document.body`.** `.app-shell` is hidden
+  in print, so the form can't live inside it. Radix dialogs also portal to
+  `body`, hence the print rule hiding `dialog-overlay` / `dialog-content`.
+- **Fresh-reset gotcha:** after a browser walkthrough seeds V1/V2, every
+  pgTAP file fails with `Key (plate)=(V1) already exists`. Run
+  `supabase db reset` before `supabase test db`. A reset wipes the local
+  walkthrough accounts (`admin1`, `drv1`, …); re-run the seed script.
+- **Dead v1 code kept for Phase 10:** `Scheduler`'s `reviewRecordId` and
+  `driverBooking` props and `PrintForm`, plus `getDriverTrips`.
