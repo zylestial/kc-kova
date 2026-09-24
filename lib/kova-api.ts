@@ -88,6 +88,17 @@ export type TransportRequest = {
   progress: RequestProgress;
   cancellationPending: boolean;
 };
+/** A Requester's ask to cancel a request a schedule holds; an Admin decides. */
+export type CancellationRequest = {
+  id: string;
+  requestId: string;
+  requestedByAccountId: string;
+  requestedAt: string;
+  reason: string;
+  status: "PENDING" | "CONFIRMED" | "DECLINED";
+  decidedAt?: string;
+  decisionNote: string;
+};
 /** What the New request form and the Edit modal send. */
 export type RequestInput = {
   date: string;
