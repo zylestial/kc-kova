@@ -88,6 +88,17 @@ export type TransportRequest = {
   progress: RequestProgress;
   cancellationPending: boolean;
 };
+/** A Requester's ask to cancel a request a schedule holds; an Admin decides. */
+export type CancellationRequest = {
+  id: string;
+  requestId: string;
+  requestedByAccountId: string;
+  requestedAt: string;
+  reason: string;
+  status: "PENDING" | "CONFIRMED" | "DECLINED";
+  decidedAt?: string;
+  decisionNote: string;
+};
 /** What the New request form and the Edit modal send. */
 export type RequestInput = {
   date: string;
@@ -190,6 +201,7 @@ export type BootstrapData = {
   people: Person[];
   requests: TransportRequest[];
   schedules: Schedule[];
+  cancellations: CancellationRequest[];
 };
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
@@ -203,6 +215,7 @@ let cache: BootstrapData = {
   people: [],
   requests: [],
   schedules: [],
+  cancellations: [],
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -259,7 +272,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
-  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [] };
+  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [], cancellations: [] };
   notify();
 }
 
@@ -275,6 +288,8 @@ export const getPeople = () => cache.people;
 export const getRequests = () => cache.requests;
 export const getMyRequests = (accountId: string) => cache.requests.filter((item) => item.ownerAccountId === accountId);
 export const getSchedules = () => cache.schedules;
+export const getCancellations = () => cache.cancellations;
+export const getPendingCancellations = () => cache.cancellations.filter((item) => item.status === "PENDING");
 export const getDriverTrips = (driverId: string) => cache.bookings.filter((booking) => booking.driverId === driverId && booking.status === "SCHEDULED");
 export const getRecordForBooking = (booking: Booking) => cache.records.find((record) => record.bookingId === booking.id);
 
@@ -320,6 +335,11 @@ export const saveBookingOption = (group: "projects" | "destinations" | "purposes
 export const savePerson = (person: Person) => refreshAfter(request<Person>(`/api/booking-options/people/${encodeURIComponent(person.id)}`, { method: "PUT", body: JSON.stringify(person) }));
 export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
+export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
+export const requestCancellation = (id: string, reason: string) => refreshAfter(request<CancellationRequest>(`/api/requests/${encodeURIComponent(id)}/cancellation`, { method: "POST", body: JSON.stringify({ reason }) }));
+export const confirmCancellation = (id: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/confirm`, { method: "POST" }));
+export const declineCancellation = (id: string, note: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/decline`, { method: "POST", body: JSON.stringify({ note }) }));
+export const cancelSchedule = (id: string, reason: string) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }));
 export const createSchedule = (input: ScheduleInput) => refreshAfter(request<Schedule>("/api/schedules", { method: "POST", body: JSON.stringify(input) }));
 export const saveScheduleDraft = (id: string, rowVersion: number | null, input: ScheduleInput) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const submitSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/submit`, { method: "POST", body: JSON.stringify({ rowVersion }) }));

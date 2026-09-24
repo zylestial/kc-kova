@@ -6,6 +6,7 @@ import type {
   RequestProgress,
   Schedule,
   TransportRequest,
+  CancellationRequest,
   Vehicle,
   VehicleRecord,
 } from "@/lib/kova-api";
@@ -165,6 +166,30 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
       })),
     progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : "NOT_YET_SCHEDULED"),
     cancellationPending: progressRow?.cancellation_pending ?? false,
+  };
+}
+
+type CancellationRow = {
+  id: string;
+  request_id: string;
+  requested_by_account_id: string;
+  requested_at: string;
+  reason: string;
+  status: CancellationRequest["status"];
+  decided_at: string | null;
+  decision_note: string;
+};
+
+export function toCancellationRequest(row: CancellationRow): CancellationRequest {
+  return {
+    id: row.id,
+    requestId: row.request_id,
+    requestedByAccountId: row.requested_by_account_id,
+    requestedAt: row.requested_at,
+    reason: row.reason,
+    status: row.status,
+    decidedAt: row.decided_at ?? undefined,
+    decisionNote: row.decision_note,
   };
 }
 

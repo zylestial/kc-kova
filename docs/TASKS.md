@@ -427,7 +427,13 @@ pending approval; nothing has started.
       schedule; `/api/schedules/:id/approve` and `/return`; no migration.
       vitest 101/101, API smoke passed; **no browser walkthrough**
       (Playwright not installed). **Local database only.**
-- [ ] Phase 7 — Cancellation and request unlocking
+- [x] Phase 7 — Cancellation and request unlocking. See
+      `docs/v2/phase-7-cancellation.md`, branch `feat/v2-cancellation`
+      (stacked on `feat/v2-approval`): Requester cancel or ask to
+      cancel, Admin confirm/decline and Cancel schedule, planner drops
+      cancelled requests; migration 0028; pgTAP 68/68 for the new file,
+      vitest 101/101, API smoke and an 11-check browser walkthrough passed.
+      **Local database only.**
 - [ ] Phase 8 — Driver completion and problem reporting
 - [ ] Phase 9 — Admin finished trips and printing
 - [ ] Phase 10 — End-to-end validation and migration rehearsal
