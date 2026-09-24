@@ -494,3 +494,26 @@ against production without confirming, never skip migration versioning
 discipline, and the owner's own plan is to clear the database before real
 launch — so nothing here licenses leaving test/experiment junk in place at
 go-live.
+
+## Phase 3 design decisions (2026-09-24)
+
+Decided by the project owner before Phase 3 work started (resolves
+`docs/v2/baseline.md` conflict 1 and the plan's "inspect hour-slot
+granularity" item):
+
+- **v2 reservations live in a new table using time ranges**, not in
+  `booking_slots`. Overlaps are blocked by Postgres exclusion constraints
+  (`btree_gist`) on vehicle and Driver time ranges, so the "no double
+  booking under concurrent writes" guarantee is kept without hour rows.
+  This overrides the baseline's original recommendation (reuse
+  `booking_slots`), because the database holds no real data and v2
+  reservations must be tied to a draft/published schedule version.
+  Legacy `bookings`/`booking_slots` stay in place, read-only for v2, for
+  history and rollback — not dropped in Phase 3.
+- **Planned Time Out / Time In use minute precision** (e.g. 08:15), and
+  conflicts are checked on exact ranges. v1.2's whole-hour limit does not
+  carry into v2.
+- **Phase 3 migrations are applied to the local Docker database only.**
+  The shared `kc-kova` project still backs the v1.2 UAT site on `master`,
+  and the `Booker` → `requester` rename would break it. Applying to
+  `kc-kova` is a later, separately approved step.
