@@ -257,8 +257,12 @@ export function toSchedule(row: ScheduleRow): Schedule {
   };
 }
 
-/** Select for toSchedule. Pair with liveRevisionStatuses on schedule_revisions. */
+/**
+ * Select for toSchedule. Pair with liveRevisionStatuses on schedule_revisions.
+ * schedules and schedule_revisions are linked twice (revision.schedule_id and
+ * schedule.published_revision_id), so the embed names the foreign key.
+ */
 export const scheduleSelect =
-  "*, schedule_revisions(*, revision_requests(request_id), schedule_legs(*, leg_stops(request_destination_id)))";
+  "*, schedule_revisions:schedule_revisions!schedule_revisions_schedule_id_fkey(*, revision_requests(request_id), schedule_legs(*, leg_stops(request_destination_id)))";
 /** The versions the app works with; superseded and discarded ones are history. */
 export const liveRevisionStatuses = ["DRAFT", "SUBMITTED", "RETURNED", "APPROVED"];
