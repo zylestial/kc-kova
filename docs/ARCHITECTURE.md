@@ -19,7 +19,8 @@ app/                    Next.js App Router: pages (client components) + API rout
     bootstrap/          GET: one-shot hydration payload for the signed-in role
     accounts/           Admin: create/update accounts, reset passwords
     vehicles/           Admin: create/rename vehicles
-    bookings/           Requester/Admin: create/update/cancel bookings
+    bookings/           Requester/Admin: create/update/cancel bookings (v1.2)
+    requests/           Requester/Admin: create/edit v2 transport requests
     records/            Driver/Admin: submit and review Daily Vehicle Records
     booking-options/    Admin: Projects/Destinations/Purposes/People
   *.tsx                 Screens (scheduler, driver-trips, settings, etc.) — client components
@@ -306,20 +307,23 @@ Summary, with the implementing route file:
 | POST | `/api/bookings` | `app/api/bookings/route.ts` | Requester, Admin |
 | PUT | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Requester, Admin |
 | DELETE | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Requester, Admin |
+| POST | `/api/requests` | `app/api/requests/route.ts` | Requester, Admin |
+| PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
 | PUT | `/api/records/:recordId` | `app/api/records/[recordId]/route.ts` | Assigned Driver (pre-submission), Admin (review) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |
 
 Request/response bodies match the TypeScript types in `lib/kova-api.ts`
 (`Account`, `Vehicle`, `Booking`, `VehicleRecord`, `BookingOption`,
-`Person`, `BootstrapData`) — that file is the single source of truth for
+`Person`, `TransportRequest`, `RequestInput`, `BootstrapData`) — that file is the single source of truth for
 field names and is shared between the frontend and this doc.
 
 ## Data flow: bootstrap
 
 `GET /api/bootstrap` is the single hydration call the frontend makes right
-after sign-in. It issues five parallel `select *` queries (accounts,
-vehicles, bookings, vehicle_records, booking_options, people) through the
+after sign-in. It issues parallel `select *` queries (accounts, vehicles,
+bookings, vehicle_records, booking_options, people, and the v2 `requests`
+with their active destinations plus `request_progress`) through the
 **session-scoped client**, so RLS does the role-based filtering for free —
 a Driver's query for `bookings` only ever returns their own rows, without
 the route needing to know that rule itself. This is why `bootstrap`'s route
