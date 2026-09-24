@@ -14,16 +14,17 @@ There is no public sign-up. Every account is provisioned by an Admin.
 
 | Role | Can do |
 | --- | --- |
-| **Booker** | Create/edit/cancel their own vehicle bookings. See the shared schedule. Cannot manage accounts, vehicles, booking options, or Finance data. |
+| **Requester** | Create/edit/cancel their own vehicle bookings. See the shared schedule. Cannot manage accounts, vehicles, booking options, or Finance data. |
+| **Scheduler** | New in v2. Builds schedules (vehicle + ordered Trip Record) from Requesters' requests and submits them for Admin approval. The only role that can create a schedule. Screens arrive in v2 Phase 5. |
 | **Driver** | See only their own assigned bookings ("My Schedule"). Fill in and submit the Daily Vehicle Record for a trip once it has ended. Cannot create bookings for themselves or others. |
-| **Admin** | Everything a Booker can do, plus: manage Accounts, Vehicles, and Booking Options (Projects/Destinations/Purposes/People); review and edit submitted trip records; mark records Done (locking them); see Finance fields and the fixed approval names (PM, COO). |
+| **Admin** | Everything a Requester can do, plus: manage Accounts, Vehicles, and Booking Options (Projects/Destinations/Purposes/People); review and edit submitted trip records; mark records Done (locking them); see Finance fields and the fixed approval names (PM, COO). |
 
 A single person only ever has one role at a time; there is no multi-role
 account.
 
 ## Core workflows
 
-1. **Book a trip.** A Booker (or Admin) picks a date, vehicle, time range,
+1. **Book a trip.** A Requester (or Admin) picks a date, vehicle, time range,
    driver, destination, and purpose. The system rejects the booking if the
    chosen vehicle or driver is already booked for an overlapping hour that
    day. All vehicles booked for the same vehicle on the same day must share
@@ -41,7 +42,7 @@ account.
    Capillan; COO: President Vargas) and Finance fields (received-by,
    reference #, finance status, dates), then marks the record **Done**. Once
    Done, the record is read-only.
-4. **Cancel a booking.** The Booker who created a booking, or an Admin, may
+4. **Cancel a booking.** The Requester who created a booking, or an Admin, may
    cancel it before it has been submitted as a trip record. Cancelling never
    deletes the row — it flips status to `CANCELLED` so history and audit
    trails stay intact, and frees the vehicle/driver's time slots.
