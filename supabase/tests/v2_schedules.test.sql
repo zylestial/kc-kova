@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(46);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -125,6 +125,8 @@ select is(
   'Both requests are locked into the draft');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
+select is((select progress from request_progress where request_id = pg_temp.id('juan')), 'SCHEDULING',
+  'Requester sees SCHEDULING progress without seeing the draft itself');
 select throws_ok(
   $$ select update_request(pg_temp.id('juan'), 1, pg_temp.d(), 'REGULAR', null, null,
        '[{"destinationId":"d2","purposeId":"p1"}]') $$,
@@ -173,6 +175,8 @@ select is((select count(*)::int from schedules), 0, 'Driver cannot see an unappr
 select is((select count(*)::int from schedule_legs), 0, 'Driver cannot see draft legs');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select is((select count(*)::int from schedules), 0, 'Requester cannot see an unapproved schedule');
+select is((select progress from request_progress where request_id = pg_temp.id('juan')), 'PENDING_APPROVAL',
+  'Progress moves to PENDING_APPROVAL on submission');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select throws_ok(
@@ -203,6 +207,8 @@ select is((select count(*)::int from schedules), 1, 'Requester sees the approved
 select is((select count(*)::int from leg_stops), 1, 'Requester sees only their own stop, not the other requester''s');
 select is((select count(*)::int from requests where owner_account_id <> '00000000-0000-0000-0000-00000000000b'), 0,
   'Requester cannot see the other requester''s request');
+select is((select progress from request_progress where request_id = pg_temp.id('juan')), 'APPROVED',
+  'Progress is APPROVED once published');
 
 -- Revision: the published version stays in force until the new one is approved
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
@@ -248,6 +254,8 @@ select ok(
   not exists (select 1 from schedule_reservations where schedule_id = pg_temp.id('s2'))
   and not exists (select 1 from schedule_requests where request_id = pg_temp.id('maria_port') and active),
   'Discarding frees the reservation and unlocks the request');
+select is((select progress from request_progress where request_id = pg_temp.id('maria_port')), 'NOT_YET_SCHEDULED',
+  'A discarded draft''s request is back to NOT_YET_SCHEDULED');
 
 -- A submitted completion blocks further revisions ----------------------------
 insert into trip_completions (schedule_id, revision_id, driver_id, start_odometer, end_odometer)
@@ -258,6 +266,8 @@ select throws_ok(
   $$ select save_schedule_draft(pg_temp.id('s1'), null, null, 'V1',
        array[pg_temp.id('juan'), pg_temp.id('maria')], pg_temp.shared_legs('16:00', '17:00', '17:30', '18:30')) $$,
   '22023', null, 'No revisions once the Driver has submitted completion');
+select is((select progress from request_progress where request_id = pg_temp.id('juan')), 'COMPLETED',
+  'Progress is COMPLETED after the Driver submits');
 
 select * from finish();
 rollback;
