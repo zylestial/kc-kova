@@ -28,7 +28,8 @@ type Screen =
   | "schedule"
   | "driver-home"
   | "admin-home"
-  | "booker-home"
+  | "requester-home"
+  | "scheduler-home"
   | "settings"
   | "my-schedule"
   | "finished"
@@ -37,11 +38,13 @@ type Screen =
   | "driver-record"
   | "admin-record";
 const home = (role: Account["role"]): Screen =>
-  role === "Booker"
-    ? "booker-home"
-    : role === "Driver"
-      ? "driver-home"
-      : "admin-home";
+  role === "Requester"
+    ? "requester-home"
+    : role === "Scheduler"
+      ? "scheduler-home"
+      : role === "Driver"
+        ? "driver-home"
+        : "admin-home";
 export default function Home() {
   const [account, setAccount] = useState<Account | null>(null);
   const [screen, setScreen] = useState<Screen>("schedule");
@@ -77,7 +80,8 @@ export default function Home() {
       schedule: "Schedule",
       "driver-home": "Driver Home",
       "admin-home": "Admin Home",
-      "booker-home": "Booker Home",
+      "requester-home": "Requester Home",
+      "scheduler-home": "Scheduler Home",
       settings: "Settings",
       "my-schedule": "My Schedule",
       finished: "Finished Trips",
@@ -168,7 +172,7 @@ export default function Home() {
         </form>
       </div>
     );
-  if (screen === "schedule" && (account.role === "Admin" || account.role === "Booker"))
+  if (screen === "schedule" && (account.role === "Admin" || account.role === "Requester"))
     return (
       <Scheduler
         role={account.role}
@@ -237,7 +241,7 @@ export default function Home() {
                   setScreen("driver-record");
                 }}
               />
-            ) : account.role === "Booker" ? (
+            ) : account.role === "Requester" ? (
               <MyBookings />
             ) : screen === "approvals" ? (
               <AdminBookingApprovals />
@@ -279,7 +283,7 @@ export default function Home() {
                     <CheckCircle2 size={24} /> Finished Trips
                   </Button>
                 </>
-              ) : account.role === "Booker" ? (
+              ) : account.role === "Requester" ? (
                 <>
                   <Button
                     variant="outline"
@@ -294,6 +298,10 @@ export default function Home() {
                     <ClipboardCheck size={24} /> My Bookings
                   </Button>
                 </>
+              ) : account.role === "Scheduler" ? (
+                // Scheduler screens (Create schedule, Schedules) arrive in
+                // v2 Phase 5; until then the role has no actions here.
+                <p>Scheduling tools are not available yet.</p>
               ) : (
                 <>
                   <Button

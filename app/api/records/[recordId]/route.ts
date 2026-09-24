@@ -15,7 +15,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ reco
   const supabase = await createSupabaseServerClient();
   const account = await requireAccount(supabase);
   if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-  if (account.role === "Booker") return NextResponse.json({ message: "Not authorized to edit trip records." }, { status: 403 });
+  if (account.role !== "Driver" && account.role !== "Admin") return NextResponse.json({ message: "Not authorized to edit trip records." }, { status: 403 });
 
   const body = await request.json().catch(() => null);
   const date = typeof body?.date === "string" ? body.date : "";

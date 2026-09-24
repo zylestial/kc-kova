@@ -5,7 +5,7 @@
  * Authentication is expected to use a secure HttpOnly session cookie issued by
  * the backend. All permissions and conflict checks must also be enforced there.
  */
-export type Role = "Booker" | "Driver" | "Admin";
+export type Role = "Requester" | "Scheduler" | "Admin" | "Driver";
 export type Account = {
   id: string;
   name: string;
@@ -172,7 +172,7 @@ export const getRecordForBooking = (booking: Booking) => cache.records.find((rec
 const ownerId = (booking: Booking) => booking.createdByAccountId || booking.createdBy;
 export function canManageBooking(booking: Booking, account: Account | null = currentAccount()) {
   if (!account || !["PENDING", "SCHEDULED"].includes(booking.status) || cache.records.some((record) => record.bookingId === booking.id && !!record.submittedAt)) return false;
-  return account.role === "Admin" || (account.role === "Booker" && ownerId(booking) === account.id);
+  return account.role === "Admin" || (account.role === "Requester" && ownerId(booking) === account.id);
 }
 
 export function canFinishTrip(booking: Booking, now: Date = new Date()) {

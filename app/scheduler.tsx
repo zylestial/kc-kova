@@ -145,7 +145,7 @@ export default function Scheduler({
   driverBackLabel = "My Schedule",
   reviewRecordId,
 }: {
-  role: "Booker" | "Admin" | "Driver";
+  role: "Requester" | "Admin" | "Driver";
   onHome: () => void;
   onSignOut: () => void;
   driverBooking?: Booking;
@@ -224,7 +224,7 @@ export default function Scheduler({
     : undefined;
   const readOnly =
     (role === "Driver" && !!edit?.submittedAt) ||
-    (role === "Booker" && !!edit?.submittedAt) ||
+    (role === "Requester" && !!edit?.submittedAt) ||
     (role === "Admin" && edit?.status === "DONE") ||
     (adminReviewMode && !adminEditing);
   function update<K extends keyof RecordData>(k: K, v: RecordData[K]) {

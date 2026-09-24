@@ -27,7 +27,7 @@ function makeBooking(overrides: Partial<Booking> = {}): Booking {
 }
 
 function makeAccount(overrides: Partial<Account> = {}): Account {
-  return { id: "r1", name: "Requester One", username: "requester", role: "Booker", status: "Active", ...overrides };
+  return { id: "r1", name: "Requester One", username: "requester", role: "Requester", status: "Active", ...overrides };
 }
 
 function makeRecord(overrides: Partial<VehicleRecord> = {}): VehicleRecord {
@@ -95,11 +95,11 @@ describe("validateDriverSubmission", () => {
 });
 
 describe("canManageBooking", () => {
-  it("allows the owning Booker to manage a PENDING booking", () => {
+  it("allows the owning Requester to manage a PENDING booking", () => {
     expect(canManageBooking(makeBooking({ status: "PENDING" }), makeAccount())).toBe(true);
   });
 
-  it("allows the owning Booker to manage a SCHEDULED booking", () => {
+  it("allows the owning Requester to manage a SCHEDULED booking", () => {
     expect(canManageBooking(makeBooking({ status: "SCHEDULED" }), makeAccount())).toBe(true);
   });
 
@@ -115,11 +115,15 @@ describe("canManageBooking", () => {
     expect(canManageBooking(makeBooking({ status: "CANCELLED" }), makeAccount())).toBe(false);
   });
 
-  it("denies a Booker who doesn't own the booking", () => {
+  it("denies a Requester who doesn't own the booking", () => {
     expect(canManageBooking(makeBooking({ status: "PENDING" }), makeAccount({ id: "someone-else" }))).toBe(false);
   });
 
   it("denies with no signed-in account", () => {
     expect(canManageBooking(makeBooking({ status: "PENDING" }), null)).toBe(false);
+  });
+
+  it("denies a Scheduler, even on their own booking", () => {
+    expect(canManageBooking(makeBooking({ status: "PENDING" }), makeAccount({ role: "Scheduler" }))).toBe(false);
   });
 });
