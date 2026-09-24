@@ -23,6 +23,7 @@ import {
 } from "@/lib/kova-api";
 import Settings from "./settings";
 import DriverTrips from "./driver-trips";
+import DriverSchedules from "./driver-schedules";
 import AdminFinishedTrips from "./admin-finished-trips";
 import AdminBookingApprovals from "./admin-booking-approvals";
 import MyRequests from "./my-requests";
@@ -333,7 +334,9 @@ export default function Home() {
             >
               <ArrowLeft size={17} /> {account.role} Home
             </Button>
-            {account.role === "Driver" ? (
+            {account.role === "Driver" && screen === "my-schedule" ? (
+              <DriverSchedules driverId={account.id} />
+            ) : account.role === "Driver" ? (
               <DriverTrips
                 driverId={account.id}
                 finished={screen === "finished"}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBooking, toBookingOption, toBookingOptions, toPerson, toSchedule, toTransportRequest, toVehicleRecord } from "@/lib/supabase/mappers";
+import { toBooking, toBookingOption, toBookingOptions, toPerson, toProblemReport, toSchedule, toTransportRequest, toTripCompletion, toVehicleRecord } from "@/lib/supabase/mappers";
 
 describe("toBooking", () => {
   it("maps snake_case columns to the Booking shape", () => {
@@ -204,5 +204,55 @@ describe("toSchedule", () => {
 
   it("tolerates a schedule with no embedded revisions", () => {
     expect(toSchedule({ ...row, schedule_revisions: undefined }).revisions).toEqual([]);
+  });
+});
+
+describe("toTripCompletion and toProblemReport", () => {
+  it("maps a completion row", () => {
+    expect(
+      toTripCompletion({
+        id: "c1",
+        schedule_id: "s1",
+        revision_id: "v1",
+        driver_id: "d1",
+        start_odometer: 1000,
+        end_odometer: 1042,
+        distance: 42,
+        submitted_at: "2026-10-05T10:00:00Z",
+        status: "SUBMITTED",
+      }),
+    ).toEqual({
+      id: "c1",
+      scheduleId: "s1",
+      revisionId: "v1",
+      driverId: "d1",
+      startOdometer: 1000,
+      endOdometer: 1042,
+      distance: 42,
+      submittedAt: "2026-10-05T10:00:00Z",
+      status: "SUBMITTED",
+    });
+  });
+
+  it("maps a problem report row", () => {
+    expect(
+      toProblemReport({
+        id: "p1",
+        schedule_id: "s1",
+        revision_id: "v1",
+        driver_id: "d1",
+        note: "Road closed",
+        created_at: "2026-10-05T08:30:00Z",
+        status: "OPEN",
+      }),
+    ).toEqual({
+      id: "p1",
+      scheduleId: "s1",
+      revisionId: "v1",
+      driverId: "d1",
+      note: "Road closed",
+      createdAt: "2026-10-05T08:30:00Z",
+      status: "OPEN",
+    });
   });
 });

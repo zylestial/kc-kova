@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dateInBusinessTimezone, manilaToday, regularMinDate, requestDateError } from "@/lib/timezone";
+import { addDays, dateInBusinessTimezone, manilaToday, hasTripEnded, regularMinDate, requestDateError } from "@/lib/timezone";
 
 describe("manilaToday", () => {
   it("returns the Manila calendar date for a UTC time still on the same day", () => {
@@ -95,5 +95,24 @@ describe("requestDateError", () => {
   it("uses the Manila calendar day, not UTC", () => {
     // 17:00 UTC on the 10th is already the 11th in Manila, so the 11th is "today".
     expect(requestDateError("2026-03-12", "URGENT", false, new Date("2026-03-10T17:00:00Z"))).toBe("");
+  });
+});
+
+describe("hasTripEnded", () => {
+  it("is false until the last Time In in Manila, true from that minute on", () => {
+    // 10:30 Manila is 02:30 UTC.
+    expect(hasTripEnded("2026-10-05", "10:30", new Date("2026-10-05T02:29:00Z"))).toBe(false);
+    expect(hasTripEnded("2026-10-05", "10:30", new Date("2026-10-05T02:30:00Z"))).toBe(true);
+  });
+
+  it("uses the Manila date, not the viewer's", () => {
+    // 23:30 UTC on the 4th is already 07:30 on the 5th in Manila.
+    expect(hasTripEnded("2026-10-05", "07:00", new Date("2026-10-04T23:30:00Z"))).toBe(true);
+    expect(hasTripEnded("2026-10-05", "08:00", new Date("2026-10-04T23:30:00Z"))).toBe(false);
+  });
+
+  it("is false for an unusable date or time", () => {
+    expect(hasTripEnded("", "10:30")).toBe(false);
+    expect(hasTripEnded("2026-10-05", "")).toBe(false);
   });
 });
