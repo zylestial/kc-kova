@@ -54,6 +54,48 @@ export type Booking = {
   bookingType: "REGULAR" | "URGENT";
   urgentReason: string;
 };
+export type RequestProgress =
+  | "NOT_YET_SCHEDULED"
+  | "SCHEDULING"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "COMPLETED"
+  | "DONE"
+  | "CANCELLED";
+export type RequestDestination = {
+  id: string;
+  position: number;
+  destinationId: string;
+  destinationName: string;
+  purposeId: string;
+  purposeName: string;
+};
+/** A v2 transport request: a date and destinations, no vehicle or time. */
+export type TransportRequest = {
+  id: string;
+  ownerAccountId: string;
+  ownerName: string;
+  date: string;
+  requestType: "REGULAR" | "URGENT";
+  projectId?: string;
+  projectName: string;
+  projectIsOther: boolean;
+  status: "ACTIVE" | "CANCELLED";
+  rowVersion: number;
+  createdAt: string;
+  updatedAt: string;
+  destinations: RequestDestination[];
+  progress: RequestProgress;
+  cancellationPending: boolean;
+};
+/** What the New request form and the Edit modal send. */
+export type RequestInput = {
+  date: string;
+  requestType: "REGULAR" | "URGENT";
+  projectId: string;
+  projectOther: string;
+  destinations: Array<{ destinationId: string; purposeId: string }>;
+};
 export type HistoryEntry = {
   adminId: string;
   adminName: string;
@@ -86,6 +128,7 @@ export type BootstrapData = {
   records: VehicleRecord[];
   options: BookingOptions;
   people: Person[];
+  requests: TransportRequest[];
 };
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
@@ -97,6 +140,7 @@ let cache: BootstrapData = {
   records: [],
   options: { projects: [], destinations: [], purposes: [] },
   people: [],
+  requests: [],
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -153,7 +197,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
-  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [] };
+  cache = { accounts: [], vehicles: [], bookings: [], records: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [] };
   notify();
 }
 
@@ -166,6 +210,8 @@ export const getPendingBookings = () => cache.bookings.filter((booking) => booki
 export const getRecords = () => cache.records;
 export const getBookingOptions = () => cache.options;
 export const getPeople = () => cache.people;
+export const getRequests = () => cache.requests;
+export const getMyRequests = (accountId: string) => cache.requests.filter((item) => item.ownerAccountId === accountId);
 export const getDriverTrips = (driverId: string) => cache.bookings.filter((booking) => booking.driverId === driverId && booking.status === "SCHEDULED");
 export const getRecordForBooking = (booking: Booking) => cache.records.find((record) => record.bookingId === booking.id);
 
@@ -209,3 +255,5 @@ export const denyBooking = (id: string) => refreshAfter(request<Booking>(`/api/b
 export const saveRecord = <T extends VehicleRecord>(record: T) => refreshAfter(request<T>(`/api/records/${encodeURIComponent(record.id)}`, { method: "PUT", body: JSON.stringify(record) }));
 export const saveBookingOption = (group: "projects" | "destinations" | "purposes", option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 export const savePerson = (person: Person) => refreshAfter(request<Person>(`/api/booking-options/people/${encodeURIComponent(person.id)}`, { method: "PUT", body: JSON.stringify(person) }));
+export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
+export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
