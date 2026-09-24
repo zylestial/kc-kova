@@ -404,13 +404,24 @@ pending approval; nothing has started.
       (stale edits return 409); `app/my-bookings.tsx` removed. pgTAP
       83/83, concurrency 9/9, vitest 73/73, 22-step browser walkthrough.
       **Local database only.**
-  - [ ] **Before Phase 5:** the schedule RPCs in 0021 raise SQLSTATE
+  - [x] **Before Phase 5:** the schedule RPCs in 0021 raise SQLSTATE
         `40001` for stale saves, which PostgREST retries forever, so the
         HTTP call hangs. Switch them to `PT409` the way 0025 did for
-        `update_request`.
+        `update_request`. Done in Phase 5 (migration 0026).
   - [ ] Move `scripts/seed-uat.mjs` from `Booker` to `Requester` when
         0023 is applied to `kc-kova`.
-- [ ] Phase 5 — Scheduler planning and Trip Record
+- [x] Phase 5 — Scheduler planning and Trip Record. See
+      `docs/v2/phase-5-scheduling.md`, branch `feat/v2-scheduling`
+      (stacked on `feat/v2-requests`): Create schedule (day, request pool,
+      existing commitments, vehicle with its Driver, Trip Record legs with
+      manual shared stops, Add leg / Add final leg, Save draft, Submit,
+      Discard) and Schedules (Day/Week, date/vehicle/Driver/status
+      filters) for Scheduler; `/api/schedules` routes; migrations 0026
+      (stale schedule saves return 409) and 0027 (8-leg cap). pgTAP 84/84,
+      concurrency 9/9, vitest 101/101, API smoke 29/29, 45-step browser
+      walkthrough. **Local database only.**
+  - [ ] Phase 6: Admin v2 Schedules view, approve/return, and Scheduler
+        revisions of approved schedules.
 - [ ] Phase 6 — Approval, revisions and publication
 - [ ] Phase 7 — Cancellation and request unlocking
 - [ ] Phase 8 — Driver completion and problem reporting
