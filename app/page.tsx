@@ -4,6 +4,8 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  ClipboardList,
+  FilePlus2,
   Settings as SettingsIcon,
   ArrowLeft,
 } from "lucide-react";
@@ -22,7 +24,8 @@ import Settings from "./settings";
 import DriverTrips from "./driver-trips";
 import AdminFinishedTrips from "./admin-finished-trips";
 import AdminBookingApprovals from "./admin-booking-approvals";
-import MyBookings from "./my-bookings";
+import MyRequests from "./my-requests";
+import RequestFlow from "./request-flow";
 import KovaBrand from "./kova-brand";
 type Screen =
   | "schedule"
@@ -34,7 +37,8 @@ type Screen =
   | "my-schedule"
   | "finished"
   | "approvals"
-  | "my-bookings"
+  | "new-request"
+  | "my-requests"
   | "driver-record"
   | "admin-record";
 const home = (role: Account["role"]): Screen =>
@@ -58,6 +62,7 @@ export default function Home() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
+  const [requestNotice, setRequestNotice] = useState("");
   useEffect(() => {
     restoreSession()
       .then((saved) => {
@@ -86,7 +91,8 @@ export default function Home() {
       "my-schedule": "My Schedule",
       finished: "Finished Trips",
       approvals: "Booking Approvals",
-      "my-bookings": "My Bookings",
+      "new-request": "New Request",
+      "my-requests": "My Requests",
       "driver-record": "Daily Vehicle Record",
       "admin-record": "Daily Vehicle Record",
     };
@@ -172,7 +178,7 @@ export default function Home() {
         </form>
       </div>
     );
-  if (screen === "schedule" && (account.role === "Admin" || account.role === "Requester"))
+  if (screen === "schedule" && account.role === "Admin")
     return (
       <Scheduler
         role={account.role}
@@ -220,7 +226,37 @@ export default function Home() {
       <main className="role-main">
         {screen === "settings" && account.role === "Admin" ? (
           <Settings onBack={() => setScreen("admin-home")} />
-        ) : screen === "finished" || screen === "my-schedule" || screen === "approvals" || screen === "my-bookings" ? (
+        ) : screen === "new-request" && (account.role === "Requester" || account.role === "Admin") ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => setScreen(home(account.role))}
+            >
+              <ArrowLeft size={17} /> {account.role} Home
+            </Button>
+            <RequestFlow
+              onSubmitted={() => {
+                setRequestNotice("Request submitted. A Scheduler will plan the trip.");
+                setScreen("my-requests");
+              }}
+            />
+          </>
+        ) : screen === "my-requests" && (account.role === "Requester" || account.role === "Admin") ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => {
+                setRequestNotice("");
+                setScreen(home(account.role));
+              }}
+            >
+              <ArrowLeft size={17} /> {account.role} Home
+            </Button>
+            <MyRequests notice={requestNotice} />
+          </>
+        ) : screen === "finished" || screen === "my-schedule" || screen === "approvals" ? (
           <>
             <Button
               variant="ghost"
@@ -241,8 +277,6 @@ export default function Home() {
                   setScreen("driver-record");
                 }}
               />
-            ) : account.role === "Requester" ? (
-              <MyBookings />
             ) : screen === "approvals" ? (
               <AdminBookingApprovals />
             ) : (
@@ -287,15 +321,15 @@ export default function Home() {
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => setScreen("schedule")}
+                    onClick={() => setScreen("new-request")}
                   >
-                    <CalendarDays size={24} /> Book a Vehicle
+                    <FilePlus2 size={24} /> New request
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setScreen("my-bookings")}
+                    onClick={() => setScreen("my-requests")}
                   >
-                    <ClipboardCheck size={24} /> My Bookings
+                    <ClipboardList size={24} /> My requests
                   </Button>
                 </>
               ) : account.role === "Scheduler" ? (
@@ -304,6 +338,18 @@ export default function Home() {
                 <p>Scheduling tools are not available yet.</p>
               ) : (
                 <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setScreen("new-request")}
+                  >
+                    <FilePlus2 size={24} /> New request
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setScreen("my-requests")}
+                  >
+                    <ClipboardList size={24} /> My requests
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => setScreen("schedule")}
