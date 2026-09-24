@@ -71,6 +71,7 @@ export default function Home() {
   // The draft being continued in Create schedule; undefined for a new one.
   const [editScheduleId, setEditScheduleId] = useState<string | undefined>();
   const [scheduleNotice, setScheduleNotice] = useState("");
+  const [scheduleDate, setScheduleDate] = useState<string | undefined>();
   useEffect(() => {
     restoreSession()
       .then((saved) => {
@@ -271,15 +272,19 @@ export default function Home() {
             <Button
               variant="ghost"
               className="back"
-              onClick={() => setScreen(editScheduleId ? "schedules" : home(account.role))}
+              onClick={() => {
+                setScheduleDate(undefined);
+                setScreen(editScheduleId ? "schedules" : home(account.role));
+              }}
             >
               <ArrowLeft size={17} /> {editScheduleId ? "Schedules" : "Scheduler Home"}
             </Button>
             <SchedulePlanner
               key={editScheduleId ?? "new"}
               scheduleId={editScheduleId}
-              onDone={(notice) => {
+              onDone={(notice, date) => {
                 setScheduleNotice(notice);
+                setScheduleDate(date);
                 setEditScheduleId(undefined);
                 setScreen("schedules");
               }}
@@ -298,8 +303,10 @@ export default function Home() {
               <ArrowLeft size={17} /> Scheduler Home
             </Button>
             <Schedules
+              key={scheduleDate ?? "today"}
               canEdit
               notice={scheduleNotice}
+              initialDate={scheduleDate}
               onCreate={() => {
                 setScheduleNotice("");
                 setEditScheduleId(undefined);
@@ -401,7 +408,10 @@ export default function Home() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setScreen("schedules")}
+                    onClick={() => {
+                      setScheduleDate(undefined);
+                      setScreen("schedules");
+                    }}
                   >
                     <CalendarDays size={24} /> Schedules
                   </Button>
