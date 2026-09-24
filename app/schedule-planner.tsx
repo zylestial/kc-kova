@@ -101,7 +101,8 @@ export default function SchedulePlanner({
 }: {
   /** An existing schedule whose DRAFT/RETURNED version is being continued. */
   scheduleId?: string;
-  onDone: (notice: string) => void;
+  /** Called after submit or discard, with a notice and the planned date. */
+  onDone: (notice: string, date: string) => void;
 }) {
   const { requests, schedules, vehicles, accounts, options } = useKovaData();
   const today = manilaToday();
@@ -242,13 +243,13 @@ export default function SchedulePlanner({
     run(async () => {
       const saved = await saveDraft();
       await submitSchedule(saved.id, saved.rowVersion);
-      onDone("Schedule submitted. An Admin will review and approve it.");
+      onDone("Schedule submitted. An Admin will review and approve it.", date);
     });
   const discard = () =>
     run(async () => {
       if (!editing) return;
       await discardScheduleDraft(editing.id, editing.rowVersion);
-      onDone("Draft discarded. Its requests are back to Not yet scheduled.");
+      onDone("Draft discarded. Its requests are back to Not yet scheduled.", date);
     });
 
   const reviewLegs = legs.map((leg, index) => ({
