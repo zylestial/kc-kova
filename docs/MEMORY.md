@@ -522,3 +522,27 @@ granularity" item):
   existing value is capitalized, so the owner chose consistency. Anywhere
   the plan says `requester`, read `Requester`. `Booker` is still fully
   removed, not kept as an alias.
+
+## Phase 3 gotchas (2026-09-24)
+
+- **Supabase's local template grants `anon`/`authenticated` every table
+  privilege, `TRUNCATE` included, on every new `public` table.** RLS then
+  makes a denied `UPDATE` silently touch 0 rows instead of erroring, and
+  `TRUNCATE` ignores RLS entirely. v2 tables revoke this explicitly (0020).
+  The v1.2 tables still carry the grants locally; that's not reachable
+  through PostgREST, and the hosted project is unverified. Revoke
+  explicitly on any new table rather than relying on RLS alone.
+- **`.gitignore` ignores `*.sql` outside `supabase/migrations/`** to keep
+  database dumps out of git, so `supabase/tests/*.test.sql` needed its own
+  exception.
+- **`supabase test db` runs every file in one rolled-back transaction**, so
+  it can't test races. `supabase/tests/concurrency.sh` does that with two
+  real `psql` sessions. It commits its fixtures (per-run suffix), which is
+  why pgTAP assertions must be scoped to their own fixture rows.
+- **`btree_gist` supports `<>` on uuid**, which lets the reservation
+  exclusion constraints skip overlaps within the same schedule
+  (`schedule_id with <>`). That's how a pending revision avoids
+  conflicting with the published version it replaces.
+- **Roles are never cached in the auth token.** `requireAccount()` reads
+  `accounts.role` on every request, so the Booker → Requester conversion
+  needs no session invalidation or forced sign-in.
