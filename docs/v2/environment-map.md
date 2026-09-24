@@ -30,65 +30,44 @@ not just carried over from a previous session's claim).
 | `NEXT_PUBLIC_KOVA_API_BASE_URL` | Production, Preview | App-read, normally blank |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `POSTGRES_USER`, `POSTGRES_HOST`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` | Production only | Auto-added by Vercel's native Supabase marketplace integration. **Not read anywhere in this app's code** (`lib/env.ts` only validates the three `NEXT_PUBLIC_SUPABASE_*`/`SUPABASE_SERVICE_ROLE_KEY` names) — likely dead integration scaffolding, not a functional risk, but a cleanup candidate to confirm and remove later (adds to the §5 cleanup inventory in `docs/v2/baseline.md`). |
 
-## ✅ Resolved (2026-09-24): Preview deployments no longer share production credentials
+## Preview/Production credential sharing — investigated, deliberately kept as-is
 
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
-`SUPABASE_SERVICE_ROLE_KEY` are now scoped to **Production only** — you ran
-`vercel env rm <name> preview --yes` for each, confirmed by re-running
-`vercel env ls`. Preview deployments (including v2 feature branches once
-they exist) can no longer reach the production Supabase project at all
-until a proper isolated Preview data source is set up (see option 2
-below). This closes the "no live write credentials in preview" gate for
-Phase 2. `NEXT_PUBLIC_KOVA_API_BASE_URL` was left scoped to both
-environments — it's not a credential (normally blank), no risk.
+Initially flagged as a finding (2026-09-24): `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are all
+scoped to **both** Production and Preview, meaning every Preview deployment
+(every branch push, every PR) points at the same Supabase project as
+Production and holds the same RLS-bypassing service-role key. The plan's
+Phase 2 language ("preview must not use live write credentials") treats
+this as something to fix before v2 work proceeds.
 
-**Not done, and not urgent yet**: Vercel's own credential-rotation notice
-fired when the service-role key was removed ("Removing this variable from
-Vercel does not revoke the credential. Rotate or disable it at its
-provider.") — this only matters if that specific key value is suspected of
-having leaked; removing its Preview *scope* here doesn't mean the key
-itself was ever exposed, so no rotation is needed as a result of this
-change alone.
+**Sequence of events**: the owner first had it removed from Preview
+(`vercel env rm <name> preview --yes` for each var) to close that gate.
+Shortly after, the owner clarified that **this Supabase project currently
+holds no real/live data** — v1.2 is still pre-launch, UAT-only, seeded test
+accounts only (see the "No live production data exists yet" entry in
+`docs/MEMORY.md`) — and the actual plan is to keep experimenting against
+this one shared project through v2 development, then clear it out before
+the real production launch. Given that, the owner asked to **revert**: all
+three variables were re-added to Preview (`vercel env add <name> preview`,
+piping the existing value from `.env.local` so it was never printed to
+chat), confirmed via `vercel env ls`. **Current state: restored to
+Production + Preview for all three, matching the original v1.2
+configuration.**
 
-**Still open** (unchanged from the original finding, kept for reference):
+This is a deliberate, informed decision, not an oversight: the plan's
+"never share live write credentials with Preview" guidance exists to
+protect real data, and there currently isn't any to protect. **This
+decision needs revisiting before real users/data enter this project** —
+specifically, before Phase 11 (production release) at the latest, and
+sooner if real data gets entered earlier than planned. Whoever runs that
+phase should re-check `docs/MEMORY.md`'s "No live production data exists
+yet" entry is still accurate before assuming this shared setup is still
+fine.
 
-## Original finding text (superseded by the fix above)
-
-**This directly violates the plan's Phase 2 requirement** ("Preview must
-not use live write credentials... If no isolated test database is
-available, keep preview in clearly labelled demo/read-only mode").
-
-Today, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and —
-critically — `SUPABASE_SERVICE_ROLE_KEY` are all scoped to **both**
-Production and Preview. That means:
-
-- Every Preview deployment (every branch push, every PR, including the
-  `v1-maintenance`/`v2-development` pushes made in Phase 1 of this v2
-  effort) points at the **same live production Supabase project**
-  (`rhzqdtgruhpdhopkksuf`) and holds the **same service-role key**, which
-  bypasses Row Level Security entirely.
-- Any code deployed to a Preview URL — including work-in-progress v2
-  feature branches once they exist — can read and write real production
-  data (accounts, bookings, vehicle records) with zero RLS protection, via
-  the same code paths documented in `docs/ARCHITECTURE.md` (`app/api/
-  accounts/**` auth user management, `app/api/records/**` vehicle-record
-  writes).
-- This is **not something introduced by this v2 effort** — it's how the
-  project was already configured before Phase 0 started. It is, however,
-  exactly the risk the plan's Phase 2 explicitly calls out to fix before
-  v2 feature branches start generating Preview builds.
-
-**Fixed 2026-09-24** — option 1 below was applied; kept here for the
-reasoning trail. Remaining options if a real isolated Preview data source
-is wanted later:
-
-- **Create a second, free-tier Supabase project for Preview/test data**,
-  scope the Preview environment variables to point at it instead, and
-  migrate `0001`–`0012` onto it. This is the "isolated test data source"
-  the plan describes for the Preview row of its environment table. Costs
-  nothing on Supabase's free tier but is a new resource — worth doing
-  before Phase 4 needs to actually exercise a screen in Preview, not
-  before then.
+**Not needed as a result of this back-and-forth**: no credential rotation
+— the values themselves were never exposed (only names/scopes were
+printed to chat; actual values were piped directly from `.env.local` to
+the Vercel CLI and never displayed).
 
 ## Local disposable instance (migration rehearsal)
 
