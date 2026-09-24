@@ -142,7 +142,7 @@ select throws_ok(
   $$ select update_request(
        (select id from requests where project_id = 'pr1'), 1, pg_temp.today() + 9, 'REGULAR', 'pr1', null,
        '[{"destinationId":"d1","purposeId":"p1"}]') $$,
-  '40001', null, 'A stale form (old row_version) cannot overwrite a newer edit');
+  'PT409', null, 'A stale form (old row_version) cannot overwrite a newer edit');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
 select throws_ok(
