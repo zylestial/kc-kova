@@ -382,8 +382,18 @@ pending approval; nothing has started.
       data/users enter this project**, at the latest by Phase 11. No
       production backup was taken this session (deferred until Phase 3/11
       actually need one).
-- [ ] Phase 3 — Database model, permissions, state transitions, full
-      `requester` role migration
+- [x] Phase 3 — Database model, permissions, state transitions, full
+      Requester role migration. See `docs/v2/phase-3-schema.md`, branch
+      `feat/v2-foundation`: migrations 0013–0023 (requests, schedules
+      with versioned revisions, minute-precision reservations with
+      exclusion constraints, completion/problem tables, append-only audit,
+      request and schedule RPCs, derived request progress, Booker →
+      Requester conversion); pgTAP 72/72 and a two-session concurrency
+      script 9/9 on a fresh local reset; app code and docs renamed to
+      Requester. **Applied locally only, not to `kc-kova`**: 0023 is
+      release-time only. Deferred by design: cancellation RPCs (Phase 7),
+      completion/problem RPCs (Phase 8), and v1 `booking_slots` vs. v2
+      reservation cross-checks (Phase 10).
 - [ ] Phase 4 — Requester and Admin request creation
 - [ ] Phase 5 — Scheduler planning and Trip Record
 - [ ] Phase 6 — Approval, revisions and publication
