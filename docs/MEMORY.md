@@ -407,3 +407,42 @@ exited without error.
   Reset database password). No production data was affected — this is
   purely a "don't do this" lesson for next time, not a record of what the
   password was.
+
+## v2.0 phased upgrade plan adopted (2026-09-24)
+
+The project owner provided a full v1.2 → v2.0 implementation plan, saved
+verbatim as `KOVA-v2-Claude-Implementation-Plan.md` (repo root) and indexed
+at `docs/v2/PLAN.md`; tracked in `docs/TASKS.md` under "Planned — v2.0".
+Key decisions baked into the plan, recorded here so future phases don't
+relitigate them:
+
+- **Same repository, same Vercel project, same production database,
+  upgraded in place.** No second production database, no new hosting
+  project, no forked repo just to build v2.
+- **Requester is a full backend role rename**, not a display-only change:
+  the previous request-creation role value must be migrated out of the
+  active v2 role enum/constraint, RLS policies, RPCs, API validators, auth
+  claims and generated types — not kept as an alias or fallback. Exactly
+  four v2 account types: Requester, Scheduler, Admin, Driver. No Finance,
+  PM, or COO role is created (those remain print-only names on the form).
+- **Only Scheduler creates schedules — including via direct API calls.**
+  Admin may edit but never create a schedule; this must be enforced at the
+  backend, not just hidden in the UI.
+- **Phase gating is mandatory and per-phase**: an explicit "May I start
+  Phase N?" is required before each of the 13 phases (0–12), and approving
+  the overall plan or finishing the previous phase does not imply approval
+  for the next one. Production data changes and the live traffic switch
+  (Phase 11) require a separate, explicit release approval beyond the
+  phase-start approval.
+- **Repository cleanup is inventory-first.** Phase 0 only inventories
+  obsolete code/assets/dependencies for removal; nothing is deleted until
+  the phase that replaces it has been approved and verified working.
+- **In-place database migration only** — no truncating/resetting production
+  tables, no inventing historical data (Scheduler creators, approvals,
+  odometers) for legacy records, and Vercel deployment rollback is
+  explicitly documented as code-only (it does not revert the database, auth
+  claims, or files) so a role-rename rollback needs its own rehearsed
+  reversal procedure, not just "roll back the deployment."
+
+Phase 0 was proposed the same day and is awaiting the owner's approval; no
+implementation work has started.
