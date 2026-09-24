@@ -30,7 +30,29 @@ not just carried over from a previous session's claim).
 | `NEXT_PUBLIC_KOVA_API_BASE_URL` | Production, Preview | App-read, normally blank |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `POSTGRES_USER`, `POSTGRES_HOST`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` | Production only | Auto-added by Vercel's native Supabase marketplace integration. **Not read anywhere in this app's code** (`lib/env.ts` only validates the three `NEXT_PUBLIC_SUPABASE_*`/`SUPABASE_SERVICE_ROLE_KEY` names) — likely dead integration scaffolding, not a functional risk, but a cleanup candidate to confirm and remove later (adds to the §5 cleanup inventory in `docs/v2/baseline.md`). |
 
-## ⚠️ Finding: Preview deployments currently have full production write access
+## ✅ Resolved (2026-09-24): Preview deployments no longer share production credentials
+
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` are now scoped to **Production only** — you ran
+`vercel env rm <name> preview --yes` for each, confirmed by re-running
+`vercel env ls`. Preview deployments (including v2 feature branches once
+they exist) can no longer reach the production Supabase project at all
+until a proper isolated Preview data source is set up (see option 2
+below). This closes the "no live write credentials in preview" gate for
+Phase 2. `NEXT_PUBLIC_KOVA_API_BASE_URL` was left scoped to both
+environments — it's not a credential (normally blank), no risk.
+
+**Not done, and not urgent yet**: Vercel's own credential-rotation notice
+fired when the service-role key was removed ("Removing this variable from
+Vercel does not revoke the credential. Rotate or disable it at its
+provider.") — this only matters if that specific key value is suspected of
+having leaked; removing its Preview *scope* here doesn't mean the key
+itself was ever exposed, so no rotation is needed as a result of this
+change alone.
+
+**Still open** (unchanged from the original finding, kept for reference):
+
+## Original finding text (superseded by the fix above)
 
 **This directly violates the plan's Phase 2 requirement** ("Preview must
 not use live write credentials... If no isolated test database is
@@ -56,31 +78,17 @@ Production and Preview. That means:
   exactly the risk the plan's Phase 2 explicitly calls out to fix before
   v2 feature branches start generating Preview builds.
 
-**Not changed yet.** Removing Preview scope from these variables is a
-shared-infrastructure change (it would affect the *current* v1.2 Preview
-behavior too, not just v2), so it needs your explicit call rather than a
-unilateral fix inside "inspect the environment" work. Options, per the
-plan's own guidance ("do not automatically create paid remote resources"):
+**Fixed 2026-09-24** — option 1 below was applied; kept here for the
+reasoning trail. Remaining options if a real isolated Preview data source
+is wanted later:
 
-1. **Remove Preview scope from `SUPABASE_SERVICE_ROLE_KEY` and the two
-   `NEXT_PUBLIC_SUPABASE_*` vars now.** Preview deployments would then fail
-   to reach Supabase at all (safe failure — no accidental prod writes) until
-   an isolated test project or read-only mode is set up. Zero cost, but
-   breaks whatever Preview currently does (worth checking if anyone relies
-   on it before flipping this).
-2. **Create a second, free-tier Supabase project for Preview/test data**,
-   scope the Preview environment variables to point at it instead, and
-   migrate `0001`–`0012` onto it. This is the "isolated test data source"
-   the plan describes for the Preview row of its environment table. Costs
-   nothing on Supabase's free tier but is a new resource, so flagging it
-   rather than creating it unasked.
-3. **Leave as-is for now, fix later** — riskier the longer it's a live
-   gap, but avoids any change before you've seen this report.
-
-Recommendation: (1) now (cheap, immediate, no new resources) followed by
-(2) before any v2 feature branch actually needs to exercise real Supabase
-behavior in Preview (Phase 4 onward) — flagging this as an open decision
-rather than acting on it.
+- **Create a second, free-tier Supabase project for Preview/test data**,
+  scope the Preview environment variables to point at it instead, and
+  migrate `0001`–`0012` onto it. This is the "isolated test data source"
+  the plan describes for the Preview row of its environment table. Costs
+  nothing on Supabase's free tier but is a new resource — worth doing
+  before Phase 4 needs to actually exercise a screen in Preview, not
+  before then.
 
 ## Local disposable instance (migration rehearsal)
 
@@ -116,7 +124,8 @@ it and save the dump to a local, gitignored path — never displayed inline.
 
 - v1.2 remains live: unchanged, `master`/Production untouched. ✅
 - No production database/provider move: none proposed or performed. ✅
-- **"v2 previews cannot accidentally alter live data" — currently
-  FAILS** for the reason above; this is the one Phase 2 gate not yet met,
-  and needs your decision (see the finding) before it's safe to say v2
-  feature-branch Preview builds are isolated from production.
+- **"v2 previews cannot accidentally alter live data" — now passes.**
+  Preview no longer holds any Supabase credential at all, so it can't
+  reach the production database. An isolated Preview data source (rather
+  than no data source) is still worth setting up before Phase 4 needs a
+  working Preview build to click through. ✅
