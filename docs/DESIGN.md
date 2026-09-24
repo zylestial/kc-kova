@@ -71,7 +71,9 @@ router/URL segments are used for in-app navigation.
 | Screen | Component | Shown to |
 | --- | --- | --- |
 | `schedule` | `app/scheduler.tsx` | Requester (home), Admin |
-| `driver-home`, `my-schedule`, `finished` | `app/driver-trips.tsx` | Driver |
+| `driver-home` | (home buttons in `app/page.tsx`) | Driver |
+| `my-schedule` | `app/driver-schedules.tsx` | Driver |
+| `finished` | `app/driver-finished-trips.tsx` | Driver |
 | `admin-home` | `app/admin-finished-trips.tsx` | Admin |
 | `driver-record`, `admin-record` | `app/scheduler.tsx` (record editor) | Driver / Admin |
 | `settings` | `app/settings.tsx` | Admin (accounts, vehicles) |
