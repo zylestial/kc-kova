@@ -110,6 +110,8 @@ export type TripCompletion = {
   distance: number;
   submittedAt: string;
   status: "SUBMITTED" | "DONE";
+  doneAt?: string;
+  doneByAccountId?: string;
 };
 /** A Driver's note that a trip couldn't go as planned (0017, 0029). */
 export type ProblemReport = {
@@ -120,6 +122,10 @@ export type ProblemReport = {
   note: string;
   createdAt: string;
   status: "OPEN" | "HANDLED";
+  handledAt?: string;
+  handledByAccountId?: string;
+  handlingNote: string;
+  followUpScheduleId?: string;
 };
 /** What the New request form and the Edit modal send. */
 export type RequestInput = {

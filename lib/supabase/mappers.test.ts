@@ -253,6 +253,47 @@ describe("toTripCompletion and toProblemReport", () => {
       note: "Road closed",
       createdAt: "2026-10-05T08:30:00Z",
       status: "OPEN",
+      handlingNote: "",
+    });
+  });
+
+  it("maps the Done fields of a completion", () => {
+    const done = toTripCompletion({
+      id: "c1",
+      schedule_id: "s1",
+      revision_id: "v1",
+      driver_id: "d1",
+      start_odometer: 1000,
+      end_odometer: 1042,
+      distance: 42,
+      submitted_at: "2026-10-05T10:00:00Z",
+      status: "DONE",
+      done_at: "2026-10-06T09:00:00Z",
+      done_by_account_id: "a1",
+    });
+    expect(done.doneAt).toBe("2026-10-06T09:00:00Z");
+    expect(done.doneByAccountId).toBe("a1");
+  });
+
+  it("maps the handling fields of a problem report", () => {
+    const handled = toProblemReport({
+      id: "p1",
+      schedule_id: "s1",
+      revision_id: "v1",
+      driver_id: "d1",
+      note: "Flat tyre",
+      created_at: "2026-10-05T08:30:00Z",
+      status: "HANDLED",
+      handled_at: "2026-10-06T09:00:00Z",
+      handled_by_account_id: "a1",
+      handling_note: "Tyre replaced",
+      follow_up_schedule_id: "s2",
+    });
+    expect(handled).toMatchObject({
+      handledAt: "2026-10-06T09:00:00Z",
+      handledByAccountId: "a1",
+      handlingNote: "Tyre replaced",
+      followUpScheduleId: "s2",
     });
   });
 });

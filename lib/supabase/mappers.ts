@@ -205,6 +205,8 @@ type CompletionRow = {
   distance: number;
   submitted_at: string;
   status: TripCompletion["status"];
+  done_at?: string | null;
+  done_by_account_id?: string | null;
 };
 
 export function toTripCompletion(row: CompletionRow): TripCompletion {
@@ -218,6 +220,8 @@ export function toTripCompletion(row: CompletionRow): TripCompletion {
     distance: row.distance,
     submittedAt: row.submitted_at,
     status: row.status,
+    doneAt: row.done_at ?? undefined,
+    doneByAccountId: row.done_by_account_id ?? undefined,
   };
 }
 
@@ -229,6 +233,10 @@ type ProblemRow = {
   note: string;
   created_at: string;
   status: ProblemReport["status"];
+  handled_at?: string | null;
+  handled_by_account_id?: string | null;
+  handling_note?: string | null;
+  follow_up_schedule_id?: string | null;
 };
 
 export function toProblemReport(row: ProblemRow): ProblemReport {
@@ -240,6 +248,10 @@ export function toProblemReport(row: ProblemRow): ProblemReport {
     note: row.note,
     createdAt: row.created_at,
     status: row.status,
+    handledAt: row.handled_at ?? undefined,
+    handledByAccountId: row.handled_by_account_id ?? undefined,
+    handlingNote: row.handling_note ?? "",
+    followUpScheduleId: row.follow_up_schedule_id ?? undefined,
   };
 }
 
