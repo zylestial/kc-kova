@@ -289,7 +289,7 @@ export default function AdminFinishedTrips() {
       </section>
 
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) close(); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {mode === "correct"

@@ -106,7 +106,7 @@ export default function DriverFinishedTrips() {
       </section>
 
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Finished trip</DialogTitle>
             <DialogDescription>{selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}</DialogDescription>
