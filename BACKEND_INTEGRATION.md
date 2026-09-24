@@ -28,11 +28,14 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
     "purposes": []
   },
   "people": [],
-  "requests": []
+  "requests": [],
+  "schedules": []
 }
 ```
 
 `requests` holds v2 transport requests (see "Requests (v2)" below), each with its active destinations in travel order and its derived `progress`. A Requester receives only their own; Scheduler and Admin receive all.
+
+`schedules` holds v2 schedules (see "Schedules (v2)" below) with their live versions only: the published one and any open draft. Discarded schedules and superseded versions are left out. Scheduler and Admin receive all, drafts included; Requesters and Drivers receive only published versions that concern them.
 
 Never include password hashes or session tokens. A Driver should receive only their own assigned bookings and records. A Requester may receive all active schedule bookings but not Admin settings or Finance data.
 
@@ -78,6 +81,19 @@ A Requester may update or cancel only when `booking.createdByAccountId === sessi
 Body (`RequestInput` in `lib/kova-api.ts`): `date`, `requestType` (`REGULAR` \| `URGENT`), optional `projectId` or `projectOther` (not both), and `destinations` — one or more `{ destinationId, purposeId }` in travel order. `PUT` also sends `rowVersion`, the version the form was opened on. There is no vehicle, Driver or time. Requested By is always the signed-in account.
 
 The database enforces the rules (`create_request` / `update_request`): Regular at least 7 Manila calendar days ahead, Urgent today or tomorrow, 2–6 days ahead refused, Admin may also pick a past date. New choices must be Active options; an edit may keep options the request already had. Responses: `403` wrong role, `404` not the owner, `409` the request changed since the form was opened, `422` anything else (date rule, inactive option, already being scheduled) with a message to show.
+
+## Schedules (v2)
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| POST | `/api/schedules` | Scheduler only (creates the schedule as a first draft) |
+| PUT | `/api/schedules/:scheduleId` | Scheduler on a DRAFT/RETURNED version; Admin on a SUBMITTED version (Phase 6) |
+| POST | `/api/schedules/:scheduleId/submit` | Scheduler |
+| POST | `/api/schedules/:scheduleId/discard` | Scheduler, unsubmitted drafts only |
+
+Body (`ScheduleInput` in `lib/kova-api.ts`): `date`, `plate`, `requestIds`, and `legs` in travel order. Each leg is `{ destinationId, plannedTimeOut, plannedTimeIn, contactName, contactNumber, stops, isFinal }`, where `stops` are the request destination ids served at that leg (two or more is a shared stop) and times are `HH:MM`. The final leg sends `isFinal: true` and no destination. Origins are never sent; the server derives them from ANONANG and each previous destination. `PUT`, `submit` and `discard` also send `rowVersion`, the version the editor was opened on. The Driver always follows the vehicle's assignment.
+
+The database enforces the rules (`save_schedule_draft`, `submit_schedule`, `discard_schedule_draft`): at most 8 legs including the final leg, route continuity, times in order, stops belonging to included requests at the leg's destination, a vehicle with an active Driver, one schedule per request, and no overlapping vehicle or Driver time. Submitting also requires the final leg and every destination of every included request on a leg. Saving a draft reserves the time and locks its requests; discarding frees both. Responses return the schedule. Errors: `403` wrong role, `404` unknown schedule, `409` stale `rowVersion` or a lost race for a request or time slot, `422` anything else, with a message to show.
 
 ## Daily Vehicle Records
 
