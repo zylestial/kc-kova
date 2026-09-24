@@ -43,6 +43,15 @@ export const scheduleStateLabel: Record<ScheduleState, string> = {
   CANCELLED: "Cancelled",
 };
 
+// Reuses the existing status-pill colours.
+export const scheduleStatePill: Record<ScheduleState, string> = {
+  DRAFT: "pending",
+  RETURNED: "rejected",
+  SUBMITTED: "pending",
+  APPROVED: "scheduled",
+  CANCELLED: "cancelled",
+};
+
 let keySeed = 0;
 const nextKey = () => `leg-${++keySeed}`;
 
