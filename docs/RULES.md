@@ -16,7 +16,9 @@ should be written, for both humans and AI agents.)
 - `username` is unique across all accounts (enforced by the `accounts`
   table's `unique` constraint and, transitively, by the synthetic Auth
   email's uniqueness).
-- `role` is exactly one of `Booker`, `Driver`, `Admin`.
+- `role` is exactly one of `Requester`, `Scheduler`, `Admin`, `Driver`. The
+  retired v1.2 value `Booker` is rejected everywhere, never accepted as an
+  alias (see `docs/v2/phase-3-schema.md`).
 - `status` is `Active` or `Inactive`. Accounts are never hard-deleted.
 - An inactive account cannot sign in (`sign-in` and `session` both treat a
   non-Active account as "no session" and sign it out).
@@ -38,7 +40,7 @@ should be written, for both humans and AI agents.)
 
 ## Bookings
 
-- A booking may be created by a `Booker` or an `Admin`. A `Driver` may never
+- A booking may be created by a `Requester` or an `Admin`. A `Driver` may never
   create a booking (including for themselves).
 - `driverId` must reference an **Active** account with role `Driver`.
 - `start`/`end` are hours in `[0, 24)` / `(0, 24]` with `start < end`.
@@ -54,7 +56,7 @@ should be written, for both humans and AI agents.)
 - On creation, the server — never the client — sets `createdByAccountId`,
   `requestedByAccountId`, `requestedBy` (name), `createdAt`, and
   `status = SCHEDULED`, all derived from the authenticated session.
-- A Booker may update or cancel a booking only if they created it
+- A Requester may update or cancel a booking only if they created it
   (`createdByAccountId === session.account.id`). An Admin may update or
   cancel any booking.
 - A booking that already has a **submitted** Daily Vehicle Record
