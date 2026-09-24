@@ -349,7 +349,17 @@ any individual phase. Phase 0 (inspect v1.2, verify reported behavior,
 build a cleanup inventory, list conflicts) was proposed 2026-09-24 and is
 pending approval; nothing has started.
 
-- [ ] Phase 0 — Inspect v1.2 and establish the baseline
+- [x] Phase 0 — Inspect v1.2 and establish the baseline. See
+      `docs/v2/baseline.md`: all reported capabilities verified against
+      actual code (booking RPCs, RLS, submission locks, print component);
+      `tsc`/`eslint`/`vitest` (62/62)/`next build` all pass clean; no git
+      tags exist yet; Vercel project settings unverified (no local CLI/
+      dashboard access this session); cleanup inventory found ~46 of 61
+      unused vendored shadcn UI components plus 6 backing npm deps; 4
+      conflicts flagged for a decision before Phase 3 (existing
+      Booker-approval flow vs. the Requester/Scheduler model, Scheduler
+      being a new role not a rename, an overlapping open v1.2 backlog
+      item, and legacy-data Scheduler attribution).
 - [ ] Phase 1 — Git protection and development branches
 - [ ] Phase 2 — Reuse the v1.2 database and Vercel project
 - [ ] Phase 3 — Database model, permissions, state transitions, full

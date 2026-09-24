@@ -47,4 +47,7 @@ conventions (see `docs/RULES.md`).
 
 ## Status
 
-Phase 0 proposed 2026-09-24, pending owner approval. No phase has started.
+Phase 0 approved and completed 2026-09-24 — see `docs/v2/baseline.md` for
+the full report (verified capabilities, environment map, build/test
+results, cleanup inventory, and conflicts needing a decision before
+Phase 3). Phase 1 not yet proposed/approved.
