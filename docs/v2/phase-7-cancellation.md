@@ -63,8 +63,20 @@ schedules keep their rows, and approved versions stay as history.
   no note 422, decline, ask again, confirm and repeat, an only-request
   schedule becomes Cancelled, Admin cancel schedule (no reason 422,
   Scheduler 403) releases the request.
-- **Not done:** a browser walkthrough (Playwright still isn't installed),
-  and `supabase/tests/concurrency.sh` wasn't extended for the new RPCs.
+- **Browser walkthrough (Playwright, Chromium only, installed outside the
+  repo so `package.json` is untouched):** 11 checks passed as Requester,
+  Admin and Scheduler: cancel an unscheduled request; ask to cancel a
+  scheduled one; Admin panel; Decline disabled without a note, then
+  declined; Requester sees the decline note; Confirm; "Route needs
+  updating" on the card for Admin and Scheduler; the planner opens the
+  proposal with the cancelled request removed and says so; Cancel
+  schedule disabled without a reason, then cancelled. It found and fixed
+  two bugs: the request details dialog stayed open behind the cancel
+  confirmation and blocked it, and the Admin panel touched the calendar
+  panel with no gap.
+- **Not done:** `supabase/tests/concurrency.sh` wasn't extended for the new
+  RPCs, and the earlier Phase 6 dialogs (Approve, Return, Propose
+  revision) were only exercised indirectly (Propose revision opened).
 
 ## 4. Open items
 
