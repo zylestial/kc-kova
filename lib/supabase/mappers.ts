@@ -256,3 +256,9 @@ export function toSchedule(row: ScheduleRow): Schedule {
       })),
   };
 }
+
+/** Select for toSchedule. Pair with liveRevisionStatuses on schedule_revisions. */
+export const scheduleSelect =
+  "*, schedule_revisions(*, revision_requests(request_id), schedule_legs(*, leg_stops(request_destination_id)))";
+/** The versions the app works with; superseded and discarded ones are history. */
+export const liveRevisionStatuses = ["DRAFT", "SUBMITTED", "RETURNED", "APPROVED"];
