@@ -56,3 +56,6 @@ conventions (see `docs/RULES.md`).
 - Phase 3 complete on `feat/v2-foundation` — `docs/v2/phase-3-schema.md`
   (migrations 0013–0023, permission matrix, transition rules, tests).
   Applied to the local database only.
+- Phase 4 complete on `feat/v2-requests` — `docs/v2/phase-4-requests.md`
+  (request creation and My requests, migrations 0024–0025). Applied to the
+  local database only.
