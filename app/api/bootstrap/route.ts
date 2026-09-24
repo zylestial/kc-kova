@@ -4,6 +4,7 @@ import { toAccount } from "@/lib/supabase/accounts";
 import { requireAccount } from "@/lib/supabase/session";
 import {
   liveRevisionStatuses,
+  toCancellationRequest,
   scheduleSelect,
   toBooking,
   toBookingOptions,
@@ -25,7 +26,7 @@ export async function GET() {
   const account = await requireAccount(supabase);
   if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
-  const [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes] = await Promise.all([
+  const [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes] = await Promise.all([
     supabase.from("accounts").select("*"),
     supabase.from("vehicles").select("*"),
     supabase.from("bookings").select("*"),
@@ -39,9 +40,10 @@ export async function GET() {
       .select(scheduleSelect)
       .neq("status", "DISCARDED")
       .in("schedule_revisions.status", liveRevisionStatuses),
+    supabase.from("request_cancellations").select("*"),
   ]);
 
-  const firstError = [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes].find((res) => res.error)?.error;
+  const firstError = [accountsRes, vehiclesRes, bookingsRes, recordsRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes].find((res) => res.error)?.error;
   if (firstError) {
     return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
   }
@@ -57,5 +59,7 @@ export async function GET() {
     people: (peopleRes.data ?? []).map(toPerson),
     requests: (requestsRes.data ?? []).map((row) => toTransportRequest(row, progressById.get(row.id))),
     schedules: (schedulesRes.data ?? []).map(toSchedule),
+    // Requesters get their own asks, Admin all of them (0014 policy).
+    cancellations: (cancellationsRes.data ?? []).map(toCancellationRequest),
   });
 }
