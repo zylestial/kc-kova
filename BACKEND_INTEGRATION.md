@@ -31,7 +31,7 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
 }
 ```
 
-Never include password hashes or session tokens. A Driver should receive only their own assigned bookings and records. A Booker may receive all active schedule bookings but not Admin settings or Finance data.
+Never include password hashes or session tokens. A Driver should receive only their own assigned bookings and records. A Requester may receive all active schedule bookings but not Admin settings or Finance data.
 
 ## Accounts and Vehicles
 
@@ -49,9 +49,9 @@ Account usernames and Vehicle plate numbers must be unique. Use `Active` and `In
 
 | Method | Endpoint | Permission |
 | --- | --- | --- |
-| POST | `/api/bookings` | Booker or Admin |
-| PUT | `/api/bookings/:bookingId` | Owner Booker or Admin |
-| DELETE | `/api/bookings/:bookingId` | Owner Booker or Admin; soft-cancel |
+| POST | `/api/bookings` | Requester or Admin |
+| PUT | `/api/bookings/:bookingId` | Owner Requester or Admin |
+| DELETE | `/api/bookings/:bookingId` | Owner Requester or Admin; soft-cancel |
 
 For new bookings, ignore any client-supplied ownership values and set these from the authenticated session:
 
@@ -63,7 +63,7 @@ For new bookings, ignore any client-supplied ownership values and set these from
 
 The backend must atomically reject overlapping active bookings for the same Vehicle or Driver. When editing, exclude the current booking from conflict checks. `DELETE` changes the status to `CANCELLED`; it does not erase the row. Cancelled bookings must not block availability.
 
-A Booker may update or cancel only when `booking.createdByAccountId === session.account.id`. Admin is exempt from Booker ownership, but submitted or completed trips remain locked according to the workflow.
+A Requester may update or cancel only when `booking.createdByAccountId === session.account.id`. Admin is exempt from Requester ownership, but submitted or completed trips remain locked according to the workflow.
 
 ## Daily Vehicle Records
 
