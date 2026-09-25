@@ -295,7 +295,7 @@ export default function Schedules({
                     <span>{dateLabel(day, { weekday: "short" })}</span>
                     <b>{dateLabel(day, { month: "short", day: "numeric" })}</b>
                   </button>
-                  {dayItems.length ? dayItems.map(card) : <small className="week-empty">—</small>}
+                  {dayItems.length ? dayItems.map(card) : <small className="week-empty">No trips</small>}
                 </div>
               );
             })}
@@ -307,8 +307,8 @@ export default function Schedules({
             <div className="empty-icon">
               <CalendarDays size={30} />
             </div>
-            <h3>No schedules</h3>
-            <p>{schedules.length ? "Nothing matches this day and these filters." : "Schedules you create will appear here."}</p>
+            <h3>{schedules.length ? "No matching schedules" : "No schedules yet"}</h3>
+            <p>{schedules.length ? "Nothing matches this day and these filters. Try another day or clear a filter." : "Schedules you create will appear here."}</p>
           </div>
         )}
       </section>
