@@ -727,3 +727,22 @@ Decided by the project owner at the start of Phase 5:
   `/api/bootstrap` once) and rerun before treating it as an app bug.
 - **Leftovers:** dead v1 CSS in `app/globals.css`, and the Settings tab is
   still called "Booking Options" (the table it edits stays).
+
+## Stacked PR merge order (2026-09-25)
+
+- **Merge a stack top-down, deepest child first.** #32 (`feat/v2-approval` →
+  `feat/v2-scheduling`) was squash-merged 18 seconds before #33
+  (`feat/v2-cancellation` → `feat/v2-approval`), and #31 (Phase 8) landed on
+  `feat/v2-cancellation` after that. Phases 7 and 8 were left on branches
+  that no open PR fed into the chain, and Phases 9 and 9b were stacked on
+  top of them.
+- **Squash merges make later merges conflict.** The same change exists under
+  new commits, so a plain merge of the child into the parent conflicts in
+  files both touched (docs, `page.tsx`, `kova-api.ts`, `schedules.tsx`).
+  The fix used here: merge `origin/feat/v2-scheduling` into a sync branch
+  (`chore/v2-sync-scheduling`) built on the stack head, resolve once, and open
+  one PR into `feat/v2-scheduling`. Every conflicting hunk was the older
+  placeholder against the complete text, so the resolved tree is identical to
+  the stack head.
+- **Before opening a stacked PR, check that its base is still open**
+  (`gh pr list --state all`) and that the parent's PR has not already merged.
