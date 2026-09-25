@@ -66,6 +66,7 @@ import {
   setLegTimeIn,
   stopsFor,
   toScheduleInput,
+  legWarnings,
   tripChecklist,
   tripProblems,
   tripWindow,
@@ -211,6 +212,7 @@ export default function SchedulePlanner({
   const problems = tripProblems({ plate, requestIds, legs, stops: selectedStops });
   if (plate && !driver) problems.save.unshift("This vehicle has no active Driver assigned.");
   const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: selectedStops });
+  const warnings = legWarnings(legs, selectedStops);
   const ready = problems.save.length === 0 && problems.submit.length === 0;
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
@@ -646,6 +648,13 @@ export default function SchedulePlanner({
                       </>
                     )}
                   </div>
+                  {!!warnings[index]?.length && (
+                    <ul className="leg-warnings" role="alert">
+                      {warnings[index].map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  )}
                   {!leg.isFinal && leg.destinationId && (
                     <div className="leg-stops">
                       <span className="summary-label">
