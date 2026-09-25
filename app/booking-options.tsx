@@ -303,7 +303,7 @@ export default function BookingOptions() {
           )}
           <div className="modal-actions">
             <Button variant="outline" onClick={() => setModal(null)}>
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={save}>
               {busy ? "Saving…" : modal?.mode === "add" ? "Add" : "Save"}
