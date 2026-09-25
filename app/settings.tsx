@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
 import {
   getAccounts,
@@ -138,6 +138,15 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setLoading(false);
     setError("");
   }
+  // Pick up changes another Admin made, once the app refreshes its data.
+  useEffect(() => {
+    const refresh = () => {
+      setAccounts(getAccounts());
+      setVehicles(getVehicles());
+    };
+    window.addEventListener("kova-data-update", refresh);
+    return () => window.removeEventListener("kova-data-update", refresh);
+  }, []);
   function addAccount() {
     setAccount(blankAccount());
     setAccountModal("add");
