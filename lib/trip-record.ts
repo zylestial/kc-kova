@@ -38,7 +38,7 @@ export type ScheduleState = "DRAFT" | "RETURNED" | "SUBMITTED" | "APPROVED" | "C
 export const scheduleStateLabel: Record<ScheduleState, string> = {
   DRAFT: "Draft",
   RETURNED: "Returned",
-  SUBMITTED: "Pending approval",
+  SUBMITTED: "Waiting for approval",
   APPROVED: "Approved",
   CANCELLED: "Cancelled",
 };
