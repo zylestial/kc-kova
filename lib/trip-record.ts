@@ -221,6 +221,41 @@ export function tripProblems(input: {
   return { save, submit };
 }
 
+export type ChecklistItem = { label: string; done: boolean; detail?: string };
+
+/**
+ * What the Scheduler still has to do, as a checklist that fills in as the
+ * form does. It is derived from tripProblems, so it can never disagree with
+ * the rules that enable Save draft (the first four items) and Submit (all
+ * six). A missing item's detail names the legs or stops to fix.
+ */
+export function tripChecklist(input: {
+  plate: string;
+  hasDriver: boolean;
+  requestIds: string[];
+  legs: LegDraft[];
+  stops: StopInfo[];
+}): ChecklistItem[] {
+  const { save, submit } = tripProblems(input);
+  const about = (problems: string[], pattern: RegExp) => problems.filter((problem) => pattern.test(problem));
+  const detail = (problems: string[]) => (problems.length ? problems.join(" ") : undefined);
+  const destinations = about(save, /choose a destination/);
+  const times = about(save, /Time (In|Out)/);
+  const stops = about(submit, /^Put /);
+  return [
+    { label: "Choose at least one request", done: input.requestIds.length > 0 },
+    {
+      label: "Choose a vehicle that has a Driver",
+      done: !!input.plate && input.hasDriver,
+      detail: input.plate && !input.hasDriver ? "This vehicle has no active Driver. An Admin assigns one in Settings." : undefined,
+    },
+    { label: "Choose a destination for every leg", done: input.legs.length > 0 && !destinations.length, detail: detail(destinations) },
+    { label: "Enter Time Out and Time In for every leg", done: input.legs.length > 0 && !times.length, detail: detail(times) },
+    { label: "Put every requested stop on a leg", done: input.stops.length > 0 && !stops.length, detail: detail(stops) },
+    { label: "End with the leg back to ANONANG", done: hasFinal(input.legs) },
+  ];
+}
+
 /** The reservation a set of legs would take: first Time Out to last Time In. */
 export function tripWindow(legs: { plannedTimeOut: string; plannedTimeIn: string }[]): { start: string; end: string } | null {
   if (!legs.length || legs.some((leg) => !validTime(leg.plannedTimeOut) || !validTime(leg.plannedTimeIn))) return null;

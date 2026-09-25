@@ -19,6 +19,7 @@ import {
   setLegDestination,
   setLegTimeIn,
   toScheduleInput,
+  tripChecklist,
   tripProblems,
   tripWindow,
   type LegDraft,
@@ -278,5 +279,60 @@ describe("toScheduleInput", () => {
       { destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:00", contactName: "Ana", contactNumber: "", stops: ["juan-ch"], isFinal: false },
       { destinationId: undefined, plannedTimeOut: "09:30", plannedTimeIn: "10:30", contactName: "", contactNumber: "", stops: [], isFinal: true },
     ]);
+  });
+});
+
+describe("tripChecklist", () => {
+  const complete = [
+    leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
+    leg({ destinationId: "d2", stops: ["maria-po"], plannedTimeOut: "09:15", plannedTimeIn: "10:00" }),
+    { ...finalLeg(), plannedTimeOut: "10:30", plannedTimeIn: "11:30" },
+  ];
+  const base = { plate: "V1", hasDriver: true, requestIds: ["juan", "maria"], stops };
+  const done = (input: Parameters<typeof tripChecklist>[0]) => tripChecklist(input).map((item) => item.done);
+
+  it("ticks everything for a complete Trip Record", () => {
+    expect(done({ ...base, legs: complete })).toEqual([true, true, true, true, true, true]);
+  });
+
+  it("leaves everything to do on a brand-new Trip Record", () => {
+    const items = tripChecklist({ plate: "", hasDriver: false, requestIds: [], legs: initialLegs(), stops: [] });
+    expect(items.map((item) => item.done)).toEqual([false, false, false, false, false, true]);
+  });
+
+  it("names the legs whose times are missing", () => {
+    const legs = [{ ...complete[0], plannedTimeIn: "" }, complete[1], complete[2]];
+    const times = tripChecklist({ ...base, legs })[3];
+    expect(times.done).toBe(false);
+    expect(times.detail).toBe("Leg 1: enter planned Time Out and Time In.");
+  });
+
+  it("names a requested stop that is not on any leg", () => {
+    const legs = [complete[0], { ...complete[1], stops: [] }, complete[2]];
+    const item = tripChecklist({ ...base, legs })[4];
+    expect(item.done).toBe(false);
+    expect(item.detail).toBe("Put Maria's Port Office (Inspection) on a leg.");
+  });
+
+  it("explains a vehicle with no Driver", () => {
+    const item = tripChecklist({ ...base, hasDriver: false, legs: complete })[1];
+    expect(item.done).toBe(false);
+    expect(item.detail).toMatch(/Admin assigns one in Settings/);
+  });
+
+  it("agrees with tripProblems: the first four items are Save draft, all six are Submit", () => {
+    const cases = [
+      complete,
+      [complete[0], complete[1]],
+      [{ ...complete[0], destinationId: "" }, complete[1], complete[2]],
+      [complete[0], { ...complete[1], stops: [] }, complete[2]],
+      [{ ...complete[0], plannedTimeOut: "10:00", plannedTimeIn: "09:00" }, complete[1], complete[2]],
+    ];
+    for (const legs of cases) {
+      const problems = tripProblems({ ...base, legs });
+      const items = tripChecklist({ ...base, legs });
+      expect(items.slice(0, 4).every((item) => item.done)).toBe(problems.save.length === 0);
+      expect(items.every((item) => item.done)).toBe(problems.save.length === 0 && problems.submit.length === 0);
+    }
   });
 });
