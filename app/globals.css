@@ -54,4 +54,5 @@
 @media(max-width:700px){.account-name{display:none}}
 .show-password{justify-self:start;height:auto;padding:0!important;font-size:13px;color:#2357d9}
 .request-review-list{list-style:decimal}
+@media(max-width:700px){[data-slot=button],[data-slot=select-trigger],input:not([type=checkbox]):not([type=radio]),textarea{min-height:44px}.topbar button{height:44px;min-width:44px}.topbar .btn-label{display:none}}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
