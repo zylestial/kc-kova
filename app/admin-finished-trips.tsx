@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,7 @@ export default function AdminFinishedTrips() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
 
   useEffect(() => {
     function refresh() {
