@@ -461,6 +461,12 @@ pending approval; nothing has started.
       80/80, concurrency script, tsc/lint/build clean, Playwright 30/30 and
       an 18-check smoke test passed. **Release-time only (applied with 0023
       at cutover); local database only.**
-- [ ] Phase 10 — End-to-end validation and migration rehearsal
+- [x] Phase 10 — End-to-end validation and migration rehearsal
+  (`docs/v2/phase-10-validation.md`, branch `feat/v2-validation`): 0023 to
+  0032 applied together after a backup onto a v1.2-shaped database, then
+  rolled back to a backup restore and re-applied cleanly; 41 HTTP checks
+  across all four roles passed; pgTAP 230/230, vitest 80/80, tsc, lint and
+  build clean. Not covered: browser and print screens, the concurrency
+  script, hosted environments. Local only, no app code changed.
 - [ ] Phase 11 — Release through the same Vercel project
 - [ ] Phase 12 — Stabilize and hand over

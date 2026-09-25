@@ -746,3 +746,30 @@ Decided by the project owner at the start of Phase 5:
   the stack head.
 - **Before opening a stacked PR, check that its base is still open**
   (`gh pr list --state all`) and that the parent's PR has not already merged.
+
+## Phase 10 notes (2026-09-25)
+
+- **Rollback means restoring into a fresh database.** `pg_restore --clean`
+  over a migrated database leaves objects added after the backup (such as
+  the three-argument `insert_request_destinations`), and the next forward
+  migration then fails. Phase 11's rollback runbook should use the hosted
+  backup restore or point-in-time recovery, not `pg_restore` over live.
+- **Check the backup before migrating.** Git Bash rewrites `/tmp` paths in
+  `docker exec` (set `MSYS_NO_PATHCONV=1`), and a failed `pg_dump` did not
+  stop the migration step in the same script. `supabase db reset` also
+  clears the container's `/tmp`, so keep the dump on the host.
+- **Seeding auth users by SQL:** the email must be
+  `<username>@accounts.kova.internal` (`lib/supabase/accounts.ts`), and the
+  token columns (`confirmation_token`, `recovery_token`, `email_change*`,
+  `phone_change*`, `reauthentication_token`) must be `''`, not NULL, or
+  GoTrue fails sign-in with "converting NULL to string".
+- **A past trip can't be created through the app.** To test completion,
+  move `schedules.schedule_date`, `requests.requested_date` and the
+  `schedule_reservations.period` range back in the database; the "trip has
+  ended" rule reads the range, not the date columns.
+- **The Phase 10 HTTP run and its v1.2 seed are scratch scripts, not in the
+  repo**, like the earlier walkthrough seeds. Recreate from
+  `docs/v2/phase-10-validation.md`.
+- **Still open for Phase 11:** confirm production row counts (`baseline.md`),
+  drive the screens and print form in a browser, and run the concurrency
+  script, none of which Phase 10 covered.
