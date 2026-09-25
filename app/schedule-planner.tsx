@@ -352,7 +352,7 @@ export default function SchedulePlanner({
                   >
                     <span>{dateLabel(day, { weekday: "short" })}</span>
                     <b>{dateLabel(day, { day: "numeric" })}</b>
-                    <small>{count ? `${count} waiting` : "—"}</small>
+                    <small>{count ? `${count} waiting` : "none"}</small>
                   </button>
                 );
               })}
