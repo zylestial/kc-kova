@@ -38,4 +38,12 @@
 .how-steps{margin:0;padding-left:22px;display:grid;gap:8px;font-size:15px;line-height:1.5;color:#3d4757}
 .how-card{background:white;border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:0 0 40px}
 .how-card h2{margin:0 0 12px;font-size:17px}
+.planner-checklist{margin-top:22px;padding:14px 18px;background:#f5f8ff;border:1px solid #d7e1f7;border-radius:6px;font-size:14px;color:#2c3a55}
+.planner-checklist.ready{background:#eef8f1;border-color:#cde8d6;color:#1f5a35}
+.planner-checklist p{margin:4px 0 0;font-size:13px}
+.planner-checklist ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+.planner-checklist li{display:flex;gap:10px;align-items:flex-start}
+.planner-checklist li>span:first-child{width:16px;flex:none;font-weight:700}
+.planner-checklist li.done{opacity:.75}
+.planner-checklist small{display:block;color:#a04a1c;font-size:13px}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
