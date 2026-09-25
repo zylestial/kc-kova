@@ -141,7 +141,7 @@ export default function CancellationRequests() {
             </p>
           ) : (
             <label className="field">
-              <span>WHY DOES THE REQUEST STAY? *</span>
+              <span>Why does the request stay? *</span>
               <Textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} />
             </label>
           )}
