@@ -2,7 +2,7 @@
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { stillNeeded } from "@/lib/missing-fields";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -217,6 +217,9 @@ export default function BookingOptions() {
                 </div>
               ) : (
                 <div className="empty">
+                  <div className="empty-icon">
+                    <ListChecks size={30} />
+                  </div>
                   <h3>No {label.toLowerCase()} yet</h3>
                   <p>
                     {group === "people" &&
