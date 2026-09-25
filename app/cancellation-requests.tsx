@@ -155,7 +155,7 @@ export default function CancellationRequests() {
               Back
             </Button>
             <Button
-              className="primary"
+              className={deciding?.action === "confirm" ? "danger" : "primary"}
               disabled={busy || (deciding?.action === "decline" && !note.trim())}
               onClick={decide}
             >
