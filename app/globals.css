@@ -48,4 +48,8 @@
 .planner-checklist small{display:block;color:#a04a1c;font-size:13px}
 .date-legend{margin:12px 0 0;font-size:13px;color:#5b6678;line-height:1.6}
 .date-legend b{color:#2c3a55}
+.danger{height:44px;padding:0 19px!important;background:#c0392b;color:#fff;border-radius:6px}
+.danger:hover:not(:disabled){background:#a5301f}
+.danger-outline{color:#b3261e;border-color:#e5b4b0}
+.danger-outline:hover:not(:disabled){background:#fdf3f2;color:#8f1f18}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
