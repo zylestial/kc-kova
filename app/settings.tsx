@@ -1,5 +1,6 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
+import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
 import {
@@ -168,12 +169,9 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setFormError("");
   }
   async function saveAccount() {
-    if (
-      !account.name.trim() ||
-      !account.username.trim() ||
-      (accountModal === "add" && !account.password)
-    ) {
-      setFormError("Complete all required fields.");
+    const missing = accountMissing(account, accountModal === "add");
+    if (missing.length) {
+      setFormError(stillNeeded(missing));
       return;
     }
     setBusy(true);
@@ -215,8 +213,9 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setFormError("");
   }
   async function saveVehicle() {
-    if (!vehicle.plate.trim() || !vehicle.name.trim()) {
-      setFormError("Complete all required fields.");
+    const missing = vehicleMissing(vehicle);
+    if (missing.length) {
+      setFormError(stillNeeded(missing));
       return;
     }
     setBusy(true);
