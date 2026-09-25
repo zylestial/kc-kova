@@ -773,3 +773,28 @@ Decided by the project owner at the start of Phase 5:
 - **Still open for Phase 11:** confirm production row counts (`baseline.md`),
   drive the screens and print form in a browser, and run the concurrency
   script, none of which Phase 10 covered.
+
+## Phase 11 release notes (2026-09-25)
+
+- **v2.0 is live.** #40 merged `v2-development` into `master` (deployed
+  `43275e7`), then `supabase db push` applied 0012 to 0032 to production
+  (`rhzqdtgruhpdhopkksuf`). `migration list --linked` shows 0001 to 0032
+  applied; `/api/bookings` and `/api/records/*` return 404 and an
+  anonymous `/api/bootstrap` returns 401. Per-role sign-in was **not**
+  checked by the agent (no production passwords); do it by hand.
+- **Production was at 0011, not 0012**, at preflight. 0012 to 0032 went on
+  in one push, rehearsed locally from 0011 first. Vehicles start with no
+  assigned Driver; an Admin has to assign them.
+- **Production held test bookings, slots and records**, dropped by 0032. The
+  owner confirmed there was no real data. A schema and data dump was taken
+  first and kept outside the repo.
+- **Merge-order slip:** #38 was merged into `feat/v2-validation` after #37
+  had already merged, so the runbooks never reached the release; #41 fixed
+  it. Merge a stack top-down, and re-check that a branch's PR base is still
+  open before merging into it.
+- **Merging #39 deployed Production early**, docs only, because the stack
+  was not yet in `v2-development`. Harmless here, but a release PR to
+  `master` must not be opened until everything it should carry has landed.
+- **The agent's harness blocked `supabase db push`** ("blind apply") twice,
+  including after a dry run, and allowed it once the owner approved in
+  chat. Expect a prompt for any production write.
