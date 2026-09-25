@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,7 @@ export default function Schedules({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [decided, setDecided] = useState("");
+  useAutoClear(decided, setDecided);
 
   useEffect(() => {
     const refresh = () => setData(readData());
