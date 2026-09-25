@@ -798,3 +798,12 @@ Decided by the project owner at the start of Phase 5:
 - **The agent's harness blocked `supabase db push`** ("blind apply") twice,
   including after a dry run, and allowed it once the owner approved in
   chat. Expect a prompt for any production write.
+- **A Production deploy served stale CSS from Vercel's build cache.** The
+  #40 deploy log said "Restored build cache from previous deployment" (the
+  docs-only #39 deploy, which had the v1.2 stylesheet), and the served CSS
+  lacked 28 classes added after v1.2 (Schedules week grid, schedule cards,
+  the planner, request form). The source and a fresh local build were fine
+  (174,163 bytes; the stale file was 169,623). Fix: redeploy in the Vercel
+  dashboard with "Use existing Build Cache" unticked. If a Production page
+  looks unstyled, compare the served CSS size against a local `pnpm build`
+  before suspecting the code.
