@@ -11,6 +11,7 @@ import {
   finalLeg,
   initialLegs,
   keepStops,
+  legHasContent,
   legOrigins,
   matchingDestinations,
   moveLeg,
@@ -96,6 +97,21 @@ describe("add leg / add final leg", () => {
     const legs = addLeg([leg({ destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:30" }), finalLeg()]);
     expect(legs[1].plannedTimeOut).toBe("09:30");
     expect(addLeg([leg({ destinationId: "d1" }), finalLeg()])[1].plannedTimeOut).toBe("");
+  });
+});
+
+describe("legHasContent", () => {
+  it("treats the default Time Out alone as empty", () => {
+    expect(legHasContent(initialLegs()[0])).toBe(false);
+    expect(legHasContent(initialLegs()[1])).toBe(false);
+  });
+
+  it("notices anything the Scheduler entered", () => {
+    expect(legHasContent(leg({ destinationId: "d1" }))).toBe(true);
+    expect(legHasContent(leg({ plannedTimeIn: "09:00" }))).toBe(true);
+    expect(legHasContent(leg({ contactName: "Ana" }))).toBe(true);
+    expect(legHasContent(leg({ stops: ["juan-ch"] }))).toBe(true);
+    expect(legHasContent(leg({ contactName: "   " }))).toBe(false);
   });
 });
 

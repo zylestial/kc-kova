@@ -137,6 +137,10 @@ export function moveLeg(legs: LegDraft[], index: number, delta: -1 | 1): LegDraf
 
 export const removeLeg = (legs: LegDraft[], index: number) => legs.filter((_, position) => position !== index);
 
+/** Whether a leg holds anything the Scheduler entered; a default Time Out alone does not count. */
+export const legHasContent = (leg: LegDraft) =>
+  !!(leg.destinationId || leg.plannedTimeIn || leg.contactName.trim() || leg.contactNumber.trim() || leg.stops.length);
+
 /** Drops stops that no longer belong to a selected request. */
 export function keepStops(legs: LegDraft[], allowed: Set<string>): LegDraft[] {
   return legs.map((leg) =>
