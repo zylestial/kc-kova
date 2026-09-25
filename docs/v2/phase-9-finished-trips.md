@@ -6,7 +6,7 @@ Branch `feat/v2-finished-trips`, stacked on `feat/v2-cancellation`
 Admin RPCs, API routes and screens, and replaces the v1 Finished Trips
 screens. Local Docker database only.
 
-**Status: built; browser walkthrough passed (31 checks).** The decisions
+**Status: done. Browser walkthrough passed (30 checks) and the manual check passed.** The decisions
 below were approved before the migrations were written.
 
 ## 1. Scope
@@ -96,7 +96,7 @@ the print view.
 - vitest **121/121** (was 111): Done and handling mappers, handle-problem
   body parsing, and the finished-trip builder. `tsc` clean, `lint` 0
   errors, `next build` passes.
-- Browser walkthrough (Playwright, Chromium, 31 checks): Dan submits and
+- Browser walkthrough (Playwright, Chromium, 30 checks): Dan submits and
   reports; the Admin filters the list, corrects odometers (validation and
   the updated distance), handles the problem with a follow-up (the list
   offers only the other schedule), checks the print view under print media
