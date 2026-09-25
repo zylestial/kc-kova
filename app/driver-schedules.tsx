@@ -209,7 +209,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
       </section>
 
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) close(); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {mode === "complete" ? "Complete this trip" : mode === "problem" ? "Report a problem" : "Trip Record"}
