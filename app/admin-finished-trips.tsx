@@ -357,11 +357,11 @@ export default function AdminFinishedTrips() {
           {selected && mode === "correct" && (
             <>
               <label className="field">
-                <span>STARTING ODOMETER</span>
+                <span>Starting odometer (km) *</span>
                 <Input inputMode="numeric" value={start} onChange={(event) => setStart(event.target.value)} />
               </label>
               <label className="field">
-                <span>ENDING ODOMETER</span>
+                <span>Ending odometer (km) *</span>
                 <Input inputMode="numeric" value={end} onChange={(event) => setEnd(event.target.value)} />
               </label>
               {odometerError && <p className="helper">{odometerError}</p>}
@@ -375,11 +375,11 @@ export default function AdminFinishedTrips() {
           {selected && mode === "handle" && (
             <>
               <label className="field">
-                <span>HOW WAS IT HANDLED</span>
+                <span>How was it handled? *</span>
                 <Textarea value={handlingNote} maxLength={500} onChange={(event) => setHandlingNote(event.target.value)} />
               </label>
               <label className="field">
-                <span>FOLLOW-UP SCHEDULE (OPTIONAL)</span>
+                <span>Follow-up schedule (optional)</span>
                 <Select value={followUp} onValueChange={setFollowUp}>
                   <SelectTrigger>
                     <SelectValue />
