@@ -308,13 +308,13 @@ export default function Home() {
                 ? `Updated ${updatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
                 : ""}
           </span>
-          <Button variant="ghost" disabled={refreshing} onClick={() => void refreshData(true)}>
+          <Button variant="ghost" aria-label="Refresh" disabled={refreshing} onClick={() => void refreshData(true)}>
             <RefreshCw size={15} className={refreshing ? "animate-spin" : undefined} />
-            {refreshing ? "Refreshing…" : "Refresh"}
+            <span className="btn-label">{refreshing ? "Refreshing…" : "Refresh"}</span>
           </Button>
         </div>
-        <Button variant="ghost" onClick={() => setHelpOpen(true)}>
-          <CircleHelp size={15} /> Help
+        <Button variant="ghost" aria-label="Help" onClick={() => setHelpOpen(true)}>
+          <CircleHelp size={15} /> <span className="btn-label">Help</span>
         </Button>
         <Button variant="ghost" onClick={() => leave(signOut)}>
           Sign Out
