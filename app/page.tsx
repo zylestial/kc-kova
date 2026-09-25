@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
   CalendarPlus,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  hydrateKovaData,
   restoreSession,
   signIn,
   signOut as endSession,
@@ -38,6 +39,9 @@ type Screen =
   | "my-requests"
   | "create-schedule"
   | "schedules";
+// Opening a screen or returning to the tab reloads the data, but not more
+// often than this, so switching screens quickly doesn't hammer the server.
+const REFRESH_MIN_GAP_MS = 15_000;
 const home = (role: Account["role"]): Screen =>
   role === "Requester"
     ? "requester-home"
@@ -58,15 +62,43 @@ export default function Home() {
   const [editScheduleId, setEditScheduleId] = useState<string | undefined>();
   const [scheduleNotice, setScheduleNotice] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string | undefined>();
+  const lastRefresh = useRef(0);
+  // Sign-in and session restore have just loaded everything.
+  const dataIsFresh = () => {
+    lastRefresh.current = Date.now();
+  };
+  const refreshData = useCallback(async () => {
+    if (Date.now() - lastRefresh.current < REFRESH_MIN_GAP_MS) return;
+    lastRefresh.current = Date.now();
+    // A failed background refresh keeps what is on screen; the next
+    // screen change or return to the tab tries again.
+    await hydrateKovaData().catch(() => undefined);
+  }, []);
   useEffect(() => {
     restoreSession()
       .then((saved) => {
+        if (saved) dataIsFresh();
         setAccount(saved);
         if (saved) setScreen(home(saved.role));
       })
       .catch((caught) => setError((caught as Error).message))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    if (account) void refreshData();
+  }, [account, screen, refreshData]);
+  useEffect(() => {
+    if (!account) return;
+    const onReturn = () => {
+      if (document.visibilityState === "visible") void refreshData();
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [account, refreshData]);
   useEffect(() => {
     const titles: Record<Screen, string> = {
       "driver-home": "Driver Home",
@@ -89,6 +121,7 @@ export default function Home() {
     setError("");
     try {
       const authenticated = await signIn(username.trim(), password);
+      dataIsFresh();
       setAccount(authenticated);
       setScreen(home(authenticated.role));
       setPassword("");
