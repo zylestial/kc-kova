@@ -246,6 +246,9 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
               <b>Project / Site:</b>{" "}
               {draft.projectOtherMode ? draft.projectOther.trim() : optionName(options.projects, draft.projectId) || "None"}
             </p>
+            <p>
+              <b>Destinations:</b>
+            </p>
             <ol className="request-review-list">
               {draft.destinations.map((item) => (
                 <li key={item.key}>
