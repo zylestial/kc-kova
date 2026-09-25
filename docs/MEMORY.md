@@ -34,6 +34,9 @@ to misdiagnose.
 
 ## `queueMicrotask` around setState in scheduler.tsx's prop-reactive effects
 
+*(`scheduler.tsx` was deleted in Phase 9b; the lesson below still applies to
+any prop-reactive effect.)*
+
 `scheduler.tsx` has two `useEffect`s that don't run once on mount — they
 genuinely need to re-run whenever the `driverBooking` or `reviewRecordId`
 prop changes, recomputing the local `edit`/`date`/`tab` state from it. The
@@ -701,5 +704,26 @@ Decided by the project owner at the start of Phase 5:
   pgTAP file fails with `Key (plate)=(V1) already exists`. Run
   `supabase db reset` before `supabase test db`. A reset wipes the local
   walkthrough accounts (`admin1`, `drv1`, …); re-run the seed script.
-- **Dead v1 code kept, with no removal phase assigned yet:** `Scheduler`'s `reviewRecordId` and
-  `driverBooking` props and `PrintForm`, plus `getDriverTrips`.
+
+## Phase 9b notes (2026-09-25)
+
+- **The v1.2 booking objects are gone (migration 0032), release-time only.**
+  It drops `bookings`, `booking_slots`, `vehicle_records` and
+  `vehicle_aliases` plus their functions, and rewrites `rename_vehicle`.
+  Apply it at cutover with 0023, after the backup; going back to v1.2 then
+  needs a backup restore. The user decided there is no real data, so Phase
+  10 no longer carries legacy bookings into v2.
+- **Drop order matters:** the `vehicle_records_select` policy refers to
+  `bookings`, so `vehicle_records` must be dropped before `bookings`
+  (`booking_slots` first, it has the foreign key). A failed migration rolls
+  back whole, so a wrong order costs nothing but a retry.
+- **The removed screens are unreachable, not hidden:** the code, routes and
+  tests are deleted, so there is no v1 fallback in the app.
+- **Deleting route files breaks `tsc` until `.next/types` is cleared.** The
+  generated `.next/types/validator.ts` still imports the deleted routes; run
+  `rm -rf .next/types` (it is git-ignored build output), then `tsc`.
+- **A fresh `next dev` reloads the page during its first compile**, which
+  can drop a Playwright dialog mid-flow. Warm the server (hit
+  `/api/bootstrap` once) and rerun before treating it as an app bug.
+- **Leftovers:** dead v1 CSS in `app/globals.css`, and the Settings tab is
+  still called "Booking Options" (the table it edits stays).
