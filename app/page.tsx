@@ -298,7 +298,6 @@ export default function Home() {
     <div className="app-shell">
       <header className="topbar">
         <KovaBrand />
-        <div className="workspace-label">OPERATIONS</div>
         <div className="account">{account.name.slice(0, 2).toUpperCase()}</div>
         <span className="account-name">
           {account.name} · {account.role}
@@ -557,11 +556,13 @@ export default function Home() {
             </div>
           </>
         )}
-        <footer>
+      </main>
+      <footer className="app-footer">
+        <div>
           <span>KOVA</span>
           <span>Kayelen&apos;s Operations and Vehicle Allocation</span>
-        </footer>
-      </main>
+        </div>
+      </footer>
     </div>
   );
 }
