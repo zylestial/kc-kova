@@ -409,8 +409,8 @@ pending approval; nothing has started.
         `40001` for stale saves, which PostgREST retries forever, so the
         HTTP call hangs. Switch them to `PT409` the way 0025 did for
         `update_request`. Done in Phase 5 (migration 0026).
-  - [ ] Move `scripts/seed-uat.mjs` from `Booker` to `Requester` when
-        0023 is applied to `kc-kova`.
+  - [x] Move `scripts/seed-uat.mjs` from `Booker` to `Requester` when
+        0023 is applied to `kc-kova`. Done after the 2026-09-25 release.
 - [x] Phase 5 — Scheduler planning and Trip Record. See
       `docs/v2/phase-5-scheduling.md`, branch `feat/v2-scheduling`
       (stacked on `feat/v2-requests`): Create schedule (day, request pool,
