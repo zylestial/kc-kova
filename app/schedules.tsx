@@ -36,6 +36,7 @@ import {
   type ScheduleState,
 } from "@/lib/trip-record";
 import CancellationRequests from "./cancellation-requests";
+import { scheduleStateMeaning } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
@@ -336,6 +337,7 @@ export default function Schedules({
                   </div>
                 ))}
               </div>
+              <p className="helper">{scheduleStateMeaning[scheduleState(selected)]}</p>
               {selectedRevision.status === "RETURNED" && selectedRevision.decisionComment && (
                 <p className="notice">
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}
