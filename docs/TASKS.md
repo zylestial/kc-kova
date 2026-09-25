@@ -137,8 +137,9 @@ post-v1.0 hardening, not blockers to this milestone.
       as CI-checked tests. Turning it into a real pgTAP or integration
       suite (e.g. against a Supabase instance spun up in CI) so this is
       checked on every change, not just once by hand, remains open.
-- [ ] **`vehicle_records` writes run through application code + the
-      service-role client, not a Postgres RPC** (see
+- [x] **`vehicle_records` writes run through application code + the
+      service-role client, not a Postgres RPC** (obsolete: the table and
+      route were removed in Phase 9b) (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.
       This was a deliberate scope trade-off for this pass, not an oversight.
       Consider porting `app/api/records/[recordId]/route.ts`'s logic into a
@@ -449,6 +450,17 @@ pending approval; nothing has started.
       (`correct_completion`, `mark_completion_done`, `handle_problem`),
       pgTAP 35/35 new (214 total), vitest 121/121, tsc/lint/build clean;
       Admin and Driver Finished Trips on v2 with a print view. **Local database only.**
+- [x] Phase 9b — Remove the v1.2 screens, code and tables. See
+      `docs/v2/phase-9b-remove-v1.md`, branch `chore/v2-remove-v1` (stacked
+      on `feat/v2-finished-trips`): v1 Schedule, booking flow, Booking
+      Approvals and Daily Vehicle Record screens, `/api/bookings` and
+      `/api/records`, and the v1 client code deleted; migration 0032 drops
+      `bookings`, `booking_slots`, `vehicle_records`, `vehicle_aliases` and
+      their functions and rewrites `rename_vehicle`. No legacy data to carry
+      over, so Phase 10 no longer migrates bookings. pgTAP 230/230, vitest
+      80/80, concurrency script, tsc/lint/build clean, Playwright 30/30 and
+      an 18-check smoke test passed. **Release-time only (applied with 0023
+      at cutover); local database only.**
 - [ ] Phase 10 — End-to-end validation and migration rehearsal
 - [ ] Phase 11 — Release through the same Vercel project
 - [ ] Phase 12 — Stabilize and hand over
