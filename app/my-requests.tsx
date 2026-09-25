@@ -247,6 +247,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                 ))}
               </div>
               <p className="helper">{requestProgressMeaning[shown.progress]}</p>
+              <span className="summary-label">Destinations</span>
               <ol className="request-review-list">
                 {shown.destinations.map((item) => (
                   <li key={item.id}>
@@ -354,7 +355,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
         <DialogContent className="edit-booking-modal">
           <DialogHeader>
             <DialogTitle>Edit request</DialogTitle>
-            <DialogDescription>Changes are saved only if nobody has started scheduling this request.</DialogDescription>
+            <DialogDescription>Changes are saved only if nobody has started scheduling this request. The same notice rules apply: Regular requests need at least 7 days, Urgent requests are for today or tomorrow.</DialogDescription>
           </DialogHeader>
           {editing && draft && (
             <>
