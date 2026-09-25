@@ -1,11 +1,18 @@
 # KOVA v2.0 — Git protection and branch map (Phase 1)
 
-## Tag
+## Tags
 
 - **`v1.2-stable`** — annotated tag on `e2804158e16755a8d85b31ea8a66ce851f870779`
   ("Fix sign-in KOVA lockup overflow on mobile (#25)"), master's tip at the
   time Phase 1 ran. Confirmed identical to `origin/master` (zero divergence)
   before tagging. Pushed to `origin`.
+- **`v2.0`** — annotated tag on `02163bce6e90ecad8f5d4c83e3af1c56e1a73f8a`
+  (merge of #43), `master`'s tip after the v2.0 release and its follow-up
+  docs. Added retroactively on 2026-09-25 as the rollback point before
+  v2.1. Pushed to `origin`.
+- **`v2.1`** — annotated tag on `c4beacc1ff07208a7920d72743af72bf08fc2c5c`
+  (merge of #46, `test/all-ux`), the UX pass on v2.0. No migrations.
+  Pushed to `origin`.
 
 ## Branches
 

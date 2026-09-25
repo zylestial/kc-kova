@@ -3,11 +3,11 @@
 Kept as a living checklist of what's implemented vs. outstanding. Update
 this file whenever a task's status changes.
 
-## Status: v2.0 live (2026-09-25) — v2.1 in preparation
+## Status: v2.1 live (2026-09-25)
 
-v2.0 was released to production on 2026-09-25 (see "v2.0" below). v2.1,
-a UX pass on top of it, is on `test/all-ux` and not yet merged (see
-"v2.1" below). The v1.0 notes that follow are kept as history.
+v2.0 was released to production on 2026-09-25 (see "v2.0" below), and
+v2.1, a UX pass on top of it, followed the same day (see "v2.1" below).
+The v1.0 notes that follow are kept as history.
 
 All planned v1.0 functionality is implemented and verified: `tsc --noEmit`,
 `eslint`, `vitest`, and `next build` all pass clean; the app has been
@@ -452,10 +452,10 @@ any individual phase. Phases 0–11 are done and v2.0 is live. Phase 12
         them unassigned). The Schedules week view was unstyled at first;
         see the stale build cache note in `docs/MEMORY.md`.
 
-## v2.1 (UX pass on v2.0, not yet released)
+## v2.1 (UX pass on v2.0, released 2026-09-25)
 
 Built on `test/all-ux`, which merges the `fix/*` UX branches. No migrations.
-It ships through a PR to `master`, then gets a `v2.1` tag.
+Released through PR #46 to `master` and tagged `v2.1`.
 
 - [x] Dialogs: height limit with scrolling, buttons pinned to the bottom,
       trip record table fits its dialog, "Go back" wording to close them.
@@ -482,6 +482,7 @@ It ships through a PR to `master`, then gets a `v2.1` tag.
       and Refresh buttons.
 - [x] Look: darker low-contrast text, bigger helper text, sign-in polish,
       account name in the top bar, footer below the page content.
-- [ ] Run `tsc`, lint and build, then open the release PR to `master`.
-- [ ] After the merge: tag `v2.0` on the pre-merge `master` and `v2.1` on
-      the merge commit, and update `docs/v2/git-and-release.md`.
+- [x] `tsc`, lint, build and vitest (127/127) passed; released via PR #46
+      (merge `c4beacc`).
+- [x] Tagged `v2.0` on the pre-merge `master` (`02163bc`) and `v2.1` on
+      the merge commit; recorded in `docs/v2/git-and-release.md`.
