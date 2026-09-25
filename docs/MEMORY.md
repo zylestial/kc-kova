@@ -407,3 +407,90 @@ exited without error.
   Reset database password). No production data was affected — this is
   purely a "don't do this" lesson for next time, not a record of what the
   password was.
+
+## v2.0 phased upgrade plan adopted (2026-09-24)
+
+The project owner provided a full v1.2 → v2.0 implementation plan, saved
+verbatim as `KOVA-v2-Claude-Implementation-Plan.md` (repo root) and indexed
+at `docs/v2/PLAN.md`; tracked in `docs/TASKS.md` under "Planned — v2.0".
+Key decisions baked into the plan, recorded here so future phases don't
+relitigate them:
+
+- **Same repository, same Vercel project, same production database,
+  upgraded in place.** No second production database, no new hosting
+  project, no forked repo just to build v2.
+- **Requester is a full backend role rename**, not a display-only change:
+  the previous request-creation role value must be migrated out of the
+  active v2 role enum/constraint, RLS policies, RPCs, API validators, auth
+  claims and generated types — not kept as an alias or fallback. Exactly
+  four v2 account types: Requester, Scheduler, Admin, Driver. No Finance,
+  PM, or COO role is created (those remain print-only names on the form).
+- **Only Scheduler creates schedules — including via direct API calls.**
+  Admin may edit but never create a schedule; this must be enforced at the
+  backend, not just hidden in the UI.
+- **Phase gating is mandatory and per-phase**: an explicit "May I start
+  Phase N?" is required before each of the 13 phases (0–12), and approving
+  the overall plan or finishing the previous phase does not imply approval
+  for the next one. Production data changes and the live traffic switch
+  (Phase 11) require a separate, explicit release approval beyond the
+  phase-start approval.
+- **Repository cleanup is inventory-first.** Phase 0 only inventories
+  obsolete code/assets/dependencies for removal; nothing is deleted until
+  the phase that replaces it has been approved and verified working.
+- **In-place database migration only** — no truncating/resetting production
+  tables, no inventing historical data (Scheduler creators, approvals,
+  odometers) for legacy records, and Vercel deployment rollback is
+  explicitly documented as code-only (it does not revert the database, auth
+  claims, or files) so a role-rename rollback needs its own rehearsed
+  reversal procedure, not just "roll back the deployment."
+
+Phase 0 was proposed the same day and is awaiting the owner's approval; no
+implementation work has started.
+
+## No live production data exists yet (confirmed 2026-09-24)
+
+The v2.0 plan's language throughout (backups, rollback rehearsal,
+in-place backfill, "never touch production without confirming," isolated
+Preview credentials) assumes a live system with real accounts/bookings/
+records to protect. **The project owner confirmed this Supabase project
+(`kc-kova`, `rhzqdtgruhpdhopkksuf`) currently holds no real data** — v1.2
+is still in UAT with only seeded test accounts (`docs/QA_ROLE_TESTS.md`),
+never launched to real users. The owner's stated plan: use this same
+database for v2 experimentation throughout development, then clear it out
+before the actual production launch.
+
+This materially lowers the stakes of several plan steps without
+eliminating them entirely — still worth doing carefully, but not under the
+same "irreversible mistake could lose real records" pressure:
+
+- **Phase 2's Preview-isolation gap** (Preview sharing production's
+  Supabase service-role key) is real hygiene, not a data-loss risk today —
+  there was no real data for a broken Preview build to have corrupted.
+  Removing Preview's credential scope (done 2026-09-24, see
+  `docs/v2/environment-map.md`) is still good practice going forward, but
+  standing up a *second* isolated Supabase project for Preview specifically
+  is now optional polish, not the safety-critical step the plan implies —
+  reusing the one project for both `master` and v2 experiments is an
+  acceptable, explicitly-chosen tradeoff for this project, as long as it's
+  actually cleared before the real go-live.
+- **Phase 3's migration risk** is lower — there's no production data an
+  expand/contract migration could corrupt or lose today, though the same
+  migration discipline (versioned files, local rehearsal, never editing an
+  applied migration) still applies since Docker/Supabase-CLI habits don't
+  change based on data volume.
+- **Phase 10's "in-place backfill from existing bookings" work is largely
+  moot** for this project specifically — there's nothing real to backfill.
+  Confirm actual row counts before Phase 10 in case any real data has
+  since been entered (e.g. through further UAT), rather than assuming this
+  note stays true indefinitely.
+- **Phase 11's release rehearsal** still matters (validating the deploy
+  order, role conversion, etc.) but the "freeze writes, take a final
+  backup, reconcile changes" ceremony is protecting a UAT dataset, not
+  real operational records — treat it as good practice, not a
+  point-of-no-return.
+
+**Still true regardless of data value**: never run destructive commands
+against production without confirming, never skip migration versioning
+discipline, and the owner's own plan is to clear the database before real
+launch — so nothing here licenses leaving test/experiment junk in place at
+go-live.

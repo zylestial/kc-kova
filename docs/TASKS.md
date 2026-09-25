@@ -337,15 +337,59 @@ Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
 
-## Planned — v1.3 (Notifications, prospecting only, not started)
+## Planned — v2.0 (phased upgrade, not started)
 
-- [ ] **Notifications** (email/push/in-app). No notification system exists
-      anywhere in this codebase today — every status change (a booking
-      cancelled by an Admin's Approve, a request approved/denied, a Trip
-      Record reviewed) is only visible the next time the affected user
-      opens the app. Flagged during the Booking Type + Admin Approval
-      design as a real gap — and a bigger one there than elsewhere, since
-      that feature makes *every* booking wait on Admin action — but
-      deliberately kept out of v1.1: it's a separate, larger feature
-      (delivery channel, preferences, read state) rather than an extension
-      of an existing screen.
+Full plan adopted 2026-09-24: `KOVA-v2-Claude-Implementation-Plan.md` (repo
+root), indexed at `docs/v2/PLAN.md`. Upgrades the **same** repo, Vercel
+project and production database in place across four roles (Requester,
+Scheduler, Admin, Driver) and 13 phases (0–12); see `docs/v2/PLAN.md` for
+the phase table. Each phase requires explicit "May I start Phase N?"
+approval before starting — approving the overall plan is not approval for
+any individual phase. Phase 0 (inspect v1.2, verify reported behavior,
+build a cleanup inventory, list conflicts) was proposed 2026-09-24 and is
+pending approval; nothing has started.
+
+- [x] Phase 0 — Inspect v1.2 and establish the baseline. See
+      `docs/v2/baseline.md`: all reported capabilities verified against
+      actual code (booking RPCs, RLS, submission locks, print component);
+      `tsc`/`eslint`/`vitest` (62/62)/`next build` all pass clean; no git
+      tags exist yet; Vercel project settings unverified (no local CLI/
+      dashboard access this session); cleanup inventory found ~46 of 61
+      unused vendored shadcn UI components plus 6 backing npm deps; 4
+      conflicts flagged for a decision before Phase 3 (existing
+      Booker-approval flow vs. the Requester/Scheduler model, Scheduler
+      being a new role not a rename, an overlapping open v1.2 backlog
+      item, and legacy-data Scheduler attribution).
+- [x] Phase 1 — Git protection and development branches. See
+      `docs/v2/git-and-release.md`: `v1.2-stable` tag on master's verified
+      tip, `v1-maintenance` and `v2-development` branches created and
+      pushed, Phase 0 docs merged into `v2-development` via PR #27.
+      Feature branches deliberately not pre-created (cut per-phase).
+- [x] Phase 2 — Reuse the v1.2 database and Vercel project. See
+      `docs/v2/environment-map.md`: confirmed live `kc-kova` Vercel project
+      (Next.js preset, no custom domain, git-integrated with
+      `master` -> Production / everything else -> Preview), all 12
+      existing migrations replay cleanly on a fresh local Docker instance.
+      **Preview/Production credential sharing — investigated, then
+      deliberately kept (2026-09-24)**: `SUPABASE_SERVICE_ROLE_KEY` and both
+      `NEXT_PUBLIC_SUPABASE_*` vars are scoped to both Preview and
+      Production. Initially removed from Preview as a fix, then restored
+      once you confirmed this Supabase project holds **no real/live data
+      yet** (still pre-launch UAT — see `docs/MEMORY.md`) and your plan is
+      to keep experimenting against this one shared project through v2
+      development, clearing it before the real launch. Current state
+      matches the original v1.2 config. **Must be revisited before real
+      data/users enter this project**, at the latest by Phase 11. No
+      production backup was taken this session (deferred until Phase 3/11
+      actually need one).
+- [ ] Phase 3 — Database model, permissions, state transitions, full
+      `requester` role migration
+- [ ] Phase 4 — Requester and Admin request creation
+- [ ] Phase 5 — Scheduler planning and Trip Record
+- [ ] Phase 6 — Approval, revisions and publication
+- [ ] Phase 7 — Cancellation and request unlocking
+- [ ] Phase 8 — Driver completion and problem reporting
+- [ ] Phase 9 — Admin finished trips and printing
+- [ ] Phase 10 — End-to-end validation and migration rehearsal
+- [ ] Phase 11 — Release through the same Vercel project
+- [ ] Phase 12 — Stabilize and hand over
