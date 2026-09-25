@@ -2,20 +2,25 @@ import { describe, expect, it } from "vitest";
 import type { Schedule } from "@/lib/kova-api";
 import {
   MAX_LEGS,
+  addLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
   commitmentsOn,
   conflictsWith,
   finalLeg,
+  initialLegs,
   keepStops,
+  legHasContent,
   legOrigins,
   matchingDestinations,
   moveLeg,
   newLeg,
   scheduleState,
   setLegDestination,
+  setLegTimeIn,
   toScheduleInput,
+  tripChecklist,
   tripProblems,
   tripWindow,
   type LegDraft,
@@ -60,12 +65,12 @@ describe("route continuity", () => {
 });
 
 describe("add leg / add final leg", () => {
-  it("offers both until the final leg is added, then neither", () => {
+  it("offers the final leg only until it is added, but a leg while there is room", () => {
     const legs = [leg({ destinationId: "d1" })];
     expect(canAddLeg(legs)).toBe(true);
     expect(canAddFinal(legs)).toBe(true);
     const withFinal = [...legs, finalLeg()];
-    expect(canAddLeg(withFinal)).toBe(false);
+    expect(canAddLeg(withFinal)).toBe(true);
     expect(canAddFinal(withFinal)).toBe(false);
   });
 
@@ -73,10 +78,71 @@ describe("add leg / add final leg", () => {
     expect(canAddFinal([])).toBe(false);
   });
 
-  it("always leaves room for the final leg within 8 rows", () => {
+  it("stops offering legs when all 8 rows are used, final leg included", () => {
     const seven = Array.from({ length: MAX_LEGS - 1 }, () => leg({ destinationId: "d1" }));
-    expect(canAddLeg(seven)).toBe(false);
-    expect(canAddFinal(seven)).toBe(true);
+    expect(canAddLeg(seven)).toBe(true);
+    expect(canAddLeg([...seven, finalLeg()])).toBe(false);
+  });
+
+  it("puts a new leg before the final leg", () => {
+    const legs = addLeg([leg({ destinationId: "d1" }), finalLeg()]);
+    expect(legs.map((item) => item.isFinal)).toEqual([false, false, true]);
+  });
+
+  it("appends a new leg when there is no final leg yet", () => {
+    expect(addLeg([leg({ destinationId: "d1" })]).map((item) => item.isFinal)).toEqual([false, false]);
+  });
+
+  it("starts a new leg when the previous one arrives", () => {
+    const legs = addLeg([leg({ destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:30" }), finalLeg()]);
+    expect(legs[1].plannedTimeOut).toBe("09:30");
+    expect(addLeg([leg({ destinationId: "d1" }), finalLeg()])[1].plannedTimeOut).toBe("");
+  });
+});
+
+describe("legHasContent", () => {
+  it("treats the default Time Out alone as empty", () => {
+    expect(legHasContent(initialLegs()[0])).toBe(false);
+    expect(legHasContent(initialLegs()[1])).toBe(false);
+  });
+
+  it("notices anything the Scheduler entered", () => {
+    expect(legHasContent(leg({ destinationId: "d1" }))).toBe(true);
+    expect(legHasContent(leg({ plannedTimeIn: "09:00" }))).toBe(true);
+    expect(legHasContent(leg({ contactName: "Ana" }))).toBe(true);
+    expect(legHasContent(leg({ stops: ["juan-ch"] }))).toBe(true);
+    expect(legHasContent(leg({ contactName: "   " }))).toBe(false);
+  });
+});
+
+describe("new Trip Record defaults", () => {
+  it("starts with one destination leg at 08:00 and the return leg", () => {
+    const legs = initialLegs();
+    expect(legs.map((item) => item.isFinal)).toEqual([false, true]);
+    expect(legs[0].plannedTimeOut).toBe("08:00");
+    expect(legs[0].plannedTimeIn).toBe("");
+    expect(legs[1].plannedTimeOut).toBe("");
+  });
+
+  it("copies a Time In into the next leg's empty Time Out", () => {
+    const legs = setLegTimeIn(initialLegs(), 0, "09:15");
+    expect(legs[0].plannedTimeIn).toBe("09:15");
+    expect(legs[1].plannedTimeOut).toBe("09:15");
+  });
+
+  it("never overwrites a Time Out that was already entered", () => {
+    const legs = setLegTimeIn([leg({}), leg({ plannedTimeOut: "10:00" })], 0, "09:15");
+    expect(legs[1].plannedTimeOut).toBe("10:00");
+  });
+
+  it("doesn't copy a half-typed time", () => {
+    expect(setLegTimeIn(initialLegs(), 0, "09:1")[1].plannedTimeOut).toBe("");
+  });
+
+  it("still requires a Time In, so a new Trip Record isn't submittable", () => {
+    const problems = tripProblems({ plate: "V1", requestIds: ["a"], legs: initialLegs(), stops: [] });
+    expect(problems.save).toContain("Leg 1: choose a destination.");
+    expect(problems.save).toContain("Leg 1: enter planned Time Out and Time In.");
   });
 });
 
@@ -229,5 +295,67 @@ describe("toScheduleInput", () => {
       { destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:00", contactName: "Ana", contactNumber: "", stops: ["juan-ch"], isFinal: false },
       { destinationId: undefined, plannedTimeOut: "09:30", plannedTimeIn: "10:30", contactName: "", contactNumber: "", stops: [], isFinal: true },
     ]);
+  });
+});
+
+describe("tripChecklist", () => {
+  const complete = [
+    leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
+    leg({ destinationId: "d2", stops: ["maria-po"], plannedTimeOut: "09:15", plannedTimeIn: "10:00" }),
+    { ...finalLeg(), plannedTimeOut: "10:30", plannedTimeIn: "11:30" },
+  ];
+  const base = { plate: "V1", hasDriver: true, requestIds: ["juan", "maria"], stops };
+  const done = (input: Parameters<typeof tripChecklist>[0]) => tripChecklist(input).map((item) => item.done);
+
+  it("ticks everything for a complete Trip Record", () => {
+    expect(done({ ...base, legs: complete })).toEqual([true, true, true, true, true, true]);
+  });
+
+  it("leaves everything to do on a brand-new Trip Record", () => {
+    const items = tripChecklist({ plate: "", hasDriver: false, requestIds: [], legs: initialLegs(), stops: [] });
+    expect(items.map((item) => item.done)).toEqual([false, false, false, false, false, true]);
+  });
+
+  it("leaves missing times to the leg, with no checklist detail", () => {
+    const legs = [{ ...complete[0], plannedTimeIn: "" }, complete[1], complete[2]];
+    const times = tripChecklist({ ...base, legs })[3];
+    expect(times.done).toBe(false);
+    expect(times.detail).toBeUndefined();
+  });
+
+  it("leaves a stop to its leg when a leg goes to that destination", () => {
+    const legs = [complete[0], { ...complete[1], stops: [] }, complete[2]];
+    const item = tripChecklist({ ...base, legs })[4];
+    expect(item.done).toBe(false);
+    expect(item.detail).toBeUndefined();
+  });
+
+  it("names a destination that has no leg to put its stop on", () => {
+    const legs = [complete[0], complete[2]];
+    const item = tripChecklist({ ...base, legs })[4];
+    expect(item.done).toBe(false);
+    expect(item.detail).toBe("Add a leg to Port Office.");
+  });
+
+  it("explains a vehicle with no Driver", () => {
+    const item = tripChecklist({ ...base, hasDriver: false, legs: complete })[1];
+    expect(item.done).toBe(false);
+    expect(item.detail).toMatch(/Admin assigns one in Settings/);
+  });
+
+  it("agrees with tripProblems: the first four items are Save draft, all six are Submit", () => {
+    const cases = [
+      complete,
+      [complete[0], complete[1]],
+      [{ ...complete[0], destinationId: "" }, complete[1], complete[2]],
+      [complete[0], { ...complete[1], stops: [] }, complete[2]],
+      [{ ...complete[0], plannedTimeOut: "10:00", plannedTimeIn: "09:00" }, complete[1], complete[2]],
+    ];
+    for (const legs of cases) {
+      const problems = tripProblems({ ...base, legs });
+      const items = tripChecklist({ ...base, legs });
+      expect(items.slice(0, 4).every((item) => item.done)).toBe(problems.save.length === 0);
+      expect(items.every((item) => item.done)).toBe(problems.save.length === 0 && problems.submit.length === 0);
+    }
   });
 });

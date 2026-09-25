@@ -1,6 +1,8 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
+import { stillNeeded } from "@/lib/missing-fields";
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,7 +38,7 @@ type Draft = {
   accountId?: string;
 };
 const groups: [Group, string, string, string][] = [
-  ["projects", "Projects / Departments", "Project / Department", "Add"],
+  ["projects", "Projects / Sites", "Project / Site", "Add"],
   ["people", "People", "Person", "Add"],
   ["destinations", "Destinations", "Destination", "Add Destination"],
   ["purposes", "Purposes", "Purpose", "Add Purpose"],
@@ -56,6 +58,7 @@ export default function BookingOptions() {
   });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
   function load() {
     setOptions(getBookingOptions());
@@ -92,6 +95,14 @@ export default function BookingOptions() {
   }
   async function save() {
     if (!modal) return;
+    const missing = [
+      draft.name.trim() ? "" : "Name",
+      modal.group === "people" && !draft.projectIds.length ? "Project / Site" : "",
+    ].filter(Boolean);
+    if (missing.length) {
+      setError(stillNeeded(missing));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -123,7 +134,7 @@ export default function BookingOptions() {
     <div className="booking-options">
       <div className="page-heading">
         <div>
-          <h2>Booking Options</h2>
+          <h2>Request choices</h2>
           <p>Manage choices used when creating requests.</p>
         </div>
       </div>
@@ -159,7 +170,7 @@ export default function BookingOptions() {
                     <thead>
                       <tr>
                         <th>NAME</th>
-                        {group === "people" && <th>PROJECT / DEPARTMENT</th>}
+                        {group === "people" && <th>PROJECT / SITE</th>}
                         <th>STATUS</th>
                         <th />
                       </tr>
@@ -206,11 +217,14 @@ export default function BookingOptions() {
                 </div>
               ) : (
                 <div className="empty">
+                  <div className="empty-icon">
+                    <ListChecks size={30} />
+                  </div>
                   <h3>No {label.toLowerCase()} yet</h3>
                   <p>
                     {group === "people" &&
                     !options.projects.some((p) => p.status === "Active")
-                      ? "Add an active Project / Department first."
+                      ? "Add an active Project / Site first."
                       : "Add one to make it available for new requests."}
                   </p>
                 </div>
@@ -247,7 +261,7 @@ export default function BookingOptions() {
             </label>
             {modal?.group === "people" && (
               <div className="field">
-                <span>Project / Department *</span>
+                <span>Project / Site *</span>
                 <div className="person-projects">
                   {options.projects
                     .filter(
@@ -303,7 +317,7 @@ export default function BookingOptions() {
           )}
           <div className="modal-actions">
             <Button variant="outline" onClick={() => setModal(null)}>
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={save}>
               {busy ? "Saving…" : modal?.mode === "add" ? "Add" : "Save"}

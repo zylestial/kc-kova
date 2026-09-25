@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { createRequest, currentAccount, getBookingOptions } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
+import { requestDraftHasContent, useUnsavedChanges } from "@/lib/unsaved-changes";
+import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 import RequestFields, {
   draftComplete,
   draftToInput,
@@ -33,6 +35,13 @@ function typeFor(date: string, isAdmin: boolean): RequestDraft["requestType"] | 
   return null;
 }
 
+/** Why a date card is greyed out, for its tooltip and screen-reader label. */
+function unavailableReason(date: string, today: string): string {
+  return date < today
+    ? "This date has passed."
+    : "Dates 2 to 6 days away can't be requested: Regular needs 7 days' notice and Urgent is for today or tomorrow.";
+}
+
 export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }) {
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
@@ -44,6 +53,8 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
   const [reviewOpen, setReviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // A half-filled request is lost if the Requester leaves.
+  useUnsavedChanges("new-request", step === 2 && requestDraftHasContent(draft));
 
   useEffect(() => {
     const load = () => setOptions(getBookingOptions());
@@ -131,7 +142,8 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
                     className={"date-card " + (draft.date === day ? "selected" : "")}
                     onClick={() => pickDate(day)}
                     aria-pressed={draft.date === day}
-                    aria-label={fullDate(day)}
+                    aria-label={allowed ? fullDate(day) : `${fullDate(day)}, not available. ${unavailableReason(day, today)}`}
+                    title={allowed ? undefined : unavailableReason(day, today)}
                     disabled={!allowed}
                   >
                     <span>{dateLabel(day, { weekday: "short" })}</span>
@@ -145,6 +157,10 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
               <ChevronRight size={18} />
             </Button>
           </div>
+          <p className="date-legend">
+            <b>URGENT</b> today or tomorrow · <b>●</b> Regular, at least 7 days ahead · <b>—</b> can&apos;t be requested
+            (in the past, or 2 to 6 days away){isAdmin && <> · <b>PAST</b> already happened (Admin only)</>}
+          </p>
           <div className="date-other">
             <label>
               Jump to date{" "}
@@ -196,6 +212,9 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
               {draft.destinations.length === 1 ? "destination" : "destinations"}
             </span>
           )}
+          {step === 2 && (
+            <span role="status">{stillNeeded(requestDraftMissing(draft)) || dateHint}</span>
+          )}
         </div>
         <Button
           className="booking-continue"
@@ -227,6 +246,9 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
               <b>Project / Site:</b>{" "}
               {draft.projectOtherMode ? draft.projectOther.trim() : optionName(options.projects, draft.projectId) || "None"}
             </p>
+            <p>
+              <b>Destinations:</b>
+            </p>
             <ol className="request-review-list">
               {draft.destinations.map((item) => (
                 <li key={item.key}>
@@ -243,7 +265,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
           )}
           <DialogFooter className="booking-dialog-actions">
             <Button variant="outline" disabled={busy} onClick={() => setReviewOpen(false)}>
-              Edit
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={submit}>
               {busy ? "Submitting…" : "Submit request"}

@@ -33,7 +33,11 @@ export default function TripRecordView({ legs, stopsById }: { legs: ViewLeg[]; s
               <tr key={index}>
                 <td>{String(index + 1).padStart(2, "0")}</td>
                 <td>{served.length ? served.map((stop) => <div key={stop.id}>{stop.requester}</div>) : "—"}</td>
-                <td>{served.length ? served.map((stop) => <div key={stop.id}>{stop.purposeName}</div>) : "—"}</td>
+                <td>
+                  {served.length
+                    ? [...new Set(served.map((stop) => stop.purposeName))].map((purpose) => <div key={purpose}>{purpose}</div>)
+                    : "—"}
+                </td>
                 <td>{leg.origin}</td>
                 <td>{leg.plannedTimeOut || "—"}</td>
                 <td>{leg.destinationName}</td>

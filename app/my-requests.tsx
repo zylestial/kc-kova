@@ -32,16 +32,9 @@ import RequestFields, {
   keptOptions,
   type RequestDraft,
 } from "./request-fields";
+import { requestProgressLabel, requestProgressMeaning } from "@/lib/status-text";
+import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 
-const progressLabel: Record<RequestProgress, string> = {
-  NOT_YET_SCHEDULED: "Not yet scheduled",
-  SCHEDULING: "Scheduling",
-  PENDING_APPROVAL: "Pending approval",
-  APPROVED: "Approved",
-  COMPLETED: "Completed",
-  DONE: "Done",
-  CANCELLED: "Cancelled",
-};
 // Reuses the existing status-pill colours.
 const progressPill: Record<RequestProgress, string> = {
   NOT_YET_SCHEDULED: "pending",
@@ -199,7 +192,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                     <td>{projectText(request)}</td>
                     <td>{destinationsText(request)}</td>
                     <td>
-                      <span className={"status-pill " + progressPill[request.progress]}>{progressLabel[request.progress]}</span>
+                      <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
                       {request.cancellationPending && <small>Cancellation requested</small>}
                     </td>
                     <td>{submittedLabel(request.createdAt)}</td>
@@ -244,7 +237,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                   ["Type", shown.requestType === "URGENT" ? "Urgent" : "Regular"],
                   ["Requested by", shown.ownerName],
                   ["Project / Site", projectText(shown)],
-                  ["Progress", progressLabel[shown.progress]],
+                  ["Progress", requestProgressLabel[shown.progress]],
                   ["Submitted", submittedLabel(shown.createdAt)],
                 ].map(([label, value]) => (
                   <div key={label}>
@@ -253,6 +246,8 @@ export default function MyRequests({ notice }: { notice?: string }) {
                   </div>
                 ))}
               </div>
+              <p className="helper">{requestProgressMeaning[shown.progress]}</p>
+              <span className="summary-label">Destinations</span>
               <ol className="request-review-list">
                 {shown.destinations.map((item) => (
                   <li key={item.id}>
@@ -276,6 +271,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                 {canCancel(shown) && (
                   <Button
                     variant="outline"
+                    className="danger-outline"
                     onClick={() => {
                       setCancelling(shown);
                       setSelected(null);
@@ -321,7 +317,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                 This request is already in a schedule. The trip stays as planned until an Admin confirms the cancellation.
               </p>
               <label className="field">
-                <span>REASON (OPTIONAL)</span>
+                <span>Reason (optional)</span>
                 <Textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} />
               </label>
             </>
@@ -335,7 +331,11 @@ export default function MyRequests({ notice }: { notice?: string }) {
             <Button variant="outline" disabled={busy} onClick={() => { setCancelling(null); setError(""); }}>
               Keep request
             </Button>
-            <Button className="primary" disabled={busy} onClick={confirmCancel}>
+            <Button
+              className={cancelling?.progress === "NOT_YET_SCHEDULED" ? "danger" : "primary"}
+              disabled={busy}
+              onClick={confirmCancel}
+            >
               {busy ? "Working…" : cancelling?.progress === "NOT_YET_SCHEDULED" ? "Cancel request" : "Send to Admin"}
             </Button>
           </DialogFooter>
@@ -355,12 +355,12 @@ export default function MyRequests({ notice }: { notice?: string }) {
         <DialogContent className="edit-booking-modal">
           <DialogHeader>
             <DialogTitle>Edit request</DialogTitle>
-            <DialogDescription>Changes are saved only if nobody has started scheduling this request.</DialogDescription>
+            <DialogDescription>Changes are saved only if nobody has started scheduling this request. The same notice rules apply: Regular requests need at least 7 days, Urgent requests are for today or tomorrow.</DialogDescription>
           </DialogHeader>
           {editing && draft && (
             <>
               <label className="field">
-                <span>DATE *</span>
+                <span>Date *</span>
                 <Input
                   type="date"
                   value={draft.date}
@@ -382,6 +382,11 @@ export default function MyRequests({ notice }: { notice?: string }) {
               {error}
             </p>
           )}
+          {draft && stillNeeded(requestDraftMissing(draft)) && (
+            <p className="helper" role="status">
+              {stillNeeded(requestDraftMissing(draft))}
+            </p>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
@@ -392,7 +397,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                 setError("");
               }}
             >
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy || !draft || !draftComplete(draft) || !!dateHint} onClick={save}>
               {busy ? "Saving…" : "Save changes"}

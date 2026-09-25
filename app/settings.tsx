@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
-import { ArrowLeft, Plus } from "lucide-react";
+import { useAutoClear } from "@/lib/use-auto-clear";
+import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Car, Plus } from "lucide-react";
 import {
   getAccounts,
   getVehicles,
@@ -118,6 +120,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
   const [accountModal, setAccountModal] = useState<"add" | "edit" | null>(null);
   const [vehicleModal, setVehicleModal] = useState<"add" | "edit" | null>(null);
@@ -138,6 +141,15 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setLoading(false);
     setError("");
   }
+  // Pick up changes another Admin made, once the app refreshes its data.
+  useEffect(() => {
+    const refresh = () => {
+      setAccounts(getAccounts());
+      setVehicles(getVehicles());
+    };
+    window.addEventListener("kova-data-update", refresh);
+    return () => window.removeEventListener("kova-data-update", refresh);
+  }, []);
   function addAccount() {
     setAccount(blankAccount());
     setAccountModal("add");
@@ -157,12 +169,9 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setFormError("");
   }
   async function saveAccount() {
-    if (
-      !account.name.trim() ||
-      !account.username.trim() ||
-      (accountModal === "add" && !account.password)
-    ) {
-      setFormError("Complete all required fields.");
+    const missing = accountMissing(account, accountModal === "add");
+    if (missing.length) {
+      setFormError(stillNeeded(missing));
       return;
     }
     setBusy(true);
@@ -204,8 +213,9 @@ export default function Settings({ onBack }: { onBack: () => void }) {
     setFormError("");
   }
   async function saveVehicle() {
-    if (!vehicle.plate.trim() || !vehicle.name.trim()) {
-      setFormError("Complete all required fields.");
+    const missing = vehicleMissing(vehicle);
+    if (missing.length) {
+      setFormError(stillNeeded(missing));
       return;
     }
     setBusy(true);
@@ -265,7 +275,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           <h1>
             Settings<span className="title-dot">.</span>
           </h1>
-          <p>Manage KOVA accounts, vehicles and booking choices.</p>
+          <p>Manage KOVA accounts, vehicles and request choices.</p>
         </div>
       </div>
       {notice && (
@@ -277,7 +287,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         <TabsList>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
           <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
-          <TabsTrigger value="options">Booking Options</TabsTrigger>
+          <TabsTrigger value="options">Request choices</TabsTrigger>
         </TabsList>
       </Tabs>
       {error && (
@@ -397,6 +407,9 @@ export default function Settings({ onBack }: { onBack: () => void }) {
             </div>
           ) : (
             <div className="empty">
+              <div className="empty-icon">
+                <Car size={30} />
+              </div>
               <h3>No vehicles yet</h3>
               <p>Add the first vehicle to make it available in Schedule.</p>
             </div>
@@ -478,7 +491,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
               </Button>
             )}
             <Button variant="outline" onClick={() => setAccountModal(null)}>
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={saveAccount}>
               {busy
@@ -500,8 +513,8 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           <DialogHeader>
             <DialogTitle>Change Password</DialogTitle>
             <DialogDescription>
-              Preview the change password popup for {passwordFor?.name}. No
-              password is stored.
+              Set a new password for {passwordFor?.name}. They will use it the
+              next time they sign in.
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
@@ -527,7 +540,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           )}
           <div className="modal-actions">
             <Button variant="outline" onClick={() => setPasswordFor(null)}>
-              Cancel
+              Go back
             </Button>
             <Button
               className="primary"
@@ -551,7 +564,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
               {vehicleModal === "add" ? "Add Vehicle" : "Edit Vehicle"}
             </DialogTitle>
             <DialogDescription>
-              Manage which vehicles are available in Schedule.
+              Manage which vehicles are available in Schedule. Inactive vehicles can&apos;t be chosen for new schedules.
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
@@ -602,7 +615,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           )}
           <div className="modal-actions">
             <Button variant="outline" onClick={() => setVehicleModal(null)}>
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={saveVehicle}>
               {busy

@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import {
   type ScheduleState,
 } from "@/lib/trip-record";
 import CancellationRequests from "./cancellation-requests";
+import { scheduleStateMeaning } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
@@ -86,6 +88,7 @@ export default function Schedules({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [decided, setDecided] = useState("");
+  useAutoClear(decided, setDecided);
 
   useEffect(() => {
     const refresh = () => setData(readData());
@@ -295,7 +298,7 @@ export default function Schedules({
                     <span>{dateLabel(day, { weekday: "short" })}</span>
                     <b>{dateLabel(day, { month: "short", day: "numeric" })}</b>
                   </button>
-                  {dayItems.length ? dayItems.map(card) : <small className="week-empty">—</small>}
+                  {dayItems.length ? dayItems.map(card) : <small className="week-empty">No trips</small>}
                 </div>
               );
             })}
@@ -307,8 +310,8 @@ export default function Schedules({
             <div className="empty-icon">
               <CalendarDays size={30} />
             </div>
-            <h3>No schedules</h3>
-            <p>{schedules.length ? "Nothing matches this day and these filters." : "Schedules you create will appear here."}</p>
+            <h3>{schedules.length ? "No matching schedules" : "No schedules yet"}</h3>
+            <p>{schedules.length ? "Nothing matches this day and these filters. Try another day or clear a filter." : "Schedules you create will appear here."}</p>
           </div>
         )}
       </section>
@@ -336,6 +339,7 @@ export default function Schedules({
                   </div>
                 ))}
               </div>
+              <p className="helper">{scheduleStateMeaning[scheduleState(selected)]}</p>
               {selectedRevision.status === "RETURNED" && selectedRevision.decisionComment && (
                 <p className="notice">
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}
@@ -388,13 +392,13 @@ export default function Schedules({
               </Button>
             )}
             {selected && cancellable(selected) && !returning && !cancelling && (
-              <Button variant="outline" disabled={busy} onClick={() => { setCancelling(true); setComment(""); setError(""); }}>
+              <Button variant="outline" className="danger-outline" disabled={busy} onClick={() => { setCancelling(true); setComment(""); setError(""); }}>
                 Cancel schedule
               </Button>
             )}
             {selected && cancelling && (
               <Button
-                className="primary"
+                className="danger"
                 disabled={busy || !comment.trim()}
                 onClick={() => decide(() => cancelSchedule(selected.id, comment.trim()), "Schedule cancelled.")}
               >

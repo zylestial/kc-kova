@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
 import { buildFinishedTrips, hasOpenProblem, type FinishedTrip } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
+import { completionLabel, completionMeaning } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (date: string) =>
@@ -64,6 +66,7 @@ export default function AdminFinishedTrips() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
 
   useEffect(() => {
     function refresh() {
@@ -220,7 +223,7 @@ export default function AdminFinishedTrips() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="submitted">Submitted for Review</SelectItem>
+                <SelectItem value="submitted">{completionLabel.SUBMITTED}</SelectItem>
                 <SelectItem value="done">Done</SelectItem>
               </SelectContent>
             </Select>
@@ -259,7 +262,7 @@ export default function AdminFinishedTrips() {
                     <td>{trip.completion.distance} km</td>
                     <td>
                       <span className={"badge " + (trip.completion.status === "DONE" ? "complete" : "")}>
-                        {trip.completion.status === "DONE" ? "Done" : "Submitted for Review"}
+                        {completionLabel[trip.completion.status]}
                       </span>
                       {hasOpenProblem(trip) && <small>Open problem</small>}
                     </td>
@@ -282,8 +285,11 @@ export default function AdminFinishedTrips() {
           </div>
         ) : (
           <div className="empty">
-            <h3>No matching finished trips</h3>
-            <p>{trips.length ? "Try another filter." : "Driver-submitted trips will appear here."}</p>
+            <div className="empty-icon">
+              <CheckCircle2 size={30} />
+            </div>
+            <h3>{trips.length ? "No matching finished trips" : "No finished trips yet"}</h3>
+            <p>{trips.length ? "Try another filter." : "When a Driver submits a completed trip, it will appear here for you to review."}</p>
           </div>
         )}
       </section>
@@ -309,8 +315,9 @@ export default function AdminFinishedTrips() {
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
               <p className="helper">
                 Odometer: {selected.completion.startOdometer} → {selected.completion.endOdometer} ({selected.completion.distance} km) ·{" "}
-                {isDone ? "Done" : "Submitted for review"}
+                {completionLabel[selected.completion.status]}
               </p>
+              <p className="helper">{completionMeaning[selected.completion.status]}</p>
               {selected.problems.map((item) => (
                 <div className="helper" key={item.id}>
                   <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong> {item.note}
@@ -353,11 +360,11 @@ export default function AdminFinishedTrips() {
           {selected && mode === "correct" && (
             <>
               <label className="field">
-                <span>STARTING ODOMETER</span>
+                <span>Starting odometer (km) *</span>
                 <Input inputMode="numeric" value={start} onChange={(event) => setStart(event.target.value)} />
               </label>
               <label className="field">
-                <span>ENDING ODOMETER</span>
+                <span>Ending odometer (km) *</span>
                 <Input inputMode="numeric" value={end} onChange={(event) => setEnd(event.target.value)} />
               </label>
               {odometerError && <p className="helper">{odometerError}</p>}
@@ -371,11 +378,11 @@ export default function AdminFinishedTrips() {
           {selected && mode === "handle" && (
             <>
               <label className="field">
-                <span>HOW WAS IT HANDLED</span>
+                <span>How was it handled? *</span>
                 <Textarea value={handlingNote} maxLength={500} onChange={(event) => setHandlingNote(event.target.value)} />
               </label>
               <label className="field">
-                <span>FOLLOW-UP SCHEDULE (OPTIONAL)</span>
+                <span>Follow-up schedule (optional)</span>
                 <Select value={followUp} onValueChange={setFollowUp}>
                   <SelectTrigger>
                     <SelectValue />

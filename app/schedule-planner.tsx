@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,21 +38,24 @@ import {
   type Schedule,
 } from "@/lib/kova-api";
 import { addDays, manilaToday } from "@/lib/timezone";
+import { tripSignature, useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   BASE,
   MAX_LEGS,
+  addLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
   commitmentsOn,
   conflictsWith,
   finalLeg,
+  initialLegs,
   keepStops,
+  legHasContent,
   legOrigins,
   legsFromRevision,
   matchingDestinations,
   moveLeg,
-  newLeg,
   currentRevision,
   openRevision,
   removeLeg,
@@ -59,8 +63,11 @@ import {
   scheduleStateLabel,
   scheduleStatePill,
   setLegDestination,
+  setLegTimeIn,
   stopsFor,
   toScheduleInput,
+  legWarnings,
+  tripChecklist,
   tripProblems,
   tripWindow,
   type LegDraft,
@@ -147,12 +154,18 @@ export default function SchedulePlanner({
             stopsFor(getRequests().filter((request) => !droppedIds.includes(request.id))).map((stop) => stop.id),
           ),
         )
-      : [newLeg()],
+      : initialLegs(),
   );
+  // What was last saved (or opened), to tell whether there is unsaved work.
+  const [savedSignature, setSavedSignature] = useState(() => tripSignature(plate, requestIds, legs));
+  useUnsavedChanges("schedule-planner", step === 2 && tripSignature(plate, requestIds, legs) !== savedSignature);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
   const [confirm, setConfirm] = useState<"submit" | "discard" | null>(null);
+  // The leg waiting for the Scheduler to confirm its removal.
+  const [removingLeg, setRemovingLeg] = useState<number | null>(null);
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
@@ -198,6 +211,9 @@ export default function SchedulePlanner({
   const clashes = plate && driver ? conflictsWith(tripTime, plate, driver.id, commitments) : [];
   const problems = tripProblems({ plate, requestIds, legs, stops: selectedStops });
   if (plate && !driver) problems.save.unshift("This vehicle has no active Driver assigned.");
+  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: selectedStops });
+  const warnings = legWarnings(legs, selectedStops);
+  const ready = problems.save.length === 0 && problems.submit.length === 0;
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
   const months = [...new Set([days[0], days.at(-1)!].map((day) => dateLabel(day, { month: "long", year: "numeric" })))];
@@ -207,7 +223,7 @@ export default function SchedulePlanner({
   function pickDate(day: string) {
     setDate(day);
     setRequestIds([]);
-    setLegs([newLeg()]);
+    setLegs(initialLegs());
     setError("");
   }
 
@@ -259,6 +275,7 @@ export default function SchedulePlanner({
   const save = () =>
     run(async () => {
       await saveDraft();
+      setSavedSignature(tripSignature(plate, requestIds, legs));
       setNotice("Draft saved. Its time is reserved and its requests are locked until you submit or discard it.");
     });
   const submit = () =>
@@ -314,7 +331,7 @@ export default function SchedulePlanner({
           <p>
             {step === 1
               ? "Each day shows how many requests are still waiting to be scheduled."
-              : "Select requests, assign a vehicle, then arrange the Trip Record. Saving a draft reserves the time."}
+              : "Choose the requests to plan, pick a vehicle, then build the route. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft reserves the time."}
           </p>
         </div>
         {step > 1 && (
@@ -347,7 +364,7 @@ export default function SchedulePlanner({
                   >
                     <span>{dateLabel(day, { weekday: "short" })}</span>
                     <b>{dateLabel(day, { day: "numeric" })}</b>
-                    <small>{count ? `${count} waiting` : "—"}</small>
+                    <small>{count ? `${count} waiting` : "none"}</small>
                   </button>
                 );
               })}
@@ -493,6 +510,16 @@ export default function SchedulePlanner({
                 <Input value={driver?.name ?? ""} placeholder="Follows the vehicle" readOnly />
               </label>
             </div>
+            {!vehicles.some((vehicle) => vehicle.status === "Active") ? (
+              <p className="helper">There are no active vehicles. An Admin adds them in Settings, under Vehicles.</p>
+            ) : (
+              vehicles.some((vehicle) => vehicle.status === "Active" && !driverFor(vehicle.plate)) && (
+                <p className="helper">
+                  A vehicle marked &quot;no Driver assigned&quot; can&apos;t be used yet. An Admin assigns a Driver in Settings,
+                  under Vehicles.
+                </p>
+              )
+            )}
             {clashes.length > 0 && (
               <p className="field-hint planner-clash" role="alert">
                 {clashes
@@ -511,8 +538,9 @@ export default function SchedulePlanner({
               <div>
                 <h2>Trip Record</h2>
                 <p>
-                  Legs in travel order. The first leg starts at ANONANG and each leg starts where the previous one
-                  ended. Up to {MAX_LEGS} legs, including the final leg back to ANONANG.
+                  The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
+                  ANONANG (the base), each next one starts where the last ended, and the final leg returns to ANONANG. Up
+                  to {MAX_LEGS} legs.
                 </p>
               </div>
             </div>
@@ -524,7 +552,7 @@ export default function SchedulePlanner({
                   <div className="leg-label">
                     <b>
                       LEG {String(index + 1).padStart(2, "0")}
-                      {leg.isFinal && " · FINAL"}
+                      {leg.isFinal && " · RETURN TO ANONANG"}
                     </b>
                     <span className="leg-actions">
                       {!leg.isFinal && (
@@ -550,7 +578,10 @@ export default function SchedulePlanner({
                         </>
                       )}
                       {legs.length > 1 && (
-                        <Button variant="ghost" onClick={() => setLegs(removeLeg(legs, index))}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => (legHasContent(leg) ? setRemovingLeg(index) : setLegs(removeLeg(legs, index)))}
+                        >
                           Remove leg
                         </Button>
                       )}
@@ -601,7 +632,7 @@ export default function SchedulePlanner({
                         type="time"
                         value={leg.plannedTimeIn}
                         aria-label={`Leg ${index + 1} planned Time In`}
-                        onChange={(event) => changeLeg(index, { plannedTimeIn: event.target.value })}
+                        onChange={(event) => setLegs(setLegTimeIn(legs, index, event.target.value))}
                       />
                     </label>
                     {!leg.isFinal && (
@@ -617,11 +648,18 @@ export default function SchedulePlanner({
                       </>
                     )}
                   </div>
+                  {!!warnings[index]?.length && (
+                    <ul className="leg-warnings" role="alert">
+                      {warnings[index].map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  )}
                   {!leg.isFinal && leg.destinationId && (
                     <div className="leg-stops">
                       <span className="summary-label">
                         Requests served here
-                        {served.length > 1 && <span className="badge">Shared stop · {served.length} requests</span>}
+                        {served.length > 1 && <span className="badge">One stop for {served.length} requests</span>}
                       </span>
                       {candidates.length ? (
                         candidates.map((stop) => (
@@ -645,24 +683,30 @@ export default function SchedulePlanner({
             })}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
-                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => setLegs([...legs, newLeg()])}>
+                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => setLegs(addLeg(legs))}>
                   <Plus size={16} /> Add leg
                 </Button>
                 <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => setLegs([...legs, finalLeg()])}>
-                  <Flag size={16} /> Add final leg
+                  <Flag size={16} /> Add return leg to ANONANG
                 </Button>
               </div>
             )}
-            {(problems.save.length > 0 || problems.submit.length > 0) && (
-              <div className="planner-problems">
-                <b>{problems.save.length ? "Before saving:" : "Before submitting:"}</b>
-                <ul>
-                  {[...problems.save, ...problems.submit].map((problem) => (
-                    <li key={problem}>{problem}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div className={"planner-checklist" + (ready ? " ready" : "")}>
+              <b>{ready ? "Ready to submit" : "Before you submit"}</b>
+              {!ready && <p>You can save a draft once the first four are done. Submitting needs all six.</p>}
+              <ul>
+                {checklist.map((item) => (
+                  <li key={item.label} className={item.done ? "done" : ""}>
+                    <span aria-hidden="true">{item.done ? "✓" : "○"}</span>
+                    <span>
+                      <span className="sr-only">{item.done ? "Done: " : "To do: "}</span>
+                      {item.label}
+                      {!item.done && item.detail && <small>{item.detail}</small>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         </>
       )}
@@ -695,7 +739,7 @@ export default function SchedulePlanner({
         ) : (
           <div className="planner-actions">
             {editing && (
-              <Button variant="outline" disabled={busy} onClick={() => setConfirm("discard")}>
+              <Button variant="outline" className="danger-outline" disabled={busy} onClick={() => setConfirm("discard")}>
                 <Trash2 size={16} /> Discard draft
               </Button>
             )}
@@ -733,7 +777,7 @@ export default function SchedulePlanner({
           )}
           <DialogFooter className="booking-dialog-actions">
             <Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>
-              Edit
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={submit}>
               {busy ? "Submitting…" : "Submit for approval"}
@@ -755,6 +799,7 @@ export default function SchedulePlanner({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Keep draft</AlertDialogCancel>
             <AlertDialogAction
+              className="danger"
               disabled={busy}
               onClick={(event) => {
                 event.preventDefault();
@@ -762,6 +807,29 @@ export default function SchedulePlanner({
               }}
             >
               {busy ? "Discarding…" : "Discard draft"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={removingLeg !== null} onOpenChange={(open) => !open && setRemovingLeg(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove leg {removingLeg === null ? "" : removingLeg + 1}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its destination, times, contact details and ticked requests are removed. The requests stay selected, so
+              you can put them on another leg.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep leg</AlertDialogCancel>
+            <AlertDialogAction
+              className="danger"
+              onClick={() => {
+                if (removingLeg !== null) setLegs(removeLeg(legs, removingLeg));
+                setRemovingLeg(null);
+              }}
+            >
+              Remove leg
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

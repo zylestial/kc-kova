@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,9 @@ import {
   type TripCompletion,
 } from "@/lib/kova-api";
 import { stopsFor } from "@/lib/trip-record";
-import { hasTripEnded } from "@/lib/timezone";
+import { hasTripEnded, manilaToday } from "@/lib/timezone";
+import { lastEndReading, longTripWarning } from "@/lib/odometer";
+import { completionLabel } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (date: string) =>
@@ -37,7 +40,17 @@ type Trip = {
   completion?: TripCompletion;
   problems: ProblemReport[];
   ended: boolean;
+  /** When Complete trip unlocks, e.g. "3:58 PM", or "Sep 26, 3:58 PM" on a later day. */
+  availableAt: string;
 };
+
+function availableAtLabel(date: string, timeIn: string): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(timeIn);
+  if (!match) return "the last planned Time In";
+  const hours = Number(match[1]);
+  const time = `${hours % 12 || 12}:${match[2]} ${hours < 12 ? "AM" : "PM"}`;
+  return date === manilaToday() ? time : `${dateLabel(date)}, ${time}`;
+}
 
 function loadTrips(driverId: string): Trip[] {
   const completions = getCompletions();
@@ -55,6 +68,7 @@ function loadTrips(driverId: string): Trip[] {
           completion: completions.find((item) => item.scheduleId === schedule.id),
           problems: problems.filter((item) => item.scheduleId === schedule.id),
           ended: hasTripEnded(schedule.date, lastIn),
+          availableAt: availableAtLabel(schedule.date, lastIn),
         },
       ];
     })
@@ -77,6 +91,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
 
   useEffect(() => {
     function refresh() {
@@ -101,6 +116,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
     setError("");
   }
 
+  const lastReading = selected ? lastEndReading(selected.revision.plate, getSchedules(), getCompletions()) : null;
   const startNumber = start.trim() === "" ? NaN : Number(start);
   const endNumber = end.trim() === "" ? NaN : Number(end);
   const odometerError =
@@ -131,7 +147,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
   }
 
   const statusOf = (trip: Trip) =>
-    trip.completion ? ["Submitted", "scheduled"] : trip.ended ? ["Ready to complete", "pending"] : ["Upcoming", "pending"];
+    trip.completion ? [completionLabel[trip.completion.status], "scheduled"] : trip.ended ? ["Ready to complete", "pending"] : ["Upcoming", "pending"];
 
   return (
     <>
@@ -233,14 +249,18 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
                 </p>
               ))}
               {!selected.completion && !selected.ended && (
-                <p className="helper">You can complete this trip after its last planned Time In.</p>
+                <p className="helper">Complete trip is available after {selected.availableAt}.</p>
               )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setMode("problem")}>
                   Report a problem
                 </Button>
                 {!selected.completion && (
-                  <Button className="primary" disabled={!selected.ended} onClick={() => setMode("complete")}>
+                  <Button className="primary" disabled={!selected.ended} onClick={() => {
+                      setMode("complete");
+                      if (!start && lastReading !== null) setStart(String(lastReading));
+                    }}
+                  >
                     Complete trip
                   </Button>
                 )}
@@ -250,13 +270,39 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
           {selected && mode === "complete" && (
             <>
               <label className="field">
-                <span>STARTING ODOMETER</span>
-                <Input inputMode="numeric" value={start} onChange={(event) => setStart(event.target.value)} />
+                <span>Starting odometer (km) *</span>
+                <Input
+                  inputMode="numeric"
+                  placeholder="e.g. 45210"
+                  value={start}
+                  onChange={(event) => setStart(event.target.value)}
+                />
+                {lastReading !== null && start === String(lastReading) && (
+                  <small className="field-hint">
+                    Filled in from this vehicle&apos;s last trip. Change it if the dashboard shows something different.
+                  </small>
+                )}
               </label>
               <label className="field">
-                <span>ENDING ODOMETER</span>
-                <Input inputMode="numeric" value={end} onChange={(event) => setEnd(event.target.value)} />
+                <span>Ending odometer (km) *</span>
+                <Input
+                  inputMode="numeric"
+                  placeholder="e.g. 45252"
+                  value={end}
+                  onChange={(event) => setEnd(event.target.value)}
+                />
               </label>
+              {!odometerError && (
+                <p className="helper" role="status">
+                  <b>{(endNumber - startNumber).toLocaleString("en-US")} km</b> driven, from {startNumber.toLocaleString("en-US")} to{" "}
+                  {endNumber.toLocaleString("en-US")}. Check this is right.
+                </p>
+              )}
+              {!odometerError && longTripWarning(endNumber - startNumber) && (
+                <p className="notice" role="alert">
+                  {longTripWarning(endNumber - startNumber)}
+                </p>
+              )}
               <p className="helper">
                 Submitting can&apos;t be undone. It locks the trip for you; an Admin reviews it.
               </p>
@@ -264,7 +310,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
           )}
           {selected && mode === "problem" && (
             <label className="field">
-              <span>WHAT WENT WRONG</span>
+              <span>What went wrong *</span>
               <Textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} />
             </label>
           )}
@@ -288,6 +334,10 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
             </DialogFooter>
           )}
           {mode === "complete" && odometerError && (start || end) && <p className="helper">{odometerError}</p>}
+          {mode === "complete" && odometerError && !start && !end && (
+            <p className="helper">Enter the starting and ending readings to submit.</p>
+          )}
+          {mode === "problem" && !note.trim() && <p className="helper">Describe what went wrong to send the report.</p>}
         </DialogContent>
       </Dialog>
     </>

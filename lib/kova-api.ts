@@ -5,7 +5,9 @@
  * Authentication is expected to use a secure HttpOnly session cookie issued by
  * the backend. All permissions and conflict checks must also be enforced there.
  */
-export type Role = "Requester" | "Scheduler" | "Admin" | "Driver";
+import { friendlyErrorMessage, NETWORK_ERROR } from "@/lib/error-messages";
+
+export type Role ="Requester" | "Scheduler" | "Admin" | "Driver";
 export type Account = {
   id: string;
   name: string;
@@ -217,13 +219,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       },
     });
   } catch {
-    throw Error("KOVA could not reach the backend. Check the API URL and network connection.");
+    throw Error(NETWORK_ERROR);
   }
   if (response.status === 204) return undefined as T;
   const body = (await response.json().catch(() => ({}))) as { message?: unknown };
   if (!response.ok) {
-    const message = typeof body?.message === "string" ? body.message : "The request could not be completed.";
-    throw Error(message);
+    const message = typeof body?.message === "string" ? body.message : "";
+    throw Error(friendlyErrorMessage(response.status, message));
   }
   return body as T;
 }

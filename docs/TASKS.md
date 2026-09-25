@@ -3,7 +3,11 @@
 Kept as a living checklist of what's implemented vs. outstanding. Update
 this file whenever a task's status changes.
 
-## Status: v1.0 complete — in UAT (2026-09-22)
+## Status: v2.0 live (2026-09-25) — v2.1 in preparation
+
+v2.0 was released to production on 2026-09-25 (see "v2.0" below). v2.1,
+a UX pass on top of it, is on `test/all-ux` and not yet merged (see
+"v2.1" below). The v1.0 notes that follow are kept as history.
 
 All planned v1.0 functionality is implemented and verified: `tsc --noEmit`,
 `eslint`, `vitest`, and `next build` all pass clean; the app has been
@@ -309,7 +313,7 @@ Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
 
-## Planned — v2.0 (phased upgrade, not started)
+## v2.0 (phased upgrade, released 2026-09-25)
 
 Full plan adopted 2026-09-24: `KOVA-v2-Claude-Implementation-Plan.md` (repo
 root), indexed at `docs/v2/PLAN.md`. Upgrades the **same** repo, Vercel
@@ -317,9 +321,8 @@ project and production database in place across four roles (Requester,
 Scheduler, Admin, Driver) and 13 phases (0–12); see `docs/v2/PLAN.md` for
 the phase table. Each phase requires explicit "May I start Phase N?"
 approval before starting — approving the overall plan is not approval for
-any individual phase. Phase 0 (inspect v1.2, verify reported behavior,
-build a cleanup inventory, list conflicts) was proposed 2026-09-24 and is
-pending approval; nothing has started.
+any individual phase. Phases 0–11 are done and v2.0 is live. Phase 12
+(stabilize and hand over) is deferred to a later version.
 
 - [x] Phase 0 — Inspect v1.2 and establish the baseline. See
       `docs/v2/baseline.md`: all reported capabilities verified against
@@ -448,4 +451,37 @@ pending approval; nothing has started.
         problems reported) and a Driver assigned to each vehicle (0012 left
         them unassigned). The Schedules week view was unstyled at first;
         see the stale build cache note in `docs/MEMORY.md`.
-- [ ] Phase 12 — Stabilize and hand over
+
+## v2.1 (UX pass on v2.0, not yet released)
+
+Built on `test/all-ux`, which merges the `fix/*` UX branches. No migrations.
+It ships through a PR to `master`, then gets a `v2.1` tag.
+
+- [x] Dialogs: height limit with scrolling, buttons pinned to the bottom,
+      trip record table fits its dialog, "Go back" wording to close them.
+- [x] Data freshness: refresh on screen open and focus, a Refresh button
+      with "Last updated", and Settings refreshes when data changes.
+- [x] Messages: plain-language API errors, success messages clear
+      automatically, and clearer empty states with icons.
+- [x] Home: cards show waiting work, and a Help dialog with "How this
+      works".
+- [x] New request: says which fields are still missing, labels and numbers
+      destinations, explains the edit date rule, asks before leaving
+      unsaved work. Booking Options is renamed to Request choices.
+- [x] Planner: starts the Trip Record with a return leg, has a Trip Record
+      checklist and warnings on each leg, explains legs and ANONANG, hints
+      how to fix an unusable vehicle, and shows a date legend with reasons
+      a date is unavailable.
+- [x] Statuses: one glossary for status words, used on every screen;
+      submitted schedules show as "Waiting for approval".
+- [x] Destructive actions: cancel and discard buttons are red, and
+      Remove leg asks first.
+- [x] Driver: shows when Complete trip unlocks, pre-fills the odometer,
+      warns on long trips, restates the distance before submitting.
+- [x] Phones: tables stack as cards, 44px touch targets, icon-only Help
+      and Refresh buttons.
+- [x] Look: darker low-contrast text, bigger helper text, sign-in polish,
+      account name in the top bar, footer below the page content.
+- [ ] Run `tsc`, lint and build, then open the release PR to `master`.
+- [ ] After the merge: tag `v2.0` on the pre-merge `master` and `v2.1` on
+      the merge commit, and update `docs/v2/git-and-release.md`.

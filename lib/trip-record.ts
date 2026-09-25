@@ -38,7 +38,7 @@ export type ScheduleState = "DRAFT" | "RETURNED" | "SUBMITTED" | "APPROVED" | "C
 export const scheduleStateLabel: Record<ScheduleState, string> = {
   DRAFT: "Draft",
   RETURNED: "Returned",
-  SUBMITTED: "Pending approval",
+  SUBMITTED: "Waiting for approval",
   APPROVED: "Approved",
   CANCELLED: "Cancelled",
 };
@@ -68,6 +68,12 @@ export const newLeg = (): LegDraft => ({
 
 export const finalLeg = (): LegDraft => ({ ...newLeg(), isFinal: true });
 
+/** The Time Out a new Trip Record starts with; the Scheduler can change it. */
+export const START_TIME = "08:00";
+
+/** A new Trip Record starts with one destination leg and the return leg to ANONANG. */
+export const initialLegs = (): LegDraft[] => [{ ...newLeg(), plannedTimeOut: START_TIME }, finalLeg()];
+
 export function stopsFor(requests: TransportRequest[]): StopInfo[] {
   return requests.flatMap((request) =>
     request.destinations.map((destination) => ({
@@ -91,8 +97,32 @@ export function legOrigins(legs: LegDraft[], destinationName: (id: string) => st
 }
 
 export const hasFinal = (legs: LegDraft[]) => legs.some((leg) => leg.isFinal);
-/** Add leg always leaves room for the final leg. */
-export const canAddLeg = (legs: LegDraft[]) => !hasFinal(legs) && legs.length < MAX_LEGS - 1;
+/** A destination leg fits while there is a free row; it goes in before the final leg. */
+export const canAddLeg = (legs: LegDraft[]) => legs.length < MAX_LEGS;
+/**
+ * Adds a destination leg before the final leg (or at the end when there is
+ * none). Its Time Out starts as the previous leg's Time In, when that is set.
+ */
+export function addLeg(legs: LegDraft[]): LegDraft[] {
+  const at = legs.findIndex((leg) => leg.isFinal);
+  const position = at === -1 ? legs.length : at;
+  const previousIn = legs[position - 1]?.plannedTimeIn ?? "";
+  const leg = { ...newLeg(), plannedTimeOut: validTime(previousIn) ? previousIn : "" };
+  return [...legs.slice(0, position), leg, ...legs.slice(position)];
+}
+
+/**
+ * Sets a leg's Time In. The next leg's Time Out is copied from it when that
+ * is still empty, since the vehicle leaves when it arrives; a Time Out the
+ * Scheduler already typed is never overwritten.
+ */
+export function setLegTimeIn(legs: LegDraft[], index: number, value: string): LegDraft[] {
+  return legs.map((leg, position) => {
+    if (position === index) return { ...leg, plannedTimeIn: value };
+    if (position === index + 1 && !leg.plannedTimeOut && validTime(value)) return { ...leg, plannedTimeOut: value };
+    return leg;
+  });
+}
 export const canAddFinal = (legs: LegDraft[]) =>
   !hasFinal(legs) && legs.length < MAX_LEGS && legs.some((leg) => !leg.isFinal);
 
@@ -106,6 +136,10 @@ export function moveLeg(legs: LegDraft[], index: number, delta: -1 | 1): LegDraf
 }
 
 export const removeLeg = (legs: LegDraft[], index: number) => legs.filter((_, position) => position !== index);
+
+/** Whether a leg holds anything the Scheduler entered; a default Time Out alone does not count. */
+export const legHasContent = (leg: LegDraft) =>
+  !!(leg.destinationId || leg.plannedTimeIn || leg.contactName.trim() || leg.contactNumber.trim() || leg.stops.length);
 
 /** Drops stops that no longer belong to a selected request. */
 export function keepStops(legs: LegDraft[], allowed: Set<string>): LegDraft[] {
@@ -189,6 +223,67 @@ export function tripProblems(input: {
     submit.push(`Put ${stop.requester}'s ${stop.destinationName} (${stop.purposeName}) on a leg.`);
   }
   return { save, submit };
+}
+
+/**
+ * What is still wrong with each leg, in leg order, so the form can show it on
+ * the leg itself. An unplaced stop lands on the first leg going to its
+ * destination; one with no such leg shows only in the checklist.
+ */
+export function legWarnings(legs: LegDraft[], stops: StopInfo[]): string[][] {
+  const warnings = legs.map(() => [] as string[]);
+  const { save } = tripProblems({ plate: "-", requestIds: ["-"], legs, stops });
+  for (const problem of save) {
+    const match = /^Leg (\d+): (.*)$/.exec(problem);
+    if (match) warnings[Number(match[1]) - 1]?.push(match[2].charAt(0).toUpperCase() + match[2].slice(1));
+  }
+  for (const stop of unassignedStops(stops, legs)) {
+    const index = legs.findIndex((leg) => !leg.isFinal && leg.destinationId === stop.destinationId);
+    if (index >= 0) warnings[index].push(`Tick ${stop.requester}'s ${stop.purposeName} under "Requests served here".`);
+  }
+  return warnings;
+}
+
+export type ChecklistItem = { label: string; done: boolean; detail?: string };
+
+/**
+ * What the Scheduler still has to do, as a checklist that fills in as the
+ * form does. It is derived from tripProblems, so it can never disagree with
+ * the rules that enable Save draft (the first four items) and Submit (all
+ * six). Problems on a leg show on that leg; an item's detail covers only what no leg can show.
+ */
+export function tripChecklist(input: {
+  plate: string;
+  hasDriver: boolean;
+  requestIds: string[];
+  legs: LegDraft[];
+  stops: StopInfo[];
+}): ChecklistItem[] {
+  const { save, submit } = tripProblems(input);
+  const about = (problems: string[], pattern: RegExp) => problems.filter((problem) => pattern.test(problem));
+  const destinations = about(save, /choose a destination/);
+  const times = about(save, /Time (In|Out)/);
+  const stops = about(submit, /^Put /);
+  // Stops that have a leg to go on are flagged on that leg; only the rest need a detail here.
+  const homeless = unassignedStops(input.stops, input.legs).filter(
+    (stop) => !input.legs.some((leg) => !leg.isFinal && leg.destinationId === stop.destinationId),
+  );
+  return [
+    { label: "Choose at least one request", done: input.requestIds.length > 0 },
+    {
+      label: "Choose a vehicle that has a Driver",
+      done: !!input.plate && input.hasDriver,
+      detail: input.plate && !input.hasDriver ? "This vehicle has no active Driver. An Admin assigns one in Settings." : undefined,
+    },
+    { label: "Choose a destination for every leg", done: input.legs.length > 0 && !destinations.length },
+    { label: "Enter Time Out and Time In for every leg", done: input.legs.length > 0 && !times.length },
+    {
+      label: "Put every requested stop on a leg",
+      done: input.stops.length > 0 && !stops.length,
+      detail: homeless.length ? `Add a leg to ${[...new Set(homeless.map((stop) => stop.destinationName))].join(", ")}.` : undefined,
+    },
+    { label: "End with the leg back to ANONANG", done: hasFinal(input.legs) },
+  ];
 }
 
 /** The reservation a set of legs would take: first Time Out to last Time In. */
