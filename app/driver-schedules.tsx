@@ -26,6 +26,7 @@ import {
 } from "@/lib/kova-api";
 import { stopsFor } from "@/lib/trip-record";
 import { hasTripEnded } from "@/lib/timezone";
+import { completionLabel } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (date: string) =>
@@ -131,7 +132,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
   }
 
   const statusOf = (trip: Trip) =>
-    trip.completion ? ["Submitted", "scheduled"] : trip.ended ? ["Ready to complete", "pending"] : ["Upcoming", "pending"];
+    trip.completion ? [completionLabel[trip.completion.status], "scheduled"] : trip.ended ? ["Ready to complete", "pending"] : ["Upcoming", "pending"];
 
   return (
     <>
