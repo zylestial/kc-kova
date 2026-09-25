@@ -285,6 +285,9 @@ export default function AdminFinishedTrips() {
           </div>
         ) : (
           <div className="empty">
+            <div className="empty-icon">
+              <CheckCircle2 size={30} />
+            </div>
             <h3>{trips.length ? "No matching finished trips" : "No finished trips yet"}</h3>
             <p>{trips.length ? "Try another filter." : "When a Driver submits a completed trip, it will appear here for you to review."}</p>
           </div>
