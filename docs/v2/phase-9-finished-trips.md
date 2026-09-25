@@ -107,8 +107,7 @@ the print view.
   width, fixed by widening both finished-trip dialogs.
 - **Not done:** no concurrency.sh race for Done against a correction, and
   a real paper print hasn't been checked (only print-media emulation).
-- **Left for cleanup:** the v1 record editor in `scheduler.tsx`
-  (`reviewRecordId` and `driverBooking` props, `PrintForm`) is no longer
-  reachable from any screen, and `getDriverTrips` in `kova-api.ts` is
-  unused. No phase is assigned to remove the v1 screens and code yet.
+- **Cleanup done in Phase 9b:** the v1 record editor in `scheduler.tsx`
+  and the rest of the v1 screens, routes, client code and tables were
+  removed (`docs/v2/phase-9b-remove-v1.md`).
 - **Local database only.** 0030 and 0031 are not applied to `kc-kova`.
