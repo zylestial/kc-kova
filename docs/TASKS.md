@@ -286,7 +286,7 @@ authoritative data.
         auto-filled. Older saved records must still load and submit without
         data loss under the new rule, and the leg list carries through to
         the PDF as today.
-- [ ] **Finance "Date Submitted" from `submittedAt`.** Backend sets
+- [x] **Finance "Date Submitted" from `submittedAt`.** Backend sets
       `submittedAt` once, authoritatively, on the Driver's successful
       submission — never reset by Admin edits, printing, or Mark as Done,
       and rejected if a client tries to supply/forge it directly. Finance
@@ -295,14 +295,14 @@ authoritative data.
       this default), distinct from the scheduled trip date, Finance
       processing date, and Done date. Carries through to the PDF.
       Historical `submittedAt` values must not be migrated/overwritten.
-- [ ] **Official logo + KOVA lockup.** Replace the placeholder logo with
+- [x] **Official logo + KOVA lockup.** Replace the placeholder logo with
       the official company logo (used as-is: no redraw/crop/stretch/
       recolor/substitute) on Sign In, the app header, and compact/mobile
       headers, arranged as `[logo] · KOVA` with "Kayelen's Operations and
       Vehicle Allocation" in smaller text beneath KOVA. Must wrap/scale
       cleanly on narrow screens without colliding with nav or Sign Out,
       and must still print clearly in the Daily Vehicle Record PDF header.
-- [ ] **Mobile Driver experience.** Audit and fix the full Driver journey
+- [x] **Mobile Driver experience.** Audit and fix the full Driver journey
       (Driver Home, My Schedule, Trip Details popup, DVR's Vehicle
       Details/Trip Record+Add Leg/Return steps, Review Trip, Submit Trip,
       Finished Trips, and the read-only submitted view) at ~320/375/430px
@@ -314,7 +314,7 @@ authoritative data.
       reachable while content scrolls, and an on-screen keyboard that
       never blocks the active field or the submit action. Desktop layout
       is unaffected.
-- [ ] **Mobile-responsive Booking Type + Approval flow.** The v1.1 screens
+- [x] **Mobile-responsive Booking Type + Approval flow.** The v1.1 screens
       (Booker Home, the 3-step booking flow including its new Booking Type
       dropdown/Urgent Reason field and "Your pending requests" panel, My
       Bookings, and Admin Booking Approvals) were built and verified on
