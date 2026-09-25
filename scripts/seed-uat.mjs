@@ -30,8 +30,8 @@ const admin = createClient(
 
 const ACCOUNTS = [
   { username: "admin1", name: "QA Admin", role: "Admin" },
-  { username: "booker1", name: "QA Booker One", role: "Booker" },
-  { username: "booker2", name: "QA Booker Two", role: "Booker" },
+  { username: "booker1", name: "QA Requester One", role: "Requester" },
+  { username: "booker2", name: "QA Requester Two", role: "Requester" },
   { username: "driver1", name: "QA Driver One", role: "Driver" },
   { username: "driver2", name: "QA Driver Two", role: "Driver" },
 ];

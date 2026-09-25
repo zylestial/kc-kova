@@ -257,36 +257,7 @@ authoritative data.
       end-to-end pass against the running dev server + local Supabase; see
       `docs/MEMORY.md` for two real bugs found and fixed during that
       verification.
-- [ ] **Trip leg buttons and final return.** Reworks Trip Record leg entry
-      to be Driver-button-driven instead of auto-generating a return leg.
-      - **Initial leg:** a new record starts with just LEG 01, Origin fixed
-        to ANONANG, Destination pre-filled from the booking's scheduled
-        Destination when available (Driver may edit the actual
-        Destination). No return leg is auto-created.
-      - **Buttons:** `+ ADD LEG` and `+ ADD FINAL LEG` render side by side
-        beneath the last leg's fields, and the row moves down to stay below
-        the last leg as more legs are added (stack instead of side-by-side
-        on narrow/mobile widths, both remaining easily tappable).
-      - **Add Leg:** appends a normal leg with Origin auto-set to the
-        preceding leg's Destination, Destination left editable, and every
-        previously entered field untouched.
-      - **Add Final Leg:** appends the one allowed return leg, with Origin
-        auto-set to the preceding leg's Destination and Destination fixed
-        to ANONANG (read-only); Time Out/Time In/Requestor/Purpose-Activity/
-        contact fields stay optional and editable. Only one final leg is
-        allowed at a time — both buttons hide while it exists. The Driver
-        may remove it before submission, which re-shows both buttons below
-        the new last leg. While present, its Origin stays in sync if the
-        preceding leg's Destination changes.
-      - **Validation:** the route must start and end at ANONANG, and every
-        Origin after the first must match the preceding leg's Destination,
-        both enforced client-side and re-checked server-side on submission;
-        a missing final leg blocks submission with "Add a final leg to
-        return to ANONANG." Actual trip times (Time Out/Time In) are never
-        auto-filled. Older saved records must still load and submit without
-        data loss under the new rule, and the leg list carries through to
-        the PDF as today.
-- [ ] **Finance "Date Submitted" from `submittedAt`.** Backend sets
+- [x] **Finance "Date Submitted" from `submittedAt`.** Backend sets
       `submittedAt` once, authoritatively, on the Driver's successful
       submission — never reset by Admin edits, printing, or Mark as Done,
       and rejected if a client tries to supply/forge it directly. Finance
@@ -295,14 +266,14 @@ authoritative data.
       this default), distinct from the scheduled trip date, Finance
       processing date, and Done date. Carries through to the PDF.
       Historical `submittedAt` values must not be migrated/overwritten.
-- [ ] **Official logo + KOVA lockup.** Replace the placeholder logo with
+- [x] **Official logo + KOVA lockup.** Replace the placeholder logo with
       the official company logo (used as-is: no redraw/crop/stretch/
       recolor/substitute) on Sign In, the app header, and compact/mobile
       headers, arranged as `[logo] · KOVA` with "Kayelen's Operations and
       Vehicle Allocation" in smaller text beneath KOVA. Must wrap/scale
       cleanly on narrow screens without colliding with nav or Sign Out,
       and must still print clearly in the Daily Vehicle Record PDF header.
-- [ ] **Mobile Driver experience.** Audit and fix the full Driver journey
+- [x] **Mobile Driver experience.** Audit and fix the full Driver journey
       (Driver Home, My Schedule, Trip Details popup, DVR's Vehicle
       Details/Trip Record+Add Leg/Return steps, Review Trip, Submit Trip,
       Finished Trips, and the read-only submitted view) at ~320/375/430px
@@ -314,7 +285,7 @@ authoritative data.
       reachable while content scrolls, and an on-screen keyboard that
       never blocks the active field or the submit action. Desktop layout
       is unaffected.
-- [ ] **Mobile-responsive Booking Type + Approval flow.** The v1.1 screens
+- [x] **Mobile-responsive Booking Type + Approval flow.** The v1.1 screens
       (Booker Home, the 3-step booking flow including its new Booking Type
       dropdown/Urgent Reason field and "Your pending requests" panel, My
       Bookings, and Admin Booking Approvals) were built and verified on
@@ -409,8 +380,8 @@ pending approval; nothing has started.
         `40001` for stale saves, which PostgREST retries forever, so the
         HTTP call hangs. Switch them to `PT409` the way 0025 did for
         `update_request`. Done in Phase 5 (migration 0026).
-  - [ ] Move `scripts/seed-uat.mjs` from `Booker` to `Requester` when
-        0023 is applied to `kc-kova`.
+  - [x] Move `scripts/seed-uat.mjs` from `Booker` to `Requester` when
+        0023 is applied to `kc-kova`. Done after the 2026-09-25 release.
 - [x] Phase 5 — Scheduler planning and Trip Record. See
       `docs/v2/phase-5-scheduling.md`, branch `feat/v2-scheduling`
       (stacked on `feat/v2-requests`): Create schedule (day, request pool,
