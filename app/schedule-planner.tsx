@@ -498,6 +498,16 @@ export default function SchedulePlanner({
                 <Input value={driver?.name ?? ""} placeholder="Follows the vehicle" readOnly />
               </label>
             </div>
+            {!vehicles.some((vehicle) => vehicle.status === "Active") ? (
+              <p className="helper">There are no active vehicles. An Admin adds them in Settings, under Vehicles.</p>
+            ) : (
+              vehicles.some((vehicle) => vehicle.status === "Active" && !driverFor(vehicle.plate)) && (
+                <p className="helper">
+                  A vehicle marked &quot;no Driver assigned&quot; can&apos;t be used yet. An Admin assigns a Driver in Settings,
+                  under Vehicles.
+                </p>
+              )
+            )}
             {clashes.length > 0 && (
               <p className="field-hint planner-clash" role="alert">
                 {clashes
