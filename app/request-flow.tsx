@@ -14,6 +14,7 @@ import {
 import { createRequest, currentAccount, getBookingOptions } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { requestDraftHasContent, useUnsavedChanges } from "@/lib/unsaved-changes";
+import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 import RequestFields, {
   draftComplete,
   draftToInput,
@@ -210,6 +211,9 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
               {draft.requestType === "URGENT" ? "Urgent" : "Regular"} · {draft.destinations.length}{" "}
               {draft.destinations.length === 1 ? "destination" : "destinations"}
             </span>
+          )}
+          {step === 2 && (
+            <span role="status">{stillNeeded(requestDraftMissing(draft)) || dateHint}</span>
           )}
         </div>
         <Button
