@@ -20,7 +20,9 @@ go-ahead first (`docs/RULES.md`, prohibited approaches). Rollback is in
   (`docs/MEMORY.md`, "No live production data exists yet"). If real data
   exists, the Preview credential-sharing decision in `environment-map.md`
   must be revisited first.
-- [ ] The Supabase plan has a restore path (see `rollback-runbook.md` §2).
+- [ ] Either the database holds only test data (rollback is reset and
+  reseed, `rollback-runbook.md` §1a), or the Supabase plan has a restore
+  path (`rollback-runbook.md` §2).
 - [ ] The owner has given separate release approval for this run.
 
 ## 2. Preflight (read-only against production)
@@ -48,7 +50,10 @@ done for 0006 to 0009.
 
 ## 4. Backup
 
-Write dumps to a local, gitignored path and never print them.
+Write dumps to a local, gitignored path and never print them. While the
+database holds only test data, a quick dump is a convenience copy: the
+rollback is reset and reseed, so the checks below are still worth doing but
+a problem with the dump need not hold up the release.
 
 1. `supabase db dump --linked -f <schema.sql>` and
    `supabase db dump --linked --data-only -f <data.sql>`.
