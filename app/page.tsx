@@ -556,11 +556,13 @@ export default function Home() {
             </div>
           </>
         )}
-        <footer>
+      </main>
+      <footer className="app-footer">
+        <div>
           <span>KOVA</span>
           <span>Kayelen&apos;s Operations and Vehicle Allocation</span>
-        </footer>
-      </main>
+        </div>
+      </footer>
     </div>
   );
 }
