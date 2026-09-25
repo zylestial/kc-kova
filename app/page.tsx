@@ -14,11 +14,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   hydrateKovaData,
+  getCancellations,
+  getCompletions,
+  getProblems,
+  getRequests,
+  getSchedules,
   restoreSession,
   signIn,
   signOut as endSession,
   type Account,
 } from "@/lib/kova-api";
+import { homeCounts } from "@/lib/home-counts";
 import Settings from "./settings";
 import DriverFinishedTrips from "./driver-finished-trips";
 import DriverSchedules from "./driver-schedules";
@@ -43,6 +49,27 @@ type Screen =
 // Opening a screen or returning to the tab reloads the data, but not more
 // often than this, so switching screens quickly doesn't hammer the server.
 const REFRESH_MIN_GAP_MS = 15_000;
+function HomeCard({
+  icon,
+  label,
+  count,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count?: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button variant="outline" onClick={onClick}>
+      {icon}
+      <span className="home-label">
+        {label}
+        {count && <small className="home-count">{count}</small>}
+      </span>
+    </Button>
+  );
+}
 const home = (role: Account["role"]): Screen =>
   role === "Requester"
     ? "requester-home"
@@ -96,6 +123,13 @@ export default function Home() {
       })
       .catch((caught) => setError((caught as Error).message))
       .finally(() => setLoading(false));
+  }, []);
+  // Re-render the Home counts whenever the app's data is reloaded.
+  const [, setDataVersion] = useState(0);
+  useEffect(() => {
+    const onUpdate = () => setDataVersion((version) => version + 1);
+    window.addEventListener("kova-data-update", onUpdate);
+    return () => window.removeEventListener("kova-data-update", onUpdate);
   }, []);
   useEffect(() => {
     if (account) void refreshData();
@@ -207,6 +241,13 @@ export default function Home() {
         </form>
       </div>
     );
+  const counts = homeCounts(account, {
+    requests: getRequests(),
+    schedules: getSchedules(),
+    cancellations: getCancellations(),
+    completions: getCompletions(),
+    problems: getProblems(),
+  });
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -353,91 +394,87 @@ export default function Home() {
             <div className="home-options">
               {account.role === "Driver" ? (
                 <>
-                  <Button
-                    variant="outline"
+                  <HomeCard
+                    icon={<CalendarDays size={24} />}
+                    label="My Schedule"
+                    count={counts["my-schedule"]}
                     onClick={() => setScreen("my-schedule")}
-                  >
-                    <CalendarDays size={24} /> My Schedule
-                  </Button>
-                  <Button
-                    variant="outline"
+                  />
+                  <HomeCard
+                    icon={<CheckCircle2 size={24} />}
+                    label="Finished Trips"
                     onClick={() => setScreen("finished")}
-                  >
-                    <CheckCircle2 size={24} /> Finished Trips
-                  </Button>
+                  />
                 </>
               ) : account.role === "Requester" ? (
                 <>
-                  <Button
-                    variant="outline"
+                  <HomeCard
+                    icon={<FilePlus2 size={24} />}
+                    label="New request"
                     onClick={() => setScreen("new-request")}
-                  >
-                    <FilePlus2 size={24} /> New request
-                  </Button>
-                  <Button
-                    variant="outline"
+                  />
+                  <HomeCard
+                    icon={<ClipboardList size={24} />}
+                    label="My requests"
+                    count={counts["my-requests"]}
                     onClick={() => setScreen("my-requests")}
-                  >
-                    <ClipboardList size={24} /> My requests
-                  </Button>
+                  />
                 </>
               ) : account.role === "Scheduler" ? (
                 <>
-                  <Button
-                    variant="outline"
+                  <HomeCard
+                    icon={<CalendarPlus size={24} />}
+                    label="Create schedule"
+                    count={counts["create-schedule"]}
                     onClick={() => {
                       setEditScheduleId(undefined);
                       setScreen("create-schedule");
                     }}
-                  >
-                    <CalendarPlus size={24} /> Create schedule
-                  </Button>
-                  <Button
-                    variant="outline"
+                  />
+                  <HomeCard
+                    icon={<CalendarDays size={24} />}
+                    label="Schedules"
+                    count={counts["schedules"]}
                     onClick={() => {
                       setScheduleDate(undefined);
                       setScreen("schedules");
                     }}
-                  >
-                    <CalendarDays size={24} /> Schedules
-                  </Button>
+                  />
                 </>
               ) : (
                 <>
-                  <Button
-                    variant="outline"
+                  <HomeCard
+                    icon={<FilePlus2 size={24} />}
+                    label="New request"
                     onClick={() => setScreen("new-request")}
-                  >
-                    <FilePlus2 size={24} /> New request
-                  </Button>
-                  <Button
-                    variant="outline"
+                  />
+                  <HomeCard
+                    icon={<ClipboardList size={24} />}
+                    label="My requests"
+                    count={counts["my-requests"]}
                     onClick={() => setScreen("my-requests")}
-                  >
-                    <ClipboardList size={24} /> My requests
-                  </Button>
-                  <Button
-                    variant="outline"
+                  />
+                  <HomeCard
+                    icon={<CalendarDays size={24} />}
+                    label="Schedules"
+                    count={counts["schedules"]}
                     onClick={() => {
                       setScheduleDate(undefined);
                       setScheduleNotice("");
                       setScreen("schedules");
                     }}
-                  >
-                    <CalendarDays size={24} /> Schedules
-                  </Button>
-                  <Button
-                    variant="outline"
+                  />
+                  <HomeCard
+                    icon={<CheckCircle2 size={24} />}
+                    label="Finished Trips"
+                    count={counts["finished"]}
                     onClick={() => setScreen("finished")}
-                  >
-                    <CheckCircle2 size={24} /> Finished Trips
-                  </Button>
-                  <Button
-                    variant="outline"
+                  />
+                  <HomeCard
+                    icon={<SettingsIcon size={24} />}
+                    label="Settings"
                     onClick={() => setScreen("settings")}
-                  >
-                    <SettingsIcon size={24} /> Settings
-                  </Button>
+                  />
                 </>
               )}
             </div>
