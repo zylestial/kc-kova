@@ -282,8 +282,8 @@ export default function AdminFinishedTrips() {
           </div>
         ) : (
           <div className="empty">
-            <h3>No matching finished trips</h3>
-            <p>{trips.length ? "Try another filter." : "Driver-submitted trips will appear here."}</p>
+            <h3>{trips.length ? "No matching finished trips" : "No finished trips yet"}</h3>
+            <p>{trips.length ? "Try another filter." : "When a Driver submits a completed trip, it will appear here for you to review."}</p>
           </div>
         )}
       </section>
