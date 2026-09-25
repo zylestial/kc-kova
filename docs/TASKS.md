@@ -468,9 +468,12 @@ pending approval; nothing has started.
   across all four roles passed; pgTAP 230/230, vitest 80/80, tsc, lint and
   build clean. Not covered: browser and print screens, the concurrency
   script, hosted environments. Local only, no app code changed.
-- [ ] Phase 11 — Release through the same Vercel project
+- [x] Phase 11 — Release through the same Vercel project
   - [x] Cutover and rollback runbooks written
-        (`docs/v2/cutover-runbook.md`, `rollback-runbook.md`); not run
-        against production.
-  - [ ] Release approval, preflight, backup, cutover, verification
+        (`docs/v2/cutover-runbook.md`, `rollback-runbook.md`).
+  - [x] Released 2026-09-25: #40 merged to `master`, migrations 0012 to
+        0032 applied to production, `migration list --linked` shows all 32.
+  - [ ] Still to do by hand: sign in as each role (a former Booker as a
+        Requester), and assign a Driver to each vehicle (0012 leaves them
+        unassigned).
 - [ ] Phase 12 — Stabilize and hand over
