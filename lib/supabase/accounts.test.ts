@@ -17,7 +17,7 @@ describe("toAccount", () => {
       id: "11111111-1111-1111-1111-111111111111",
       username: "jane",
       name: "Jane Doe",
-      role: "Booker",
+      role: "Requester",
       status: "Active",
       project: "Site A",
     });
@@ -25,7 +25,7 @@ describe("toAccount", () => {
       id: "11111111-1111-1111-1111-111111111111",
       name: "Jane Doe",
       username: "jane",
-      role: "Booker",
+      role: "Requester",
       status: "Active",
       project: "Site A",
     });

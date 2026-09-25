@@ -39,6 +39,7 @@ yarn-error.log*
 *.sql
 !supabase/migrations/*.sql
 !supabase/seed.sql
+!supabase/tests/*.test.sql
 
 # typescript
 next-env.d.ts
