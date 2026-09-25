@@ -473,7 +473,8 @@ pending approval; nothing has started.
         (`docs/v2/cutover-runbook.md`, `rollback-runbook.md`).
   - [x] Released 2026-09-25: #40 merged to `master`, migrations 0012 to
         0032 applied to production, `migration list --linked` shows all 32.
-  - [ ] Still to do by hand: sign in as each role (a former Booker as a
-        Requester), and assign a Driver to each vehicle (0012 leaves them
-        unassigned).
+  - [x] Checked by the owner by hand after release: role sign-ins (no
+        problems reported) and a Driver assigned to each vehicle (0012 left
+        them unassigned). The Schedules week view was unstyled at first;
+        see the stale build cache note in `docs/MEMORY.md`.
 - [ ] Phase 12 — Stabilize and hand over
