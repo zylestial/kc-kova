@@ -36,7 +36,7 @@ type Draft = {
   accountId?: string;
 };
 const groups: [Group, string, string, string][] = [
-  ["projects", "Projects / Departments", "Project / Department", "Add"],
+  ["projects", "Projects / Sites", "Project / Site", "Add"],
   ["people", "People", "Person", "Add"],
   ["destinations", "Destinations", "Destination", "Add Destination"],
   ["purposes", "Purposes", "Purpose", "Add Purpose"],
@@ -123,7 +123,7 @@ export default function BookingOptions() {
     <div className="booking-options">
       <div className="page-heading">
         <div>
-          <h2>Booking Options</h2>
+          <h2>Request choices</h2>
           <p>Manage choices used when creating requests.</p>
         </div>
       </div>
@@ -159,7 +159,7 @@ export default function BookingOptions() {
                     <thead>
                       <tr>
                         <th>NAME</th>
-                        {group === "people" && <th>PROJECT / DEPARTMENT</th>}
+                        {group === "people" && <th>PROJECT / SITE</th>}
                         <th>STATUS</th>
                         <th />
                       </tr>
@@ -210,7 +210,7 @@ export default function BookingOptions() {
                   <p>
                     {group === "people" &&
                     !options.projects.some((p) => p.status === "Active")
-                      ? "Add an active Project / Department first."
+                      ? "Add an active Project / Site first."
                       : "Add one to make it available for new requests."}
                   </p>
                 </div>
@@ -247,7 +247,7 @@ export default function BookingOptions() {
             </label>
             {modal?.group === "people" && (
               <div className="field">
-                <span>Project / Department *</span>
+                <span>Project / Site *</span>
                 <div className="person-projects">
                   {options.projects
                     .filter(
