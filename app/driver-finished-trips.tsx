@@ -100,6 +100,9 @@ export default function DriverFinishedTrips() {
           </div>
         ) : (
           <div className="empty">
+            <div className="empty-icon">
+              <CheckCircle2 size={30} />
+            </div>
             <h3>No finished trips yet</h3>
             <p>Trips you complete will appear here.</p>
           </div>
