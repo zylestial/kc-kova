@@ -26,7 +26,7 @@ import {
   type TripCompletion,
 } from "@/lib/kova-api";
 import { stopsFor } from "@/lib/trip-record";
-import { hasTripEnded } from "@/lib/timezone";
+import { hasTripEnded, manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
@@ -40,7 +40,17 @@ type Trip = {
   completion?: TripCompletion;
   problems: ProblemReport[];
   ended: boolean;
+  /** When Complete trip unlocks, e.g. "3:58 PM", or "Sep 26, 3:58 PM" on a later day. */
+  availableAt: string;
 };
+
+function availableAtLabel(date: string, timeIn: string): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(timeIn);
+  if (!match) return "the last planned Time In";
+  const hours = Number(match[1]);
+  const time = `${hours % 12 || 12}:${match[2]} ${hours < 12 ? "AM" : "PM"}`;
+  return date === manilaToday() ? time : `${dateLabel(date)}, ${time}`;
+}
 
 function loadTrips(driverId: string): Trip[] {
   const completions = getCompletions();
@@ -58,6 +68,7 @@ function loadTrips(driverId: string): Trip[] {
           completion: completions.find((item) => item.scheduleId === schedule.id),
           problems: problems.filter((item) => item.scheduleId === schedule.id),
           ended: hasTripEnded(schedule.date, lastIn),
+          availableAt: availableAtLabel(schedule.date, lastIn),
         },
       ];
     })
@@ -238,7 +249,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
                 </p>
               ))}
               {!selected.completion && !selected.ended && (
-                <p className="helper">You can complete this trip after its last planned Time In.</p>
+                <p className="helper">Complete trip is available after {selected.availableAt}.</p>
               )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setMode("problem")}>
