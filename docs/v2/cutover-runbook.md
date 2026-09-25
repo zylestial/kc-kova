@@ -41,10 +41,20 @@ connection string in a command or a chat.
 4. Take the backup (section 4) and verify it, now, so a problem shows up
    before the release window.
 
+**Preflight result, 2026-09-25:** production has migrations 0001 to 0011
+applied, so 0012 (vehicle-driver assignment) is missing as well as 0013 to
+0032. The owner confirmed there is no real data, so 0032 dropping
+`bookings`, `booking_slots`, `vehicle_records` and `vehicle_aliases` is
+accepted (the data dump did contain rows for them, all test data). A local
+rehearsal from 0011 applied 0012 to 0032 in one `migration up` with no
+errors, so a single `supabase db push` at cutover is a tested path and
+section 3 is optional.
+
 ## 3. Ahead of cutover (additive, v1.2 keeps working)
 
-Apply 0013 to 0022 with `supabase db push` if step 2.2 shows they are
-missing. They only add tables, functions and policies. Check afterwards with
+Optional. Apply 0012 to 0022 with `supabase db push` if you want them in
+before the release window, and step 2.2 shows they are missing. Otherwise
+they go in with the cutover push. They only add tables, functions and policies. Check afterwards with
 a read-only schema dump that the expected tables and policies exist, as was
 done for 0006 to 0009.
 
@@ -98,6 +108,8 @@ so pausing writes means telling them not to use KOVA during the window.
 
 ## 7. After cutover
 
+- **Assign a Driver to each vehicle** (Admin, vehicles screen). 0012 adds
+  `assigned_driver_id` empty; production vehicles start with none.
 - Re-read `environment-map.md`: v1.2 previews (`v1-maintenance`) now point at
   a v2 database and will not work.
 - If real users and data are about to enter, clear the test data as the owner
