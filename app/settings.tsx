@@ -274,7 +274,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           <h1>
             Settings<span className="title-dot">.</span>
           </h1>
-          <p>Manage KOVA accounts, vehicles and booking choices.</p>
+          <p>Manage KOVA accounts, vehicles and request choices.</p>
         </div>
       </div>
       {notice && (
@@ -286,7 +286,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         <TabsList>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>
           <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
-          <TabsTrigger value="options">Booking Options</TabsTrigger>
+          <TabsTrigger value="options">Request choices</TabsTrigger>
         </TabsList>
       </Tabs>
       {error && (
@@ -560,7 +560,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
               {vehicleModal === "add" ? "Add Vehicle" : "Edit Vehicle"}
             </DialogTitle>
             <DialogDescription>
-              Manage which vehicles are available in Schedule.
+              Manage which vehicles are available in Schedule. Inactive vehicles can&apos;t be chosen for new schedules.
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
