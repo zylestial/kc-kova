@@ -8,6 +8,7 @@ import {
   FilePlus2,
   Settings as SettingsIcon,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,16 +64,28 @@ export default function Home() {
   const [scheduleNotice, setScheduleNotice] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string | undefined>();
   const lastRefresh = useRef(0);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
   // Sign-in and session restore have just loaded everything.
   const dataIsFresh = () => {
     lastRefresh.current = Date.now();
+    setUpdatedAt(new Date());
+    setRefreshFailed(false);
   };
-  const refreshData = useCallback(async () => {
-    if (Date.now() - lastRefresh.current < REFRESH_MIN_GAP_MS) return;
+  const refreshData = useCallback(async (force = false) => {
+    if (!force && Date.now() - lastRefresh.current < REFRESH_MIN_GAP_MS) return;
     lastRefresh.current = Date.now();
-    // A failed background refresh keeps what is on screen; the next
-    // screen change or return to the tab tries again.
-    await hydrateKovaData().catch(() => undefined);
+    setRefreshing(true);
+    // A failed refresh keeps what is on screen and says so; the next
+    // screen change, return to the tab or Refresh press tries again.
+    await hydrateKovaData()
+      .then(() => {
+        setUpdatedAt(new Date());
+        setRefreshFailed(false);
+      })
+      .catch(() => setRefreshFailed(true));
+    setRefreshing(false);
   }, []);
   useEffect(() => {
     restoreSession()
@@ -200,6 +213,19 @@ export default function Home() {
         <KovaBrand />
         <div className="workspace-label">OPERATIONS</div>
         <div className="account">{account.name.slice(0, 2).toUpperCase()}</div>
+        <div className="refresh-control">
+          <span className="last-updated" role="status">
+            {refreshFailed
+              ? "Couldn't refresh. Showing older data."
+              : updatedAt
+                ? `Updated ${updatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                : ""}
+          </span>
+          <Button variant="ghost" disabled={refreshing} onClick={() => void refreshData(true)}>
+            <RefreshCw size={15} className={refreshing ? "animate-spin" : undefined} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+        </div>
         <Button variant="ghost" onClick={signOut}>
           Sign Out
         </Button>
