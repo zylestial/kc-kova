@@ -316,18 +316,25 @@ describe("tripChecklist", () => {
     expect(items.map((item) => item.done)).toEqual([false, false, false, false, false, true]);
   });
 
-  it("names the legs whose times are missing", () => {
+  it("leaves missing times to the leg, with no checklist detail", () => {
     const legs = [{ ...complete[0], plannedTimeIn: "" }, complete[1], complete[2]];
     const times = tripChecklist({ ...base, legs })[3];
     expect(times.done).toBe(false);
-    expect(times.detail).toBe("Leg 1: enter planned Time Out and Time In.");
+    expect(times.detail).toBeUndefined();
   });
 
-  it("names a requested stop that is not on any leg", () => {
+  it("leaves a stop to its leg when a leg goes to that destination", () => {
     const legs = [complete[0], { ...complete[1], stops: [] }, complete[2]];
     const item = tripChecklist({ ...base, legs })[4];
     expect(item.done).toBe(false);
-    expect(item.detail).toBe("Put Maria's Port Office (Inspection) on a leg.");
+    expect(item.detail).toBeUndefined();
+  });
+
+  it("names a destination that has no leg to put its stop on", () => {
+    const legs = [complete[0], complete[2]];
+    const item = tripChecklist({ ...base, legs })[4];
+    expect(item.done).toBe(false);
+    expect(item.detail).toBe("Add a leg to Port Office.");
   });
 
   it("explains a vehicle with no Driver", () => {
