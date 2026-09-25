@@ -30,7 +30,7 @@ type Account = {
   id: string;
   name: string;
   username: string;
-  role: "Booker" | "Driver" | "Admin";
+  role: "Requester" | "Scheduler" | "Admin" | "Driver";
   status: "Active" | "Inactive";
   project?: string;
 };
@@ -45,7 +45,7 @@ const blankAccount = () => ({
   name: "",
   username: "",
   password: "",
-  role: "Booker" as Account["role"],
+  role: "Requester" as Account["role"],
   status: "Active" as Account["status"],
   project: "Unassigned",
 });
@@ -418,7 +418,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
             </DialogTitle>
             <DialogDescription>
               {accountModal === "add"
-                ? "Preview an account as a Booker, Driver or Admin."
+                ? "Add a Requester, Scheduler, Admin or Driver account."
                 : "Update this account. Inactive accounts cannot sign in."}
             </DialogDescription>
           </DialogHeader>
@@ -446,7 +446,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
             <Choice
               label="Account Type"
               value={account.role}
-              items={["Booker", "Driver", "Admin"]}
+              items={["Requester", "Scheduler", "Admin", "Driver"]}
               onChange={(v) => setAccount({ ...account, role: v })}
             />
             <Choice

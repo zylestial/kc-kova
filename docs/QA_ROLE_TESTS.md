@@ -1,12 +1,12 @@
 # Role-Based QA Test Plan
 
-Manual test plan for Admin, Booker, and Driver flows, covering v1.1's
+Manual test plan for Admin, Requester, and Driver flows, covering v1.1's
 Booking Type + universal Admin approval flow: every new booking is created
 `PENDING` (holds no slot) until an Admin approves it (→ `SCHEDULED`,
 reserving the slot) or denies it (→ `REJECTED`). Run as one continuous
 session per account, in the order below, so you sign in once per account
 and do everything for that account before switching. Two accounts
-(`booker2`, `admin1`) are revisited later because a later account's action
+(`requester2`, `admin1`) are revisited later because a later account's action
 changes what the earlier account can test — those spots are called out as
 **Prerequisite** notes.
 
@@ -15,19 +15,19 @@ changes what the earlier account can test — those spots are called out as
 | Username | Role   | Notes                     |
 |----------|--------|----------------------------|
 | admin1   | Admin  | Full access                |
-| booker1  | Booker | Owns Bookings A, C         |
-| booker2  | Booker | Owns Booking B             |
+| requester1  | Requester | Owns Bookings A, C         |
+| requester2  | Requester | Owns Booking B             |
 | driver1  | Driver | Assigned to Bookings A, B  |
 | driver2  | Driver | Assigned to Booking C      |
 
 ## Session order
 
 1. admin1 — setup (§1)
-2. booker1 (§2)
-3. booker2 (§3)
+2. requester1 (§2)
+3. requester2 (§3)
 4. admin1 — approve Bookings A, B, C (§4)
 5. driver1 (§5), prerequisite: §4
-6. booker2 — revisit, prerequisite: driver1's DVR submission in §5 (§6)
+6. requester2 — revisit, prerequisite: driver1's DVR submission in §5 (§6)
 7. driver2 (§7), prerequisite: §4
 8. admin1 — revisit, prerequisite: driver1's DVR submission in §5 (§8)
 9. Final basic checks (§9)
@@ -37,7 +37,7 @@ changes what the earlier account can test — those spots are called out as
 ## 1. Session: admin1 — setup
 
 1. Sign in as `admin1`.
-2. Create `booker1`, `booker2`, `driver1`, and `driver2` through the
+2. Create `requester1`, `requester2`, `driver1`, and `driver2` through the
    normal Admin account-management flow.
 3. Reset a password for one of them.
 4. Add a vehicle.
@@ -54,9 +54,9 @@ Sign out of admin1.
 
 ---
 
-## 2. Session: booker1
+## 2. Session: requester1
 
-1. Sign in as `booker1`.
+1. Sign in as `requester1`.
 2. Open the schedule and confirm existing bookings and unavailable times
    are visible — a `PENDING` booking never blocks a slot, only `SCHEDULED`
    ones do.
@@ -65,7 +65,7 @@ Sign out of admin1.
    Regular** (needs a date at least 7 days out — you'll see a warning and
    Confirm stays disabled if the date is too soon). Submit.
 4. Confirm the result says **"Request submitted — pending approval"**,
-   status **Pending**, and Requested By: booker1 — not Scheduled yet.
+   status **Pending**, and Requested By: requester1 — not Scheduled yet.
 5. Create **Booking C**, assign `driver2`. For Destination and Purpose,
    choose "Other…" and type a custom value. Choose **Booking Type:
    Urgent** — note the Notes field is replaced by a required Urgent
@@ -81,26 +81,26 @@ Sign out of admin1.
 
 - [ ] Pass/Fail
 
-Sign out of booker1.
+Sign out of requester1.
 
 ---
 
-## 3. Session: booker2
+## 3. Session: requester2
 
-1. Sign in as `booker2`.
+1. Sign in as `requester2`.
 2. Create **Booking B**, assign `driver1`, using a time window that will
    have already ended by the time you reach driver1's session (§5).
    Choose either Booking Type (Regular 7+ days out, or Urgent with a
    reason).
 3. Confirm it shows status **Pending**.
-4. Open one of booker1's bookings (A or C).
+4. Open one of requester1's bookings (A or C).
 
-**Expected:** Booking B is created Pending; booker1's booking is viewable
+**Expected:** Booking B is created Pending; requester1's booking is viewable
 but has no edit/cancel controls.
 
 - [ ] Pass/Fail
 
-Sign out of booker2.
+Sign out of requester2.
 
 ---
 
@@ -155,11 +155,11 @@ Sign out of driver1.
 
 ---
 
-## 6. Session: booker2 (revisit)
+## 6. Session: requester2 (revisit)
 
 **Prerequisite:** §5 (driver1 submitted Booking B's DVR).
 
-1. Sign in as `booker2`.
+1. Sign in as `requester2`.
 2. Open Booking B.
 
 **Expected:** Booking B can no longer be edited or cancelled once a
@@ -167,7 +167,7 @@ vehicle record has been submitted for it.
 
 - [ ] Pass/Fail
 
-Sign out of booker2.
+Sign out of requester2.
 
 ---
 
@@ -226,7 +226,7 @@ Sign out of admin1.
       editing only Notes/Destination/Purpose does not.
 - [ ] Renaming a vehicle does not break older bookings using that
       vehicle — including any still-Pending ones.
-- [ ] A non-owner, non-Admin Booker cannot see another Booker's Pending
+- [ ] A non-owner, non-Admin Requester cannot see another Requester's Pending
       booking they have no relationship to.
 
 Any failing item should be filed with: role/account used, exact steps,

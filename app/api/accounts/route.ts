@@ -4,7 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
 import { requireAccount } from "@/lib/supabase/session";
 
-const ROLES = ["Booker", "Driver", "Admin"] as const;
+const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const;
 const STATUSES = ["Active", "Inactive"] as const;
 
 export async function POST(request: Request) {

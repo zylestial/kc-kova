@@ -19,14 +19,13 @@ app/                    Next.js App Router: pages (client components) + API rout
     bootstrap/          GET: one-shot hydration payload for the signed-in role
     accounts/           Admin: create/update accounts, reset passwords
     vehicles/           Admin: create/rename vehicles
-    bookings/           Booker/Admin: create/update/cancel bookings
-    records/            Driver/Admin: submit and review Daily Vehicle Records
+    requests/           Requester/Admin: create/edit v2 transport requests
+    schedules/          Scheduler: create, save, submit, discard; Admin: approve, return
     booking-options/    Admin: Projects/Destinations/Purposes/People
-  *.tsx                 Screens (scheduler, driver-trips, settings, etc.) — client components
+  *.tsx                 Screens (my-requests, schedules, admin-finished-trips, settings, etc.) — client components
 lib/
-  kova-api.ts           Typed frontend adapter: every fetch to /api/**, plus client-side
-                         helper logic (canManageBooking, canFinishTrip, validateDriverSubmission)
-                         used for UI affordances only — never trusted as the real check
+  kova-api.ts           Typed frontend adapter: every fetch to /api/**, plus the in-memory
+                         cache the screens read from
   supabase/
     server.ts           Cookie-bound Supabase client for use inside route handlers (RLS applies)
     admin.ts             Service-role client (RLS bypassed) — only for operations an
@@ -34,7 +33,6 @@ lib/
     accounts.ts          username <-> synthetic-email mapping, DB row -> Account mapping
     session.ts           requireAccount(): resolve the signed-in Account or null
     mappers.ts            snake_case DB rows -> the camelCase types in kova-api.ts
-    records.ts            Vehicle record business-rule helpers (diffing, ANONANG check, etc.)
     login-rate-limit.ts    Sign-in throttling backed by the login_attempts table
 supabase/
   migrations/            Schema + RLS policies + RPC functions, applied in order
@@ -50,7 +48,7 @@ Browser (React client components)
     -> app/api/**/route.ts (Next.js route handler, runs server-side)
       -> lib/supabase/server.ts client (cookie-scoped, RLS enforced)
          or lib/supabase/admin.ts client (service role, RLS bypassed —
-         only for Auth user management and vehicle_records writes, see below)
+         only for Auth user management, see below)
         -> Supabase Postgres (tables + RLS policies + RPC functions)
 ```
 
@@ -82,7 +80,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 
 1. **Row Level Security policies** (`supabase/migrations/0001_init.sql`,
    restructured by `0007_rls_policies_per_operation.sql`) — the default and
-   preferred layer. `accounts`, `vehicles`, `vehicle_aliases`,
+   preferred layer. `accounts`, `vehicles`,
    `booking_options`, and `people` all have a `for select` policy open to
    any authenticated user and separate `for insert` / `for update` /
    `for delete` policies (`using (is_admin((select auth.uid())))`, `insert`/
@@ -95,32 +93,23 @@ KOVA enforces permissions in two places, and both must independently hold:
 
 2. **Postgres RPC functions**, `security definer`, for anything that must be
    atomic across multiple rows or needs logic RLS can't express:
-   - `create_booking` / `update_booking` / `cancel_booking`
-     (`0002_booking_functions.sql`) — the only write path for `bookings`;
-     `bookings`/`booking_slots` grant no direct write policies to anyone.
-     Atomicity here is what makes double-booking impossible: each hour of a
-     booking gets a row in `booking_slots`, which carries
-     `unique (date, plate, hour)` and `unique (date, driver_id, hour)` — a
-     concurrent conflicting insert fails the transaction outright.
-   - `rename_vehicle` (`0003_vehicle_rename.sql`) — moves a vehicle's plate
-     across `vehicles`, `bookings`, `booking_slots`, `vehicle_records`, and
-     `vehicle_aliases` in one transaction, since `bookings.plate` has no
+   - The v2 RPCs (`create_request`, `save_schedule_draft`, `approve_schedule`,
+     `submit_completion`, `correct_completion`, `handle_problem` and the
+     rest) — the only write path for the request, schedule, completion and
+     problem tables. Each locks the schedule row first so concurrent calls
+     serialize; see `docs/v2/phase-3-schema.md`.
+   - `rename_vehicle` (`0003_vehicle_rename.sql`, latest in `0032`) — moves
+     a vehicle's plate across `vehicles`, `schedule_revisions` and
+     `schedule_reservations` in one transaction, since those plates have no
      `ON UPDATE CASCADE` and a multi-statement client-side rename could
      leave the tables inconsistent if interrupted.
 
-   Every `security definer` function (`is_admin` plus the four above) sets
+   Every `security definer` function (`is_admin`, `rename_vehicle` and the v2 RPCs) sets
    `search_path = ''` with every table reference schema-qualified as
    `public.<table>` (`0006_harden_definer_functions.sql`), and is granted
    `EXECUTE` only to `authenticated` — explicitly revoked from both `PUBLIC`
    and `anon`, since Supabase's default-privilege template grants `anon`
-   execute independently of `PUBLIC` (see `docs/MEMORY.md`). The two
-   `0001_init.sql` trigger functions a booking insert can fire
-   (`enforce_same_daily_driver`, `block_inactive_vehicle`) get the same
-   `search_path=''` + schema-qualification treatment
-   (`0009_fix_trigger_search_path.sql`) — a trigger invoked from inside a
-   `security definer` call inherits that call's overridden search_path, not
-   its own default, so this matters even though the triggers themselves
-   aren't `security definer`.
+   execute independently of `PUBLIC` (see `docs/MEMORY.md`).
 
 3. **Application code (route handlers), using the service-role client** —
    used only where (1) and (2) aren't available or aren't the right tool:
@@ -128,15 +117,6 @@ KOVA enforces permissions in two places, and both must independently hold:
      Supabase Auth user is inherently a service-role operation; the route
      performs its own Admin check before doing it, since the service-role
      client bypasses RLS entirely by design.
-   - **`vehicle_records` writes** (`app/api/records/[recordId]/route.ts`) —
-     this table grants no RLS write policies (by the same "writes go
-     through a controlled path" pattern as bookings) but has no RPC yet
-     either. The route re-implements the same discipline in TypeScript:
-     resolve the signed-in account, check role/ownership/lock-state,
-     validate the submission, diff and record history, then write via the
-     service-role client. See `docs/RULES.md` for the exact rules enforced
-     and `docs/TASKS.md` for the tracked follow-up (moving this into an RPC
-     for stronger atomicity guarantees).
 
 ## Data model
 
@@ -146,7 +126,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `id` | uuid PK | Same value as `auth.users.id` |
 | `username` | text, unique | Display login name; mapped to a synthetic email for Supabase Auth |
 | `name` | text | Display name |
-| `role` | text | `Booker` \| `Driver` \| `Admin` |
+| `role` | text | `Requester` \| `Scheduler` \| `Admin` \| `Driver` (v2; `Booker` is converted to `Requester` by migration 0023) |
 | `status` | text | `Active` \| `Inactive` |
 | `project` | text, nullable | Free-text label, not a foreign key |
 | `created_at` | timestamptz | |
@@ -157,91 +137,6 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `plate` | text PK | |
 | `name` | text | |
 | `status` | text | `Active` \| `Inactive` |
-
-### `vehicle_aliases`
-| Column | Type | Notes |
-| --- | --- | --- |
-| `old_plate` | text PK | |
-| `new_plate` | text | FK -> `vehicles.plate`; lets an old plate keep resolving after a rename. Indexed (`vehicle_aliases_new_plate_idx`). |
-
-### `bookings`
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | |
-| `date` | date | |
-| `plate` | text | FK -> `vehicles.plate`. Indexed (`bookings_plate_idx`). |
-| `start_hour`, `end_hour` | smallint | `0 <= start < end <= 24` |
-| `driver_id` | uuid | FK -> `accounts.id`, role must be Driver. Indexed (`bookings_driver_id_idx`) — also the column `bookings_select`'s RLS policy filters on. |
-| `driver_name` | text | Denormalized for display without a join |
-| `project` | text | |
-| `requested_by_account_id` | uuid | FK -> `accounts.id`. Indexed (`bookings_requested_by_account_id_idx`) — also RLS-filtered. |
-| `requested_by_name` | text | |
-| `destination`, `purpose`, `notes` | text | |
-| `created_by_account_id` | uuid | FK -> `accounts.id`; always equals the requester today. Indexed (`bookings_created_by_account_id_idx`) — also RLS-filtered. |
-| `created_at` | timestamptz | |
-| `status` | text | `SCHEDULED` \| `CANCELLED` |
-
-### `booking_slots`
-One row per hour of an active booking. Purely an internal conflict-tracking
-table — never read or written directly by API routes except through the
-booking RPC functions.
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `booking_id` | uuid | FK -> `bookings.id`, cascades on delete. Indexed (`booking_slots_booking_id_idx`). |
-| `date` | date | |
-| `plate` | text | |
-| `driver_id` | uuid | |
-| `hour` | smallint | |
-
-Unique constraints: `(date, plate, hour)` and `(date, driver_id, hour)` —
-these two indexes are the actual conflict-prevention mechanism.
-
-### `vehicle_records`
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | uuid PK | Client-generated on first save (see "Vehicle records" below) |
-| `date` | date | |
-| `plate` | text | |
-| `data` | jsonb | Everything else — see shape below. The `data->>'bookingId'` expression is indexed (`vehicle_records_booking_id_idx`), since both `vehicle_records_select`'s RLS policy and the booking RPCs' lock checks filter on it. |
-
-Unique constraint: `(date, plate)` — one record per vehicle per day.
-
-**`data` jsonb shape** (fields referenced across `app/scheduler.tsx`,
-`app/driver-trips.tsx`, `app/admin-finished-trips.tsx`,
-`app/record-history.tsx`):
-
-```jsonc
-{
-  "vehicle": "string",       // vehicle display name
-  "driver": "string",        // driver display name
-  "project": "string",
-  "bookingId": "uuid",       // links back to the triggering booking
-  "status": "Scheduled" | "SUBMITTED FOR REVIEW" | "DONE",
-  "submittedAt": "ISO8601?", // server-set on submission only
-  "start": "string",         // starting odometer, kept as a string
-  "end": "string",           // ending odometer
-  "legs": [
-    { "requestor": "", "purpose": "", "origin": "", "destination": "",
-      "out": "", "arrival": "", "contact": "", "phone": "" }
-  ],
-  "full": false,             // returned with a full tank
-  "card": false,             // fleet card used
-  "receipt": false,          // gas receipt attached
-  "pm": "Joedel Capillan",   // fixed, Admin-only
-  "coo": "President Vargas", // fixed, Admin-only
-  "submitted": "string?",    // Finance: date submitted, Admin-only
-  "received": "string?",     // Finance: received by, Admin-only
-  "reference": "string?",    // Finance: reference #, Admin-only
-  "finance": "Pending" | "Complete" | "Returned" | "Invalid / late",
-  "financeDate": "string?",
-  "history": [ /* HistoryEntry[], server-appended only */ ]
-}
-```
-
-`id`, `date`, and `plate` live as real columns and are **not** duplicated
-inside `data` by the API layer (`lib/supabase/mappers.ts` overlays the
-column values onto the spread `data` object when reading).
 
 ### `booking_options`
 | Column | Type | Notes |
@@ -272,6 +167,20 @@ PK: `(group, id)`.
 Touched only by the service-role client (`lib/supabase/login-rate-limit.ts`)
 — no RLS policy is granted to any other role.
 
+### v2 request/schedule tables (migrations 0013–0023)
+
+`requests`, `request_destinations`, `request_cancellations`, `schedules`,
+`schedule_revisions`, `revision_requests`, `schedule_requests`,
+`schedule_legs`, `leg_stops`, `schedule_reservations`, `trip_completions`,
+`problem_reports`, `audit_events`, plus the derived `request_progress`
+view. `authenticated` gets `SELECT` only (filtered by RLS); every write
+goes through a `security definer` RPC. The schema diagram, state
+transitions, permission matrix and release order live in
+`docs/v2/phase-3-schema.md`, the single source for them. The v1.2
+`bookings`, `booking_slots`, `vehicle_records` and `vehicle_aliases`
+tables, their functions and their trigger functions were dropped by
+migration 0032 (release-time only; there was no legacy data to carry over).
+
 ## API contract
 
 The authoritative, human-readable version of this table lives in
@@ -290,25 +199,42 @@ Summary, with the implementing route file:
 | POST | `/api/accounts/:accountId/password` | `app/api/accounts/[accountId]/password/route.ts` | Admin |
 | POST | `/api/vehicles` | `app/api/vehicles/route.ts` | Admin |
 | PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
-| POST | `/api/bookings` | `app/api/bookings/route.ts` | Booker, Admin |
-| PUT | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Booker, Admin |
-| DELETE | `/api/bookings/:bookingId` | `app/api/bookings/[bookingId]/route.ts` | Owner Booker, Admin |
-| PUT | `/api/records/:recordId` | `app/api/records/[recordId]/route.ts` | Assigned Driver (pre-submission), Admin (review) |
+| POST | `/api/requests` | `app/api/requests/route.ts` | Requester, Admin |
+| PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
+| POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403) |
+| PUT | `/api/schedules/:scheduleId` | `app/api/schedules/[scheduleId]/route.ts` | Scheduler (DRAFT/RETURNED), Admin (SUBMITTED) |
+| POST | `/api/schedules/:scheduleId/submit` | `app/api/schedules/[scheduleId]/submit/route.ts` | Scheduler |
+| POST | `/api/schedules/:scheduleId/discard` | `app/api/schedules/[scheduleId]/discard/route.ts` | Scheduler |
+| POST | `/api/schedules/:scheduleId/approve` | `app/api/schedules/[scheduleId]/approve/route.ts` | Admin |
+| POST | `/api/schedules/:scheduleId/return` | `app/api/schedules/[scheduleId]/return/route.ts` | Admin (comment required) |
+| POST | `/api/schedules/:scheduleId/cancel` | `app/api/schedules/[scheduleId]/cancel/route.ts` | Admin (reason required) |
+| POST | `/api/requests/:requestId/cancel` | `app/api/requests/[requestId]/cancel/route.ts` | Owner, unscheduled request |
+| POST | `/api/requests/:requestId/cancellation` | `app/api/requests/[requestId]/cancellation/route.ts` | Owner, request in a schedule |
+| POST | `/api/cancellations/:cancellationId/confirm` | `app/api/cancellations/[cancellationId]/confirm/route.ts` | Admin |
+| POST | `/api/cancellations/:cancellationId/decline` | `app/api/cancellations/[cancellationId]/decline/route.ts` | Admin (note required) |
+| POST | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Assigned Driver (approved trip that has ended) |
+| PATCH | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Admin (until Done) |
+| POST | `/api/schedules/:scheduleId/completion/done` | `app/api/schedules/[scheduleId]/completion/done/route.ts` | Admin |
+| POST | `/api/schedules/:scheduleId/problems` | `app/api/schedules/[scheduleId]/problems/route.ts` | Assigned Driver |
+| POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |
 
 Request/response bodies match the TypeScript types in `lib/kova-api.ts`
-(`Account`, `Vehicle`, `Booking`, `VehicleRecord`, `BookingOption`,
-`Person`, `BootstrapData`) — that file is the single source of truth for
+(`Account`, `Vehicle`, `BookingOption`,
+`Person`, `TransportRequest`, `RequestInput`, `Schedule`, `ScheduleInput`,
+`TripCompletion`, `ProblemReport`, `BootstrapData`) — that file is the single source of truth for
 field names and is shared between the frontend and this doc.
 
 ## Data flow: bootstrap
 
 `GET /api/bootstrap` is the single hydration call the frontend makes right
-after sign-in. It issues five parallel `select *` queries (accounts,
-vehicles, bookings, vehicle_records, booking_options, people) through the
+after sign-in. It issues parallel `select *` queries (accounts, vehicles,
+booking_options, people, and the v2 `requests` with their active
+destinations plus `request_progress`, the `schedules` with their live
+versions, legs and stops, and the completions and problem reports) through the
 **session-scoped client**, so RLS does the role-based filtering for free —
-a Driver's query for `bookings` only ever returns their own rows, without
+a Driver's query for `trip_completions` only ever returns their own rows, without
 the route needing to know that rule itself. This is why `bootstrap`'s route
 code contains no role branching at all.
 

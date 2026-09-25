@@ -2,59 +2,62 @@
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
+  CalendarPlus,
   CheckCircle2,
-  ClipboardCheck,
+  ClipboardList,
+  FilePlus2,
   Settings as SettingsIcon,
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Scheduler from "./scheduler";
 import {
-  getPendingBookings,
   restoreSession,
   signIn,
   signOut as endSession,
   type Account,
-  type Booking,
 } from "@/lib/kova-api";
 import Settings from "./settings";
-import DriverTrips from "./driver-trips";
+import DriverFinishedTrips from "./driver-finished-trips";
+import DriverSchedules from "./driver-schedules";
 import AdminFinishedTrips from "./admin-finished-trips";
-import AdminBookingApprovals from "./admin-booking-approvals";
-import MyBookings from "./my-bookings";
+import MyRequests from "./my-requests";
+import RequestFlow from "./request-flow";
+import SchedulePlanner from "./schedule-planner";
+import Schedules from "./schedules";
 import KovaBrand from "./kova-brand";
 type Screen =
-  | "schedule"
   | "driver-home"
   | "admin-home"
-  | "booker-home"
+  | "requester-home"
+  | "scheduler-home"
   | "settings"
   | "my-schedule"
   | "finished"
-  | "approvals"
-  | "my-bookings"
-  | "driver-record"
-  | "admin-record";
+  | "new-request"
+  | "my-requests"
+  | "create-schedule"
+  | "schedules";
 const home = (role: Account["role"]): Screen =>
-  role === "Booker"
-    ? "booker-home"
-    : role === "Driver"
-      ? "driver-home"
-      : "admin-home";
+  role === "Requester"
+    ? "requester-home"
+    : role === "Scheduler"
+      ? "scheduler-home"
+      : role === "Driver"
+        ? "driver-home"
+        : "admin-home";
 export default function Home() {
   const [account, setAccount] = useState<Account | null>(null);
-  const [screen, setScreen] = useState<Screen>("schedule");
-  const [driverBooking, setDriverBooking] = useState<Booking | null>(null);
-  const [adminRecordId, setAdminRecordId] = useState<string | null>(null);
-  const [driverReturnScreen, setDriverReturnScreen] = useState<
-    "my-schedule" | "finished"
-  >("my-schedule");
+  const [screen, setScreen] = useState<Screen>("admin-home");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [pendingCount, setPendingCount] = useState(0);
+  const [requestNotice, setRequestNotice] = useState("");
+  // The draft being continued in Create schedule; undefined for a new one.
+  const [editScheduleId, setEditScheduleId] = useState<string | undefined>();
+  const [scheduleNotice, setScheduleNotice] = useState("");
+  const [scheduleDate, setScheduleDate] = useState<string | undefined>();
   useEffect(() => {
     restoreSession()
       .then((saved) => {
@@ -65,26 +68,18 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
-    function refresh() {
-      setPendingCount(getPendingBookings().length);
-    }
-    refresh();
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, []);
-  useEffect(() => {
     const titles: Record<Screen, string> = {
-      schedule: "Schedule",
       "driver-home": "Driver Home",
       "admin-home": "Admin Home",
-      "booker-home": "Booker Home",
+      "requester-home": "Requester Home",
+      "scheduler-home": "Scheduler Home",
       settings: "Settings",
       "my-schedule": "My Schedule",
       finished: "Finished Trips",
-      approvals: "Booking Approvals",
-      "my-bookings": "My Bookings",
-      "driver-record": "Daily Vehicle Record",
-      "admin-record": "Daily Vehicle Record",
+      "new-request": "New Request",
+      "my-requests": "My Requests",
+      "create-schedule": "Create Schedule",
+      schedules: "Schedules",
     };
     document.title = `KOVA — ${account ? titles[screen] : "Sign In"}`;
   }, [account, screen]);
@@ -108,9 +103,7 @@ export default function Home() {
     try {
       await endSession();
       setAccount(null);
-      setDriverBooking(null);
-      setAdminRecordId(null);
-      setScreen("schedule");
+      setScreen("admin-home");
       setPassword("");
       setError("");
     } catch (caught) {
@@ -168,41 +161,6 @@ export default function Home() {
         </form>
       </div>
     );
-  if (screen === "schedule" && (account.role === "Admin" || account.role === "Booker"))
-    return (
-      <Scheduler
-        role={account.role}
-        onHome={() => setScreen(home(account.role))}
-        onSignOut={signOut}
-      />
-    );
-  if (account.role === "Driver" && screen === "driver-record" && driverBooking)
-    return (
-      <Scheduler
-        role="Driver"
-        driverBooking={driverBooking}
-        driverBackLabel={
-          driverReturnScreen === "finished" ? "Finished Trips" : "My Schedule"
-        }
-        onHome={() => {
-          setDriverBooking(null);
-          setScreen(driverReturnScreen);
-        }}
-        onSignOut={signOut}
-      />
-    );
-  if (account.role === "Admin" && screen === "admin-record" && adminRecordId)
-    return (
-      <Scheduler
-        role="Admin"
-        reviewRecordId={adminRecordId}
-        onHome={() => {
-          setAdminRecordId(null);
-          setScreen("finished");
-        }}
-        onSignOut={signOut}
-      />
-    );
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -216,7 +174,7 @@ export default function Home() {
       <main className="role-main">
         {screen === "settings" && account.role === "Admin" ? (
           <Settings onBack={() => setScreen("admin-home")} />
-        ) : screen === "finished" || screen === "my-schedule" || screen === "approvals" || screen === "my-bookings" ? (
+        ) : screen === "new-request" && (account.role === "Requester" || account.role === "Admin") ? (
           <>
             <Button
               variant="ghost"
@@ -225,29 +183,99 @@ export default function Home() {
             >
               <ArrowLeft size={17} /> {account.role} Home
             </Button>
-            {account.role === "Driver" ? (
-              <DriverTrips
-                driverId={account.id}
-                finished={screen === "finished"}
-                onOpenRecord={(booking) => {
-                  setDriverReturnScreen(
-                    screen === "finished" ? "finished" : "my-schedule",
-                  );
-                  setDriverBooking(booking);
-                  setScreen("driver-record");
-                }}
-              />
-            ) : account.role === "Booker" ? (
-              <MyBookings />
-            ) : screen === "approvals" ? (
-              <AdminBookingApprovals />
+            <RequestFlow
+              onSubmitted={() => {
+                setRequestNotice("Request submitted. A Scheduler will plan the trip.");
+                setScreen("my-requests");
+              }}
+            />
+          </>
+        ) : screen === "my-requests" && (account.role === "Requester" || account.role === "Admin") ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => {
+                setRequestNotice("");
+                setScreen(home(account.role));
+              }}
+            >
+              <ArrowLeft size={17} /> {account.role} Home
+            </Button>
+            <MyRequests notice={requestNotice} />
+          </>
+        ) : screen === "create-schedule" && account.role === "Scheduler" ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => {
+                setScheduleDate(undefined);
+                setScreen(editScheduleId ? "schedules" : home(account.role));
+              }}
+            >
+              <ArrowLeft size={17} /> {editScheduleId ? "Schedules" : "Scheduler Home"}
+            </Button>
+            <SchedulePlanner
+              key={editScheduleId ?? "new"}
+              scheduleId={editScheduleId}
+              onDone={(notice, date) => {
+                setScheduleNotice(notice);
+                setScheduleDate(date);
+                setEditScheduleId(undefined);
+                setScreen("schedules");
+              }}
+            />
+          </>
+        ) : screen === "schedules" && (account.role === "Scheduler" || account.role === "Admin") ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => {
+                setScheduleNotice("");
+                setScreen(home(account.role));
+              }}
+            >
+              <ArrowLeft size={17} /> {account.role} Home
+            </Button>
+            <Schedules
+              key={scheduleDate ?? "today"}
+              canEdit={account.role === "Scheduler"}
+              canReview={account.role === "Admin"}
+              notice={scheduleNotice}
+              initialDate={scheduleDate}
+              onCreate={
+                account.role === "Scheduler"
+                  ? () => {
+                      setScheduleNotice("");
+                      setEditScheduleId(undefined);
+                      setScreen("create-schedule");
+                    }
+                  : undefined
+              }
+              onEdit={(id) => {
+                setScheduleNotice("");
+                setEditScheduleId(id);
+                setScreen("create-schedule");
+              }}
+            />
+          </>
+        ) : screen === "finished" || screen === "my-schedule" ? (
+          <>
+            <Button
+              variant="ghost"
+              className="back"
+              onClick={() => setScreen(home(account.role))}
+            >
+              <ArrowLeft size={17} /> {account.role} Home
+            </Button>
+            {account.role === "Driver" && screen === "my-schedule" ? (
+              <DriverSchedules driverId={account.id} />
+            ) : account.role === "Driver" ? (
+              <DriverFinishedTrips />
             ) : (
-              <AdminFinishedTrips
-                onOpen={(id) => {
-                  setAdminRecordId(id);
-                  setScreen("admin-record");
-                }}
-              />
+              <AdminFinishedTrips />
             )}
           </>
         ) : (
@@ -279,35 +307,65 @@ export default function Home() {
                     <CheckCircle2 size={24} /> Finished Trips
                   </Button>
                 </>
-              ) : account.role === "Booker" ? (
+              ) : account.role === "Requester" ? (
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => setScreen("schedule")}
+                    onClick={() => setScreen("new-request")}
                   >
-                    <CalendarDays size={24} /> Book a Vehicle
+                    <FilePlus2 size={24} /> New request
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setScreen("my-bookings")}
+                    onClick={() => setScreen("my-requests")}
                   >
-                    <ClipboardCheck size={24} /> My Bookings
+                    <ClipboardList size={24} /> My requests
+                  </Button>
+                </>
+              ) : account.role === "Scheduler" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditScheduleId(undefined);
+                      setScreen("create-schedule");
+                    }}
+                  >
+                    <CalendarPlus size={24} /> Create schedule
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setScheduleDate(undefined);
+                      setScreen("schedules");
+                    }}
+                  >
+                    <CalendarDays size={24} /> Schedules
                   </Button>
                 </>
               ) : (
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => setScreen("schedule")}
+                    onClick={() => setScreen("new-request")}
                   >
-                    <CalendarDays size={24} /> Schedule
+                    <FilePlus2 size={24} /> New request
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setScreen("approvals")}
+                    onClick={() => setScreen("my-requests")}
                   >
-                    <ClipboardCheck size={24} /> Booking Approvals
-                    {pendingCount > 0 && <span className="count">{pendingCount}</span>}
+                    <ClipboardList size={24} /> My requests
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setScheduleDate(undefined);
+                      setScheduleNotice("");
+                      setScreen("schedules");
+                    }}
+                  >
+                    <CalendarDays size={24} /> Schedules
                   </Button>
                   <Button
                     variant="outline"
