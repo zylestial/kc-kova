@@ -26,7 +26,7 @@ import {
   type Account,
 } from "@/lib/kova-api";
 import { homeCounts } from "@/lib/home-counts";
-import { HelpDialog, HowItWorks } from "./how-it-works";
+import { HelpDialog } from "./how-it-works";
 import Settings from "./settings";
 import DriverFinishedTrips from "./driver-finished-trips";
 import DriverSchedules from "./driver-schedules";
@@ -485,10 +485,6 @@ export default function Home() {
                 </>
               )}
             </div>
-            <section className="how-card">
-              <h2>How this works</h2>
-              <HowItWorks role={account.role} />
-            </section>
           </>
         )}
         <footer>
