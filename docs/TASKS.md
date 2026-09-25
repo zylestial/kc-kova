@@ -313,7 +313,7 @@ Each item above needs its own confirm-before-building pass per this
 repo's git workflow (`CLAUDE.md`) once UAT feedback prioritizes it — this
 section is scope capture, not a build order.
 
-## Planned — v2.0 (phased upgrade, not started)
+## v2.0 (phased upgrade, released 2026-09-25)
 
 Full plan adopted 2026-09-24: `KOVA-v2-Claude-Implementation-Plan.md` (repo
 root), indexed at `docs/v2/PLAN.md`. Upgrades the **same** repo, Vercel
@@ -321,9 +321,8 @@ project and production database in place across four roles (Requester,
 Scheduler, Admin, Driver) and 13 phases (0–12); see `docs/v2/PLAN.md` for
 the phase table. Each phase requires explicit "May I start Phase N?"
 approval before starting — approving the overall plan is not approval for
-any individual phase. Phase 0 (inspect v1.2, verify reported behavior,
-build a cleanup inventory, list conflicts) was proposed 2026-09-24 and is
-pending approval; nothing has started.
+any individual phase. Phases 0–11 are done and v2.0 is live; Phase 12 is
+still open.
 
 - [x] Phase 0 — Inspect v1.2 and establish the baseline. See
       `docs/v2/baseline.md`: all reported capabilities verified against
