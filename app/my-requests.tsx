@@ -32,16 +32,8 @@ import RequestFields, {
   keptOptions,
   type RequestDraft,
 } from "./request-fields";
+import { requestProgressLabel, requestProgressMeaning } from "@/lib/status-text";
 
-const progressLabel: Record<RequestProgress, string> = {
-  NOT_YET_SCHEDULED: "Not yet scheduled",
-  SCHEDULING: "Scheduling",
-  PENDING_APPROVAL: "Pending approval",
-  APPROVED: "Approved",
-  COMPLETED: "Completed",
-  DONE: "Done",
-  CANCELLED: "Cancelled",
-};
 // Reuses the existing status-pill colours.
 const progressPill: Record<RequestProgress, string> = {
   NOT_YET_SCHEDULED: "pending",
@@ -199,7 +191,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                     <td>{projectText(request)}</td>
                     <td>{destinationsText(request)}</td>
                     <td>
-                      <span className={"status-pill " + progressPill[request.progress]}>{progressLabel[request.progress]}</span>
+                      <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
                       {request.cancellationPending && <small>Cancellation requested</small>}
                     </td>
                     <td>{submittedLabel(request.createdAt)}</td>
@@ -244,7 +236,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                   ["Type", shown.requestType === "URGENT" ? "Urgent" : "Regular"],
                   ["Requested by", shown.ownerName],
                   ["Project / Site", projectText(shown)],
-                  ["Progress", progressLabel[shown.progress]],
+                  ["Progress", requestProgressLabel[shown.progress]],
                   ["Submitted", submittedLabel(shown.createdAt)],
                 ].map(([label, value]) => (
                   <div key={label}>
@@ -253,6 +245,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                   </div>
                 ))}
               </div>
+              <p className="helper">{requestProgressMeaning[shown.progress]}</p>
               <ol className="request-review-list">
                 {shown.destinations.map((item) => (
                   <li key={item.id}>
