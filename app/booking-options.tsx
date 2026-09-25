@@ -1,5 +1,6 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
+import { stillNeeded } from "@/lib/missing-fields";
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,14 @@ export default function BookingOptions() {
   }
   async function save() {
     if (!modal) return;
+    const missing = [
+      draft.name.trim() ? "" : "Name",
+      modal.group === "people" && !draft.projectIds.length ? "Project / Site" : "",
+    ].filter(Boolean);
+    if (missing.length) {
+      setError(stillNeeded(missing));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
