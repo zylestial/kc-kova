@@ -500,8 +500,8 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           <DialogHeader>
             <DialogTitle>Change Password</DialogTitle>
             <DialogDescription>
-              Preview the change password popup for {passwordFor?.name}. No
-              password is stored.
+              Set a new password for {passwordFor?.name}. They will use it the
+              next time they sign in.
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
