@@ -37,6 +37,7 @@ import {
   type Schedule,
 } from "@/lib/kova-api";
 import { addDays, manilaToday } from "@/lib/timezone";
+import { tripSignature, useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   BASE,
   MAX_LEGS,
@@ -153,6 +154,9 @@ export default function SchedulePlanner({
         )
       : initialLegs(),
   );
+  // What was last saved (or opened), to tell whether there is unsaved work.
+  const [savedSignature, setSavedSignature] = useState(() => tripSignature(plate, requestIds, legs));
+  useUnsavedChanges("schedule-planner", step === 2 && tripSignature(plate, requestIds, legs) !== savedSignature);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -267,6 +271,7 @@ export default function SchedulePlanner({
   const save = () =>
     run(async () => {
       await saveDraft();
+      setSavedSignature(tripSignature(plate, requestIds, legs));
       setNotice("Draft saved. Its time is reserved and its requests are locked until you submit or discard it.");
     });
   const submit = () =>
