@@ -124,7 +124,7 @@ export default function BookingOptions() {
       <div className="page-heading">
         <div>
           <h2>Booking Options</h2>
-          <p>Manage choices used when creating bookings.</p>
+          <p>Manage choices used when creating requests.</p>
         </div>
       </div>
       {notice && (
@@ -211,7 +211,7 @@ export default function BookingOptions() {
                     {group === "people" &&
                     !options.projects.some((p) => p.status === "Active")
                       ? "Add an active Project / Department first."
-                      : "Add one to make it available for new bookings."}
+                      : "Add one to make it available for new requests."}
                   </p>
                 </div>
               )}
@@ -233,7 +233,7 @@ export default function BookingOptions() {
             <DialogDescription>
               {modal?.group === "people"
                 ? "Choose where this person may be selected as Requested By."
-                : "Inactive choices stay on old bookings but are not offered for new ones."}
+                : "Inactive choices stay on old requests but are not offered for new ones."}
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
