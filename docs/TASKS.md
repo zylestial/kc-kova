@@ -9,6 +9,10 @@ v2.0 was released to production on 2026-09-25 (see "v2.0" below), and
 v2.1, a UX pass on top of it, followed the same day (see "v2.1" below).
 The v1.0 notes that follow are kept as history.
 
+Production was wiped of all test data on 2026-09-25 and holds a single
+`admin` account; the seeded UAT accounts described below no longer exist
+there (see `docs/MEMORY.md`).
+
 All planned v1.0 functionality is implemented and verified: `tsc --noEmit`,
 `eslint`, `vitest`, and `next build` all pass clean; the app has been
 exercised end to end against the live `kc-kova` Supabase project (API,
@@ -486,3 +490,13 @@ Released through PR #46 to `master` and tagged `v2.1`.
       (merge `c4beacc`).
 - [x] Tagged `v2.0` on the pre-merge `master` (`02163bc`) and `v2.1` on
       the merge commit; recorded in `docs/v2/git-and-release.md`.
+
+## Before real users
+
+- [x] Clear production test data (2026-09-25): every table and auth user
+      wiped, one `admin` account created. See `docs/MEMORY.md`.
+- [ ] Give Preview its own Supabase project, or remove its Supabase
+      credentials in Vercel. Preview still shares production's database
+      (Phase 2 above), so testing on a preview URL writes to production.
+- [ ] Re-add the real vehicles, request choices, people and accounts
+      through the Admin screens.
