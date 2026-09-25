@@ -43,6 +43,7 @@ conventions (see `docs/RULES.md`).
 | 9 | Admin finished trips and printing | — |
 | 10 | End-to-end validation + migration rehearsal | — |
 | 11 | Release through the same Vercel project | `docs/v2/cutover-runbook.md`, `rollback-runbook.md` |
+| 11b | UI/UX polish on the live app, before real users | findings list, small fixes |
 | 12 | Stabilize and hand over | — |
 
 ## Status
