@@ -1,13 +1,14 @@
 import type {
-  Booking,
   BookingOption,
   BookingOptions,
   Person,
   RequestProgress,
   Schedule,
   TransportRequest,
+  CancellationRequest,
+  ProblemReport,
+  TripCompletion,
   Vehicle,
-  VehicleRecord,
 } from "@/lib/kova-api";
 
 type VehicleRow = { plate: string; name: string; status: "Active" | "Inactive"; assigned_driver_id: string | null };
@@ -19,70 +20,6 @@ export function toVehicle(row: VehicleRow): Vehicle {
     status: row.status,
     assignedDriverId: row.assigned_driver_id ?? undefined,
   };
-}
-
-type BookingRow = {
-  id: string;
-  date: string;
-  plate: string;
-  start_hour: number;
-  end_hour: number;
-  driver_id: string;
-  driver_name: string;
-  project: string;
-  requested_by_account_id: string;
-  requested_by_name: string;
-  destination: string;
-  purpose: string;
-  notes: string;
-  created_by_account_id: string;
-  created_at: string;
-  status: "PENDING" | "SCHEDULED" | "REJECTED" | "CANCELLED";
-  booking_type: "REGULAR" | "URGENT";
-  urgent_reason: string;
-};
-
-export function toBooking(row: BookingRow): Booking {
-  return {
-    id: row.id,
-    date: row.date,
-    plate: row.plate,
-    start: row.start_hour,
-    end: row.end_hour,
-    driver: row.driver_name,
-    driverId: row.driver_id,
-    project: row.project,
-    requestedById: row.requested_by_account_id,
-    requestedByAccountId: row.requested_by_account_id,
-    requestedBy: row.requested_by_name,
-    destination: row.destination,
-    purpose: row.purpose,
-    notes: row.notes,
-    // create_booking/update_booking always set created_by_account_id to the
-    // requester, so the requester's name is also the creator's display name.
-    createdBy: row.requested_by_name,
-    createdByAccountId: row.created_by_account_id,
-    createdAt: row.created_at,
-    status: row.status,
-    bookingType: row.booking_type,
-    urgentReason: row.urgent_reason,
-  };
-}
-
-type VehicleRecordRow = {
-  id: string;
-  date: string;
-  plate: string;
-  data: Record<string, unknown>;
-};
-
-export function toVehicleRecord(row: VehicleRecordRow): VehicleRecord {
-  return {
-    ...row.data,
-    id: row.id,
-    date: row.date,
-    plate: row.plate,
-  } as VehicleRecord;
 }
 
 type BookingOptionRow = { group: "projects" | "destinations" | "purposes"; id: string; name: string; status: "Active" | "Inactive" };
@@ -165,6 +102,90 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
       })),
     progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : "NOT_YET_SCHEDULED"),
     cancellationPending: progressRow?.cancellation_pending ?? false,
+  };
+}
+
+type CancellationRow = {
+  id: string;
+  request_id: string;
+  requested_by_account_id: string;
+  requested_at: string;
+  reason: string;
+  status: CancellationRequest["status"];
+  decided_at: string | null;
+  decision_note: string;
+};
+
+export function toCancellationRequest(row: CancellationRow): CancellationRequest {
+  return {
+    id: row.id,
+    requestId: row.request_id,
+    requestedByAccountId: row.requested_by_account_id,
+    requestedAt: row.requested_at,
+    reason: row.reason,
+    status: row.status,
+    decidedAt: row.decided_at ?? undefined,
+    decisionNote: row.decision_note,
+  };
+}
+
+type CompletionRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  driver_id: string;
+  start_odometer: number;
+  end_odometer: number;
+  distance: number;
+  submitted_at: string;
+  status: TripCompletion["status"];
+  done_at?: string | null;
+  done_by_account_id?: string | null;
+};
+
+export function toTripCompletion(row: CompletionRow): TripCompletion {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    driverId: row.driver_id,
+    startOdometer: row.start_odometer,
+    endOdometer: row.end_odometer,
+    distance: row.distance,
+    submittedAt: row.submitted_at,
+    status: row.status,
+    doneAt: row.done_at ?? undefined,
+    doneByAccountId: row.done_by_account_id ?? undefined,
+  };
+}
+
+type ProblemRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  driver_id: string;
+  note: string;
+  created_at: string;
+  status: ProblemReport["status"];
+  handled_at?: string | null;
+  handled_by_account_id?: string | null;
+  handling_note?: string | null;
+  follow_up_schedule_id?: string | null;
+};
+
+export function toProblemReport(row: ProblemRow): ProblemReport {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    driverId: row.driver_id,
+    note: row.note,
+    createdAt: row.created_at,
+    status: row.status,
+    handledAt: row.handled_at ?? undefined,
+    handledByAccountId: row.handled_by_account_id ?? undefined,
+    handlingNote: row.handling_note ?? "",
+    followUpScheduleId: row.follow_up_schedule_id ?? undefined,
   };
 }
 

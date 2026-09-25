@@ -1,64 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBooking, toBookingOption, toBookingOptions, toPerson, toSchedule, toTransportRequest, toVehicleRecord } from "@/lib/supabase/mappers";
-
-describe("toBooking", () => {
-  it("maps snake_case columns to the Booking shape", () => {
-    const booking = toBooking({
-      id: "b1",
-      date: "2026-01-01",
-      plate: "ABC-123",
-      start_hour: 8,
-      end_hour: 12,
-      driver_id: "d1",
-      driver_name: "Driver One",
-      project: "Site A",
-      requested_by_account_id: "r1",
-      requested_by_name: "Requester One",
-      destination: "Warehouse",
-      purpose: "Delivery",
-      notes: "",
-      created_by_account_id: "r1",
-      created_at: "2026-01-01T00:00:00Z",
-      status: "SCHEDULED",
-      booking_type: "REGULAR",
-      urgent_reason: "",
-    });
-    expect(booking).toEqual({
-      id: "b1",
-      date: "2026-01-01",
-      plate: "ABC-123",
-      start: 8,
-      end: 12,
-      driver: "Driver One",
-      driverId: "d1",
-      project: "Site A",
-      requestedById: "r1",
-      requestedByAccountId: "r1",
-      requestedBy: "Requester One",
-      destination: "Warehouse",
-      purpose: "Delivery",
-      notes: "",
-      createdBy: "Requester One",
-      createdByAccountId: "r1",
-      createdAt: "2026-01-01T00:00:00Z",
-      status: "SCHEDULED",
-      bookingType: "REGULAR",
-      urgentReason: "",
-    });
-  });
-});
-
-describe("toVehicleRecord", () => {
-  it("spreads the jsonb payload and overlays the authoritative columns", () => {
-    const record = toVehicleRecord({
-      id: "row-id",
-      date: "2026-01-01",
-      plate: "ABC-123",
-      data: { id: "stale-client-id", date: "stale-date", plate: "stale-plate", status: "SUBMITTED FOR REVIEW" },
-    });
-    expect(record).toEqual({ id: "row-id", date: "2026-01-01", plate: "ABC-123", status: "SUBMITTED FOR REVIEW" });
-  });
-});
+import { toBookingOption, toBookingOptions, toPerson, toProblemReport, toSchedule, toTransportRequest, toTripCompletion } from "@/lib/supabase/mappers";
 
 describe("toBookingOptions", () => {
   it("groups rows by their group column", () => {
@@ -204,5 +145,96 @@ describe("toSchedule", () => {
 
   it("tolerates a schedule with no embedded revisions", () => {
     expect(toSchedule({ ...row, schedule_revisions: undefined }).revisions).toEqual([]);
+  });
+});
+
+describe("toTripCompletion and toProblemReport", () => {
+  it("maps a completion row", () => {
+    expect(
+      toTripCompletion({
+        id: "c1",
+        schedule_id: "s1",
+        revision_id: "v1",
+        driver_id: "d1",
+        start_odometer: 1000,
+        end_odometer: 1042,
+        distance: 42,
+        submitted_at: "2026-10-05T10:00:00Z",
+        status: "SUBMITTED",
+      }),
+    ).toEqual({
+      id: "c1",
+      scheduleId: "s1",
+      revisionId: "v1",
+      driverId: "d1",
+      startOdometer: 1000,
+      endOdometer: 1042,
+      distance: 42,
+      submittedAt: "2026-10-05T10:00:00Z",
+      status: "SUBMITTED",
+    });
+  });
+
+  it("maps a problem report row", () => {
+    expect(
+      toProblemReport({
+        id: "p1",
+        schedule_id: "s1",
+        revision_id: "v1",
+        driver_id: "d1",
+        note: "Road closed",
+        created_at: "2026-10-05T08:30:00Z",
+        status: "OPEN",
+      }),
+    ).toEqual({
+      id: "p1",
+      scheduleId: "s1",
+      revisionId: "v1",
+      driverId: "d1",
+      note: "Road closed",
+      createdAt: "2026-10-05T08:30:00Z",
+      status: "OPEN",
+      handlingNote: "",
+    });
+  });
+
+  it("maps the Done fields of a completion", () => {
+    const done = toTripCompletion({
+      id: "c1",
+      schedule_id: "s1",
+      revision_id: "v1",
+      driver_id: "d1",
+      start_odometer: 1000,
+      end_odometer: 1042,
+      distance: 42,
+      submitted_at: "2026-10-05T10:00:00Z",
+      status: "DONE",
+      done_at: "2026-10-06T09:00:00Z",
+      done_by_account_id: "a1",
+    });
+    expect(done.doneAt).toBe("2026-10-06T09:00:00Z");
+    expect(done.doneByAccountId).toBe("a1");
+  });
+
+  it("maps the handling fields of a problem report", () => {
+    const handled = toProblemReport({
+      id: "p1",
+      schedule_id: "s1",
+      revision_id: "v1",
+      driver_id: "d1",
+      note: "Flat tyre",
+      created_at: "2026-10-05T08:30:00Z",
+      status: "HANDLED",
+      handled_at: "2026-10-06T09:00:00Z",
+      handled_by_account_id: "a1",
+      handling_note: "Tyre replaced",
+      follow_up_schedule_id: "s2",
+    });
+    expect(handled).toMatchObject({
+      handledAt: "2026-10-06T09:00:00Z",
+      handledByAccountId: "a1",
+      handlingNote: "Tyre replaced",
+      followUpScheduleId: "s2",
+    });
   });
 });

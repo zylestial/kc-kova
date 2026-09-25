@@ -37,13 +37,19 @@ stat/field grid collapses toward 1 column) and hiding secondary chrome
 
 ## Print layout
 
-The Daily Vehicle Record has a dedicated `@media print` stylesheet
-(`app/globals.css`) that renders a fixed A4-portrait official form —
-company header/logo, trip legs table, return-condition checkboxes, and the
-PM/COO approval block — completely independent of the on-screen editor
-layout (`.app-shell{display:none!important}` hides the app chrome, `.print-form`
-is the only thing rendered). This is a core, distinctive feature of the
-Admin review workflow, not an incidental print stylesheet.
+The Daily Vehicle Trip & Utilization Form has a dedicated `@media print`
+stylesheet (`app/globals.css`) that renders a fixed A4-portrait official
+form: company header/logo, info grid, route and recording rule, an eight-row
+trip table with Name/Sign lines, the final return and full-tank block,
+vehicle control, the PM/COO approval block, Finance use and submission
+control. It is printed from a finished trip in Admin Finished Trips
+(`app/finished-trip-print.tsx`), which fills in what v2 knows (route,
+planned times, Driver, odometers, submission date) and leaves signatures,
+fuel checks and Finance fields blank for handwriting. The form is rendered
+into `document.body` as a portal, because `.app-shell{display:none!important}`
+hides the app chrome and dialogs are hidden in print, so `.print-form` is the
+only thing shown. This is a core, distinctive feature of the Admin review
+workflow, not an incidental print stylesheet.
 
 ## Empty and focus states (verified)
 
@@ -70,14 +76,18 @@ router/URL segments are used for in-app navigation.
 
 | Screen | Component | Shown to |
 | --- | --- | --- |
-| `schedule` | `app/scheduler.tsx` | Requester (home), Admin |
-| `driver-home`, `my-schedule`, `finished` | `app/driver-trips.tsx` | Driver |
-| `admin-home` | `app/admin-finished-trips.tsx` | Admin |
-| `driver-record`, `admin-record` | `app/scheduler.tsx` (record editor) | Driver / Admin |
-| `settings` | `app/settings.tsx` | Admin (accounts, vehicles) |
+| `*-home` | home buttons in `app/page.tsx` | All roles |
+| `new-request` | `app/request-flow.tsx` | Requester, Admin |
+| `my-requests` | `app/my-requests.tsx` | Requester, Admin |
+| `create-schedule` | `app/schedule-planner.tsx` | Scheduler |
+| `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
+| `my-schedule` | `app/driver-schedules.tsx` | Driver |
+| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin) | Driver, Admin |
+| `settings` | `app/settings.tsx` | Admin (accounts, vehicles, booking options) |
 | — | `app/booking-options.tsx` | Admin (projects/destinations/purposes/people) |
-| — | `app/review-trip.tsx` | Admin (finished-trip detail) |
-| — | `app/record-history.tsx` | Admin (read-only history viewer) |
+
+The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
+Record editor, review and history viewers) were removed with migration 0032.
 
 All screens are client components (`"use client"`) that read/write through
 `lib/kova-api.ts`'s in-memory cache, refreshed by re-calling

@@ -34,6 +34,9 @@ to misdiagnose.
 
 ## `queueMicrotask` around setState in scheduler.tsx's prop-reactive effects
 
+*(`scheduler.tsx` was deleted in Phase 9b; the lesson below still applies to
+any prop-reactive effect.)*
+
 `scheduler.tsx` has two `useEffect`s that don't run once on mount — they
 genuinely need to re-run whenever the `driverBooking` or `reviewRecordId`
 prop changes, recomputing the local `edit`/`date`/`tab` state from it. The
@@ -635,3 +638,111 @@ Decided by the project owner at the start of Phase 5:
   `p6test1234`) exist in the local database, along with schedules moved
   through Return/Approve on 2026-10-04. Reset the local database before
   row-counting smoke tests.
+
+## Phase 7 notes (2026-09-24)
+
+- **Confirming a cancellation doesn't rewrite the approved route.** The
+  approved version is immutable history, so it keeps listing the
+  cancelled request until the Scheduler proposes a version without it and
+  the Admin approves it. Only when no live request is left is the whole
+  schedule cancelled automatically. Decided this phase: no auto-created
+  proposal (route and times are the Scheduler's call).
+- **Cancelling a schedule keeps its approved version as APPROVED** (not
+  superseded) so the history and the Requester's/Driver's view of what
+  was cancelled survive; `schedules.status = 'CANCELLED'` is what ends it.
+- **A submitted `trip_completions` row blocks every cancellation path**
+  (request, ask, confirm, schedule). Correcting a submitted or Done trip
+  belongs to finished-record rules, Phase 8/9.
+- **`$$` in a JS `String.replace` replacement is a single `$`.** Patching
+  pgTAP files with `replace()` silently turned `$$ select ... $$` into
+  `$ select`; use a function replacement or sed.
+- **Local test accounts from Phase 6 (`p6-admin`, `p6-sched`, `p6-req`)
+  were reused** for the Phase 7 API smoke, which left cancelled
+  requests/schedules on a date 30 days out in the local database.
+- **Browser walkthroughs use Playwright installed outside the repo**
+  (`npm i playwright` and `npx playwright install chromium` in a scratch
+  folder, about 0.6 GB of disk), so `package.json` stays unchanged. The
+  first call to each API route in `next dev` is slow, so wait a few
+  seconds after each action, and give every run unique request tags:
+  leftovers from earlier runs otherwise match the selectors.
+
+## Phase 8 notes (2026-09-24)
+
+- **Completion needs the last planned Time In to have passed** (from the
+  approved version's reservation range, Asia/Manila). Problem reports
+  have no such limit and can repeat. Repeating a submit returns the
+  existing completion.
+- **Correcting a submitted completion, marking it Done, handling problem
+  reports and linking a follow-up schedule are Phase 9**, not Phase 8.
+  `problem_reports` has no follow-up link column yet.
+- **PL/pgSQL gotcha:** `if v_row is not null` is false for a composite
+  row with any null column (e.g. `done_at`). Use `found` after
+  `select ... into`.
+- **Driver My Schedule is v2; Finished Trips is still v1** (`driver-trips.tsx`)
+  until Phase 9 replaces it.
+- **Local seed for Phase 8 walkthroughs** lives outside the repo (scratch
+  script): accounts `admin1`, `req1`, `sched1`, `drv1`, `drv2` (password
+  `test1234`), one approved trip yesterday on V1 and one 10 days ahead
+  on V2. Reset the local database before reusing.
+
+## Phase 9 notes (2026-09-24)
+
+- **Branch base:** Phase 8's PR (#31) merged into `feat/v2-cancellation`,
+  not `master`. Phase 9 branches from `origin/feat/v2-cancellation`, so
+  its upstream is that branch; set the upstream to
+  `origin/feat/v2-finished-trips` before the first push.
+- **Only an Admin corrects, marks Done or handles problems.** Marking Done
+  and handling are idempotent (repeat returns the existing row); a
+  correction after Done is refused with 22023.
+- **`scheduleErrorResponse` takes a third argument** for the 404 message.
+  Its default, "Schedule not found.", is wrong for "no completion" and
+  "problem report not found", so the Phase 9 routes pass `error.message`.
+- **Print view is a portal into `document.body`.** `.app-shell` is hidden
+  in print, so the form can't live inside it. Radix dialogs also portal to
+  `body`, hence the print rule hiding `dialog-overlay` / `dialog-content`.
+- **Fresh-reset gotcha:** after a browser walkthrough seeds V1/V2, every
+  pgTAP file fails with `Key (plate)=(V1) already exists`. Run
+  `supabase db reset` before `supabase test db`. A reset wipes the local
+  walkthrough accounts (`admin1`, `drv1`, …); re-run the seed script.
+
+## Phase 9b notes (2026-09-25)
+
+- **The v1.2 booking objects are gone (migration 0032), release-time only.**
+  It drops `bookings`, `booking_slots`, `vehicle_records` and
+  `vehicle_aliases` plus their functions, and rewrites `rename_vehicle`.
+  Apply it at cutover with 0023, after the backup; going back to v1.2 then
+  needs a backup restore. The user decided there is no real data, so Phase
+  10 no longer carries legacy bookings into v2.
+- **Drop order matters:** the `vehicle_records_select` policy refers to
+  `bookings`, so `vehicle_records` must be dropped before `bookings`
+  (`booking_slots` first, it has the foreign key). A failed migration rolls
+  back whole, so a wrong order costs nothing but a retry.
+- **The removed screens are unreachable, not hidden:** the code, routes and
+  tests are deleted, so there is no v1 fallback in the app.
+- **Deleting route files breaks `tsc` until `.next/types` is cleared.** The
+  generated `.next/types/validator.ts` still imports the deleted routes; run
+  `rm -rf .next/types` (it is git-ignored build output), then `tsc`.
+- **A fresh `next dev` reloads the page during its first compile**, which
+  can drop a Playwright dialog mid-flow. Warm the server (hit
+  `/api/bootstrap` once) and rerun before treating it as an app bug.
+- **Leftovers:** dead v1 CSS in `app/globals.css`, and the Settings tab is
+  still called "Booking Options" (the table it edits stays).
+
+## Stacked PR merge order (2026-09-25)
+
+- **Merge a stack top-down, deepest child first.** #32 (`feat/v2-approval` →
+  `feat/v2-scheduling`) was squash-merged 18 seconds before #33
+  (`feat/v2-cancellation` → `feat/v2-approval`), and #31 (Phase 8) landed on
+  `feat/v2-cancellation` after that. Phases 7 and 8 were left on branches
+  that no open PR fed into the chain, and Phases 9 and 9b were stacked on
+  top of them.
+- **Squash merges make later merges conflict.** The same change exists under
+  new commits, so a plain merge of the child into the parent conflicts in
+  files both touched (docs, `page.tsx`, `kova-api.ts`, `schedules.tsx`).
+  The fix used here: merge `origin/feat/v2-scheduling` into a sync branch
+  (`chore/v2-sync-scheduling`) built on the stack head, resolve once, and open
+  one PR into `feat/v2-scheduling`. Every conflicting hunk was the older
+  placeholder against the complete text, so the resolved tree is identical to
+  the stack head.
+- **Before opening a stacked PR, check that its base is still open**
+  (`gh pr list --state all`) and that the parent's PR has not already merged.

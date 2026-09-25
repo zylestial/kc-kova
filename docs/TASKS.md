@@ -137,8 +137,9 @@ post-v1.0 hardening, not blockers to this milestone.
       as CI-checked tests. Turning it into a real pgTAP or integration
       suite (e.g. against a Supabase instance spun up in CI) so this is
       checked on every change, not just once by hand, remains open.
-- [ ] **`vehicle_records` writes run through application code + the
-      service-role client, not a Postgres RPC** (see
+- [x] **`vehicle_records` writes run through application code + the
+      service-role client, not a Postgres RPC** (obsolete: the table and
+      route were removed in Phase 9b) (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.
       This was a deliberate scope trade-off for this pass, not an oversight.
       Consider porting `app/api/records/[recordId]/route.ts`'s logic into a
@@ -427,9 +428,39 @@ pending approval; nothing has started.
       schedule; `/api/schedules/:id/approve` and `/return`; no migration.
       vitest 101/101, API smoke passed; **no browser walkthrough**
       (Playwright not installed). **Local database only.**
-- [ ] Phase 7 — Cancellation and request unlocking
-- [ ] Phase 8 — Driver completion and problem reporting
-- [ ] Phase 9 — Admin finished trips and printing
+- [x] Phase 7 — Cancellation and request unlocking. See
+      `docs/v2/phase-7-cancellation.md`, branch `feat/v2-cancellation`
+      (stacked on `feat/v2-approval`): Requester cancel or ask to
+      cancel, Admin confirm/decline and Cancel schedule, planner drops
+      cancelled requests; migration 0028; pgTAP 68/68 for the new file,
+      vitest 101/101, API smoke and an 11-check browser walkthrough passed.
+      **Local database only.**
+- [x] Phase 8 — Driver completion and problem reporting. See
+      `docs/v2/phase-8-driver.md`, branch `feat/v2-driver-completion`
+      (stacked on `feat/v2-cancellation`): Driver My Schedule shows
+      published v2 trips with Complete trip (one odometer pair, after the
+      trip ends) and Report a problem; `/api/schedules/:id/completion`
+      and `/problems`; migration 0029; pgTAP 27/27 for the new file,
+      vitest 111/111, 13-check browser walkthrough passed. Driver
+      Finished Trips is still v1 until Phase 9. **Local database only.**
+- [x] Phase 9 — Admin finished trips and printing. See
+      `docs/v2/phase-9-finished-trips.md`, branch `feat/v2-finished-trips`
+      (stacked on `feat/v2-cancellation`). **Built; Playwright
+      walkthrough passed (30 checks) and the manual check passed:** migrations 0030 (follow-up link) and 0031
+      (`correct_completion`, `mark_completion_done`, `handle_problem`),
+      pgTAP 35/35 new (214 total), vitest 121/121, tsc/lint/build clean;
+      Admin and Driver Finished Trips on v2 with a print view. **Local database only.**
+- [x] Phase 9b — Remove the v1.2 screens, code and tables. See
+      `docs/v2/phase-9b-remove-v1.md`, branch `chore/v2-remove-v1` (stacked
+      on `feat/v2-finished-trips`): v1 Schedule, booking flow, Booking
+      Approvals and Daily Vehicle Record screens, `/api/bookings` and
+      `/api/records`, and the v1 client code deleted; migration 0032 drops
+      `bookings`, `booking_slots`, `vehicle_records`, `vehicle_aliases` and
+      their functions and rewrites `rename_vehicle`. No legacy data to carry
+      over, so Phase 10 no longer migrates bookings. pgTAP 230/230, vitest
+      80/80, concurrency script, tsc/lint/build clean, Playwright 30/30 and
+      an 18-check smoke test passed. **Release-time only (applied with 0023
+      at cutover); local database only.**
 - [ ] Phase 10 — End-to-end validation and migration rehearsal
 - [ ] Phase 11 — Release through the same Vercel project
 - [ ] Phase 12 — Stabilize and hand over

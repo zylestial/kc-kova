@@ -128,10 +128,26 @@ export default function SchedulePlanner({
   const [step, setStep] = useState(opened ? 2 : 1);
   const [anchor, setAnchor] = useState(opened?.schedule.date ?? today);
   const [date, setDate] = useState(opened?.schedule.date ?? today);
-  const [requestIds, setRequestIds] = useState<string[]>(opened?.revision?.requestIds ?? []);
+  // A request cancelled since this version was published (an Admin confirmed
+  // its cancellation) is dropped, with its stops, so the new version can be
+  // saved. Its route and times are left for the Scheduler to adjust.
+  const droppedIds = useMemo(() => {
+    const cancelled = new Set(getRequests().filter((request) => request.status === "CANCELLED").map((request) => request.id));
+    return (opened?.revision?.requestIds ?? []).filter((id) => cancelled.has(id));
+  }, [opened]);
+  const [requestIds, setRequestIds] = useState<string[]>(
+    () => (opened?.revision?.requestIds ?? []).filter((id) => !droppedIds.includes(id)),
+  );
   const [plate, setPlate] = useState(opened?.revision?.plate ?? "");
   const [legs, setLegs] = useState<LegDraft[]>(() =>
-    opened?.revision ? legsFromRevision(opened.revision) : [newLeg()],
+    opened?.revision
+      ? keepStops(
+          legsFromRevision(opened.revision),
+          new Set(
+            stopsFor(getRequests().filter((request) => !droppedIds.includes(request.id))).map((stop) => stop.id),
+          ),
+        )
+      : [newLeg()],
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -359,6 +375,12 @@ export default function SchedulePlanner({
 
       {step === 2 && (
         <>
+          {droppedIds.length > 0 && (
+            <div className="notice" role="status">
+              {droppedIds.length === 1 ? "A request in this schedule was cancelled" : "Requests in this schedule were cancelled"} and{" "}
+              {droppedIds.length === 1 ? "was" : "were"} removed. Check the route and times before you save.
+            </div>
+          )}
           {returnedComment && (
             <div className="notice" role="status">
               <b>Returned by Admin:</b> {returnedComment}

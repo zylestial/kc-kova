@@ -20,8 +20,6 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
 {
   "accounts": [],
   "vehicles": [],
-  "bookings": [],
-  "records": [],
   "options": {
     "projects": [],
     "destinations": [],
@@ -29,7 +27,10 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
   },
   "people": [],
   "requests": [],
-  "schedules": []
+  "schedules": [],
+  "cancellations": [],
+  "completions": [],
+  "problems": []
 }
 ```
 
@@ -37,7 +38,9 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
 
 `schedules` holds v2 schedules (see "Schedules (v2)" below) with their live versions only: the published one and any open draft. Discarded schedules and superseded versions are left out. Scheduler and Admin receive all, drafts included; Requesters and Drivers receive only published versions that concern them.
 
-Never include password hashes or session tokens. A Driver should receive only their own assigned bookings and records. A Requester may receive all active schedule bookings but not Admin settings or Finance data.
+`cancellations`, `completions` and `problems` hold cancellation asks, trip completions and problem reports. Requesters get their own cancellation asks and Admin gets all; a Driver gets only their own completions and problem reports, and Admin gets all.
+
+Never include password hashes or session tokens. A Driver should receive only their own assigned schedules, completions and problem reports.
 
 ## Accounts and Vehicles
 
@@ -50,26 +53,6 @@ Never include password hashes or session tokens. A Driver should receive only th
 | PUT | `/api/vehicles/:plate` | Admin |
 
 Account usernames and Vehicle plate numbers must be unique. Use `Active` and `Inactive`; do not hard-delete rows referenced by history.
-
-## Bookings
-
-| Method | Endpoint | Permission |
-| --- | --- | --- |
-| POST | `/api/bookings` | Requester or Admin |
-| PUT | `/api/bookings/:bookingId` | Owner Requester or Admin |
-| DELETE | `/api/bookings/:bookingId` | Owner Requester or Admin; soft-cancel |
-
-For new bookings, ignore any client-supplied ownership values and set these from the authenticated session:
-
-- `createdByAccountId`
-- `requestedByAccountId`
-- `requestedBy`
-- `createdAt`
-- `status = SCHEDULED`
-
-The backend must atomically reject overlapping active bookings for the same Vehicle or Driver. When editing, exclude the current booking from conflict checks. `DELETE` changes the status to `CANCELLED`; it does not erase the row. Cancelled bookings must not block availability.
-
-A Requester may update or cancel only when `booking.createdByAccountId === session.account.id`. Admin is exempt from Requester ownership, but submitted or completed trips remain locked according to the workflow.
 
 ## Requests (v2)
 
@@ -95,15 +78,19 @@ Body (`ScheduleInput` in `lib/kova-api.ts`): `date`, `plate`, `requestIds`, and 
 
 The database enforces the rules (`save_schedule_draft`, `submit_schedule`, `discard_schedule_draft`): at most 8 legs including the final leg, route continuity, times in order, stops belonging to included requests at the leg's destination, a vehicle with an active Driver, one schedule per request, and no overlapping vehicle or Driver time. Submitting also requires the final leg and every destination of every included request on a leg. Saving a draft reserves the time and locks its requests; discarding frees both. Responses return the schedule. Errors: `403` wrong role, `404` unknown schedule, `409` stale `rowVersion` or a lost race for a request or time slot, `422` anything else, with a message to show.
 
-## Daily Vehicle Records
+## Trip completions and problem reports (v2)
 
 | Method | Endpoint | Permission |
 | --- | --- | --- |
-| PUT | `/api/records/:recordId` | Assigned Driver before submission; Admin during review |
+| POST | `/api/schedules/:scheduleId/completion` | Assigned Driver, after the trip ends |
+| PATCH | `/api/schedules/:scheduleId/completion` | Admin, until the trip is Done |
+| POST | `/api/schedules/:scheduleId/completion/done` | Admin |
+| POST | `/api/schedules/:scheduleId/problems` | Assigned Driver |
+| POST | `/api/problems/:problemId/handle` | Admin (handling note required, optional `followUpScheduleId`) |
 
-Driver submission must verify the assigned Driver, original booking relationship, scheduled-time eligibility, odometers, and ANONANG route rules. On submission, set `submittedAt` on the server and `status = SUBMITTED FOR REVIEW`. Admin edits must create immutable history entries. `DONE` records are normally read-only.
+A completion is one odometer pair (`startOdometer`, `endOdometer`) for the whole schedule, pinned to the approved version. The server sets `submittedAt`; a Done completion is locked for everyone. Repeating a submit or Done returns the existing row. Errors follow the schedule routes: `403` wrong role, `404` unknown schedule or problem, `422` anything else, with a message to show.
 
-Finance fields and final PDF/print data are Admin-only. The fixed official names are:
+The printed form's approval names are fixed:
 
 - Project Manager: Joedel Capillan (PM)
 - 2nd-Level Approval / COO: President Vargas (COO)
@@ -117,7 +104,7 @@ Finance fields and final PDF/print data are Admin-only. The fixed official names
 | PUT | `/api/booking-options/purposes/:id` | Admin |
 | PUT | `/api/booking-options/people/:id` | Admin |
 
-Inactive choices stay visible on historical records but are not offered for new bookings.
+Inactive choices stay visible on existing requests but are not offered for new ones.
 
 ## Required response behavior
 
@@ -126,17 +113,15 @@ Inactive choices stay visible on historical records but are not offered for new 
 - Use `401` for no valid session, `403` for a role or ownership denial, `409` for scheduling/uniqueness conflicts, and `422` for validation errors.
 - Perform all permission and conflict checks inside the backend transaction. Hiding frontend buttons is not security.
 
-## Suggested core tables
+## Core tables
 
-- `accounts`
-- `sessions`
-- `vehicles`
-- `bookings`
-- `booking_slots` or equivalent transactional conflict protection
-- `daily_vehicle_records`
-- `record_history`
-- `destinations`
-- `purposes`
-- historical `projects` and `people` tables if older data uses them
+- `accounts`, `vehicles`, `login_attempts`
+- `booking_options` (Projects, Destinations, Purposes) and `people`
+- `requests`, `request_destinations`, `request_cancellations`
+- `schedules`, `schedule_revisions`, `revision_requests`, `schedule_requests`, `schedule_legs`, `leg_stops`, `schedule_reservations` (exclusion constraints stop vehicle and Driver overlaps)
+- `trip_completions`, `problem_reports`
+- `audit_events` (append-only)
+
+Full column-level detail is in `docs/ARCHITECTURE.md` and `docs/v2/phase-3-schema.md`.
 
 Use stable opaque IDs and foreign keys. Keep timestamps in UTC and convert them only for display.

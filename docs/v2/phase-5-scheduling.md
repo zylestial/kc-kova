@@ -132,7 +132,7 @@ Run on a fresh local reset (2026-09-24):
   schedules can exist before Phase 6). Phase 6 adds it with approval.
 - **Existing commitments show v2 schedules only.** Legacy v1.2 bookings
   aren't listed and aren't checked for conflicts, as recorded in Phase 3.
-  Phase 10 carries them into v2 before cutover.
+  There was no legacy data to carry over, so Phase 9b dropped those tables.
 - One commit subject in this phase, `e30d146` ("feat: add Scheduler menu:
   Create schedule, Schedules"), is 52 characters, over the 50-character
   limit. It was left as is rather than rewriting history.
