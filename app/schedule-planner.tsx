@@ -63,6 +63,7 @@ import {
   setLegTimeIn,
   stopsFor,
   toScheduleInput,
+  tripChecklist,
   tripProblems,
   tripWindow,
   type LegDraft,
@@ -200,6 +201,8 @@ export default function SchedulePlanner({
   const clashes = plate && driver ? conflictsWith(tripTime, plate, driver.id, commitments) : [];
   const problems = tripProblems({ plate, requestIds, legs, stops: selectedStops });
   if (plate && !driver) problems.save.unshift("This vehicle has no active Driver assigned.");
+  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: selectedStops });
+  const ready = problems.save.length === 0 && problems.submit.length === 0;
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
   const months = [...new Set([days[0], days.at(-1)!].map((day) => dateLabel(day, { month: "long", year: "numeric" })))];
@@ -655,16 +658,22 @@ export default function SchedulePlanner({
                 </Button>
               </div>
             )}
-            {(problems.save.length > 0 || problems.submit.length > 0) && (
-              <div className="planner-problems">
-                <b>{problems.save.length ? "Before saving:" : "Before submitting:"}</b>
-                <ul>
-                  {[...problems.save, ...problems.submit].map((problem) => (
-                    <li key={problem}>{problem}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div className={"planner-checklist" + (ready ? " ready" : "")}>
+              <b>{ready ? "Ready to submit" : "Before you submit"}</b>
+              {!ready && <p>You can save a draft once the first four are done. Submitting needs all six.</p>}
+              <ul>
+                {checklist.map((item) => (
+                  <li key={item.label} className={item.done ? "done" : ""}>
+                    <span aria-hidden="true">{item.done ? "✓" : "○"}</span>
+                    <span>
+                      <span className="sr-only">{item.done ? "Done: " : "To do: "}</span>
+                      {item.label}
+                      {!item.done && item.detail && <small>{item.detail}</small>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         </>
       )}
