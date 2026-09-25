@@ -53,4 +53,5 @@
 .account-name{font-size:13px;color:#3d4757;white-space:nowrap}
 @media(max-width:700px){.account-name{display:none}}
 .show-password{justify-self:start;height:auto;padding:0!important;font-size:13px;color:#2357d9}
+.request-review-list{list-style:decimal}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
