@@ -32,6 +32,7 @@ import {
 import { buildFinishedTrips, hasOpenProblem, type FinishedTrip } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
+import { completionLabel, completionMeaning } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (date: string) =>
@@ -220,7 +221,7 @@ export default function AdminFinishedTrips() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="submitted">Submitted for Review</SelectItem>
+                <SelectItem value="submitted">{completionLabel.SUBMITTED}</SelectItem>
                 <SelectItem value="done">Done</SelectItem>
               </SelectContent>
             </Select>
@@ -259,7 +260,7 @@ export default function AdminFinishedTrips() {
                     <td>{trip.completion.distance} km</td>
                     <td>
                       <span className={"badge " + (trip.completion.status === "DONE" ? "complete" : "")}>
-                        {trip.completion.status === "DONE" ? "Done" : "Submitted for Review"}
+                        {completionLabel[trip.completion.status]}
                       </span>
                       {hasOpenProblem(trip) && <small>Open problem</small>}
                     </td>
@@ -309,8 +310,9 @@ export default function AdminFinishedTrips() {
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
               <p className="helper">
                 Odometer: {selected.completion.startOdometer} → {selected.completion.endOdometer} ({selected.completion.distance} km) ·{" "}
-                {isDone ? "Done" : "Submitted for review"}
+                {completionLabel[selected.completion.status]}
               </p>
+              <p className="helper">{completionMeaning[selected.completion.status]}</p>
               {selected.problems.map((item) => (
                 <div className="helper" key={item.id}>
                   <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong> {item.note}
