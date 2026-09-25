@@ -257,6 +257,12 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
                 <span>ENDING ODOMETER</span>
                 <Input inputMode="numeric" value={end} onChange={(event) => setEnd(event.target.value)} />
               </label>
+              {!odometerError && (
+                <p className="helper" role="status">
+                  <b>{(endNumber - startNumber).toLocaleString("en-US")} km</b> driven, from {startNumber.toLocaleString("en-US")} to{" "}
+                  {endNumber.toLocaleString("en-US")}. Check this is right.
+                </p>
+              )}
               <p className="helper">
                 Submitting can&apos;t be undone. It locks the trip for you; an Admin reviews it.
               </p>
