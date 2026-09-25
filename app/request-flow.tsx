@@ -33,6 +33,13 @@ function typeFor(date: string, isAdmin: boolean): RequestDraft["requestType"] | 
   return null;
 }
 
+/** Why a date card is greyed out, for its tooltip and screen-reader label. */
+function unavailableReason(date: string, today: string): string {
+  return date < today
+    ? "This date has passed."
+    : "Dates 2 to 6 days away can't be requested: Regular needs 7 days' notice and Urgent is for today or tomorrow.";
+}
+
 export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }) {
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
@@ -131,7 +138,8 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
                     className={"date-card " + (draft.date === day ? "selected" : "")}
                     onClick={() => pickDate(day)}
                     aria-pressed={draft.date === day}
-                    aria-label={fullDate(day)}
+                    aria-label={allowed ? fullDate(day) : `${fullDate(day)}, not available. ${unavailableReason(day, today)}`}
+                    title={allowed ? undefined : unavailableReason(day, today)}
                     disabled={!allowed}
                   >
                     <span>{dateLabel(day, { weekday: "short" })}</span>
@@ -145,6 +153,10 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
               <ChevronRight size={18} />
             </Button>
           </div>
+          <p className="date-legend">
+            <b>URGENT</b> today or tomorrow · <b>●</b> Regular, at least 7 days ahead · <b>—</b> can&apos;t be requested
+            (in the past, or 2 to 6 days away){isAdmin && <> · <b>PAST</b> already happened (Admin only)</>}
+          </p>
           <div className="date-other">
             <label>
               Jump to date{" "}
