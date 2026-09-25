@@ -807,3 +807,16 @@ Decided by the project owner at the start of Phase 5:
   dashboard with "Use existing Build Cache" unticked. If a Production page
   looks unstyled, compare the served CSS size against a local `pnpm build`
   before suspecting the code.
+
+## v2.1 release notes (2026-09-25)
+
+- **v2.1 is live.** PR #46 merged `test/all-ux` into `master` (merge
+  `c4beacc`): a UX pass with no migrations. Tagged `v2.1` on the merge and,
+  retroactively, `v2.0` on the pre-merge tip `02163bc`, so a v2.1 rollback
+  is a redeploy of `v2.0` with no database step.
+- **Version numbering:** a UX or bug-fix release with no breaking change
+  bumps the minor version (v2.0 → v2.1). Tag every release on its `master`
+  merge commit.
+- **CI runs vitest, so run it locally too.** `tsc`, lint and build passed
+  before the push, but two `tripChecklist` tests had gone stale after
+  `ac04d82` moved checklist details onto each leg; fixed in `521e664`.
