@@ -820,3 +820,20 @@ Decided by the project owner at the start of Phase 5:
 - **CI runs vitest, so run it locally too.** `tsc`, lint and build passed
   before the push, but two `tripChecklist` tests had gone stale after
   `ac04d82` moved checklist details onto each leg; fixed in `521e664`.
+
+## Production data wipe (2026-09-25)
+
+- **Production now holds no test data.** The owner ran a single
+  transaction in the Supabase SQL editor that truncated every `public`
+  table (with `audit_events_no_truncate` disabled and re-enabled around
+  it) and deleted every `auth.users` row. It then created one Admin,
+  username `admin`: an auth user `admin@accounts.kova.internal` (Auto
+  Confirm) plus a matching `accounts` row. Vehicles, request choices,
+  people and all other accounts must be re-added through the Admin
+  screens. No backup was taken; the owner confirmed it was all fake data.
+- **Don't run `scripts/seed-uat.mjs` against production.** It reads
+  `.env.local`, which points at production, and would bring back the UAT
+  accounts, vehicles and options.
+- **The agent's harness blocked this wipe** as audit tampering (it disables
+  the append-only guard on `audit_events`) and also blocked reading
+  production account rows. Expect the owner to run such steps by hand.
