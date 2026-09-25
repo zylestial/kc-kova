@@ -15,6 +15,7 @@ import type {
   RequestInput,
   TransportRequest,
 } from "@/lib/kova-api";
+import { requestDraftMissing } from "@/lib/missing-fields";
 
 const OTHER_OPTION = "__other__";
 const NO_PROJECT = "__none__";
@@ -61,12 +62,7 @@ export function draftToInput(draft: RequestDraft): RequestInput {
 }
 
 export function draftComplete(draft: RequestDraft) {
-  return (
-    !!draft.date &&
-    draft.destinations.length > 0 &&
-    draft.destinations.every((item) => item.destinationId && item.purposeId) &&
-    (!draft.projectOtherMode || !!draft.projectOther.trim())
-  );
+  return requestDraftMissing(draft).length === 0;
 }
 
 /**
@@ -129,7 +125,7 @@ export default function RequestFields({
     <div className="request-fields">
       <div className="fields booking-fields">
         <label className="field">
-          <span>REQUEST TYPE *</span>
+          <span>Request type *</span>
           <Select
             value={draft.requestType}
             onValueChange={(value) => onChange({ ...draft, requestType: value as RequestDraft["requestType"] })}
@@ -145,11 +141,11 @@ export default function RequestFields({
           {dateHint && <small className="field-hint">{dateHint}</small>}
         </label>
         <label className="field">
-          <span>REQUESTED BY</span>
+          <span>Requested by (you)</span>
           <Input readOnly value={requestedBy} aria-label="Requested by" />
         </label>
         <label className="field">
-          <span>PROJECT / SITE</span>
+          <span>Project / Site (optional)</span>
           {draft.projectOtherMode ? (
             <div className="field-other">
               <Input
@@ -204,7 +200,7 @@ export default function RequestFields({
         <div className="request-destination" key={item.key}>
           <b>{index + 1}</b>
           <label className="field">
-            <span>DESTINATION *</span>
+            <span>Destination *</span>
             <Select value={item.destinationId} onValueChange={(value) => setRow(item.key, { destinationId: value })}>
               <SelectTrigger aria-label={`Destination ${index + 1}`}>
                 <SelectValue placeholder="Select Destination" />
@@ -219,7 +215,7 @@ export default function RequestFields({
             </Select>
           </label>
           <label className="field">
-            <span>PURPOSE *</span>
+            <span>Purpose *</span>
             <Select value={item.purposeId} onValueChange={(value) => setRow(item.key, { purposeId: value })}>
               <SelectTrigger aria-label={`Purpose for destination ${index + 1}`}>
                 <SelectValue placeholder="Select Purpose" />
