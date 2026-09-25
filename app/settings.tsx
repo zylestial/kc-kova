@@ -487,7 +487,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
               </Button>
             )}
             <Button variant="outline" onClick={() => setAccountModal(null)}>
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={saveAccount}>
               {busy
@@ -536,7 +536,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           )}
           <div className="modal-actions">
             <Button variant="outline" onClick={() => setPasswordFor(null)}>
-              Cancel
+              Go back
             </Button>
             <Button
               className="primary"
@@ -611,7 +611,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           )}
           <div className="modal-actions">
             <Button variant="outline" onClick={() => setVehicleModal(null)}>
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={saveVehicle}>
               {busy
