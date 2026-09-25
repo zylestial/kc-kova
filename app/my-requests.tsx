@@ -276,6 +276,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                 {canCancel(shown) && (
                   <Button
                     variant="outline"
+                    className="danger-outline"
                     onClick={() => {
                       setCancelling(shown);
                       setSelected(null);
@@ -335,7 +336,11 @@ export default function MyRequests({ notice }: { notice?: string }) {
             <Button variant="outline" disabled={busy} onClick={() => { setCancelling(null); setError(""); }}>
               Keep request
             </Button>
-            <Button className="primary" disabled={busy} onClick={confirmCancel}>
+            <Button
+              className={cancelling?.progress === "NOT_YET_SCHEDULED" ? "danger" : "primary"}
+              disabled={busy}
+              onClick={confirmCancel}
+            >
               {busy ? "Working…" : cancelling?.progress === "NOT_YET_SCHEDULED" ? "Cancel request" : "Send to Admin"}
             </Button>
           </DialogFooter>
