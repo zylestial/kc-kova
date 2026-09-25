@@ -12,6 +12,7 @@ import {
 import { getCompletions, getProblems, getRequests, getSchedules } from "@/lib/kova-api";
 import { buildFinishedTrips, type FinishedTrip } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
+import { completionLabel, completionMeaning } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (date: string) =>
@@ -78,7 +79,7 @@ export default function DriverFinishedTrips() {
                     <td>{trip.completion.distance} km</td>
                     <td>
                       <span className={"badge " + (trip.completion.status === "DONE" ? "complete" : "")}>
-                        {trip.completion.status === "DONE" ? "Done" : "Submitted for Review"}
+                        {completionLabel[trip.completion.status]}
                       </span>
                     </td>
                     <td>
@@ -116,8 +117,9 @@ export default function DriverFinishedTrips() {
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
               <p className="helper">
                 Odometer: {selected.completion.startOdometer} → {selected.completion.endOdometer} ({selected.completion.distance} km) ·{" "}
-                {selected.completion.status === "DONE" ? "Done" : "Submitted for review"}
+                {completionLabel[selected.completion.status]}
               </p>
+              <p className="helper">{completionMeaning[selected.completion.status]}</p>
               {selected.problems.map((item) => (
                 <p className="helper" key={item.id}>
                   <strong>{item.status === "OPEN" ? "Problem reported" : "Problem handled"}:</strong> {item.note}
