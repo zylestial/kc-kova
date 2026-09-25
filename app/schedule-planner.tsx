@@ -49,6 +49,7 @@ import {
   finalLeg,
   initialLegs,
   keepStops,
+  legHasContent,
   legOrigins,
   legsFromRevision,
   matchingDestinations,
@@ -156,6 +157,8 @@ export default function SchedulePlanner({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [confirm, setConfirm] = useState<"submit" | "discard" | null>(null);
+  // The leg waiting for the Scheduler to confirm its removal.
+  const [removingLeg, setRemovingLeg] = useState<number | null>(null);
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
@@ -566,7 +569,10 @@ export default function SchedulePlanner({
                         </>
                       )}
                       {legs.length > 1 && (
-                        <Button variant="ghost" onClick={() => setLegs(removeLeg(legs, index))}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => (legHasContent(leg) ? setRemovingLeg(index) : setLegs(removeLeg(legs, index)))}
+                        >
                           Remove leg
                         </Button>
                       )}
@@ -717,7 +723,7 @@ export default function SchedulePlanner({
         ) : (
           <div className="planner-actions">
             {editing && (
-              <Button variant="outline" disabled={busy} onClick={() => setConfirm("discard")}>
+              <Button variant="outline" className="danger-outline" disabled={busy} onClick={() => setConfirm("discard")}>
                 <Trash2 size={16} /> Discard draft
               </Button>
             )}
@@ -777,6 +783,7 @@ export default function SchedulePlanner({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Keep draft</AlertDialogCancel>
             <AlertDialogAction
+              className="danger"
               disabled={busy}
               onClick={(event) => {
                 event.preventDefault();
@@ -784,6 +791,29 @@ export default function SchedulePlanner({
               }}
             >
               {busy ? "Discarding…" : "Discard draft"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={removingLeg !== null} onOpenChange={(open) => !open && setRemovingLeg(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove leg {removingLeg === null ? "" : removingLeg + 1}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its destination, times, contact details and ticked requests are removed. The requests stay selected, so
+              you can put them on another leg.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep leg</AlertDialogCancel>
+            <AlertDialogAction
+              className="danger"
+              onClick={() => {
+                if (removingLeg !== null) setLegs(removeLeg(legs, removingLeg));
+                setRemovingLeg(null);
+              }}
+            >
+              Remove leg
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
