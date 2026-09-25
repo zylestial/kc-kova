@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { createRequest, currentAccount, getBookingOptions } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
+import { requestDraftHasContent, useUnsavedChanges } from "@/lib/unsaved-changes";
 import RequestFields, {
   draftComplete,
   draftToInput,
@@ -51,6 +52,8 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
   const [reviewOpen, setReviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // A half-filled request is lost if the Requester leaves.
+  useUnsavedChanges("new-request", step === 2 && requestDraftHasContent(draft));
 
   useEffect(() => {
     const load = () => setOptions(getBookingOptions());
