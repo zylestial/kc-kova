@@ -448,4 +448,17 @@ pending approval; nothing has started.
         problems reported) and a Driver assigned to each vehicle (0012 left
         them unassigned). The Schedules week view was unstyled at first;
         see the stale build cache note in `docs/MEMORY.md`.
+- [ ] Phase 11b — UI/UX polish on the live app, before real users. No
+      database migrations expected; each fix is a small branch and commit,
+      and each merge to `master` deploys to Production (redeploy without the
+      build cache if a page looks unstyled).
+  - [ ] Collect the findings: the owner's notes and screenshots per role
+        (Requester, Scheduler, Driver, Admin), plus a browser walkthrough of
+        all four roles including mobile widths and the finished-trip print
+        form, none of which has been checked in a browser since Phase 9.
+  - [ ] Sort them: broken, confusing, nice-to-have.
+  - [ ] Fix in small branches, one concern per commit.
+  - [ ] Known candidates: dead CSS left from Phase 9b (shares minified
+        lines with live styles, needs a careful pass); the Settings tab and
+        its components are still called "Booking Options".
 - [ ] Phase 12 — Stabilize and hand over
