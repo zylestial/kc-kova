@@ -255,7 +255,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
           )}
           <DialogFooter className="booking-dialog-actions">
             <Button variant="outline" disabled={busy} onClick={() => setReviewOpen(false)}>
-              Edit
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={submit}>
               {busy ? "Submitting…" : "Submit request"}
