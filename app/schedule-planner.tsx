@@ -319,7 +319,7 @@ export default function SchedulePlanner({
           <p>
             {step === 1
               ? "Each day shows how many requests are still waiting to be scheduled."
-              : "Select requests, assign a vehicle, then arrange the Trip Record. Saving a draft reserves the time."}
+              : "Choose the requests to plan, pick a vehicle, then build the route. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft reserves the time."}
           </p>
         </div>
         {step > 1 && (
@@ -516,8 +516,9 @@ export default function SchedulePlanner({
               <div>
                 <h2>Trip Record</h2>
                 <p>
-                  Legs in travel order. The first leg starts at ANONANG and each leg starts where the previous one
-                  ended. Up to {MAX_LEGS} legs, including the final leg back to ANONANG.
+                  The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
+                  ANONANG (the base), each next one starts where the last ended, and the final leg returns to ANONANG. Up
+                  to {MAX_LEGS} legs.
                 </p>
               </div>
             </div>
@@ -529,7 +530,7 @@ export default function SchedulePlanner({
                   <div className="leg-label">
                     <b>
                       LEG {String(index + 1).padStart(2, "0")}
-                      {leg.isFinal && " · FINAL"}
+                      {leg.isFinal && " · RETURN TO ANONANG"}
                     </b>
                     <span className="leg-actions">
                       {!leg.isFinal && (
@@ -626,7 +627,7 @@ export default function SchedulePlanner({
                     <div className="leg-stops">
                       <span className="summary-label">
                         Requests served here
-                        {served.length > 1 && <span className="badge">Shared stop · {served.length} requests</span>}
+                        {served.length > 1 && <span className="badge">One stop for {served.length} requests</span>}
                       </span>
                       {candidates.length ? (
                         candidates.map((stop) => (
@@ -654,7 +655,7 @@ export default function SchedulePlanner({
                   <Plus size={16} /> Add leg
                 </Button>
                 <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => setLegs([...legs, finalLeg()])}>
-                  <Flag size={16} /> Add final leg
+                  <Flag size={16} /> Add return leg to ANONANG
                 </Button>
               </div>
             )}
