@@ -40,18 +40,19 @@ import { addDays, manilaToday } from "@/lib/timezone";
 import {
   BASE,
   MAX_LEGS,
+  addLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
   commitmentsOn,
   conflictsWith,
   finalLeg,
+  initialLegs,
   keepStops,
   legOrigins,
   legsFromRevision,
   matchingDestinations,
   moveLeg,
-  newLeg,
   currentRevision,
   openRevision,
   removeLeg,
@@ -59,6 +60,7 @@ import {
   scheduleStateLabel,
   scheduleStatePill,
   setLegDestination,
+  setLegTimeIn,
   stopsFor,
   toScheduleInput,
   tripProblems,
@@ -147,7 +149,7 @@ export default function SchedulePlanner({
             stopsFor(getRequests().filter((request) => !droppedIds.includes(request.id))).map((stop) => stop.id),
           ),
         )
-      : [newLeg()],
+      : initialLegs(),
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -207,7 +209,7 @@ export default function SchedulePlanner({
   function pickDate(day: string) {
     setDate(day);
     setRequestIds([]);
-    setLegs([newLeg()]);
+    setLegs(initialLegs());
     setError("");
   }
 
@@ -601,7 +603,7 @@ export default function SchedulePlanner({
                         type="time"
                         value={leg.plannedTimeIn}
                         aria-label={`Leg ${index + 1} planned Time In`}
-                        onChange={(event) => changeLeg(index, { plannedTimeIn: event.target.value })}
+                        onChange={(event) => setLegs(setLegTimeIn(legs, index, event.target.value))}
                       />
                     </label>
                     {!leg.isFinal && (
@@ -645,7 +647,7 @@ export default function SchedulePlanner({
             })}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
-                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => setLegs([...legs, newLeg()])}>
+                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => setLegs(addLeg(legs))}>
                   <Plus size={16} /> Add leg
                 </Button>
                 <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => setLegs([...legs, finalLeg()])}>
