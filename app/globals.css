@@ -67,4 +67,8 @@ table[data-stack] td::before{content:attr(data-label);grid-column:1;grid-row:1;t
 table[data-stack] td[data-label=""]::before{content:none}
 table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
 }
+.app-shell{min-height:100vh;display:flex;flex-direction:column}
+.app-shell>.role-main{flex:1 0 auto;min-height:0;width:100%;margin:0 auto}
+.app-footer{width:100%;max-width:1320px;margin:0 auto;padding:0 5%;border-top:0;display:block}
+.app-footer>div{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid #dfe5ed;padding:22px 0}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
