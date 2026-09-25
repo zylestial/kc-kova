@@ -56,3 +56,15 @@ export function requestDateError(
   if (requestType === "URGENT" && date !== today && date !== addDays(today, 1)) return "Urgent requests are for today or tomorrow only";
   return "";
 }
+
+/**
+ * Whether a trip has ended: its last planned Time In ("HH:MM", Asia/Manila,
+ * which has no daylight saving) on its date is at or before `now`. Mirrors
+ * submit_completion (supabase/migrations/0029_v2_completion_rpcs.sql) so the
+ * Driver's Complete trip button can wait; the database decides for real.
+ */
+export function hasTripEnded(date: string, timeIn: string, now: Date = new Date()): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(timeIn)) return false;
+  const end = new Date(`${date}T${timeIn}:00+08:00`);
+  return !Number.isNaN(end.getTime()) && end.getTime() <= now.getTime();
+}

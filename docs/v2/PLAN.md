@@ -59,3 +59,11 @@ conventions (see `docs/RULES.md`).
 - Phase 4 complete on `feat/v2-requests` — `docs/v2/phase-4-requests.md`
   (request creation and My requests, migrations 0024–0025). Applied to the
   local database only.
+- Phase 5 complete on `feat/v2-scheduling` — `docs/v2/phase-5-scheduling.md`
+  (Create schedule, Schedules, Trip Record, migrations 0026–0027).
+  Applied to the local database only.
+- Phase 6 complete on `feat/v2-approval` — `docs/v2/phase-6-approval.md`
+  (Admin Schedules, approve/return, Scheduler revisions; no migration).
+- Phase 7 complete on `feat/v2-cancellation` — `docs/v2/phase-7-cancellation.md`
+  (cancel / ask to cancel, confirm / decline, Admin cancel schedule;
+  migration 0028). Applied to the local database only.

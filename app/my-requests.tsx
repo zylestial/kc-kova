@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -13,9 +14,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   currentAccount,
+  cancelRequest,
   getBookingOptions,
+  getCancellations,
   getMyRequests,
   hydrateKovaData,
+  requestCancellation,
   updateRequest,
   type RequestProgress,
   type TransportRequest,
@@ -59,6 +63,10 @@ const destinationsText = (request: TransportRequest) =>
 /** Only the owner's unscheduled, active requests can be edited. */
 const editable = (request: TransportRequest) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED";
 
+/** Cancellable until the Driver submits the trip; after that it's a finished record. */
+const canCancel = (request: TransportRequest) =>
+  request.status === "ACTIVE" && !request.cancellationPending && !["COMPLETED", "DONE"].includes(request.progress);
+
 export default function MyRequests({ notice }: { notice?: string }) {
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
@@ -70,6 +78,10 @@ export default function MyRequests({ notice }: { notice?: string }) {
   // change or a request that has since been scheduled.
   const [editing, setEditing] = useState<TransportRequest | null>(null);
   const [draft, setDraft] = useState<RequestDraft | null>(null);
+  // Cancelling asks for a confirmation first. An unscheduled request is
+  // cancelled on the spot; one a schedule holds goes to an Admin.
+  const [cancelling, setCancelling] = useState<TransportRequest | null>(null);
+  const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -111,6 +123,29 @@ export default function MyRequests({ notice }: { notice?: string }) {
       setBusy(false);
     }
   }
+
+  async function confirmCancel() {
+    if (!cancelling) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (cancelling.progress === "NOT_YET_SCHEDULED") await cancelRequest(cancelling.id);
+      else await requestCancellation(cancelling.id, reason.trim());
+      setCancelling(null);
+      setReason("");
+    } catch (caught) {
+      setError((caught as Error).message);
+      await hydrateKovaData().catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const declined = shown
+    ? getCancellations()
+        .filter((item) => item.requestId === shown.id && item.status === "DECLINED")
+        .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0]
+    : undefined;
 
   const dateChanged = !!editing && !!draft && (draft.date !== editing.date || draft.requestType !== editing.requestType);
   const dateHint = draft && dateChanged ? requestDateError(draft.date, draft.requestType, isAdmin) : "";
@@ -228,10 +263,29 @@ export default function MyRequests({ notice }: { notice?: string }) {
               {!editable(shown) && shown.status === "ACTIVE" && (
                 <p className="helper">This request is being scheduled, so it can no longer be edited.</p>
               )}
+              {shown.cancellationPending && (
+                <p className="helper">You asked to cancel this request. An Admin will confirm or decline it; the trip stays as planned until then.</p>
+              )}
+              {declined && !shown.cancellationPending && (
+                <p className="helper">Your cancellation request was declined: {declined.decisionNote}</p>
+              )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setSelected(null)}>
                   Close
                 </Button>
+                {canCancel(shown) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setCancelling(shown);
+                      setSelected(null);
+                      setReason("");
+                      setError("");
+                    }}
+                  >
+                    {shown.progress === "NOT_YET_SCHEDULED" ? "Cancel request" : "Request cancellation"}
+                  </Button>
+                )}
                 {editable(shown) && (
                   <Button className="primary" onClick={() => openEdit(shown)}>
                     Edit
@@ -240,6 +294,51 @@ export default function MyRequests({ notice }: { notice?: string }) {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!cancelling}
+        onOpenChange={(open) => {
+          if (!open && !busy) {
+            setCancelling(null);
+            setError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{cancelling?.progress === "NOT_YET_SCHEDULED" ? "Cancel this request?" : "Ask to cancel this request?"}</DialogTitle>
+            <DialogDescription>
+              {cancelling && dateLabel(cancelling.date)} — {cancelling && destinationsText(cancelling)}
+            </DialogDescription>
+          </DialogHeader>
+          {cancelling?.progress === "NOT_YET_SCHEDULED" ? (
+            <p className="helper">The request is cancelled right away. It stays in your list as Cancelled.</p>
+          ) : (
+            <>
+              <p className="helper">
+                This request is already in a schedule. The trip stays as planned until an Admin confirms the cancellation.
+              </p>
+              <label className="field">
+                <span>REASON (OPTIONAL)</span>
+                <Textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} />
+              </label>
+            </>
+          )}
+          {error && (
+            <p className="modal-error" role="alert">
+              {error}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => { setCancelling(null); setError(""); }}>
+              Keep request
+            </Button>
+            <Button className="primary" disabled={busy} onClick={confirmCancel}>
+              {busy ? "Working…" : cancelling?.progress === "NOT_YET_SCHEDULED" ? "Cancel request" : "Send to Admin"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
