@@ -443,10 +443,10 @@ pending approval; nothing has started.
       and `/problems`; migration 0029; pgTAP 27/27 for the new file,
       vitest 111/111, 13-check browser walkthrough passed. Driver
       Finished Trips is still v1 until Phase 9. **Local database only.**
-- [ ] Phase 9 — Admin finished trips and printing. See
+- [x] Phase 9 — Admin finished trips and printing. See
       `docs/v2/phase-9-finished-trips.md`, branch `feat/v2-finished-trips`
       (stacked on `feat/v2-cancellation`). **Built; Playwright
-      walkthrough passed (31 checks), awaiting a manual check:** migrations 0030 (follow-up link) and 0031
+      walkthrough passed (30 checks) and the manual check passed:** migrations 0030 (follow-up link) and 0031
       (`correct_completion`, `mark_completion_done`, `handle_problem`),
       pgTAP 35/35 new (214 total), vitest 121/121, tsc/lint/build clean;
       Admin and Driver Finished Trips on v2 with a print view. **Local database only.**
