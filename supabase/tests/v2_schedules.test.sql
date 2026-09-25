@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(55);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -96,6 +96,15 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok(
   $$ insert into schedules (schedule_date, created_by_account_id) values (pg_temp.d(), '00000000-0000-0000-0000-00000000000d') $$,
   '42501', null, 'Direct INSERT on schedules is denied, even for Scheduler');
+select throws_ok(
+  $$ select save_schedule_draft(null, null, pg_temp.d(), 'V1', array[pg_temp.id('juan')],
+       (select jsonb_agg(jsonb_build_object('destinationId', 'd1',
+          'plannedTimeOut', format('%s:00', lpad((6 + n)::text, 2, '0')),
+          'plannedTimeIn', format('%s:30', lpad((6 + n)::text, 2, '0'))) order by n)
+        from generate_series(1, 8) as n)
+       || jsonb_build_array(jsonb_build_object('isFinal', true, 'plannedTimeOut', '16:00', 'plannedTimeIn', '17:00'))) $$,
+  '22023', 'A schedule can have at most 8 legs, including the final leg back to ANONANG',
+  'A ninth leg is refused: the printed Daily Vehicle Record has 8 rows');
 
 -- Draft with a shared stop ---------------------------------------------------
 select lives_ok(
@@ -153,7 +162,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok(
   $$ select save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')) - 1, null, 'V1',
        array[pg_temp.id('juan'), pg_temp.id('maria')], pg_temp.shared_legs('08:00', '09:00', '09:30', '10:30')) $$,
-  '40001', null, 'A stale Scheduler save is rejected instead of overwriting');
+  'PT409', null, 'A stale Scheduler save is rejected instead of overwriting');
 select throws_ok(
   $$ select submit_schedule(pg_temp.id('s2'), pg_temp.rv(pg_temp.id('s2'))) $$,
   '22023', null, 'A route without the final ANONANG leg cannot be submitted');
@@ -278,6 +287,45 @@ reset role;
 select is(
   (select count(*)::int from schedule_revisions where schedule_id = pg_temp.id('s1') and plate = 'V1-NEW'), 2,
   'Every schedule version follows the new plate');
+
+-- A past-date Admin request can still be scheduled and approved ------------
+-- (Driver completion of the same trip is added here in Phase 8.)
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select lives_ok(
+  $$ select create_request((now() at time zone 'Asia/Manila')::date - 3, 'REGULAR', null, null,
+       '[{"destinationId":"d2","purposeId":"p2"}]') $$,
+  'Admin requests transport for a trip that already happened');
+reset role;
+insert into ids
+  select 'past', id from requests where owner_account_id = '00000000-0000-0000-0000-00000000000a';
+insert into ids
+  select 'past_rd', id from request_destinations where request_id = pg_temp.id('past') and active;
+
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select lives_ok(
+  $$ select save_schedule_draft(null, null, (now() at time zone 'Asia/Manila')::date - 3, 'V2',
+       array[pg_temp.id('past')],
+       jsonb_build_array(
+         jsonb_build_object('destinationId', 'd2', 'plannedTimeOut', '08:00', 'plannedTimeIn', '09:00',
+           'stops', jsonb_build_array(pg_temp.id('past_rd'))),
+         jsonb_build_object('isFinal', true, 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:30'))) $$,
+  'Scheduler drafts a schedule on the past date');
+reset role;
+insert into ids select 'past_s', schedule_id from schedule_requests where request_id = pg_temp.id('past') and active;
+
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select lives_ok(
+  $$ select submit_schedule(pg_temp.id('past_s'), pg_temp.rv(pg_temp.id('past_s'))) $$,
+  'Scheduler submits the past-date schedule');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select lives_ok(
+  $$ select approve_schedule(pg_temp.id('past_s'), pg_temp.rv(pg_temp.id('past_s'))) $$,
+  'Admin approves the past-date schedule');
+select is((select progress from request_progress where request_id = pg_temp.id('past')), 'APPROVED',
+  'The past-date request reaches APPROVED');
+select ok(
+  (select (created_at at time zone 'Asia/Manila')::date > requested_date from requests where id = pg_temp.id('past')),
+  'The request keeps its real entry time, not the trip date');
 
 select * from finish();
 rollback;

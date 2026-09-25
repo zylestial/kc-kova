@@ -137,8 +137,9 @@ post-v1.0 hardening, not blockers to this milestone.
       as CI-checked tests. Turning it into a real pgTAP or integration
       suite (e.g. against a Supabase instance spun up in CI) so this is
       checked on every change, not just once by hand, remains open.
-- [ ] **`vehicle_records` writes run through application code + the
-      service-role client, not a Postgres RPC** (see
+- [x] **`vehicle_records` writes run through application code + the
+      service-role client, not a Postgres RPC** (obsolete: the table and
+      route were removed in Phase 9b) (see
       `docs/ARCHITECTURE.md`), unlike every other write path in this app.
       This was a deliberate scope trade-off for this pass, not an oversight.
       Consider porting `app/api/records/[recordId]/route.ts`'s logic into a
@@ -394,12 +395,78 @@ pending approval; nothing has started.
       release-time only. Deferred by design: cancellation RPCs (Phase 7),
       completion/problem RPCs (Phase 8), and v1 `booking_slots` vs. v2
       reservation cross-checks (Phase 10).
-- [ ] Phase 4 — Requester and Admin request creation
-- [ ] Phase 5 — Scheduler planning and Trip Record
-- [ ] Phase 6 — Approval, revisions and publication
-- [ ] Phase 7 — Cancellation and request unlocking
-- [ ] Phase 8 — Driver completion and problem reporting
-- [ ] Phase 9 — Admin finished trips and printing
-- [ ] Phase 10 — End-to-end validation and migration rehearsal
+- [x] Phase 4 — Requester and Admin request creation. See
+      `docs/v2/phase-4-requests.md`, branch `feat/v2-requests` (stacked
+      on `feat/v2-foundation`): New request (date only, Regular/Urgent,
+      Project / Site or Other, several destinations each with a purpose,
+      Review modal) and My requests with derived progress and editing
+      until scheduled, for Requester and Admin; `/api/requests` routes;
+      migrations 0024 (edits may keep since-deactivated options) and 0025
+      (stale edits return 409); `app/my-bookings.tsx` removed. pgTAP
+      83/83, concurrency 9/9, vitest 73/73, 22-step browser walkthrough.
+      **Local database only.**
+  - [x] **Before Phase 5:** the schedule RPCs in 0021 raise SQLSTATE
+        `40001` for stale saves, which PostgREST retries forever, so the
+        HTTP call hangs. Switch them to `PT409` the way 0025 did for
+        `update_request`. Done in Phase 5 (migration 0026).
+  - [ ] Move `scripts/seed-uat.mjs` from `Booker` to `Requester` when
+        0023 is applied to `kc-kova`.
+- [x] Phase 5 — Scheduler planning and Trip Record. See
+      `docs/v2/phase-5-scheduling.md`, branch `feat/v2-scheduling`
+      (stacked on `feat/v2-requests`): Create schedule (day, request pool,
+      existing commitments, vehicle with its Driver, Trip Record legs with
+      manual shared stops, Add leg / Add final leg, Save draft, Submit,
+      Discard) and Schedules (Day/Week, date/vehicle/Driver/status
+      filters) for Scheduler; `/api/schedules` routes; migrations 0026
+      (stale schedule saves return 409) and 0027 (8-leg cap). pgTAP 84/84,
+      concurrency 9/9, vitest 101/101, API smoke 29/29, 45-step browser
+      walkthrough. **Local database only.**
+- [x] Phase 6 — Approval, revisions and publication. See
+      `docs/v2/phase-6-approval.md`, branch `feat/v2-approval` (stacked
+      on `feat/v2-scheduling`): Admin Schedules with Approve and Return
+      (comment required), and Scheduler Propose revision of an approved
+      schedule; `/api/schedules/:id/approve` and `/return`; no migration.
+      vitest 101/101, API smoke passed; **no browser walkthrough**
+      (Playwright not installed). **Local database only.**
+- [x] Phase 7 — Cancellation and request unlocking. See
+      `docs/v2/phase-7-cancellation.md`, branch `feat/v2-cancellation`
+      (stacked on `feat/v2-approval`): Requester cancel or ask to
+      cancel, Admin confirm/decline and Cancel schedule, planner drops
+      cancelled requests; migration 0028; pgTAP 68/68 for the new file,
+      vitest 101/101, API smoke and an 11-check browser walkthrough passed.
+      **Local database only.**
+- [x] Phase 8 — Driver completion and problem reporting. See
+      `docs/v2/phase-8-driver.md`, branch `feat/v2-driver-completion`
+      (stacked on `feat/v2-cancellation`): Driver My Schedule shows
+      published v2 trips with Complete trip (one odometer pair, after the
+      trip ends) and Report a problem; `/api/schedules/:id/completion`
+      and `/problems`; migration 0029; pgTAP 27/27 for the new file,
+      vitest 111/111, 13-check browser walkthrough passed. Driver
+      Finished Trips is still v1 until Phase 9. **Local database only.**
+- [x] Phase 9 — Admin finished trips and printing. See
+      `docs/v2/phase-9-finished-trips.md`, branch `feat/v2-finished-trips`
+      (stacked on `feat/v2-cancellation`). **Built; Playwright
+      walkthrough passed (30 checks) and the manual check passed:** migrations 0030 (follow-up link) and 0031
+      (`correct_completion`, `mark_completion_done`, `handle_problem`),
+      pgTAP 35/35 new (214 total), vitest 121/121, tsc/lint/build clean;
+      Admin and Driver Finished Trips on v2 with a print view. **Local database only.**
+- [x] Phase 9b — Remove the v1.2 screens, code and tables. See
+      `docs/v2/phase-9b-remove-v1.md`, branch `chore/v2-remove-v1` (stacked
+      on `feat/v2-finished-trips`): v1 Schedule, booking flow, Booking
+      Approvals and Daily Vehicle Record screens, `/api/bookings` and
+      `/api/records`, and the v1 client code deleted; migration 0032 drops
+      `bookings`, `booking_slots`, `vehicle_records`, `vehicle_aliases` and
+      their functions and rewrites `rename_vehicle`. No legacy data to carry
+      over, so Phase 10 no longer migrates bookings. pgTAP 230/230, vitest
+      80/80, concurrency script, tsc/lint/build clean, Playwright 30/30 and
+      an 18-check smoke test passed. **Release-time only (applied with 0023
+      at cutover); local database only.**
+- [x] Phase 10 — End-to-end validation and migration rehearsal
+  (`docs/v2/phase-10-validation.md`, branch `feat/v2-validation`): 0023 to
+  0032 applied together after a backup onto a v1.2-shaped database, then
+  rolled back to a backup restore and re-applied cleanly; 41 HTTP checks
+  across all four roles passed; pgTAP 230/230, vitest 80/80, tsc, lint and
+  build clean. Not covered: browser and print screens, the concurrency
+  script, hosted environments. Local only, no app code changed.
 - [ ] Phase 11 — Release through the same Vercel project
 - [ ] Phase 12 — Stabilize and hand over
