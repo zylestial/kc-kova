@@ -30,87 +30,47 @@ should be written, for both humans and AI agents.)
 - Only an Admin may create or edit vehicles.
 - `plate` is the primary key and must be unique.
 - Renaming a plate (`PUT /api/vehicles/:plate` with a different `plate` in
-  the body) must not orphan history: every booking, booking slot, and
-  vehicle record referencing the old plate is moved to the new one, and the
-  old plate is recorded in `vehicle_aliases` so historical lookups still
-  resolve. See `rename_vehicle` in `docs/ARCHITECTURE.md`.
-- A booking cannot be created against an `Inactive` vehicle
-  (`block_inactive_vehicle` trigger).
+  the body) must not orphan history: every schedule version and reservation
+  referencing the old plate is moved to the new one in one transaction. See
+  `rename_vehicle` in `docs/ARCHITECTURE.md`.
+- A schedule cannot be saved against an `Inactive` vehicle
+  (`save_schedule_draft`) or approved once its vehicle has become inactive
+  (`approve_schedule`).
 - Vehicles are never hard-deleted, only marked `Inactive`.
 
-## Bookings
+## Requests, schedules and completions (v2)
 
-- A booking may be created by a `Requester` or an `Admin`. A `Driver` may never
-  create a booking (including for themselves).
-- `driverId` must reference an **Active** account with role `Driver`.
-- `start`/`end` are hours in `[0, 24)` / `(0, 24]` with `start < end`.
-- **No overlapping active booking for the same vehicle, and none for the
-  same driver, may exist for any overlapping hour on the same day.** This is
-  enforced atomically by unique indexes on the `booking_slots` table (one
-  row per booked hour), not by an application-level check-then-insert —
-  a race between two concurrent requests must never let both succeed.
-- All bookings for the same vehicle on the same date must share the same
-  driver (`enforce_same_daily_driver` trigger) — a vehicle's day belongs to
-  one driver, who files one Daily Vehicle Record covering every trip that
-  vehicle makes that day.
-- On creation, the server — never the client — sets `createdByAccountId`,
-  `requestedByAccountId`, `requestedBy` (name), `createdAt`, and
-  `status = SCHEDULED`, all derived from the authenticated session.
-- A Requester may update or cancel a booking only if they created it
-  (`createdByAccountId === session.account.id`). An Admin may update or
-  cancel any booking.
-- A booking that already has a **submitted** Daily Vehicle Record
-  (`vehicle_records.data->>'submittedAt' is not null`) can no longer be
-  edited or cancelled by anyone, Admin included — the trip is locked once
-  the Driver has filed it.
-- Cancelling sets `status = CANCELLED`; the row is never deleted, and its
-  hour slots are freed immediately so the vehicle/driver become bookable
-  again for that time.
-- A cancelled booking never counts toward availability checks.
+The v1.2 booking and Daily Vehicle Record rules were retired with their code
+and tables (migration 0032). Request and schedule rules (dates, states,
+approval, cancellation, conflicts) are enforced in the RPCs and documented
+per phase in `docs/v2/` — `phase-3-schema.md` has the permission matrix and
+state transitions. The completion rules:
 
-## Daily Vehicle Records
-
-- One record row exists per `(date, plate)` — every booking for that
-  vehicle on that day shares the one record, consistent with the
-  one-driver-per-vehicle-per-day rule above.
-- **Before submission:** only the assigned Driver of the linked booking may
-  write to the record, and only while it has no `submittedAt`.
-- **Submission** (`status` set to `SUBMITTED FOR REVIEW`) requires, checked
-  server-side:
-  - the actor is the booking's assigned driver;
-  - the booking is still `SCHEDULED` and its scheduled end time has already
-    passed (`canFinishTrip`);
-  - start and end odometer readings are present, numeric, non-negative, and
-    `end >= start`;
-  - the trip's leg list is non-empty and **starts and ends at ANONANG**
-    (case-insensitive), the fleet's home base.
-  - On success, the server — not the client — sets `submittedAt` to the
-    current time and the status to `SUBMITTED FOR REVIEW`.
-- **After submission:** the Driver may no longer write to the record at
-  all. Only an Admin may, and only while `status !== "DONE"`.
-- **Admin edits** to a submitted record must append an immutable history
-  entry (`action: "EDIT"`) recording every changed field's before/after
-  value, the acting Admin's id/name, and a timestamp. History entries are
-  never edited or removed once written.
-- **Marking Done** (`status` set to `DONE`) is Admin-only, only legal from
-  `SUBMITTED FOR REVIEW`, and appends a history entry with
-  `action: "MARK AS DONE"`.
-- **Once `DONE`, a record is read-only** — no further writes from anyone,
-  Admin included, through the normal edit path.
-- Finance fields (`submitted`, `received`, `reference`, `finance`,
-  `financeDate`) and the fixed approval names (`pm`, `coo`) are Admin-only:
-  a Driver's payload must never be able to set or change them, even if
-  present in the request body.
-- The two fixed approval names never change: Project Manager is
-  **Joedel Capillan (PM)**; 2nd-level/COO approval is
-  **President Vargas (COO)**.
+- Only the Driver snapshotted on a schedule's **approved** version may submit
+  a completion or report a problem, and only while the schedule is `ACTIVE`.
+- A completion is **one odometer pair for the whole schedule**: whole numbers,
+  start ≥ 0, end ≥ start, pinned to the approved version, with a server-set
+  `submitted_at`. Repeating a submit returns the existing completion.
+- The trip must be over: the approved version's last planned Time In
+  (Asia/Manila) has passed. Problem reports have no such limit, can be filed
+  more than once, and never block anything.
+- A submitted completion locks the trip: no revision, approval or
+  cancellation afterwards.
+- Only an **Admin** may correct a completion (while `SUBMITTED`), mark it
+  `DONE`, or handle a problem report. Marking Done is always a manual action.
+  A `DONE` completion is locked for everyone, the service role included
+  (trigger `prevent_done_completion_changes`); repeating Done returns it.
+- Handling a problem report needs a note and may name a follow-up schedule,
+  which must be a different, active schedule. A `DONE` trip can still have
+  problem reports handled.
 
 ## Booking options and people
 
 - Only an Admin may create or edit Projects, Destinations, Purposes, or
   People.
-- Inactive options remain visible on historical bookings/records but must
-  not be offered when creating a *new* booking.
+- Inactive options remain visible on existing requests but must not be
+  offered when creating a *new* one (an edit may keep an option the request
+  already had).
 - Nothing in this group is ever hard-deleted.
 
 ## Cross-cutting
@@ -162,7 +122,7 @@ audit — see `docs/MEMORY.md` for the full incidents.
 - **Every table in `public` has RLS enabled, default-deny.** No table ships
   without RLS; a table with RLS enabled and zero policies denies everyone
   by default, which is intentional for internal tables like
-  `booking_slots`/`login_attempts` that should only ever be touched via an
+  `login_attempts` that should only ever be touched via an
   RPC or the service-role client.
 - **Write explicit per-operation policies** (`for select`/`for insert`/`for
   update`/`for delete`), not a single `for all`, so each operation's rule
@@ -238,8 +198,8 @@ audit — see `docs/MEMORY.md` for the full incidents.
   change. Scope assertions to the test's own fixtures rather than whole
   tables, because the concurrency script leaves committed rows behind.
 - Add or update a test for every bug fix and security fix (see
-  `lib/supabase/records.test.ts`'s `matchesBookingKey` tests for the
-  pattern: a pure helper function, unit-tested, called from the route).
+  `lib/completion-input.test.ts` for the pattern: a pure helper function,
+  unit-tested, called from the route).
 
 ### Git / PR conventions
 
@@ -264,4 +224,4 @@ any contributor:
 - Never trust a client-supplied value for anything the server can derive
   itself (ownership ids, timestamps, status transitions) — set them
   server-side, the same discipline already used throughout
-  `app/api/bookings/**` and `app/api/records/**`.
+  `app/api/requests/**` and `app/api/schedules/**`.
