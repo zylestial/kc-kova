@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
 import {
@@ -118,6 +119,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
   const [accountModal, setAccountModal] = useState<"add" | "edit" | null>(null);
   const [vehicleModal, setVehicleModal] = useState<"add" | "edit" | null>(null);
