@@ -8,6 +8,7 @@ import {
   FilePlus2,
   Settings as SettingsIcon,
   ArrowLeft,
+  CircleHelp,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
   type Account,
 } from "@/lib/kova-api";
 import { homeCounts } from "@/lib/home-counts";
+import { HelpDialog, HowItWorks } from "./how-it-works";
 import Settings from "./settings";
 import DriverFinishedTrips from "./driver-finished-trips";
 import DriverSchedules from "./driver-schedules";
@@ -90,6 +92,7 @@ export default function Home() {
   const [editScheduleId, setEditScheduleId] = useState<string | undefined>();
   const [scheduleNotice, setScheduleNotice] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string | undefined>();
+  const [helpOpen, setHelpOpen] = useState(false);
   const lastRefresh = useRef(0);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -267,10 +270,14 @@ export default function Home() {
             {refreshing ? "Refreshing…" : "Refresh"}
           </Button>
         </div>
+        <Button variant="ghost" onClick={() => setHelpOpen(true)}>
+          <CircleHelp size={15} /> Help
+        </Button>
         <Button variant="ghost" onClick={signOut}>
           Sign Out
         </Button>
       </header>
+      <HelpDialog role={account.role} open={helpOpen} onOpenChange={setHelpOpen} />
       <main className="role-main">
         {screen === "settings" && account.role === "Admin" ? (
           <Settings onBack={() => setScreen("admin-home")} />
@@ -478,6 +485,10 @@ export default function Home() {
                 </>
               )}
             </div>
+            <section className="how-card">
+              <h2>How this works</h2>
+              <HowItWorks role={account.role} />
+            </section>
           </>
         )}
         <footer>
