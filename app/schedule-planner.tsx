@@ -761,7 +761,7 @@ export default function SchedulePlanner({
           )}
           <DialogFooter className="booking-dialog-actions">
             <Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>
-              Edit
+              Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={submit}>
               {busy ? "Submitting…" : "Submit for approval"}
