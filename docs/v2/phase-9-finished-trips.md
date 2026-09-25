@@ -54,11 +54,16 @@ below were approved before the migrations were written.
    schedule.
 2. **Only an Admin corrects, marks Done or handles.** Schedulers can read
    problem reports (Phase 3 RLS) but not act on them.
-3. **Print contents:** header and logo, Driver, plate, both odometers,
-   distance, the eight-row route table from the approved version (planned
-   times), problem notes with how they were handled, and the PM/COO
-   approval block. The v1 return-condition checkboxes and Finance block
-   are dropped: v2 stores nothing for them.
+3. **Print keeps the whole paper form.** Same sections and layout as the
+   v1 form: header and logo, info grid, route and recording rule, the
+   eight-row trip table with Name/Sign lines, the final return and
+   full-tank block, vehicle control, approvals, Finance use and submission
+   control. v2 fills in the date, vehicle, plate, Driver, project, route,
+   planned times, requestors, purposes, contacts, both odometers,
+   distance, leg count and submission date. Signatures, fuel checks and
+   Finance fields stay blank for handwriting. Problem reports are not
+   printed. (The first cut dropped the return and Finance blocks; it
+   didn't look like the form and was reverted.)
 4. **Done is always a manual Admin action**, never automatic.
 5. **Cancellation after Done:** unchanged; Phase 7/8 guards already block it.
 6. **Repeating is safe:** marking Done or handling again returns the
