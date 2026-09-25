@@ -469,4 +469,8 @@ pending approval; nothing has started.
   build clean. Not covered: browser and print screens, the concurrency
   script, hosted environments. Local only, no app code changed.
 - [ ] Phase 11 — Release through the same Vercel project
+  - [x] Cutover and rollback runbooks written
+        (`docs/v2/cutover-runbook.md`, `rollback-runbook.md`); not run
+        against production.
+  - [ ] Release approval, preflight, backup, cutover, verification
 - [ ] Phase 12 — Stabilize and hand over
