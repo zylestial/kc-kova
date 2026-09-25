@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
@@ -104,6 +105,8 @@ export default function Home() {
   // The draft being continued in Create schedule; undefined for a new one.
   const [editScheduleId, setEditScheduleId] = useState<string | undefined>();
   const [scheduleNotice, setScheduleNotice] = useState("");
+  useAutoClear(requestNotice, setRequestNotice);
+  useAutoClear(scheduleNotice, setScheduleNotice);
   const [scheduleDate, setScheduleDate] = useState<string | undefined>();
   const [helpOpen, setHelpOpen] = useState(false);
   // What to do once the person confirms they want to leave unsaved work.
