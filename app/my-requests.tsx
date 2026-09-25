@@ -33,6 +33,7 @@ import RequestFields, {
   type RequestDraft,
 } from "./request-fields";
 import { requestProgressLabel, requestProgressMeaning } from "@/lib/status-text";
+import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 
 // Reuses the existing status-pill colours.
 const progressPill: Record<RequestProgress, string> = {
@@ -315,7 +316,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                 This request is already in a schedule. The trip stays as planned until an Admin confirms the cancellation.
               </p>
               <label className="field">
-                <span>REASON (OPTIONAL)</span>
+                <span>Reason (optional)</span>
                 <Textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} />
               </label>
             </>
@@ -358,7 +359,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
           {editing && draft && (
             <>
               <label className="field">
-                <span>DATE *</span>
+                <span>Date *</span>
                 <Input
                   type="date"
                   value={draft.date}
@@ -380,6 +381,11 @@ export default function MyRequests({ notice }: { notice?: string }) {
               {error}
             </p>
           )}
+          {draft && stillNeeded(requestDraftMissing(draft)) && (
+            <p className="helper" role="status">
+              {stillNeeded(requestDraftMissing(draft))}
+            </p>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
@@ -390,7 +396,7 @@ export default function MyRequests({ notice }: { notice?: string }) {
                 setError("");
               }}
             >
-              Cancel
+              Go back
             </Button>
             <Button className="primary" disabled={busy || !draft || !draftComplete(draft) || !!dateHint} onClick={save}>
               {busy ? "Saving…" : "Save changes"}
