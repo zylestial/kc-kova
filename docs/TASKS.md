@@ -3,7 +3,11 @@
 Kept as a living checklist of what's implemented vs. outstanding. Update
 this file whenever a task's status changes.
 
-## Status: v1.0 complete — in UAT (2026-09-22)
+## Status: v2.0 live (2026-09-25) — v2.1 in preparation
+
+v2.0 was released to production on 2026-09-25 (see "v2.0" below). v2.1,
+a UX pass on top of it, is on `test/all-ux` and not yet merged (see
+"v2.1" below). The v1.0 notes that follow are kept as history.
 
 All planned v1.0 functionality is implemented and verified: `tsc --noEmit`,
 `eslint`, `vitest`, and `next build` all pass clean; the app has been
