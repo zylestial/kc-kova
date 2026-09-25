@@ -227,11 +227,14 @@ At cutover (Phase 11, with separate release approval):
 1. 0013–0022 can be applied ahead of cutover while v1.2 is still live —
    they only add things.
 2. Pause writes → take the backup → deploy the v2 application → apply 0023
-   → verify sign-in and role access → resume writes.
+   and 0032 → verify sign-in and role access → resume writes. 0032 (Phase 9b)
+   drops the v1.2 booking tables and functions the live v1.2 app still
+   uses, so it can't go ahead of cutover with the additive ones.
 
 A Vercel rollback restores **code only**. After 0023, v1.2 code can't
-serve converted accounts. To go back to v1.2 after cutover, pause writes
-and reverse the conversion. **Rehearse this locally first**:
+serve converted accounts, and after 0032 the v1.2 tables are gone, so going
+back to v1.2 also needs a restore from the pre-cutover backup. To go back
+after cutover, pause writes and reverse the conversion. **Rehearse this locally first**:
 
 ```sql
 alter table accounts drop constraint accounts_role_check;
@@ -281,11 +284,12 @@ Results on a fresh reset (2026-09-24):
   exist.
 - Admin starting a revision of an **approved** schedule — Phase 6 decides
   whether Admin may start one directly; today only a Scheduler can.
-- Legacy v1.2 `booking_slots` and v2 `schedule_reservations` don't check
-  each other for conflicts. How future v1.2 bookings are carried into v2
-  is Phase 10's job, and it must happen before cutover.
-- The old booking UI and RPCs stay until the Phase 4/5 screens replace
-  them, then they are removed in that phase's cleanup.
+- Legacy v1.2 `booking_slots` and v2 `schedule_reservations` never checked
+  each other for conflicts. There is no legacy data to carry over, so
+  migration 0032 (Phase 9b) drops the v1.2 tables instead of reconciling
+  them.
+- The old booking UI and RPCs were removed in Phase 9b, once the Phase 4-9
+  screens had replaced them.
 - **Found, not fixed (v1.2 scope)**: locally, the Supabase template grants
   `anon`/`authenticated` every table privilege, including `TRUNCATE`, on
   the v1.2 tables too. PostgREST doesn't expose `TRUNCATE`, so this isn't
