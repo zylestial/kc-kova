@@ -388,13 +388,13 @@ export default function Schedules({
               </Button>
             )}
             {selected && cancellable(selected) && !returning && !cancelling && (
-              <Button variant="outline" disabled={busy} onClick={() => { setCancelling(true); setComment(""); setError(""); }}>
+              <Button variant="outline" className="danger-outline" disabled={busy} onClick={() => { setCancelling(true); setComment(""); setError(""); }}>
                 Cancel schedule
               </Button>
             )}
             {selected && cancelling && (
               <Button
-                className="primary"
+                className="danger"
                 disabled={busy || !comment.trim()}
                 onClick={() => decide(() => cancelSchedule(selected.id, comment.trim()), "Schedule cancelled.")}
               >
