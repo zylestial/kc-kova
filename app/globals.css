@@ -55,4 +55,15 @@
 .show-password{justify-self:start;height:auto;padding:0!important;font-size:13px;color:#2357d9}
 .request-review-list{list-style:decimal}
 @media(max-width:700px){[data-slot=button],[data-slot=select-trigger],input:not([type=checkbox]):not([type=radio]),textarea{min-height:44px}.topbar button{height:44px;min-width:44px}.topbar .btn-label{display:none}}
+@media(max-width:700px){
+table[data-stack]{min-width:0!important}
+table[data-stack] thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+table[data-stack],table[data-stack] tbody,table[data-stack] tr,table[data-stack] td{display:block;width:100%}
+table[data-stack] tr{margin:12px 0;padding:4px 16px;background:#fff;border:1px solid #dfe5ed;border-radius:10px}
+table[data-stack] td{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:10px 0!important;border-top:1px solid #eef1f6;text-align:right;font-size:14px}
+table[data-stack] td:first-child{border-top:0}
+table[data-stack] td::before{content:attr(data-label);flex:none;text-align:left;font-size:12px;font-weight:700;color:#5a6a84}
+table[data-stack] td[data-label=""]::before{content:none}
+table[data-stack] td[data-label=""]{justify-content:flex-end}
+}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
