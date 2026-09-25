@@ -250,7 +250,7 @@ export type ChecklistItem = { label: string; done: boolean; detail?: string };
  * What the Scheduler still has to do, as a checklist that fills in as the
  * form does. It is derived from tripProblems, so it can never disagree with
  * the rules that enable Save draft (the first four items) and Submit (all
- * six). A missing item's detail names the legs or stops to fix.
+ * six). Problems on a leg show on that leg; an item's detail covers only what no leg can show.
  */
 export function tripChecklist(input: {
   plate: string;
@@ -261,10 +261,13 @@ export function tripChecklist(input: {
 }): ChecklistItem[] {
   const { save, submit } = tripProblems(input);
   const about = (problems: string[], pattern: RegExp) => problems.filter((problem) => pattern.test(problem));
-  const detail = (problems: string[]) => (problems.length ? problems.join(" ") : undefined);
   const destinations = about(save, /choose a destination/);
   const times = about(save, /Time (In|Out)/);
   const stops = about(submit, /^Put /);
+  // Stops that have a leg to go on are flagged on that leg; only the rest need a detail here.
+  const homeless = unassignedStops(input.stops, input.legs).filter(
+    (stop) => !input.legs.some((leg) => !leg.isFinal && leg.destinationId === stop.destinationId),
+  );
   return [
     { label: "Choose at least one request", done: input.requestIds.length > 0 },
     {
@@ -272,9 +275,13 @@ export function tripChecklist(input: {
       done: !!input.plate && input.hasDriver,
       detail: input.plate && !input.hasDriver ? "This vehicle has no active Driver. An Admin assigns one in Settings." : undefined,
     },
-    { label: "Choose a destination for every leg", done: input.legs.length > 0 && !destinations.length, detail: detail(destinations) },
-    { label: "Enter Time Out and Time In for every leg", done: input.legs.length > 0 && !times.length, detail: detail(times) },
-    { label: "Put every requested stop on a leg", done: input.stops.length > 0 && !stops.length, detail: detail(stops) },
+    { label: "Choose a destination for every leg", done: input.legs.length > 0 && !destinations.length },
+    { label: "Enter Time Out and Time In for every leg", done: input.legs.length > 0 && !times.length },
+    {
+      label: "Put every requested stop on a leg",
+      done: input.stops.length > 0 && !stops.length,
+      detail: homeless.length ? `Add a leg to ${[...new Set(homeless.map((stop) => stop.destinationName))].join(", ")}.` : undefined,
+    },
     { label: "End with the leg back to ANONANG", done: hasFinal(input.legs) },
   ];
 }
