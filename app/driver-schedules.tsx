@@ -26,6 +26,7 @@ import {
 } from "@/lib/kova-api";
 import { stopsFor } from "@/lib/trip-record";
 import { hasTripEnded } from "@/lib/timezone";
+import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
 
@@ -102,6 +103,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
     setError("");
   }
 
+  const lastReading = selected ? lastEndReading(selected.revision.plate, getSchedules(), getCompletions()) : null;
   const startNumber = start.trim() === "" ? NaN : Number(start);
   const endNumber = end.trim() === "" ? NaN : Number(end);
   const odometerError =
@@ -241,7 +243,11 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
                   Report a problem
                 </Button>
                 {!selected.completion && (
-                  <Button className="primary" disabled={!selected.ended} onClick={() => setMode("complete")}>
+                  <Button className="primary" disabled={!selected.ended} onClick={() => {
+                      setMode("complete");
+                      if (!start && lastReading !== null) setStart(String(lastReading));
+                    }}
+                  >
                     Complete trip
                   </Button>
                 )}
@@ -251,17 +257,37 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
           {selected && mode === "complete" && (
             <>
               <label className="field">
-                <span>STARTING ODOMETER</span>
-                <Input inputMode="numeric" value={start} onChange={(event) => setStart(event.target.value)} />
+                <span>STARTING ODOMETER (km)</span>
+                <Input
+                  inputMode="numeric"
+                  placeholder="e.g. 45210"
+                  value={start}
+                  onChange={(event) => setStart(event.target.value)}
+                />
+                {lastReading !== null && start === String(lastReading) && (
+                  <small className="field-hint">
+                    Filled in from this vehicle&apos;s last trip. Change it if the dashboard shows something different.
+                  </small>
+                )}
               </label>
               <label className="field">
-                <span>ENDING ODOMETER</span>
-                <Input inputMode="numeric" value={end} onChange={(event) => setEnd(event.target.value)} />
+                <span>ENDING ODOMETER (km)</span>
+                <Input
+                  inputMode="numeric"
+                  placeholder="e.g. 45252"
+                  value={end}
+                  onChange={(event) => setEnd(event.target.value)}
+                />
               </label>
               {!odometerError && (
                 <p className="helper" role="status">
                   <b>{(endNumber - startNumber).toLocaleString("en-US")} km</b> driven, from {startNumber.toLocaleString("en-US")} to{" "}
                   {endNumber.toLocaleString("en-US")}. Check this is right.
+                </p>
+              )}
+              {!odometerError && longTripWarning(endNumber - startNumber) && (
+                <p className="notice" role="alert">
+                  {longTripWarning(endNumber - startNumber)}
                 </p>
               )}
               <p className="helper">
