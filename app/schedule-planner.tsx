@@ -1,4 +1,5 @@
 "use client";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,7 @@ export default function SchedulePlanner({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
   const [confirm, setConfirm] = useState<"submit" | "discard" | null>(null);
   // The leg waiting for the Scheduler to confirm its removal.
   const [removingLeg, setRemovingLeg] = useState<number | null>(null);
