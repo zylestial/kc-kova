@@ -412,7 +412,7 @@ export default function AdminFinishedTrips() {
           )}
         </DialogContent>
       </Dialog>
-      {selected && <FinishedTripPrint trip={selected} stopsById={stopsById} />}
+      {selected && <FinishedTripPrint trip={selected} stopsById={stopsById} requests={requests} />}
     </>
   );
 }
