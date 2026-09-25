@@ -16,6 +16,22 @@ the `Booker` role, so converted accounts cannot use it. After 0032 the v1.2
 tables are gone, so v1.2 cannot run at all until the database is restored.
 Both halves must be done together.
 
+## 1a. While the database holds only test data
+
+The owner has confirmed there is no real data (`docs/MEMORY.md`, "No live
+production data exists yet"). In that case the rollback is **reset and
+reseed**, not a restore, and sections 2 and 3's restore paths are not needed:
+
+1. Take a quick `supabase db dump --linked` before cutover as a convenience
+   copy (the cutover runbook, section 4).
+2. To go back, with the owner's explicit confirmation because it wipes the
+   production database: reset the database, replay migrations 0001 to 0022,
+   recreate the test accounts and Booking Options (the seed script, or the
+   dump), and redeploy v1.2 as in section 3, step 4.
+3. Verify v1.2 as in section 3, step 5.
+
+If real data exists by the time of cutover, use sections 2 and 3 instead.
+
 ## 2. Decide the database path before cutover
 
 Rehearsed in Phase 10: restoring into a fresh database works and the release
