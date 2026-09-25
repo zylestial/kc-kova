@@ -259,7 +259,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
           {selected && mode === "complete" && (
             <>
               <label className="field">
-                <span>STARTING ODOMETER (km)</span>
+                <span>Starting odometer (km) *</span>
                 <Input
                   inputMode="numeric"
                   placeholder="e.g. 45210"
@@ -273,7 +273,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
                 )}
               </label>
               <label className="field">
-                <span>ENDING ODOMETER (km)</span>
+                <span>Ending odometer (km) *</span>
                 <Input
                   inputMode="numeric"
                   placeholder="e.g. 45252"
@@ -299,7 +299,7 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
           )}
           {selected && mode === "problem" && (
             <label className="field">
-              <span>WHAT WENT WRONG</span>
+              <span>What went wrong *</span>
               <Textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} />
             </label>
           )}
@@ -323,6 +323,10 @@ export default function DriverSchedules({ driverId }: { driverId: string }) {
             </DialogFooter>
           )}
           {mode === "complete" && odometerError && (start || end) && <p className="helper">{odometerError}</p>}
+          {mode === "complete" && odometerError && !start && !end && (
+            <p className="helper">Enter the starting and ending readings to submit.</p>
+          )}
+          {mode === "problem" && !note.trim() && <p className="helper">Describe what went wrong to send the report.</p>}
         </DialogContent>
       </Dialog>
     </>
