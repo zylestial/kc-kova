@@ -38,6 +38,7 @@ import {
 } from "@/lib/kova-api";
 import { homeCounts } from "@/lib/home-counts";
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
+import { watchTables } from "@/lib/stacked-tables";
 import { HelpDialog } from "./how-it-works";
 import Settings from "./settings";
 import DriverFinishedTrips from "./driver-finished-trips";
@@ -112,6 +113,8 @@ export default function Home() {
   // What to do once the person confirms they want to leave unsaved work.
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const leave = (action: () => void) => (hasUnsavedChanges() ? setPendingLeave(() => action) : action());
+  // Label table cells so the tables can stack as cards on a phone.
+  useEffect(() => watchTables(), []);
   // The browser asks before a refresh, close or Back that would leave the app.
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
