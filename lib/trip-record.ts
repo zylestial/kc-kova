@@ -225,6 +225,25 @@ export function tripProblems(input: {
   return { save, submit };
 }
 
+/**
+ * What is still wrong with each leg, in leg order, so the form can show it on
+ * the leg itself. An unplaced stop lands on the first leg going to its
+ * destination; one with no such leg shows only in the checklist.
+ */
+export function legWarnings(legs: LegDraft[], stops: StopInfo[]): string[][] {
+  const warnings = legs.map(() => [] as string[]);
+  const { save } = tripProblems({ plate: "-", requestIds: ["-"], legs, stops });
+  for (const problem of save) {
+    const match = /^Leg (\d+): (.*)$/.exec(problem);
+    if (match) warnings[Number(match[1]) - 1]?.push(match[2].charAt(0).toUpperCase() + match[2].slice(1));
+  }
+  for (const stop of unassignedStops(stops, legs)) {
+    const index = legs.findIndex((leg) => !leg.isFinal && leg.destinationId === stop.destinationId);
+    if (index >= 0) warnings[index].push(`Tick ${stop.requester}'s ${stop.purposeName} under "Requests served here".`);
+  }
+  return warnings;
+}
+
 export type ChecklistItem = { label: string; done: boolean; detail?: string };
 
 /**
