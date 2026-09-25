@@ -14,6 +14,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   hydrateKovaData,
   getCancellations,
   getCompletions,
@@ -26,6 +36,7 @@ import {
   type Account,
 } from "@/lib/kova-api";
 import { homeCounts } from "@/lib/home-counts";
+import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { HelpDialog } from "./how-it-works";
 import Settings from "./settings";
 import DriverFinishedTrips from "./driver-finished-trips";
@@ -93,6 +104,19 @@ export default function Home() {
   const [scheduleNotice, setScheduleNotice] = useState("");
   const [scheduleDate, setScheduleDate] = useState<string | undefined>();
   const [helpOpen, setHelpOpen] = useState(false);
+  // What to do once the person confirms they want to leave unsaved work.
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const leave = (action: () => void) => (hasUnsavedChanges() ? setPendingLeave(() => action) : action());
+  // The browser asks before a refresh, close or Back that would leave the app.
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
   const lastRefresh = useRef(0);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -273,11 +297,33 @@ export default function Home() {
         <Button variant="ghost" onClick={() => setHelpOpen(true)}>
           <CircleHelp size={15} /> Help
         </Button>
-        <Button variant="ghost" onClick={signOut}>
+        <Button variant="ghost" onClick={() => leave(signOut)}>
           Sign Out
         </Button>
       </header>
       <HelpDialog role={account.role} open={helpOpen} onOpenChange={setHelpOpen} />
+      <AlertDialog open={pendingLeave !== null} onOpenChange={(open) => !open && setPendingLeave(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave this page?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have changes that haven&apos;t been saved. If you leave now, they&apos;ll be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay here</AlertDialogCancel>
+            <AlertDialogAction
+              className="danger"
+              onClick={() => {
+                pendingLeave?.();
+                setPendingLeave(null);
+              }}
+            >
+              Leave page
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <main className="role-main">
         {screen === "settings" && account.role === "Admin" ? (
           <Settings onBack={() => setScreen("admin-home")} />
@@ -286,7 +332,7 @@ export default function Home() {
             <Button
               variant="ghost"
               className="back"
-              onClick={() => setScreen(home(account.role))}
+              onClick={() => leave(() => setScreen(home(account.role)))}
             >
               <ArrowLeft size={17} /> {account.role} Home
             </Button>
@@ -316,10 +362,12 @@ export default function Home() {
             <Button
               variant="ghost"
               className="back"
-              onClick={() => {
-                setScheduleDate(undefined);
-                setScreen(editScheduleId ? "schedules" : home(account.role));
-              }}
+              onClick={() =>
+                leave(() => {
+                  setScheduleDate(undefined);
+                  setScreen(editScheduleId ? "schedules" : home(account.role));
+                })
+              }
             >
               <ArrowLeft size={17} /> {editScheduleId ? "Schedules" : "Scheduler Home"}
             </Button>
