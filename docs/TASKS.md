@@ -321,8 +321,8 @@ project and production database in place across four roles (Requester,
 Scheduler, Admin, Driver) and 13 phases (0–12); see `docs/v2/PLAN.md` for
 the phase table. Each phase requires explicit "May I start Phase N?"
 approval before starting — approving the overall plan is not approval for
-any individual phase. Phases 0–11 are done and v2.0 is live; Phase 12 is
-still open.
+any individual phase. Phases 0–11 are done and v2.0 is live. Phase 12
+(stabilize and hand over) is deferred to a later version.
 
 - [x] Phase 0 — Inspect v1.2 and establish the baseline. See
       `docs/v2/baseline.md`: all reported capabilities verified against
@@ -451,7 +451,6 @@ still open.
         problems reported) and a Driver assigned to each vehicle (0012 left
         them unassigned). The Schedules week view was unstyled at first;
         see the stale build cache note in `docs/MEMORY.md`.
-- [ ] Phase 12 — Stabilize and hand over
 
 ## v2.1 (UX pass on v2.0, not yet released)
 
