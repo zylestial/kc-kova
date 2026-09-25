@@ -95,6 +95,8 @@ export default function Home() {
   const [account, setAccount] = useState<Account | null>(null);
   const [screen, setScreen] = useState<Screen>("admin-home");
   const [loading, setLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -191,7 +193,7 @@ export default function Home() {
   }, [account, screen]);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    setSigningIn(true);
     setError("");
     try {
       const authenticated = await signIn(username.trim(), password);
@@ -199,10 +201,11 @@ export default function Home() {
       setAccount(authenticated);
       setScreen(home(authenticated.role));
       setPassword("");
+      setShowPassword(false);
     } catch (caught) {
       setError((caught as Error).message);
     } finally {
-      setLoading(false);
+      setSigningIn(false);
     }
   }
   async function signOut() {
@@ -224,7 +227,7 @@ export default function Home() {
       <div className="sign-shell">
         <div className="sign-card">
           <KovaBrand signIn />
-          <p>Loading…</p>
+          <p role="status">Loading KOVA…</p>
         </div>
       </div>
     );
@@ -250,21 +253,31 @@ export default function Home() {
               <span>Password</span>
               <Input
                 required
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
               />
             </label>
+            <Button
+              type="button"
+              variant="ghost"
+              className="show-password"
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((shown) => !shown)}
+            >
+              {showPassword ? "Hide password" : "Show password"}
+            </Button>
           </div>
-          <Button className="primary sign-submit" type="submit">
-            Sign In
+          <Button className="primary sign-submit" type="submit" disabled={signingIn}>
+            {signingIn ? "Signing in…" : "Sign In"}
           </Button>
           {error && (
             <p className="modal-error" role="alert">
               {error}
             </p>
           )}
+          <p className="helper">Forgot your password, or need an account? Ask an Admin.</p>
         </form>
       </div>
     );
@@ -281,6 +294,9 @@ export default function Home() {
         <KovaBrand />
         <div className="workspace-label">OPERATIONS</div>
         <div className="account">{account.name.slice(0, 2).toUpperCase()}</div>
+        <span className="account-name">
+          {account.name} · {account.role}
+        </span>
         <div className="refresh-control">
           <span className="last-updated" role="status">
             {refreshFailed
