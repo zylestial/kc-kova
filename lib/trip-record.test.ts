@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { Schedule } from "@/lib/kova-api";
 import {
   MAX_LEGS,
+  addLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
   commitmentsOn,
   conflictsWith,
   finalLeg,
+  initialLegs,
   keepStops,
   legOrigins,
   matchingDestinations,
@@ -15,6 +17,7 @@ import {
   newLeg,
   scheduleState,
   setLegDestination,
+  setLegTimeIn,
   toScheduleInput,
   tripProblems,
   tripWindow,
@@ -60,12 +63,12 @@ describe("route continuity", () => {
 });
 
 describe("add leg / add final leg", () => {
-  it("offers both until the final leg is added, then neither", () => {
+  it("offers the final leg only until it is added, but a leg while there is room", () => {
     const legs = [leg({ destinationId: "d1" })];
     expect(canAddLeg(legs)).toBe(true);
     expect(canAddFinal(legs)).toBe(true);
     const withFinal = [...legs, finalLeg()];
-    expect(canAddLeg(withFinal)).toBe(false);
+    expect(canAddLeg(withFinal)).toBe(true);
     expect(canAddFinal(withFinal)).toBe(false);
   });
 
@@ -73,10 +76,56 @@ describe("add leg / add final leg", () => {
     expect(canAddFinal([])).toBe(false);
   });
 
-  it("always leaves room for the final leg within 8 rows", () => {
+  it("stops offering legs when all 8 rows are used, final leg included", () => {
     const seven = Array.from({ length: MAX_LEGS - 1 }, () => leg({ destinationId: "d1" }));
-    expect(canAddLeg(seven)).toBe(false);
-    expect(canAddFinal(seven)).toBe(true);
+    expect(canAddLeg(seven)).toBe(true);
+    expect(canAddLeg([...seven, finalLeg()])).toBe(false);
+  });
+
+  it("puts a new leg before the final leg", () => {
+    const legs = addLeg([leg({ destinationId: "d1" }), finalLeg()]);
+    expect(legs.map((item) => item.isFinal)).toEqual([false, false, true]);
+  });
+
+  it("appends a new leg when there is no final leg yet", () => {
+    expect(addLeg([leg({ destinationId: "d1" })]).map((item) => item.isFinal)).toEqual([false, false]);
+  });
+
+  it("starts a new leg when the previous one arrives", () => {
+    const legs = addLeg([leg({ destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:30" }), finalLeg()]);
+    expect(legs[1].plannedTimeOut).toBe("09:30");
+    expect(addLeg([leg({ destinationId: "d1" }), finalLeg()])[1].plannedTimeOut).toBe("");
+  });
+});
+
+describe("new Trip Record defaults", () => {
+  it("starts with one destination leg at 08:00 and the return leg", () => {
+    const legs = initialLegs();
+    expect(legs.map((item) => item.isFinal)).toEqual([false, true]);
+    expect(legs[0].plannedTimeOut).toBe("08:00");
+    expect(legs[0].plannedTimeIn).toBe("");
+    expect(legs[1].plannedTimeOut).toBe("");
+  });
+
+  it("copies a Time In into the next leg's empty Time Out", () => {
+    const legs = setLegTimeIn(initialLegs(), 0, "09:15");
+    expect(legs[0].plannedTimeIn).toBe("09:15");
+    expect(legs[1].plannedTimeOut).toBe("09:15");
+  });
+
+  it("never overwrites a Time Out that was already entered", () => {
+    const legs = setLegTimeIn([leg({}), leg({ plannedTimeOut: "10:00" })], 0, "09:15");
+    expect(legs[1].plannedTimeOut).toBe("10:00");
+  });
+
+  it("doesn't copy a half-typed time", () => {
+    expect(setLegTimeIn(initialLegs(), 0, "09:1")[1].plannedTimeOut).toBe("");
+  });
+
+  it("still requires a Time In, so a new Trip Record isn't submittable", () => {
+    const problems = tripProblems({ plate: "V1", requestIds: ["a"], legs: initialLegs(), stops: [] });
+    expect(problems.save).toContain("Leg 1: choose a destination.");
+    expect(problems.save).toContain("Leg 1: enter planned Time Out and Time In.");
   });
 });
 

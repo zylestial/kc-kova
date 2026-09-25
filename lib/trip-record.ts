@@ -68,6 +68,12 @@ export const newLeg = (): LegDraft => ({
 
 export const finalLeg = (): LegDraft => ({ ...newLeg(), isFinal: true });
 
+/** The Time Out a new Trip Record starts with; the Scheduler can change it. */
+export const START_TIME = "08:00";
+
+/** A new Trip Record starts with one destination leg and the return leg to ANONANG. */
+export const initialLegs = (): LegDraft[] => [{ ...newLeg(), plannedTimeOut: START_TIME }, finalLeg()];
+
 export function stopsFor(requests: TransportRequest[]): StopInfo[] {
   return requests.flatMap((request) =>
     request.destinations.map((destination) => ({
@@ -91,8 +97,32 @@ export function legOrigins(legs: LegDraft[], destinationName: (id: string) => st
 }
 
 export const hasFinal = (legs: LegDraft[]) => legs.some((leg) => leg.isFinal);
-/** Add leg always leaves room for the final leg. */
-export const canAddLeg = (legs: LegDraft[]) => !hasFinal(legs) && legs.length < MAX_LEGS - 1;
+/** A destination leg fits while there is a free row; it goes in before the final leg. */
+export const canAddLeg = (legs: LegDraft[]) => legs.length < MAX_LEGS;
+/**
+ * Adds a destination leg before the final leg (or at the end when there is
+ * none). Its Time Out starts as the previous leg's Time In, when that is set.
+ */
+export function addLeg(legs: LegDraft[]): LegDraft[] {
+  const at = legs.findIndex((leg) => leg.isFinal);
+  const position = at === -1 ? legs.length : at;
+  const previousIn = legs[position - 1]?.plannedTimeIn ?? "";
+  const leg = { ...newLeg(), plannedTimeOut: validTime(previousIn) ? previousIn : "" };
+  return [...legs.slice(0, position), leg, ...legs.slice(position)];
+}
+
+/**
+ * Sets a leg's Time In. The next leg's Time Out is copied from it when that
+ * is still empty, since the vehicle leaves when it arrives; a Time Out the
+ * Scheduler already typed is never overwritten.
+ */
+export function setLegTimeIn(legs: LegDraft[], index: number, value: string): LegDraft[] {
+  return legs.map((leg, position) => {
+    if (position === index) return { ...leg, plannedTimeIn: value };
+    if (position === index + 1 && !leg.plannedTimeOut && validTime(value)) return { ...leg, plannedTimeOut: value };
+    return leg;
+  });
+}
 export const canAddFinal = (legs: LegDraft[]) =>
   !hasFinal(legs) && legs.length < MAX_LEGS && legs.some((leg) => !leg.isFinal);
 
