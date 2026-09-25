@@ -46,4 +46,6 @@
 .planner-checklist li>span:first-child{width:16px;flex:none;font-weight:700}
 .planner-checklist li.done{opacity:.75}
 .planner-checklist small{display:block;color:#a04a1c;font-size:13px}
+.date-legend{margin:12px 0 0;font-size:13px;color:#5b6678;line-height:1.6}
+.date-legend b{color:#2c3a55}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
