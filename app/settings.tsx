@@ -2,7 +2,7 @@
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Car, Plus } from "lucide-react";
 import {
   getAccounts,
   getVehicles,
@@ -407,6 +407,9 @@ export default function Settings({ onBack }: { onBack: () => void }) {
             </div>
           ) : (
             <div className="empty">
+              <div className="empty-icon">
+                <Car size={30} />
+              </div>
               <h3>No vehicles yet</h3>
               <p>Add the first vehicle to make it available in Schedule.</p>
             </div>
