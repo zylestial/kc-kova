@@ -22,18 +22,24 @@ export function toVehicle(row: VehicleRow): Vehicle {
   };
 }
 
-type BookingOptionRow = { group: "projects" | "destinations" | "purposes"; id: string; name: string; status: "Active" | "Inactive" };
+type BookingOptionRow = {
+  group: "projects" | "destinations" | "purposes";
+  id: string;
+  name: string;
+  status: "Active" | "Inactive";
+  is_other_stop: boolean;
+};
 
 export function toBookingOptions(rows: BookingOptionRow[]): BookingOptions {
   const options: BookingOptions = { projects: [], destinations: [], purposes: [] };
   for (const row of rows) {
-    options[row.group].push({ id: row.id, name: row.name, status: row.status });
+    options[row.group].push({ id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop });
   }
   return options;
 }
 
-export function toBookingOption(row: { id: string; name: string; status: "Active" | "Inactive" }): BookingOption {
-  return { id: row.id, name: row.name, status: row.status };
+export function toBookingOption(row: { id: string; name: string; status: "Active" | "Inactive"; is_other_stop: boolean }): BookingOption {
+  return { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop };
 }
 
 type PersonRow = { id: string; name: string; project_ids: string[]; status: "Active" | "Inactive"; account_id: string | null };

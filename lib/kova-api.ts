@@ -26,6 +26,8 @@ export type BookingOption = {
   id: string;
   name: string;
   status: "Active" | "Inactive";
+  /** Destinations only: a non-request stop (e.g. fuel, an errand) the Planner may add on its own. */
+  isOtherStop?: boolean;
 };
 export type Person = {
   id: string;
