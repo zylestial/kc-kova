@@ -145,6 +145,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `id` | text | Client-generated (`crypto.randomUUID()`) |
 | `name` | text | |
 | `status` | text | `Active` \| `Inactive` |
+| `is_other_stop` | boolean | Destinations only. A non-request stop (e.g. fuel, an errand) the Planner may add on its own; enforced by `write_revision_content`, which otherwise requires every non-final leg to serve at least one request. |
 
 PK: `(group, id)`.
 
