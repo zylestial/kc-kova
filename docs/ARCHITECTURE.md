@@ -54,7 +54,13 @@ Browser (React client components)
 
 The frontend never talks to Supabase directly and never holds a Supabase
 key — all access goes through KOVA's own API routes, which hold the session
-cookie and (for privileged operations) the service-role key.
+cookie and (for privileged operations) the service-role key. Live in-app
+notifications (0035, v2.2) keep this invariant: rather than a client-side
+Supabase Realtime subscription (which would need the anon key and the
+user's JWT in the browser), `GET /api/notifications/stream` is a Server-
+Sent Events route of KOVA's own that polls the signed-in account's
+notifications every few seconds and pushes anything new; the browser only
+ever talks to this route, never to Supabase (`lib/notifications-stream.ts`).
 
 ## Authentication
 
@@ -182,6 +188,20 @@ transitions, permission matrix and release order live in
 tables, their functions and their trigger functions were dropped by
 migration 0032 (release-time only; there was no legacy data to carry over).
 
+### `notifications` (migration 0035, v2.2)
+
+One row per (recipient, event): `account_id`, `type`, `message`,
+`related_request_id`/`related_schedule_id`, `created_at`, `read_at`.
+`authenticated` gets `SELECT` only, filtered by RLS to `account_id =
+auth.uid()` — an account can never see another's notifications. There is
+no insert/update grant for clients at all: every row is written by
+`notify()`/`notify_admins()`, called from inside the existing RPC that
+causes the event (`submit_schedule`, `approve_schedule`, `return_schedule`,
+`request_cancellation`, `decline_cancellation`, `confirm_cancellation`,
+`cancel_schedule`, `report_problem`) in the same transaction as the change
+itself, and `read_at` is only ever set by the `mark_notification_read`/
+`mark_all_notifications_read` RPCs.
+
 ## API contract
 
 The authoritative, human-readable version of this table lives in
@@ -220,11 +240,15 @@ Summary, with the implementing route file:
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |
+| GET | `/api/notifications` | `app/api/notifications/route.ts` | any session (own rows only, RLS) |
+| GET | `/api/notifications/stream` | `app/api/notifications/stream/route.ts` | any session (SSE, see above) |
+| POST | `/api/notifications/:id/read` | `app/api/notifications/[id]/read/route.ts` | any session, own notification |
+| POST | `/api/notifications/read-all` | `app/api/notifications/read-all/route.ts` | any session |
 
 Request/response bodies match the TypeScript types in `lib/kova-api.ts`
 (`Account`, `Vehicle`, `BookingOption`,
 `Person`, `TransportRequest`, `RequestInput`, `Schedule`, `ScheduleInput`,
-`TripCompletion`, `ProblemReport`, `BootstrapData`) — that file is the single source of truth for
+`TripCompletion`, `ProblemReport`, `Notification`, `BootstrapData`) — that file is the single source of truth for
 field names and is shared between the frontend and this doc.
 
 ## Data flow: bootstrap

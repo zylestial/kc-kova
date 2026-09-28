@@ -109,6 +109,26 @@ export type ProblemReport = {
   handlingNote: string;
   followUpScheduleId?: string;
 };
+/** An in-app notification of one event for one recipient (0035). */
+export type NotificationType =
+  | "REQUEST_SCHEDULED"
+  | "REQUEST_RETURNED"
+  | "REQUEST_CANCELLED"
+  | "CANCELLATION_DECLINED"
+  | "CANCELLATION_REQUESTED"
+  | "PROBLEM_REPORTED"
+  | "SCHEDULE_SUBMITTED"
+  | "SCHEDULE_RETURNED"
+  | "TRIP_PUBLISHED";
+export type Notification = {
+  id: string;
+  type: NotificationType;
+  message: string;
+  relatedRequestId?: string;
+  relatedScheduleId?: string;
+  createdAt: string;
+  readAt?: string;
+};
 /** What the New request form and the Edit modal send. */
 export type RequestInput = {
   date: string;
@@ -192,6 +212,7 @@ export type BootstrapData = {
   cancellations: CancellationRequest[];
   completions: TripCompletion[];
   problems: ProblemReport[];
+  notifications: Notification[];
 };
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
@@ -206,6 +227,7 @@ let cache: BootstrapData = {
   cancellations: [],
   completions: [],
   problems: [],
+  notifications: [],
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -262,7 +284,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
-  cache = { accounts: [], vehicles: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [], cancellations: [], completions: [], problems: [] };
+  cache = { accounts: [], vehicles: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [], cancellations: [], completions: [], problems: [], notifications: [] };
   notify();
 }
 
@@ -278,6 +300,27 @@ export const getCancellations = () => cache.cancellations;
 export const getPendingCancellations = () => cache.cancellations.filter((item) => item.status === "PENDING");
 export const getCompletions = () => cache.completions;
 export const getProblems = () => cache.problems;
+export const getNotifications = () => cache.notifications;
+export const getUnreadNotificationCount = () => cache.notifications.filter((item) => !item.readAt).length;
+
+// Lighter than hydrateKovaData(): used after marking a notification read and
+// after the live stream (lib/notifications-stream.ts) signals a new one, so
+// neither has to refetch every other table just to update the bell.
+export async function refreshNotifications() {
+  cache = { ...cache, notifications: await request<Notification[]>("/api/notifications") };
+  notify();
+  return cache.notifications;
+}
+
+export async function markNotificationRead(id: string) {
+  await request<void>(`/api/notifications/${encodeURIComponent(id)}/read`, { method: "POST" });
+  await refreshNotifications();
+}
+
+export async function markAllNotificationsRead() {
+  await request<void>("/api/notifications/read-all", { method: "POST" });
+  await refreshNotifications();
+}
 
 async function refreshAfter<T>(operation: Promise<T>) {
   const result = await operation;

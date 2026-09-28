@@ -39,7 +39,9 @@ import {
 import { homeCounts } from "@/lib/home-counts";
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { watchTables } from "@/lib/stacked-tables";
+import { watchNotifications } from "@/lib/notifications-stream";
 import { HelpDialog } from "./how-it-works";
+import NotificationBell from "./notification-bell";
 import Settings from "./settings";
 import DriverFinishedTrips from "./driver-finished-trips";
 import DriverSchedules from "./driver-schedules";
@@ -175,6 +177,11 @@ export default function Home() {
   useEffect(() => {
     if (account) void refreshData();
   }, [account, screen, refreshData]);
+  // Live notifications: opens once per sign-in, closes on sign-out.
+  useEffect(() => {
+    if (!account) return;
+    return watchNotifications();
+  }, [account]);
   useEffect(() => {
     if (!account) return;
     const onReturn = () => {
@@ -327,6 +334,7 @@ export default function Home() {
             <span className="btn-label">{refreshing ? "Refreshing…" : "Refresh"}</span>
           </Button>
         </div>
+        <NotificationBell />
         <Button variant="ghost" aria-label="Help" onClick={() => setHelpOpen(true)}>
           <CircleHelp size={15} /> <span className="btn-label">Help</span>
         </Button>

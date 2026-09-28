@@ -887,3 +887,60 @@ Decided by the project owner at the start of Phase 5:
   those old assertions started failing.
 - pgTAP: 244/244 passing locally (`v2_schedules.test.sql` 56, up from 55;
   `v2_completion.test.sql` 33, up from 27).
+
+## v2.2 In-app notifications (2026-09-28)
+
+- **Not Supabase Realtime, on purpose.** The owner's first choice for live
+  updates was Supabase Realtime, but this app's frontend has a standing
+  invariant (`docs/ARCHITECTURE.md`): it never talks to Supabase directly
+  and never holds a Supabase key — every access goes through KOVA's own API
+  routes. True Realtime needs the browser to open a websocket straight to
+  Supabase with the anon key and the user's own JWT, which breaks that
+  invariant. Resolved by building a Server-Sent-Events route of KOVA's own
+  instead (`GET /api/notifications/stream`): it holds the same cookie-scoped
+  session client as every other route, polls this account's notifications
+  every ~4s, and pushes an event when something's new. `EventSource` doesn't
+  need an explicit `withCredentials` flag for this to work, since the route
+  is same-origin and cookies are sent by default for same-origin requests.
+- **A serverless function can't hold a stream open indefinitely.** The
+  stream route closes itself after ~50s (`STREAM_DURATION_MS`), comfortably
+  under any Vercel plan's function duration limit (`maxDuration = 60` is set
+  explicitly since nothing in this repo set one before). The browser's
+  `EventSource` reconnects on its own after a closed stream — no client-side
+  reconnect logic was needed.
+- **Every notification is written inside the RPC that causes the event**,
+  in the same transaction as the change itself (`0035_notifications.sql`
+  adds `create or replace function` for `submit_schedule`, `approve_schedule`,
+  `return_schedule`, `request_cancellation`, `decline_cancellation`,
+  `confirm_cancellation`, `cancel_schedule`, `report_problem`). This was a
+  deliberate choice over writing notifications from the Next.js API routes
+  after the RPC call succeeds, matching the existing audit-event pattern in
+  this app: it can't be lost or duplicated relative to the event, and can't
+  drift if a route forgets to call it.
+- **`confirm_cancellation`'s cascade needed care to notify the right people
+  with the right type.** When cancelling the one request that was the only
+  live request left in a schedule, `cancel_schedule_row` is called
+  internally and releases every other still-active request back to
+  `NOT_YET_SCHEDULED` — except any of those that *also* had their own
+  pending cancellation, which get cancelled instead. The notification logic
+  captures the other active request ids **before** that cascade runs, then
+  after it checks each one's resulting status: `CANCELLED` gets
+  `REQUEST_CANCELLED`, still-`ACTIVE` gets `REQUEST_RETURNED`. Getting this
+  right needed a dedicated pgTAP scenario (two Requesters sharing a stop,
+  one cancelling first without triggering the cascade, confirmed by
+  `v2_notifications.test.sql`).
+- Client never holds an insert/update grant on `notifications`: reads go
+  through RLS (`account_id = auth.uid()`), and `read_at` is only ever set by
+  `mark_notification_read`/`mark_all_notifications_read`, both
+  `security definer` RPCs.
+- pgTAP: 270/270 passing locally (`v2_notifications.test.sql`, new, 26
+  checks; 244 pre-existing unaffected).
+- Verified end-to-end in a real, running dev server against local Supabase
+  (headless Chromium): inserted a notification directly via the
+  service-role client (standing in for what an RPC does mid-transaction)
+  while signed in as a seeded Requester, confirmed the badge and panel
+  picked it up live within one poll interval with no manual refresh,
+  and that marking one read / "Mark all read" both cleared correctly with
+  zero browser console errors. Backend correctness per RPC (who gets
+  notified, with what type) is covered by pgTAP rather than re-walked by
+  hand in the browser.

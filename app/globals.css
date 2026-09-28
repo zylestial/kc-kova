@@ -54,6 +54,17 @@
 .danger-outline:hover:not(:disabled){background:#fdf3f2;color:#8f1f18}
 .account-name{font-size:13px;color:#3d4757;white-space:nowrap}
 @media(max-width:700px){.account-name{display:none}}
+.notif-trigger{position:relative}
+.notif-count{position:absolute;top:4px;right:4px;background:#c0392b;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;line-height:1}
+.notif-panel{width:340px;max-width:90vw;padding:0!important;max-height:70vh;overflow-y:auto}
+.notif-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #e9edf3;font-size:13px;font-weight:650;color:#253e63}
+.notif-header button{background:none;border:0;color:#2357d9;font-size:12px;font-weight:600;padding:0;cursor:pointer}
+.notif-item{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-bottom:1px solid #e9edf3;font-size:13px;color:#374863;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%;cursor:pointer}
+.notif-item:last-child{border-bottom:0}
+.notif-item.unread{background:#f5f8ff}
+.notif-item small{color:#8290a4;font-size:11px}
+.notif-empty{padding:30px 16px;text-align:center;color:#8290a4;font-size:13px}
+@media(max-width:700px){.notif-panel{width:300px}}
 .show-password{justify-self:start;height:auto;padding:0!important;font-size:13px;color:#2357d9}
 .request-review-list{list-style:decimal}
 @media(max-width:700px){[data-slot=button],[data-slot=select-trigger],input:not([type=checkbox]):not([type=radio]),textarea{min-height:44px}.topbar button{height:44px;min-width:44px}.topbar .btn-label{display:none}}

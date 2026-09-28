@@ -553,3 +553,34 @@ gets its own branch and PR to `master`.
       reporting a problem on another Driver's trip, both attributed to Admin
       with `is_admin_override` set, alongside unchanged rejections for
       Requester and other-Driver. Not yet walked through in a real browser.
+- [x] **In-app notifications** — code complete on `feat/notifications`, not
+      yet merged. An in-app notification center, not email/push: a bell icon
+      with an unread-count badge in the top bar opens a dropdown of recent
+      events, backed by a new `notifications` table
+      (`0035_notifications.sql`). Every notification is written from inside
+      the existing RPC that causes the event, in the same transaction as the
+      change itself: `submit_schedule` notifies every Admin; `approve_schedule`
+      notifies each newly-scheduled Requester and the assigned Driver
+      (trip published); `return_schedule` notifies the Scheduler;
+      `request_cancellation` notifies every Admin; `decline_cancellation`
+      notifies the Requester; `confirm_cancellation` notifies the cancelled
+      Requester and, if it cascades into cancelling the whole schedule, every
+      other Requester released back to the pool; `cancel_schedule` (direct
+      Admin cancel) notifies each released Requester; `report_problem`
+      notifies every Admin. Read access and mark-read are both RLS/RPC-only
+      (`mark_notification_read`, `mark_all_notifications_read`) — no client
+      ever gets a direct insert/update grant on the table.
+      **Not Supabase Realtime**: this app's frontend never talks to Supabase
+      directly (see `docs/ARCHITECTURE.md`), so live updates go through a new
+      `GET /api/notifications/stream` Server-Sent-Events route of KOVA's own
+      that polls the signed-in account's notifications every few seconds and
+      pushes anything new; the stream closes itself well under a Vercel
+      function's duration limit and the browser's `EventSource` reconnects on
+      its own. `tsc --noEmit`, lint, vitest (139/139) and `next build` pass;
+      a new pgTAP file (`v2_notifications.test.sql`, 26 checks) covers every
+      RPC's notification(s) and RLS isolation between accounts (270/270
+      total). Walked through in a real browser (headless Chromium against
+      the local Supabase instance): a notification inserted while signed in
+      appeared live within the poll interval, the badge count and panel
+      contents were correct, marking one read and "Mark all read" both
+      cleared the badge with zero console errors.
