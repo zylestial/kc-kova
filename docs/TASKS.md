@@ -644,3 +644,36 @@ chat (last). Each item gets its own branch and PR to `master`.
       browser's native Back button can't be intercepted by the
       unsaved-changes guard the way an in-app Back button could — flagged for
       the next real-browser pass rather than silently worked around.
+- [x] **"Other" destination and purpose on a request stop** — code complete
+      on `feat/other-destination-purpose`, not yet merged. Mirrors the
+      existing Project/Site "Other" pattern: a Requester can type free text
+      for a stop's Destination or Purpose instead of only picking from the
+      list, via an "Other…" entry that reveals a text box.
+      `0036_request_other_destination_purpose.sql` makes
+      `request_destinations.destination_id`/`purpose_id` nullable and adds
+      `destination_is_other`/`purpose_is_other` booleans with check
+      constraints; `insert_request_destinations` validates the new
+      `destinationOther`/`purposeOther` fields the same way
+      `resolve_request_project` already validates Project/Site Other text.
+      This reached further than the request form: the Planner's leg-builder
+      RPC (`write_revision_content`) previously required every leg's
+      destination to match an Active `booking_options` row, which an Other
+      destination has none of by design — a leg serving only Other-text stops
+      now derives its destination from the stops themselves instead, and two
+      Other stops only share a leg when their free text matches exactly (the
+      same rule an id match already enforces for a normal destination).
+      `lib/trip-record.ts`'s pool-grouping and leg-matching, previously keyed
+      everywhere by `destinationId`, now key by a `stopGroupKey`/`legGroupKey`
+      that falls back to the free text when there's no id, so
+      `poolDestinationChoices`, `addPoolLeg` and `candidatesForLeg` all work
+      correctly for both. One real bug was found and fixed while verifying
+      this by hand: a composite/row PL/pgSQL variable's own `IS NOT NULL`
+      check is true only when *every* field is non-null, which is never true
+      for an Other stop's row since `destination_id`/`purpose_id` are null by
+      design — fixed by checking a field that's never null (`.id`) instead of
+      the row itself. `tsc --noEmit`, lint, vitest (147/147) and `next build`
+      all pass; a new pgTAP file (`v2_request_other.test.sql`, 12 checks)
+      covers the validation rules, the Planner leg-builder deriving a
+      destination from an Other stop, and two differently-named Other stops
+      being rejected from sharing a leg (282/282 total, against a local
+      `supabase db reset`). Not yet walked through in a real browser.
