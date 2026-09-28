@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Schedules from "../../schedules";
 import { useAutoClear } from "@/lib/use-auto-clear";
-import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
 
 export default function SchedulesGate() {
@@ -21,8 +20,10 @@ export default function SchedulesGate() {
     // Only ever runs once, on mount, to consume the initial ?notice=.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Open to every role, read-only unless Scheduler/Admin: RLS already scopes
+  // what a Requester or Driver sees to their own requests/trips.
   return (
-    <RequireRole allow={viewRole === "Scheduler" || viewRole === "Admin"}>
+    <>
       <Button variant="ghost" className="back" onClick={() => router.push("/home")}>
         <ArrowLeft size={17} /> {viewRole} Home
       </Button>
@@ -35,6 +36,6 @@ export default function SchedulesGate() {
         onCreate={viewRole === "Scheduler" ? () => router.push("/schedules/new") : undefined}
         onEdit={(id) => router.push("/schedules/new?scheduleId=" + encodeURIComponent(id))}
       />
-    </RequireRole>
+    </>
   );
 }
