@@ -317,12 +317,6 @@ export default function Home() {
     <div className="app-shell">
       <header className="topbar">
         <KovaBrand />
-        <div className="topbar-identity">
-          <div className="account">{account.name.slice(0, 2).toUpperCase()}</div>
-          <span className="account-name">
-            {account.name} · {account.role}
-          </span>
-        </div>
         {refreshFailed && (
           <span className="last-updated" role="status">
             Couldn&rsquo;t refresh. Showing older data.
