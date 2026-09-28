@@ -491,8 +491,8 @@ Released through PR #46 to `master` and tagged `v2.1`.
 
 Scope and priority order agreed with the owner 2026-09-28: Planner
 request-pool rewrite (priority), Admin full powers/overrides, notifications,
-button/greeting polish, then a Today view/Copy for chat (last). Each item
-gets its own branch and PR to `master`.
+button/greeting polish, route-based navigation, then a Today view/Copy for
+chat (last). Each item gets its own branch and PR to `master`.
 
 - [x] **Planner builds legs from the request pool** — code complete on
       `feat/planner-request-pool`, not yet merged. The request pool is now a
@@ -604,3 +604,11 @@ gets its own branch and PR to `master`.
       actual topbar CSS (a full authenticated browser walkthrough wasn't
       possible — this environment's local Supabase project doesn't have the
       `admin1`/`test1234` UAT seed account provisioned).
+- [ ] **Route-based navigation** — not started. Today the whole app lives at
+      one address with screens swapped client-side; give each screen its own
+      URL (e.g. `kc-kova.vercel.app/home`) so a role's current screen shows
+      in the address bar, is bookmarkable, and works with browser
+      back/forward. Needs its own confirm-before-building pass (this repo's
+      git workflow) to settle the route list per role and how the existing
+      sign-in/role-gating logic maps onto Next's routing before starting.
+      Requested to land before the schedule is sent out.
