@@ -204,28 +204,39 @@ export function poolDestinationChoices(poolStops: StopInfo[], legs: LegDraft[]):
 }
 
 /**
- * Adds a stop's destination to the Trip Record: joins an existing
- * request-linked leg for that destination (a shared stop), or inserts a new
- * one before the final leg. Every currently unplaced request stop for that
- * destination comes along, since sharing is automatic; an "other stop" leg
- * (no request stops) is never merged into, since it isn't request-linked.
- * groupKey is a poolDestinationChoices id: a booking_options id, or an
- * Other destination's own key (stopGroupKey).
+ * Sets an already-added blank leg's destination, picked from one combined
+ * list: a pool destination (attaches every currently unplaced request stop
+ * for it, since sharing is automatic) or a fixed destination (e.g. a
+ * fuel/errand stop flagged in Settings, which carries no request stops).
+ * A pool destination that another leg already serves merges into that leg
+ * instead, since a destination shouldn't appear on the route twice, and
+ * this now-redundant blank leg is dropped rather than left empty.
  */
-export function addPoolLeg(legs: LegDraft[], groupKey: string, poolStops: StopInfo[]): LegDraft[] {
-  const matching = unassignedStops(poolStops, legs).filter((stop) => stopGroupKey(stop) === groupKey);
+export function pickLegDestination(
+  legs: LegDraft[],
+  index: number,
+  key: string,
+  poolStops: StopInfo[],
+  fixedDestinationIds: Set<string>,
+): LegDraft[] {
+  if (fixedDestinationIds.has(key)) {
+    return legs.map((leg, position) => (position === index ? { ...leg, destinationId: key, destinationOther: "" } : leg));
+  }
+  const matching = unassignedStops(poolStops, legs).filter((stop) => stopGroupKey(stop) === key);
   if (!matching.length) return legs;
   const stopIds = matching.map((stop) => stop.id);
   const isOther = matching[0].destinationIsOther;
   const destinationId = isOther ? "" : (matching[0].destinationId ?? "");
   const destinationOther = isOther ? matching[0].destinationName : "";
-  const existing = legs.findIndex((leg) => !leg.isFinal && legGroupKey(leg) === groupKey && leg.stops.length > 0);
-  if (existing !== -1) {
-    return legs.map((leg, position) => (position === existing ? { ...leg, stops: [...leg.stops, ...stopIds] } : leg));
+  const existingIndex = legs.findIndex(
+    (leg, position) => position !== index && !leg.isFinal && legGroupKey(leg) === key && leg.stops.length > 0,
+  );
+  if (existingIndex !== -1) {
+    return legs
+      .map((leg, position) => (position === existingIndex ? { ...leg, stops: [...leg.stops, ...stopIds] } : leg))
+      .filter((_, position) => position !== index);
   }
-  const at = legs.findIndex((leg) => leg.isFinal);
-  const position = at === -1 ? legs.length : at;
-  return addLeg(legs).map((leg, index) => (index === position ? { ...leg, destinationId, destinationOther, stops: stopIds } : leg));
+  return legs.map((leg, position) => (position === index ? { ...leg, destinationId, destinationOther, stops: stopIds } : leg));
 }
 
 /** True for a leg the Scheduler added by hand rather than one the pool built, e.g. a fuel stop. */
@@ -279,7 +290,7 @@ export function tripProblems(input: {
     const label = `Leg ${index + 1}`;
     if (!leg.isFinal && !leg.destinationId && !leg.destinationOther) save.push(`${label}: choose a destination.`);
     if (!leg.isFinal && leg.destinationId && !leg.stops.length && !otherStopIds.has(leg.destinationId)) {
-      save.push(`${label}: this stop has no request on it. Remove it, or mark its destination as an other stop in Settings.`);
+      save.push(`${label}: this stop has no request on it. Remove it, or mark its destination as a fuel/errand stop in Settings.`);
     }
     if (!leg.isFinal && leg.destinationOther && !leg.stops.length) {
       save.push(`${label}: this stop has no request on it. Remove it.`);
@@ -348,7 +359,7 @@ export function tripChecklist(input: {
   const { save, submit } = tripProblems(input);
   const about = (problems: string[], pattern: RegExp) => problems.filter((problem) => pattern.test(problem));
   // Both an empty destination and a destination with no request on it (and
-  // not flagged as an other stop) are the same checklist item: the leg's
+  // not flagged as a fuel/errand stop) are the same checklist item: the leg's
   // destination row isn't settled yet.
   const destinations = about(save, /choose a destination|has no request on it/);
   const times = about([...save, ...submit], /Time (In|Out)/);

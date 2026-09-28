@@ -5,7 +5,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, S
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,6 @@ import {
   BASE,
   MAX_LEGS,
   addLeg,
-  addPoolLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
@@ -52,12 +51,14 @@ import {
   finalLeg,
   initialLegs,
   keepStops,
+  legGroupKey,
   legHasContent,
   legOrigins,
   legsFromRevision,
   moveLeg,
   currentRevision,
   openRevision,
+  pickLegDestination,
   poolDestinationChoices,
   reflowFinalLegTimeOut,
   removeLeg,
@@ -241,11 +242,6 @@ export default function SchedulePlanner({
   // Structural changes (add, remove, reorder a leg) also re-check the final
   // leg's Time Out, since inserting or removing a leg can leave it stale.
   const applyLegs = (next: LegDraft[]) => setLegs(reflowFinalLegTimeOut(next));
-
-  /** "Add stop": builds or extends a leg for a pool destination automatically. */
-  function addStop(destinationId: string) {
-    applyLegs(addPoolLeg(legs, destinationId, poolStops));
-  }
 
   function changeLeg(index: number, patch: Partial<LegDraft>) {
     setLegs(legs.map((leg, position) => (position === index ? { ...leg, ...patch } : leg)));
@@ -605,22 +601,42 @@ export default function SchedulePlanner({
                       </label>
                     ) : leg.stops.length > 0 ? (
                       <label className="field">
-                        <span>Destination (from the request pool)</span>
+                        <span>Destination (automatic)</span>
                         <Input value={legDestinationName(leg)} readOnly />
                       </label>
                     ) : (
                       <label className="field">
-                        <span>Other stop destination *</span>
-                        <Select value={leg.destinationId} onValueChange={(value) => changeLeg(index, { destinationId: value })}>
+                        <span>Destination *</span>
+                        <Select
+                          value={legGroupKey(leg)}
+                          onValueChange={(value) =>
+                            applyLegs(pickLegDestination(legs, index, value, poolStops, otherStopDestinationIds))
+                          }
+                        >
                           <SelectTrigger aria-label={`Leg ${index + 1} destination`}>
-                            <SelectValue placeholder="Select a fuel/errand stop" />
+                            <SelectValue placeholder="Select a destination" />
                           </SelectTrigger>
                           <SelectContent>
-                            {otherStopChoices.map((option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {option.name}
-                              </SelectItem>
-                            ))}
+                            {poolChoices.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel>From the request pool</SelectLabel>
+                                {poolChoices.map((option) => (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    {option.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
+                            {otherStopChoices.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel>Fuel/errand stops</SelectLabel>
+                                {otherStopChoices.map((option) => (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    {option.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
                           </SelectContent>
                         </Select>
                       </label>
@@ -692,34 +708,12 @@ export default function SchedulePlanner({
             })}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
-                <label className="field">
-                  <span>Add stop from the request pool</span>
-                  <Select
-                    value=""
-                    disabled={!canAddLeg(legs) || !poolChoices.length}
-                    onValueChange={(value) => addStop(value)}
-                  >
-                    <SelectTrigger aria-label="Add a stop from the request pool">
-                      <SelectValue placeholder={poolChoices.length ? "Choose a destination" : "Nothing left to add"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {poolChoices.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {option.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <div className="leg-add-manual">
-                  <span className="leg-add-divider">Or add a stop by hand:</span>
-                  <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
-                    <Plus size={16} /> Add fuel/errand stop
-                  </Button>
-                  <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => applyLegs([...legs, finalLeg()])}>
-                    <Flag size={16} /> Add return leg to ANONANG
-                  </Button>
-                </div>
+                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
+                  <Plus size={16} /> Add stop
+                </Button>
+                <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => applyLegs([...legs, finalLeg()])}>
+                  <Flag size={16} /> Add return leg to ANONANG
+                </Button>
               </div>
             )}
             <div className={"planner-checklist" + (ready ? " ready" : "")}>

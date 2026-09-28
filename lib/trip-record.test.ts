@@ -3,7 +3,6 @@ import type { Schedule } from "@/lib/kova-api";
 import {
   MAX_LEGS,
   addLeg,
-  addPoolLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
@@ -17,6 +16,7 @@ import {
   legOrigins,
   moveLeg,
   newLeg,
+  pickLegDestination,
   poolDestinationChoices,
   reflowFinalLegTimeOut,
   scheduleState,
@@ -163,31 +163,37 @@ describe("pool destination choices", () => {
   });
 });
 
-describe("addPoolLeg", () => {
-  it("builds a new leg with every unplaced stop for that destination automatically", () => {
-    const legs = addPoolLeg([finalLeg()], "d1", stops);
+describe("pickLegDestination", () => {
+  it("fills an already-added blank leg with every unplaced stop for that pool destination", () => {
+    const legs = pickLegDestination([leg({}), finalLeg()], 0, "d1", stops, new Set());
     expect(legs[0]).toMatchObject({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] });
     expect(legs[1].isFinal).toBe(true);
   });
 
-  it("merges into an existing request-linked leg instead of duplicating it", () => {
-    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] }), finalLeg()];
-    const next = addPoolLeg(legs, "d1", stops);
+  it("merges into an existing request-linked leg and drops the now-redundant blank one", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] }), leg({}), finalLeg()];
+    const next = pickLegDestination(legs, 1, "d1", stops, new Set());
     expect(next).toHaveLength(2);
     expect(next[0].stops).toEqual(["juan-ch", "maria-ch"]);
+    expect(next[1].isFinal).toBe(true);
   });
 
-  it("never merges into a stop-less (other-stop) leg", () => {
-    const legs = [leg({ destinationId: "d1", stops: [] }), finalLeg()];
-    const next = addPoolLeg(legs, "d1", stops);
+  it("never merges into a stop-less (fuel/errand) leg", () => {
+    const legs = [leg({ destinationId: "d1", stops: [] }), leg({}), finalLeg()];
+    const next = pickLegDestination(legs, 1, "d1", stops, new Set());
     expect(next).toHaveLength(3);
     expect(next[0].stops).toEqual([]);
     expect(next[1]).toMatchObject({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] });
   });
 
   it("does nothing once every stop for that destination is already placed", () => {
-    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), finalLeg()];
-    expect(addPoolLeg(legs, "d1", stops)).toBe(legs);
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), leg({}), finalLeg()];
+    expect(pickLegDestination(legs, 1, "d1", stops, new Set())).toBe(legs);
+  });
+
+  it("sets a fixed (fuel/errand) destination directly, with no stops", () => {
+    const legs = pickLegDestination([leg({}), finalLeg()], 0, "shell", stops, new Set(["shell"]));
+    expect(legs[0]).toMatchObject({ destinationId: "shell", stops: [] });
   });
 });
 
@@ -209,31 +215,32 @@ describe("Other-destination pool stops", () => {
   });
 
   it("builds a leg from an Other group key with no destinationId", () => {
-    const legs = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
+    const legs = pickLegDestination([leg({}), finalLeg()], 0, "other:Warehouse X", otherStops, new Set());
     expect(legs[0]).toMatchObject({ destinationId: "", destinationOther: "Warehouse X", stops: ["juan-wh", "maria-wh"] });
   });
 
   it("never merges two Other stops with different text onto one leg", () => {
-    const withWarehouse = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
-    const next = addPoolLeg(withWarehouse, "other:Different Site", otherStops);
+    const withWarehouse = pickLegDestination([leg({}), finalLeg()], 0, "other:Warehouse X", otherStops, new Set());
+    const withBlank = addLeg(withWarehouse);
+    const next = pickLegDestination(withBlank, 1, "other:Different Site", otherStops, new Set());
     expect(next).toHaveLength(3);
     expect(next[0].destinationOther).toBe("Warehouse X");
     expect(next[1].destinationOther).toBe("Different Site");
   });
 
   it("candidatesForLeg matches an Other leg only to stops with the same text", () => {
-    const legs = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
+    const legs = pickLegDestination([leg({}), finalLeg()], 0, "other:Warehouse X", otherStops, new Set());
     expect(candidatesForLeg(legs, 0, otherStops).map((stop) => stop.id).sort()).toEqual(["juan-wh", "maria-wh"]);
   });
 
   it("legOrigins and legHasContent recognise an Other-destination leg", () => {
-    const legs = [...addPoolLeg([finalLeg()], "other:Warehouse X", otherStops)];
+    const legs = pickLegDestination([leg({}), finalLeg()], 0, "other:Warehouse X", otherStops, new Set());
     expect(legOrigins(legs, (l) => (l.isFinal ? "ANONANG" : l.destinationOther))).toEqual(["ANONANG", "Warehouse X"]);
     expect(legHasContent(legs[0])).toBe(true);
   });
 
   it("tripProblems accepts a fully-stopped Other leg and flags an emptied one", () => {
-    const filled = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
+    const filled = pickLegDestination([leg({}), finalLeg()], 0, "other:Warehouse X", otherStops, new Set());
     const filledProblems = tripProblems({ plate: "V1", requestIds: ["juan", "maria"], legs: filled, stops: otherStops });
     expect(filledProblems.save).not.toContain("Leg 1: choose a destination.");
 
@@ -332,7 +339,7 @@ describe("tripProblems", () => {
     const legs = [leg({ destinationId: "shell", plannedTimeOut: "08:00", plannedTimeIn: "09:00" })];
     const blocked = tripProblems({ ...base, legs, requestIds: ["juan"], stops: [] });
     expect(blocked.save).toContain(
-      "Leg 1: this stop has no request on it. Remove it, or mark its destination as an other stop in Settings.",
+      "Leg 1: this stop has no request on it. Remove it, or mark its destination as a fuel/errand stop in Settings.",
     );
     const allowed = tripProblems({
       ...base,
