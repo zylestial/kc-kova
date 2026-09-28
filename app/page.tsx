@@ -595,25 +595,34 @@ export default function Home() {
                     label="Settings"
                     onClick={() => setScreen("settings")}
                   />
-                  <HomeCard
-                    icon={<CalendarPlus size={24} />}
-                    label="View as Scheduler"
-                    onClick={() => {
-                      setViewAs("Scheduler");
-                      setScreen("scheduler-home");
-                    }}
-                  />
-                  <HomeCard
-                    icon={<CalendarDays size={24} />}
-                    label="View as Driver"
-                    onClick={() => {
-                      setViewAs("Driver");
-                      setScreen("driver-home");
-                    }}
-                  />
                 </>
               )}
             </div>
+            {viewRole === "Admin" && (
+              <div className="viewas-row">
+                <span className="viewas-label">View as</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setViewAs("Scheduler");
+                    setScreen("scheduler-home");
+                  }}
+                >
+                  <CalendarPlus size={15} /> Scheduler
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setViewAs("Driver");
+                    setScreen("driver-home");
+                  }}
+                >
+                  <CalendarDays size={15} /> Driver
+                </Button>
+              </div>
+            )}
           </>
         )}
       </main>
