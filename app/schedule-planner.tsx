@@ -422,6 +422,7 @@ export default function SchedulePlanner({
             <section className="editor-panel">
               <div className="section-heading">
                 <div>
+                  <span className="planner-step">Step 1</span>
                   <h2>Request pool</h2>
                   <p>
                     Requests for {dateLabel(date, { month: "short", day: "numeric" })}, grouped by who asked. A
@@ -458,34 +459,37 @@ export default function SchedulePlanner({
               )}
             </section>
 
-            <section className="editor-panel">
-              <div className="section-heading">
-                <div>
-                  <h2>Existing commitments</h2>
-                  <p>Time already held on this day by other schedules, including drafts.</p>
-                </div>
-              </div>
+            <section className={"editor-panel" + (commitments.length ? "" : " editor-panel-quiet")}>
               {commitments.length ? (
-                <ul className="planner-commitments">
-                  {commitments.map((item, index) => (
-                    <li key={`${item.scheduleId}-${index}`} className={clashes.includes(item) ? "clash" : ""}>
-                      <b>
-                        {item.start}–{item.end}
-                      </b>
-                      <span>
-                        {item.plate} · {item.driverName}
-                      </span>
-                      <span className={"status-pill " + scheduleStatePill[item.state]}>{scheduleStateLabel[item.state]}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <div className="section-heading">
+                    <div>
+                      <h2>Existing commitments</h2>
+                      <p>Time already held on this day by other schedules, including drafts.</p>
+                    </div>
+                  </div>
+                  <ul className="planner-commitments">
+                    {commitments.map((item, index) => (
+                      <li key={`${item.scheduleId}-${index}`} className={clashes.includes(item) ? "clash" : ""}>
+                        <b>
+                          {item.start}–{item.end}
+                        </b>
+                        <span>
+                          {item.plate} · {item.driverName}
+                        </span>
+                        <span className={"status-pill " + scheduleStatePill[item.state]}>{scheduleStateLabel[item.state]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               ) : (
-                <p className="helper">Nothing is scheduled on this day yet.</p>
+                <p className="helper">Nothing else is scheduled on this day yet.</p>
               )}
             </section>
           </div>
 
           <section className="editor-panel">
+            <span className="planner-step">Step 2</span>
             <h2>Vehicle and Driver</h2>
             <div className="fields planner-vehicle">
               <label className="field">
@@ -537,6 +541,7 @@ export default function SchedulePlanner({
           <section className="editor-panel">
             <div className="section-heading">
               <div>
+                <span className="planner-step">Step 3</span>
                 <h2>Trip Record</h2>
                 <p>
                   The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
@@ -687,8 +692,8 @@ export default function SchedulePlanner({
             })}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
-                <label className="field">
-                  <span>Add stop</span>
+                <label className="field leg-add-pool">
+                  <span>Add stop from the request pool</span>
                   <Select
                     value=""
                     disabled={!canAddLeg(legs) || !poolChoices.length}
@@ -706,6 +711,7 @@ export default function SchedulePlanner({
                     </SelectContent>
                   </Select>
                 </label>
+                <span className="leg-add-divider">or add a stop by hand</span>
                 <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
                   <Plus size={16} /> Add other stop
                 </Button>

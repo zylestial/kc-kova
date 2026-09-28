@@ -85,3 +85,7 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
 .app-footer{width:100%;max-width:1320px;margin:0 auto;padding:0 5%;border-top:0;display:block}
 .app-footer>div{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid #dfe5ed;padding:22px 0}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
+.planner-step{display:block;font-size:11px;letter-spacing:1.4px;font-weight:800;color:#2357d9;text-transform:uppercase;margin-bottom:6px}
+.editor-panel-quiet{background:none;border:0;padding:20px 0 0}
+.leg-add-pool{flex:1 1 260px}
+.leg-add-divider{align-self:center;font-size:12px;color:#8791a3}
