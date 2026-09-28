@@ -604,11 +604,43 @@ chat (last). Each item gets its own branch and PR to `master`.
       actual topbar CSS (a full authenticated browser walkthrough wasn't
       possible — this environment's local Supabase project doesn't have the
       `admin1`/`test1234` UAT seed account provisioned).
-- [ ] **Route-based navigation** — not started. Today the whole app lives at
-      one address with screens swapped client-side; give each screen its own
-      URL (e.g. `kc-kova.vercel.app/home`) so a role's current screen shows
-      in the address bar, is bookmarkable, and works with browser
-      back/forward. Needs its own confirm-before-building pass (this repo's
-      git workflow) to settle the route list per role and how the existing
-      sign-in/role-gating logic maps onto Next's routing before starting.
-      Requested to land before the schedule is sent out.
+- [x] **Route-based navigation** — code complete on `feat/route-based-navigation`
+      (branched from `master`, not from `feat/topbar-declutter`, per the
+      owner's request), not yet merged. Every screen now has its own URL
+      instead of one address with client-side screen-switching: `/sign-in`,
+      `/home` (role-branched dashboard, absorbing all four old `*-home`
+      screens), `/settings` (Admin), `/requests` + `/requests/new`
+      (Requester/Admin), `/schedules` + `/schedules/new` (Scheduler/Admin),
+      `/my-schedule` (Driver), and `/finished` + `/finished/driver` (Admin vs.
+      Driver audience for the same screen). Auth is gated by `proxy.ts` (this
+      Next.js version's renamed `middleware.ts`) doing a lightweight
+      session-cookie presence check and redirecting signed-out requests to
+      `/sign-in`; the authoritative check stays in
+      `app/api/auth/session/route.ts`, called by the new
+      `app/(app)/layout.tsx` shared shell (topbar, session/account state,
+      data-refresh and notification effects, the unsaved-changes confirm
+      dialog — all moved verbatim out of the old single `app/page.tsx`).
+      `app/(app)/providers.tsx` exposes `account`/`viewAs`/`viewRole`/`leave`
+      via context; Admin's "View as Scheduler/Driver" toggle stays
+      client-state only, as agreed — the URL never changes when Admin
+      toggles it, only `/home`'s content re-renders, and it still resets on
+      every sign-in/refresh. Each route's own `page.tsx` enforces who can see
+      it via a small `<RequireRole>` guard, redirecting to `/home` otherwise.
+      None of the leaf screen components (`Settings`, `RequestFlow`,
+      `MyRequests`, `SchedulePlanner`, `Schedules`, `DriverSchedules`,
+      `AdminFinishedTrips`, `DriverFinishedTrips`) needed internal changes —
+      only the callbacks passed into them changed from `setScreen(...)` to
+      `router.push(...)`. Transient values that used to ride along with a
+      screen switch (submit notices, the schedule being edited, a chosen
+      date) are now URL search params (`?notice=`, `?scheduleId=`, `?date=`)
+      instead, so they survive a refresh; the old `app/page.tsx` is now a
+      4-line `redirect("/home")` so stale bookmarks to `/` still land
+      somewhere. `tsc --noEmit`, lint, vitest (139/139) and `next build` all
+      pass; every route's signed-out redirect to `/sign-in` was verified
+      against a running dev server with curl. **Not verified**: a signed-in
+      click-through (no UAT seed account is provisioned in this
+      environment's Supabase project, the same gap noted on the
+      button/greeting-polish item above), and the known limitation that the
+      browser's native Back button can't be intercepted by the
+      unsaved-changes guard the way an in-app Back button could — flagged for
+      the next real-browser pass rather than silently worked around.
