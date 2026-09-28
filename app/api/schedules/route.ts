@@ -7,7 +7,8 @@ import { parseScheduleInput } from "@/lib/schedule-input";
 const invalidBody = "Date, vehicle, requests and legs are required.";
 
 // Creates a schedule as a first draft. save_schedule_draft allows this for
-// a Scheduler only; an Admin calling it gets 403.
+// a Scheduler, or an Admin acting as Scheduler (view-as override); anyone
+// else gets 403.
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
   const account = await requireAccount(supabase);

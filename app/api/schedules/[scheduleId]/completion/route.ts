@@ -5,7 +5,8 @@ import { toTripCompletion } from "@/lib/supabase/mappers";
 import { requireAccount } from "@/lib/supabase/session";
 import { scheduleErrorResponse } from "@/lib/supabase/schedules";
 
-// The Driver completes their published schedule with one odometer pair.
+// The Driver completes their published schedule with one odometer pair, or
+// an Admin acting as Driver (view-as override) on any vehicle's schedule.
 // Repeating returns the existing completion.
 export async function POST(request: Request, { params }: { params: Promise<{ scheduleId: string }> }) {
   const { scheduleId } = await params;

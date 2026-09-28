@@ -52,14 +52,16 @@ function availableAtLabel(date: string, timeIn: string): string {
   return date === manilaToday() ? time : `${dateLabel(date)}, ${time}`;
 }
 
-function loadTrips(driverId: string): Trip[] {
+function loadTrips(driverId: string | null): Trip[] {
   const completions = getCompletions();
   const problems = getProblems();
   return getSchedules()
     .flatMap((schedule) => {
       if (schedule.status !== "ACTIVE") return [];
       const revision = schedule.revisions.find((item) => item.id === schedule.publishedRevisionId);
-      if (!revision || revision.driverId !== driverId) return [];
+      // null driverId means Admin viewing as Driver: show every vehicle's
+      // trips, since Admin has no driver_id of their own to filter by.
+      if (!revision || (driverId !== null && revision.driverId !== driverId)) return [];
       const lastIn = revision.legs[revision.legs.length - 1]?.plannedTimeIn ?? "";
       return [
         {
@@ -80,7 +82,7 @@ function loadTrips(driverId: string): Trip[] {
  * Complete trip (one odometer pair, once the trip has ended) and Report a
  * problem. The database enforces who and when; this only shapes the screen.
  */
-export default function DriverSchedules({ driverId }: { driverId: string }) {
+export default function DriverSchedules({ driverId }: { driverId: string | null }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [requests, setRequests] = useState(getRequests());
   const [selectedId, setSelectedId] = useState<string | null>(null);

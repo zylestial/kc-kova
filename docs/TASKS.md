@@ -520,3 +520,36 @@ gets its own branch and PR to `master`.
       other-stop rule and the optional-times behavior, and the full pgTAP
       suite (237/237) passes against a local `supabase db reset`. Not yet
       walked through in a real browser.
+- [x] **Admin full powers/overrides** — not impersonation: Admin's own
+      account temporarily gains the ability to perform Scheduler and Driver
+      writes, attributed to Admin, never to any Scheduler/Driver account.
+      `0034_admin_role_override.sql` widens `save_schedule_draft`,
+      `submit_schedule`, `discard_schedule_draft` to also accept Admin
+      (create schedule, save draft, submit, discard, propose a revision —
+      additively, alongside the existing Scheduler-only path), and widens
+      `submit_completion`/`report_problem`'s Driver-ownership check to also
+      accept Admin for any vehicle's trip, since Admin has no `driver_id` of
+      their own — the completion/report is recorded with Admin's own account
+      id. Admin's pre-existing powers (approve, return, cancel, correct
+      completion, mark done, handle problem) are untouched and never flagged
+      as an override. A new `audit_events.is_admin_override` boolean (default
+      `false`), set via the same transaction-local `kova.audit_action`-style
+      config the RPCs already use, records exactly when Admin acted outside
+      their own role. No RLS policy changes were needed: schedule/completion
+      writes are already RPC-only (`0020_v2_revoke_default_grants.sql`), and
+      Admin already has full read access to every schedule and completion
+      (`can_view_schedule`/`can_view_revision`, `trip_completions_select`),
+      so the Driver "My Schedule" screen shows every vehicle's trips for
+      Admin's view-as-Driver mode with no backend read-path change — just a
+      `driverId: string | null` prop on `DriverSchedules` that skips the
+      per-driver filter when null. On the frontend, Admin Home gets "View as
+      Scheduler" / "View as Driver" toggles (`app/page.tsx`) that swap Admin's
+      screen set for that role's own screens, with a persistent "Viewing as
+      X — Return to Admin" banner; the toggle is plain React state only,
+      never persisted, and always resets on refresh or sign-out. `tsc
+      --noEmit`, lint, vitest (139/139) and `next build` pass; pgTAP
+      (244/244, up from 237, against a local `supabase db reset`) covers
+      Admin creating/submitting/discarding a schedule and completing/
+      reporting a problem on another Driver's trip, both attributed to Admin
+      with `is_admin_override` set, alongside unchanged rejections for
+      Requester and other-Driver. Not yet walked through in a real browser.

@@ -5,7 +5,8 @@ import { toProblemReport } from "@/lib/supabase/mappers";
 import { requireAccount } from "@/lib/supabase/session";
 import { scheduleErrorResponse } from "@/lib/supabase/schedules";
 
-// The Driver reports a problem with their published schedule. Doesn't
+// The Driver reports a problem with their published schedule, or an Admin
+// acting as Driver (view-as override) on any vehicle's schedule. Doesn't
 // complete the trip; more than one report is allowed.
 export async function POST(request: Request, { params }: { params: Promise<{ scheduleId: string }> }) {
   const { scheduleId } = await params;
