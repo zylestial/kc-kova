@@ -35,9 +35,8 @@ export default function NotificationBell() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" aria-label="Notifications" className="notif-trigger">
+        <Button variant="ghost" size="icon" aria-label="Notifications" title="Notifications" className="notif-trigger">
           <Bell size={15} />
-          <span className="btn-label">Notifications</span>
           {unreadCount > 0 && <span className="notif-count">{unreadCount > 9 ? "9+" : unreadCount}</span>}
         </Button>
       </PopoverTrigger>

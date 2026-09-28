@@ -317,27 +317,39 @@ export default function Home() {
     <div className="app-shell">
       <header className="topbar">
         <KovaBrand />
-        <div className="account">{account.name.slice(0, 2).toUpperCase()}</div>
-        <span className="account-name">
-          {account.name} · {account.role}
-        </span>
-        <div className="refresh-control">
-          <span className="last-updated" role="status">
-            {refreshFailed
-              ? "Couldn't refresh. Showing older data."
-              : updatedAt
-                ? `Updated ${updatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-                : ""}
+        <div className="topbar-identity">
+          <div className="account">{account.name.slice(0, 2).toUpperCase()}</div>
+          <span className="account-name">
+            {account.name} · {account.role}
           </span>
-          <Button variant="ghost" aria-label="Refresh" disabled={refreshing} onClick={() => void refreshData(true)}>
+        </div>
+        {refreshFailed && (
+          <span className="last-updated" role="status">
+            Couldn&rsquo;t refresh. Showing older data.
+          </span>
+        )}
+        <div className="topbar-actions">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Refresh"
+            title={
+              refreshing
+                ? "Refreshing…"
+                : updatedAt
+                  ? `Updated ${updatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                  : "Refresh"
+            }
+            disabled={refreshing}
+            onClick={() => void refreshData(true)}
+          >
             <RefreshCw size={15} className={refreshing ? "animate-spin" : undefined} />
-            <span className="btn-label">{refreshing ? "Refreshing…" : "Refresh"}</span>
+          </Button>
+          <NotificationBell />
+          <Button variant="ghost" size="icon" aria-label="Help" title="Help" onClick={() => setHelpOpen(true)}>
+            <CircleHelp size={15} />
           </Button>
         </div>
-        <NotificationBell />
-        <Button variant="ghost" aria-label="Help" onClick={() => setHelpOpen(true)}>
-          <CircleHelp size={15} /> <span className="btn-label">Help</span>
-        </Button>
         <Button variant="ghost" onClick={() => leave(signOut)}>
           Sign Out
         </Button>
