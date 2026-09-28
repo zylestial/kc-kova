@@ -1,6 +1,5 @@
 "use client";
 import { createContext, useCallback, useContext, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { Account } from "@/lib/kova-api";
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 
@@ -15,8 +14,10 @@ type AccountContextValue = {
   viewAs: "Scheduler" | "Driver" | null;
   setViewAs: (viewAs: "Scheduler" | "Driver" | null) => void;
   viewRole: Account["role"];
-  // Navigates unless there's unsaved work, in which case it asks first.
-  leave: (path: string) => void;
+  // Runs the action unless there's unsaved work, in which case it asks
+  // first. Used both for navigation (`leave(() => router.push(path))`) and
+  // for sign-out.
+  leave: (action: () => void) => void;
   pendingLeave: (() => void) | null;
   confirmLeave: () => void;
   cancelLeave: () => void;
@@ -31,18 +32,13 @@ export function useAccount(): AccountContextValue {
 }
 
 export function AccountProvider({ account, children }: { account: Account; children: React.ReactNode }) {
-  const router = useRouter();
   const [viewAs, setViewAs] = useState<"Scheduler" | "Driver" | null>(null);
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const viewRole: Account["role"] = account.role === "Admin" && viewAs ? viewAs : account.role;
-  const leave = useCallback(
-    (path: string) => {
-      const go = () => router.push(path);
-      if (hasUnsavedChanges()) setPendingLeave(() => go);
-      else go();
-    },
-    [router],
-  );
+  const leave = useCallback((action: () => void) => {
+    if (hasUnsavedChanges()) setPendingLeave(() => action);
+    else action();
+  }, []);
   const confirmLeave = useCallback(() => {
     pendingLeave?.();
     setPendingLeave(null);
