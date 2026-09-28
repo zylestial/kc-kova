@@ -6,6 +6,8 @@ import type {
   Schedule,
   TransportRequest,
   CancellationRequest,
+  Notification,
+  NotificationType,
   ProblemReport,
   TripCompletion,
   Vehicle,
@@ -192,6 +194,28 @@ export function toProblemReport(row: ProblemRow): ProblemReport {
     handledByAccountId: row.handled_by_account_id ?? undefined,
     handlingNote: row.handling_note ?? "",
     followUpScheduleId: row.follow_up_schedule_id ?? undefined,
+  };
+}
+
+type NotificationRow = {
+  id: string;
+  type: NotificationType;
+  message: string;
+  related_request_id: string | null;
+  related_schedule_id: string | null;
+  created_at: string;
+  read_at: string | null;
+};
+
+export function toNotification(row: NotificationRow): Notification {
+  return {
+    id: row.id,
+    type: row.type,
+    message: row.message,
+    relatedRequestId: row.related_request_id ?? undefined,
+    relatedScheduleId: row.related_schedule_id ?? undefined,
+    createdAt: row.created_at,
+    readAt: row.read_at ?? undefined,
   };
 }
 

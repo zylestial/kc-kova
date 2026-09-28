@@ -5,6 +5,7 @@ import { requireAccount } from "@/lib/supabase/session";
 import {
   liveRevisionStatuses,
   toCancellationRequest,
+  toNotification,
   toProblemReport,
   toTripCompletion,
   scheduleSelect,
@@ -26,7 +27,7 @@ export async function GET() {
   const account = await requireAccount(supabase);
   if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
-  const [accountsRes, vehiclesRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes] = await Promise.all([
+  const [accountsRes, vehiclesRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes, notificationsRes] = await Promise.all([
     supabase.from("accounts").select("*"),
     supabase.from("vehicles").select("*"),
     supabase.from("booking_options").select("*"),
@@ -41,9 +42,10 @@ export async function GET() {
     supabase.from("request_cancellations").select("*"),
     supabase.from("trip_completions").select("*"),
     supabase.from("problem_reports").select("*"),
+    supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
   ]);
 
-  const firstError = [accountsRes, vehiclesRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes].find((res) => res.error)?.error;
+  const firstError = [accountsRes, vehiclesRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes, notificationsRes].find((res) => res.error)?.error;
   if (firstError) {
     return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
   }
@@ -62,5 +64,6 @@ export async function GET() {
     // A Driver gets their own; Admin all (0017 policies).
     completions: (completionsRes.data ?? []).map(toTripCompletion),
     problems: (problemsRes.data ?? []).map(toProblemReport),
+    notifications: (notificationsRes.data ?? []).map(toNotification),
   });
 }
