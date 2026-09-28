@@ -644,20 +644,3 @@ chat (last). Each item gets its own branch and PR to `master`.
       browser's native Back button can't be intercepted by the
       unsaved-changes guard the way an in-app Back button could — flagged for
       the next real-browser pass rather than silently worked around.
-- [x] **Today/Weekly view** — code complete on `feat/today-weekly-view`, not
-      yet merged. Scoped down from the original "Today view/Copy for chat"
-      idea after discussion: no new screen and no PDF/print export, both
-      dropped. Instead the existing Schedules screen (already had a Day/Week
-      toggle and vehicle/Driver/status filters, built in Phase 5) is opened to
-      every role as a shared `/schedules` view — previously Scheduler/Admin
-      only. Requester and Driver get it read-only (`canEdit`/`canReview` stay
-      false for them, so no Create/Edit/Approve/Return/Cancel actions render)
-      and see exactly what RLS already scoped them to before this change —
-      Requester: schedules containing their own requests; Driver: their own
-      assigned trips — nothing widened at the database layer. A "Schedules"
-      card was added to the Driver and Requester Home screens so it's
-      reachable; Scheduler/Admin Home already had one. No migration, no new
-      API route: `GET /api/bootstrap` already fetches `schedules` for every
-      signed-in account. `tsc --noEmit`, lint, vitest (139/139) and
-      `next build` all pass. Not yet walked through in a real browser as
-      Requester/Driver (same seed-account gap noted on the last two items).
