@@ -7,7 +7,12 @@ export async function GET() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ account: null });
+  if (!user) {
+    // Clears the stale cookie, so proxy.ts's presence-only check stops
+    // waving this request through to protected routes.
+    await supabase.auth.signOut();
+    return NextResponse.json({ account: null });
+  }
 
   const { data: accountRow } = await supabase.from("accounts").select("*").eq("id", user.id).maybeSingle();
   if (!accountRow || accountRow.status !== "Active") {
