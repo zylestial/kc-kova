@@ -506,9 +506,7 @@ export default function Home() {
               <div>
                 <div className="eyebrow">{viewRole.toUpperCase()}</div>
                 <h1>
-                  {viewRole === "Admin"
-                    ? "Admin Home"
-                    : `Welcome, ${account.name}`}
+                  Welcome, {account.name}
                   <span className="title-dot">.</span>
                 </h1>
               </div>
