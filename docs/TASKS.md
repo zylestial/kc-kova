@@ -584,3 +584,23 @@ gets its own branch and PR to `master`.
       appeared live within the poll interval, the badge count and panel
       contents were correct, marking one read and "Mark all read" both
       cleared the badge with zero console errors.
+- [x] **Button/greeting polish** — code complete on `feat/topbar-declutter`,
+      not yet merged. Top bar decluttered: Refresh, Notifications and Help
+      are icon-only with tooltips on all widths (previously text-labeled on
+      desktop), the "Updated HH:MM" text folds into the Refresh button's
+      tooltip, and the avatar/name/role block was removed at the owner's
+      request. Admin Home's greeting now reads "Welcome, {name}" like every
+      other role instead of a static "Admin Home", so all four roles are
+      greeted consistently. Audited button consistency (all 6 non-shadcn
+      raw `<button>` usages found to be intentional bespoke cards/links, not
+      inconsistency) and the loading/disabled-state convention on every
+      mutating button app-wide (cancellation confirm/decline, Driver trip
+      completion/problem report, account/vehicle save, password change,
+      booking-options save, in addition to the already-known Submit
+      request/Save draft/Approve/Sign In) — all already correctly implement
+      `disabled={busy}` + a loading label, so no fix was needed; the
+      convention is now documented in `docs/DESIGN.md`. `tsc --noEmit` and
+      lint pass; verified visually via an isolated static render of the
+      actual topbar CSS (a full authenticated browser walkthrough wasn't
+      possible — this environment's local Supabase project doesn't have the
+      `admin1`/`test1234` UAT seed account provisioned).

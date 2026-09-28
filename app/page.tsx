@@ -317,27 +317,33 @@ export default function Home() {
     <div className="app-shell">
       <header className="topbar">
         <KovaBrand />
-        <div className="account">{account.name.slice(0, 2).toUpperCase()}</div>
-        <span className="account-name">
-          {account.name} · {account.role}
-        </span>
-        <div className="refresh-control">
+        {refreshFailed && (
           <span className="last-updated" role="status">
-            {refreshFailed
-              ? "Couldn't refresh. Showing older data."
-              : updatedAt
-                ? `Updated ${updatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-                : ""}
+            Couldn&rsquo;t refresh. Showing older data.
           </span>
-          <Button variant="ghost" aria-label="Refresh" disabled={refreshing} onClick={() => void refreshData(true)}>
+        )}
+        <div className="topbar-actions">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Refresh"
+            title={
+              refreshing
+                ? "Refreshing…"
+                : updatedAt
+                  ? `Updated ${updatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                  : "Refresh"
+            }
+            disabled={refreshing}
+            onClick={() => void refreshData(true)}
+          >
             <RefreshCw size={15} className={refreshing ? "animate-spin" : undefined} />
-            <span className="btn-label">{refreshing ? "Refreshing…" : "Refresh"}</span>
+          </Button>
+          <NotificationBell />
+          <Button variant="ghost" size="icon" aria-label="Help" title="Help" onClick={() => setHelpOpen(true)}>
+            <CircleHelp size={15} />
           </Button>
         </div>
-        <NotificationBell />
-        <Button variant="ghost" aria-label="Help" onClick={() => setHelpOpen(true)}>
-          <CircleHelp size={15} /> <span className="btn-label">Help</span>
-        </Button>
         <Button variant="ghost" onClick={() => leave(signOut)}>
           Sign Out
         </Button>
@@ -500,9 +506,7 @@ export default function Home() {
               <div>
                 <div className="eyebrow">{viewRole.toUpperCase()}</div>
                 <h1>
-                  {viewRole === "Admin"
-                    ? "Admin Home"
-                    : `Welcome, ${account.name}`}
+                  Welcome, {account.name}
                   <span className="title-dot">.</span>
                 </h1>
               </div>
@@ -591,25 +595,34 @@ export default function Home() {
                     label="Settings"
                     onClick={() => setScreen("settings")}
                   />
-                  <HomeCard
-                    icon={<CalendarPlus size={24} />}
-                    label="View as Scheduler"
-                    onClick={() => {
-                      setViewAs("Scheduler");
-                      setScreen("scheduler-home");
-                    }}
-                  />
-                  <HomeCard
-                    icon={<CalendarDays size={24} />}
-                    label="View as Driver"
-                    onClick={() => {
-                      setViewAs("Driver");
-                      setScreen("driver-home");
-                    }}
-                  />
                 </>
               )}
             </div>
+            {viewRole === "Admin" && (
+              <div className="viewas-row">
+                <span className="viewas-label">View as</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setViewAs("Scheduler");
+                    setScreen("scheduler-home");
+                  }}
+                >
+                  <CalendarPlus size={15} /> Scheduler
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setViewAs("Driver");
+                    setScreen("driver-home");
+                  }}
+                >
+                  <CalendarDays size={15} /> Driver
+                </Button>
+              </div>
+            )}
           </>
         )}
       </main>

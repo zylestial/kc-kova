@@ -59,14 +59,27 @@ workflow, not an incidental print stylesheet.
 - `.booking-flow button:focus-visible` sets an explicit `3px` outline —
   confirmed keyboard-focus styling exists on at least the booking flow.
 
+## Button loading/disabled states (verified, v2.2)
+
+Every button that triggers a mutating API call (Submit request, Save
+draft/Continue, Approve/Return, Sign In, cancellation confirm/decline,
+Driver trip completion/problem report, account/vehicle save, password
+change, booking-options save) follows the same convention: a local
+`busy` (or route-specific, e.g. `signingIn`) boolean state, set before
+the call and cleared in a `finally`, drives both `disabled={busy}` and
+a label swap (e.g. `{busy ? "Saving…" : "Save"}`). This prevents
+double-submits and gives visible feedback while a request is in
+flight, and was confirmed consistent app-wide during the v2.2 UX pass
+rather than assumed. Non-mutating buttons that only open a dialog or
+switch local view state don't need this pattern.
+
 **Not yet audited**, and deliberately left undocumented rather than
-guessed at: loading-state behavior during `hydrateKovaData()` calls,
-form-validation error presentation (`react-hook-form`/`zod` are
-dependencies but their usage wasn't traced screen-by-screen), and a
-systematic accessibility pass beyond the one confirmed focus-visible rule
-and the one outstanding `<img>`/`next/image` lint warning (see
-`docs/TASKS.md`). Treat this section as a starting point, not a complete
-audit.
+guessed at: form-validation error presentation (`react-hook-form`/
+`zod` are dependencies but their usage wasn't traced screen-by-screen),
+and a systematic accessibility pass beyond the one confirmed
+focus-visible rule and the one outstanding `<img>`/`next/image` lint
+warning (see `docs/TASKS.md`). Treat this section as a starting point,
+not a complete audit.
 
 ## UI structure
 
