@@ -87,5 +87,7 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
 @media print{[data-slot=dialog-overlay],[data-slot=dialog-content]{display:none!important}}
 .planner-step{display:block;font-size:11px;letter-spacing:1.4px;font-weight:800;color:#2357d9;text-transform:uppercase;margin-bottom:6px}
 .editor-panel-quiet{background:none;border:0;padding:20px 0 0}
-.leg-add-pool{flex:1 1 260px}
-.leg-add-divider{align-self:center;font-size:12px;color:#8791a3}
+.leg-add{display:flex;flex-direction:column;gap:14px;margin-top:18px}
+.leg-add .field{max-width:420px}
+.leg-add-manual{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.leg-add-divider{font-size:12px;color:#8791a3;white-space:nowrap}

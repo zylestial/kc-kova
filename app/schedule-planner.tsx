@@ -692,7 +692,7 @@ export default function SchedulePlanner({
             })}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
-                <label className="field leg-add-pool">
+                <label className="field">
                   <span>Add stop from the request pool</span>
                   <Select
                     value=""
@@ -711,13 +711,15 @@ export default function SchedulePlanner({
                     </SelectContent>
                   </Select>
                 </label>
-                <span className="leg-add-divider">or add a stop by hand</span>
-                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
-                  <Plus size={16} /> Add other stop
-                </Button>
-                <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => applyLegs([...legs, finalLeg()])}>
-                  <Flag size={16} /> Add return leg to ANONANG
-                </Button>
+                <div className="leg-add-manual">
+                  <span className="leg-add-divider">Or add a stop by hand:</span>
+                  <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
+                    <Plus size={16} /> Add fuel/errand stop
+                  </Button>
+                  <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => applyLegs([...legs, finalLeg()])}>
+                    <Flag size={16} /> Add return leg to ANONANG
+                  </Button>
+                </div>
               </div>
             )}
             <div className={"planner-checklist" + (ready ? " ready" : "")}>
