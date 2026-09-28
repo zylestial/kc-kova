@@ -96,6 +96,12 @@ const home = (role: Account["role"]): Screen =>
 export default function Home() {
   const [account, setAccount] = useState<Account | null>(null);
   const [screen, setScreen] = useState<Screen>("admin-home");
+  // Admin "view as Scheduler / Driver": client-side view state only, never
+  // persisted anywhere. It always starts null and is reset on sign-out, so
+  // it can never be a standing or resumable session -- Admin must always
+  // click the toggle again. The backend RPCs enforce what Admin may
+  // actually do; this only controls what screens Admin sees.
+  const [viewAs, setViewAs] = useState<"Scheduler" | "Driver" | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -220,6 +226,7 @@ export default function Home() {
       await endSession();
       setAccount(null);
       setScreen("admin-home");
+      setViewAs(null);
       setPassword("");
       setError("");
     } catch (caught) {
@@ -294,6 +301,11 @@ export default function Home() {
     completions: getCompletions(),
     problems: getProblems(),
   });
+  // Admin viewing as Scheduler or Driver sees that role's screens; every
+  // other account always sees its own. account.role is still used for
+  // Admin-only screens (Settings) and the toggle buttons themselves, since
+  // those are never affected by the view-as state.
+  const viewRole: Account["role"] = account.role === "Admin" && viewAs ? viewAs : account.role;
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -346,6 +358,24 @@ export default function Home() {
         </AlertDialogContent>
       </AlertDialog>
       <main className="role-main">
+        {account.role === "Admin" && viewAs && (
+          <div className="notice viewing-as" role="status">
+            <span>
+              Viewing as {viewAs} — actions here are attributed to you, {account.name}.
+            </span>
+            <Button
+              variant="outline"
+              onClick={() =>
+                leave(() => {
+                  setViewAs(null);
+                  setScreen("admin-home");
+                })
+              }
+            >
+              Return to Admin
+            </Button>
+          </div>
+        )}
         {screen === "settings" && account.role === "Admin" ? (
           <Settings onBack={() => setScreen("admin-home")} />
         ) : screen === "new-request" && (account.role === "Requester" || account.role === "Admin") ? (
@@ -378,7 +408,7 @@ export default function Home() {
             </Button>
             <MyRequests notice={requestNotice} />
           </>
-        ) : screen === "create-schedule" && account.role === "Scheduler" ? (
+        ) : screen === "create-schedule" && viewRole === "Scheduler" ? (
           <>
             <Button
               variant="ghost"
@@ -386,7 +416,7 @@ export default function Home() {
               onClick={() =>
                 leave(() => {
                   setScheduleDate(undefined);
-                  setScreen(editScheduleId ? "schedules" : home(account.role));
+                  setScreen(editScheduleId ? "schedules" : home(viewRole));
                 })
               }
             >
@@ -403,26 +433,26 @@ export default function Home() {
               }}
             />
           </>
-        ) : screen === "schedules" && (account.role === "Scheduler" || account.role === "Admin") ? (
+        ) : screen === "schedules" && (viewRole === "Scheduler" || viewRole === "Admin") ? (
           <>
             <Button
               variant="ghost"
               className="back"
               onClick={() => {
                 setScheduleNotice("");
-                setScreen(home(account.role));
+                setScreen(home(viewRole));
               }}
             >
-              <ArrowLeft size={17} /> {account.role} Home
+              <ArrowLeft size={17} /> {viewRole} Home
             </Button>
             <Schedules
               key={scheduleDate ?? "today"}
-              canEdit={account.role === "Scheduler"}
-              canReview={account.role === "Admin"}
+              canEdit={viewRole === "Scheduler"}
+              canReview={viewRole === "Admin"}
               notice={scheduleNotice}
               initialDate={scheduleDate}
               onCreate={
-                account.role === "Scheduler"
+                viewRole === "Scheduler"
                   ? () => {
                       setScheduleNotice("");
                       setEditScheduleId(undefined);
@@ -442,13 +472,15 @@ export default function Home() {
             <Button
               variant="ghost"
               className="back"
-              onClick={() => setScreen(home(account.role))}
+              onClick={() => setScreen(home(viewRole))}
             >
-              <ArrowLeft size={17} /> {account.role} Home
+              <ArrowLeft size={17} /> {viewRole} Home
             </Button>
-            {account.role === "Driver" && screen === "my-schedule" ? (
-              <DriverSchedules driverId={account.id} />
-            ) : account.role === "Driver" ? (
+            {viewRole === "Driver" && screen === "my-schedule" ? (
+              // Admin viewing as Driver has no driver_id of their own: pass
+              // null so every vehicle's trips show, not just one driver's.
+              <DriverSchedules driverId={viewAs === "Driver" ? null : account.id} />
+            ) : viewRole === "Driver" ? (
               <DriverFinishedTrips />
             ) : (
               <AdminFinishedTrips />
@@ -458,9 +490,9 @@ export default function Home() {
           <>
             <div className="page-heading">
               <div>
-                <div className="eyebrow">{account.role.toUpperCase()}</div>
+                <div className="eyebrow">{viewRole.toUpperCase()}</div>
                 <h1>
-                  {account.role === "Admin"
+                  {viewRole === "Admin"
                     ? "Admin Home"
                     : `Welcome, ${account.name}`}
                   <span className="title-dot">.</span>
@@ -468,7 +500,7 @@ export default function Home() {
               </div>
             </div>
             <div className="home-options">
-              {account.role === "Driver" ? (
+              {viewRole === "Driver" ? (
                 <>
                   <HomeCard
                     icon={<CalendarDays size={24} />}
@@ -482,7 +514,7 @@ export default function Home() {
                     onClick={() => setScreen("finished")}
                   />
                 </>
-              ) : account.role === "Requester" ? (
+              ) : viewRole === "Requester" ? (
                 <>
                   <HomeCard
                     icon={<FilePlus2 size={24} />}
@@ -496,7 +528,7 @@ export default function Home() {
                     onClick={() => setScreen("my-requests")}
                   />
                 </>
-              ) : account.role === "Scheduler" ? (
+              ) : viewRole === "Scheduler" ? (
                 <>
                   <HomeCard
                     icon={<CalendarPlus size={24} />}
@@ -550,6 +582,22 @@ export default function Home() {
                     icon={<SettingsIcon size={24} />}
                     label="Settings"
                     onClick={() => setScreen("settings")}
+                  />
+                  <HomeCard
+                    icon={<CalendarPlus size={24} />}
+                    label="View as Scheduler"
+                    onClick={() => {
+                      setViewAs("Scheduler");
+                      setScreen("scheduler-home");
+                    }}
+                  />
+                  <HomeCard
+                    icon={<CalendarDays size={24} />}
+                    label="View as Driver"
+                    onClick={() => {
+                      setViewAs("Driver");
+                      setScreen("driver-home");
+                    }}
                   />
                 </>
               )}
