@@ -13,7 +13,14 @@ export function requestDraftMissing(draft: {
   date: string;
   projectOtherMode: boolean;
   projectOther: string;
-  destinations: Array<{ destinationId: string; purposeId: string }>;
+  destinations: Array<{
+    destinationId: string;
+    destinationOtherMode: boolean;
+    destinationOther: string;
+    purposeId: string;
+    purposeOtherMode: boolean;
+    purposeOther: string;
+  }>;
 }): string[] {
   const missing: string[] = [];
   if (!draft.date) missing.push("Date");
@@ -22,8 +29,8 @@ export function requestDraftMissing(draft: {
   const many = draft.destinations.length > 1;
   draft.destinations.forEach((item, index) => {
     const stop = many ? ` ${index + 1}` : "";
-    if (!item.destinationId) missing.push(`Destination${stop}`);
-    if (!item.purposeId) missing.push(`Purpose${stop}`);
+    if (item.destinationOtherMode ? !item.destinationOther.trim() : !item.destinationId) missing.push(`Destination${stop}`);
+    if (item.purposeOtherMode ? !item.purposeOther.trim() : !item.purposeId) missing.push(`Purpose${stop}`);
   });
   return missing;
 }
