@@ -59,10 +59,12 @@ export function toPerson(row: PersonRow): Person {
 type RequestDestinationRow = {
   id: string;
   position: number;
-  destination_id: string;
+  destination_id: string | null;
   destination_name: string;
-  purpose_id: string;
+  destination_is_other: boolean;
+  purpose_id: string | null;
   purpose_name: string;
+  purpose_is_other: boolean;
 };
 
 type RequestRow = {
@@ -103,10 +105,12 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
       .map((destination) => ({
         id: destination.id,
         position: destination.position,
-        destinationId: destination.destination_id,
+        destinationId: destination.destination_id ?? undefined,
         destinationName: destination.destination_name,
-        purposeId: destination.purpose_id,
+        destinationIsOther: destination.destination_is_other,
+        purposeId: destination.purpose_id ?? undefined,
         purposeName: destination.purpose_name,
+        purposeIsOther: destination.purpose_is_other,
       })),
     progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : "NOT_YET_SCHEDULED"),
     cancellationPending: progressRow?.cancellation_pending ?? false,

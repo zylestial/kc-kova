@@ -62,8 +62,26 @@ describe("toTransportRequest", () => {
     created_at: "2026-09-24T01:00:00Z",
     updated_at: "2026-09-24T02:00:00Z",
     request_destinations: [
-      { id: "rd2", position: 2, destination_id: "d2", destination_name: "Port Office", purpose_id: "p2", purpose_name: "Delivery" },
-      { id: "rd1", position: 1, destination_id: "d1", destination_name: "City Hall", purpose_id: "p1", purpose_name: "Inspection" },
+      {
+        id: "rd2",
+        position: 2,
+        destination_id: "d2",
+        destination_name: "Port Office",
+        destination_is_other: false,
+        purpose_id: "p2",
+        purpose_name: "Delivery",
+        purpose_is_other: false,
+      },
+      {
+        id: "rd1",
+        position: 1,
+        destination_id: "d1",
+        destination_name: "City Hall",
+        destination_is_other: false,
+        purpose_id: "p1",
+        purpose_name: "Inspection",
+        purpose_is_other: false,
+      },
     ],
   };
 
