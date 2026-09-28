@@ -31,14 +31,14 @@ import {
 } from "@/lib/trip-record";
 
 const names: Record<string, string> = { d1: "City Hall", d2: "Port Office" };
-const destinationName = (id: string) => names[id] ?? "";
+const destinationName = (leg: LegDraft) => names[leg.destinationId] ?? "";
 
 // Juan and Maria both need City Hall, for different purposes; Maria also
 // needs the Port Office.
 const stops: StopInfo[] = [
-  { id: "juan-ch", requestId: "juan", requester: "Juan", destinationId: "d1", destinationName: "City Hall", purposeName: "Inspection" },
-  { id: "maria-ch", requestId: "maria", requester: "Maria", destinationId: "d1", destinationName: "City Hall", purposeName: "Document delivery" },
-  { id: "maria-po", requestId: "maria", requester: "Maria", destinationId: "d2", destinationName: "Port Office", purposeName: "Inspection" },
+  { id: "juan-ch", requestId: "juan", requester: "Juan", destinationId: "d1", destinationName: "City Hall", destinationIsOther: false, purposeName: "Inspection" },
+  { id: "maria-ch", requestId: "maria", requester: "Maria", destinationId: "d1", destinationName: "City Hall", destinationIsOther: false, purposeName: "Document delivery" },
+  { id: "maria-po", requestId: "maria", requester: "Maria", destinationId: "d2", destinationName: "Port Office", destinationIsOther: false, purposeName: "Inspection" },
 ];
 
 const leg = (patch: Partial<LegDraft>): LegDraft => ({ ...newLeg(), ...patch });
@@ -188,6 +188,58 @@ describe("addPoolLeg", () => {
   it("does nothing once every stop for that destination is already placed", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), finalLeg()];
     expect(addPoolLeg(legs, "d1", stops)).toBe(legs);
+  });
+});
+
+describe("Other-destination pool stops", () => {
+  const otherStops: StopInfo[] = [
+    ...stops,
+    { id: "juan-wh", requestId: "juan", requester: "Juan", destinationName: "Warehouse X", destinationIsOther: true, purposeName: "Delivery" },
+    { id: "maria-wh", requestId: "maria", requester: "Maria", destinationName: "Warehouse X", destinationIsOther: true, purposeName: "Pickup" },
+    { id: "juan-other2", requestId: "juan", requester: "Juan", destinationName: "Different Site", destinationIsOther: true, purposeName: "Errand" },
+  ];
+
+  it("groups Other stops by their free text, not by (absent) id", () => {
+    expect(poolDestinationChoices(otherStops, [])).toEqual(
+      expect.arrayContaining([
+        { id: "other:Warehouse X", name: "Warehouse X" },
+        { id: "other:Different Site", name: "Different Site" },
+      ]),
+    );
+  });
+
+  it("builds a leg from an Other group key with no destinationId", () => {
+    const legs = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
+    expect(legs[0]).toMatchObject({ destinationId: "", destinationOther: "Warehouse X", stops: ["juan-wh", "maria-wh"] });
+  });
+
+  it("never merges two Other stops with different text onto one leg", () => {
+    const withWarehouse = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
+    const next = addPoolLeg(withWarehouse, "other:Different Site", otherStops);
+    expect(next).toHaveLength(3);
+    expect(next[0].destinationOther).toBe("Warehouse X");
+    expect(next[1].destinationOther).toBe("Different Site");
+  });
+
+  it("candidatesForLeg matches an Other leg only to stops with the same text", () => {
+    const legs = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
+    expect(candidatesForLeg(legs, 0, otherStops).map((stop) => stop.id).sort()).toEqual(["juan-wh", "maria-wh"]);
+  });
+
+  it("legOrigins and legHasContent recognise an Other-destination leg", () => {
+    const legs = [...addPoolLeg([finalLeg()], "other:Warehouse X", otherStops)];
+    expect(legOrigins(legs, (l) => (l.isFinal ? "ANONANG" : l.destinationOther))).toEqual(["ANONANG", "Warehouse X"]);
+    expect(legHasContent(legs[0])).toBe(true);
+  });
+
+  it("tripProblems accepts a fully-stopped Other leg and flags an emptied one", () => {
+    const filled = addPoolLeg([finalLeg()], "other:Warehouse X", otherStops);
+    const filledProblems = tripProblems({ plate: "V1", requestIds: ["juan", "maria"], legs: filled, stops: otherStops });
+    expect(filledProblems.save).not.toContain("Leg 1: choose a destination.");
+
+    const emptied = filled.map((item, index) => (index === 0 ? { ...item, stops: [] } : item));
+    const emptiedProblems = tripProblems({ plate: "V1", requestIds: [], legs: emptied, stops: otherStops });
+    expect(emptiedProblems.save).toContain("Leg 1: this stop has no request on it. Remove it.");
   });
 });
 

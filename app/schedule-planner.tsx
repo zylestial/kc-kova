@@ -205,7 +205,12 @@ export default function SchedulePlanner({
   function destinationName(id: string) {
     return options.destinations.find((option) => option.id === id)?.name ?? stopsById.get(id)?.destinationName ?? "";
   }
-  const origins = legOrigins(legs, destinationName);
+  function legDestinationName(leg: LegDraft) {
+    if (leg.isFinal) return BASE;
+    if (leg.destinationOther) return leg.destinationOther;
+    return destinationName(leg.destinationId);
+  }
+  const origins = legOrigins(legs, legDestinationName);
 
   const driverFor = (vehiclePlate: string) => {
     const vehicle = vehicles.find((item) => item.plate === vehiclePlate);
@@ -307,7 +312,7 @@ export default function SchedulePlanner({
 
   const reviewLegs = legs.map((leg, index) => ({
     origin: origins[index],
-    destinationName: leg.isFinal ? BASE : destinationName(leg.destinationId) || "—",
+    destinationName: leg.isFinal ? BASE : legDestinationName(leg) || "—",
     plannedTimeOut: leg.plannedTimeOut,
     plannedTimeIn: leg.plannedTimeIn,
     contactName: leg.contactName,
@@ -596,7 +601,7 @@ export default function SchedulePlanner({
                     ) : leg.stops.length > 0 ? (
                       <label className="field">
                         <span>Destination (from the request pool)</span>
-                        <Input value={destinationName(leg.destinationId)} readOnly />
+                        <Input value={legDestinationName(leg)} readOnly />
                       </label>
                     ) : (
                       <label className="field">
