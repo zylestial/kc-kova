@@ -86,11 +86,6 @@ export default function HomeScreen() {
               onClick={() => go("/my-schedule")}
             />
             <HomeCard
-              icon={<CalendarDays size={24} />}
-              label="Schedules"
-              onClick={() => go("/schedules")}
-            />
-            <HomeCard
               icon={<CheckCircle2 size={24} />}
               label="Finished Trips"
               onClick={() => go("/finished/driver")}
@@ -108,11 +103,6 @@ export default function HomeScreen() {
               label="My requests"
               count={counts["my-requests"]}
               onClick={() => go("/requests")}
-            />
-            <HomeCard
-              icon={<CalendarDays size={24} />}
-              label="Schedules"
-              onClick={() => go("/schedules")}
             />
           </>
         ) : viewRole === "Scheduler" ? (
