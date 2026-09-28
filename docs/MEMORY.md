@@ -854,3 +854,36 @@ Decided by the project owner at the start of Phase 5:
   authenticated` before a function running `act_as()`'d as a test account
   can read or write it — easy to forget when copying a fixture pattern from
   a test file that never switches role before touching its temp id table.
+
+## v2.2 Admin role override (2026-09-28)
+
+- **"View as Scheduler/Driver" is not impersonation.** Admin's own account
+  gains the ability to perform Scheduler/Driver writes, attributed to
+  Admin — never to a real Scheduler/Driver account. `driver_id` on an
+  Admin-submitted `trip_completions`/`problem_reports` row is Admin's own
+  account id, not the schedule's assigned Driver's.
+- **No RLS policy changes were needed.** Schedule/completion/problem writes
+  were already RPC-only (`0020_v2_revoke_default_grants.sql` revokes
+  `insert`/`update`/`delete` from `authenticated` on those tables), so the
+  only thing to widen was each RPC's internal `v_actor.role` check
+  (`0034_admin_role_override.sql`), not a `for insert`/`for update` policy.
+  Likewise no read-path change: Admin already sees every schedule and
+  completion (`can_view_schedule`/`trip_completions_select` etc. already
+  special-case `role = 'Admin'`), so the Driver "My Schedule" screen just
+  needed an optional `driverId: string | null` prop to skip its client-side
+  per-driver filter when Admin is viewing as Driver.
+- **Audit-event ordering bug caught by the pgTAP suite, not by review:**
+  the first draft set `kova.audit_is_override` *after* the `insert into
+  schedules` in `save_schedule_draft`'s new-schedule branch, so that row's
+  own audit event missed the override flag even though later rows in the
+  same call (the revision insert) had it. `write_audit_event()`'s trigger
+  fires at each statement, not at function return, so a transaction-local
+  `set_config` must be set before the specific statement whose audit row
+  needs it, not just "before the function ends." Running `supabase test
+  db` against a fresh `supabase db reset` after writing the migration is
+  what caught this — the existing schedule/completion pgTAP fixtures also
+  assumed the pre-override "Admin cannot create a schedule" behavior, which
+  needed updating (not a regression, an intentional contract change) once
+  those old assertions started failing.
+- pgTAP: 244/244 passing locally (`v2_schedules.test.sql` 56, up from 55;
+  `v2_completion.test.sql` 33, up from 27).
