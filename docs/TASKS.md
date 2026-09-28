@@ -486,3 +486,37 @@ Released through PR #46 to `master` and tagged `v2.1`.
       (merge `c4beacc`).
 - [x] Tagged `v2.0` on the pre-merge `master` (`02163bc`) and `v2.1` on
       the merge commit; recorded in `docs/v2/git-and-release.md`.
+
+## v2.2 (in progress)
+
+Scope and priority order agreed with the owner 2026-09-28: Planner
+request-pool rewrite (priority), Admin full powers/overrides, notifications,
+button/greeting polish, then a Today view/Copy for chat (last). Each item
+gets its own branch and PR to `master`.
+
+- [x] **Planner builds legs from the request pool** — code complete on
+      `feat/planner-request-pool`, not yet merged. The request pool is now a
+      read-only status list grouped by requester; ticking a request no
+      longer exists. Instead the Scheduler picks a destination via "Add
+      stop" (limited to the day's request-pool destinations) and every
+      unplaced request stop for that destination attaches to the leg
+      automatically, merging onto an existing leg for the same destination
+      rather than requiring a manual tick. A separate "Add other stop"
+      button covers non-request stops (e.g. a fuel stop), limited to
+      destinations an Admin flags `is_other_stop` in Settings → Request
+      choices. The database (`0033_planner_request_pool.sql`) rejects a
+      non-final leg with no request stops unless it's flagged as an other
+      stop, closing the gap a client bug or a direct API call could
+      otherwise exploit. The final leg's Time Out is now re-derived after a
+      leg is added, removed or reordered, fixing a bug where it could go
+      stale relative to the leg before it. Also in this pass: a leg's
+      planned times are no longer required to save a draft (only to submit
+      it), since `schedule_legs.planned_time_out/in` are now nullable and
+      `assert_revision_complete` checks them at submit time instead of
+      `write_revision_content` requiring them at every save — a time
+      reservation is only recorded once every leg is fully timed.
+      `tsc --noEmit`, `lint`, `vitest` (139/139) and `next build` pass; a
+      new pgTAP file (`v2_planner_request_pool.test.sql`) covers the
+      other-stop rule and the optional-times behavior, and the full pgTAP
+      suite (237/237) passes against a local `supabase db reset`. Not yet
+      walked through in a real browser.

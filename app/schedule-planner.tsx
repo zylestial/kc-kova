@@ -43,6 +43,7 @@ import {
   BASE,
   MAX_LEGS,
   addLeg,
+  addPoolLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
@@ -54,15 +55,16 @@ import {
   legHasContent,
   legOrigins,
   legsFromRevision,
-  matchingDestinations,
   moveLeg,
   currentRevision,
   openRevision,
+  poolDestinationChoices,
+  reflowFinalLegTimeOut,
   removeLeg,
   scheduleState,
   scheduleStateLabel,
   scheduleStatePill,
-  setLegDestination,
+  servedRequestIds,
   setLegTimeIn,
   stopsFor,
   toScheduleInput,
@@ -142,9 +144,6 @@ export default function SchedulePlanner({
     const cancelled = new Set(getRequests().filter((request) => request.status === "CANCELLED").map((request) => request.id));
     return (opened?.revision?.requestIds ?? []).filter((id) => cancelled.has(id));
   }, [opened]);
-  const [requestIds, setRequestIds] = useState<string[]>(
-    () => (opened?.revision?.requestIds ?? []).filter((id) => !droppedIds.includes(id)),
-  );
   const [plate, setPlate] = useState(opened?.revision?.plate ?? "");
   const [legs, setLegs] = useState<LegDraft[]>(() =>
     opened?.revision
@@ -156,9 +155,6 @@ export default function SchedulePlanner({
         )
       : initialLegs(),
   );
-  // What was last saved (or opened), to tell whether there is unsaved work.
-  const [savedSignature, setSavedSignature] = useState(() => tripSignature(plate, requestIds, legs));
-  useUnsavedChanges("schedule-planner", step === 2 && tripSignature(plate, requestIds, legs) !== savedSignature);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -170,34 +166,45 @@ export default function SchedulePlanner({
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
 
-  // Requests for the day that are free to plan, plus any this schedule holds.
-  const pool = requests
-    .filter(
-      (request) =>
-        request.date === date &&
-        request.status === "ACTIVE" &&
-        (request.progress === "NOT_YET_SCHEDULED" || requestIds.includes(request.id)),
-    )
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  const heldElsewhere = requests.filter(
-    (request) =>
-      request.date === date && request.status === "ACTIVE" && request.progress !== "NOT_YET_SCHEDULED" && !requestIds.includes(request.id),
-  ).length;
-  const selectedRequests = pool.filter((request) => requestIds.includes(request.id));
-  const selectedStops = stopsFor(selectedRequests);
-  const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
-  const matches = matchingDestinations(selectedStops);
+  // Every ACTIVE request for the day, served or not, used to work out what
+  // this schedule currently serves (a request is "in" once one of its stops
+  // is on a leg — there is no separate manual selection any more).
+  const dayRequests = requests.filter((request) => request.date === date && request.status === "ACTIVE");
+  const requestIds = servedRequestIds(legs, stopsFor(dayRequests));
+  // What was last saved (or opened), to tell whether there is unsaved work.
+  const [savedSignature, setSavedSignature] = useState(() => tripSignature(plate, requestIds, legs));
+  useUnsavedChanges("schedule-planner", step === 2 && tripSignature(plate, requestIds, legs) !== savedSignature);
 
-  const destinationName = (id: string) =>
-    options.destinations.find((option) => option.id === id)?.name ?? stopsById.get(id)?.destinationName ?? "";
-  // Active destinations, plus any a selected request uses (it may have
-  // been made Inactive after the request was submitted).
-  const destinationChoices = [
-    ...options.destinations.filter((option) => option.status === "Active"),
-    ...selectedStops
-      .filter((stop) => !options.destinations.some((option) => option.id === stop.destinationId && option.status === "Active"))
-      .map((stop) => ({ id: stop.destinationId, name: stop.destinationName })),
+  // Requests for the day that are free to plan, plus any this schedule holds.
+  const pool = dayRequests
+    .filter((request) => request.progress === "NOT_YET_SCHEDULED" || requestIds.includes(request.id))
+    .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || a.createdAt.localeCompare(b.createdAt));
+  const heldElsewhere = dayRequests.filter(
+    (request) => request.progress !== "NOT_YET_SCHEDULED" && !requestIds.includes(request.id),
+  ).length;
+  const poolStops = stopsFor(pool);
+  const servedStopIds = new Set(legs.flatMap((leg) => leg.stops));
+  const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
+  // Destinations an Admin flagged for a non-request stop, e.g. a fuel or
+  // errand leg. The Trip Record's destination pickers never mix the two:
+  // request-linked legs come only from the pool; other-stop legs only from
+  // this set.
+  const otherStopDestinationIds = new Set(
+    options.destinations.filter((option) => option.isOtherStop).map((option) => option.id),
+  );
+  // Active other-stop destinations, plus any an existing other-stop leg uses
+  // (it may have been made Inactive, or un-flagged, after being chosen).
+  const otherStopChoices = [
+    ...options.destinations.filter((option) => option.status === "Active" && option.isOtherStop),
+    ...legs
+      .filter((leg) => !leg.isFinal && !leg.stops.length && leg.destinationId && !otherStopDestinationIds.has(leg.destinationId))
+      .map((leg) => ({ id: leg.destinationId, name: destinationName(leg.destinationId) })),
   ].filter((option, index, all) => all.findIndex((other) => other.id === option.id) === index);
+  const poolChoices = poolDestinationChoices(poolStops, legs);
+
+  function destinationName(id: string) {
+    return options.destinations.find((option) => option.id === id)?.name ?? stopsById.get(id)?.destinationName ?? "";
+  }
   const origins = legOrigins(legs, destinationName);
 
   const driverFor = (vehiclePlate: string) => {
@@ -209,10 +216,10 @@ export default function SchedulePlanner({
   const commitments = commitmentsOn(date, schedules, editing?.id);
   const tripTime = tripWindow(legs);
   const clashes = plate && driver ? conflictsWith(tripTime, plate, driver.id, commitments) : [];
-  const problems = tripProblems({ plate, requestIds, legs, stops: selectedStops });
+  const problems = tripProblems({ plate, requestIds, legs, stops: poolStops, otherStopDestinationIds });
   if (plate && !driver) problems.save.unshift("This vehicle has no active Driver assigned.");
-  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: selectedStops });
-  const warnings = legWarnings(legs, selectedStops);
+  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: poolStops, otherStopDestinationIds });
+  const warnings = legWarnings(legs, poolStops, otherStopDestinationIds);
   const ready = problems.save.length === 0 && problems.submit.length === 0;
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
@@ -222,22 +229,25 @@ export default function SchedulePlanner({
 
   function pickDate(day: string) {
     setDate(day);
-    setRequestIds([]);
     setLegs(initialLegs());
     setError("");
   }
 
-  function toggleRequest(id: string, checked: boolean) {
-    const next = checked ? [...requestIds, id] : requestIds.filter((item) => item !== id);
-    setRequestIds(next);
-    const allowed = new Set(stopsFor(pool.filter((request) => next.includes(request.id))).map((stop) => stop.id));
-    setLegs(keepStops(legs, allowed));
+  // Structural changes (add, remove, reorder a leg) also re-check the final
+  // leg's Time Out, since inserting or removing a leg can leave it stale.
+  const applyLegs = (next: LegDraft[]) => setLegs(reflowFinalLegTimeOut(next));
+
+  /** "Add stop": builds or extends a leg for a pool destination automatically. */
+  function addStop(destinationId: string) {
+    applyLegs(addPoolLeg(legs, destinationId, poolStops));
   }
 
   function changeLeg(index: number, patch: Partial<LegDraft>) {
     setLegs(legs.map((leg, position) => (position === index ? { ...leg, ...patch } : leg)));
   }
 
+  // The override: every stop starts ticked when its leg is built, so this
+  // only ever un-attaches one (or re-attaches one that was split out).
   function toggleStop(index: number, stopId: string, checked: boolean) {
     const leg = legs[index];
     changeLeg(index, { stops: checked ? [...leg.stops, stopId] : leg.stops.filter((item) => item !== stopId) });
@@ -409,7 +419,8 @@ export default function SchedulePlanner({
                 <div>
                   <h2>Request pool</h2>
                   <p>
-                    Requests for {dateLabel(date, { month: "short", day: "numeric" })} that aren&apos;t scheduled yet.
+                    Requests for {dateLabel(date, { month: "short", day: "numeric" })}, grouped by who asked. A
+                    destination is ticked off once it&apos;s on the route below — use &quot;Add stop&quot; there, not here.
                     {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
                   </p>
                 </div>
@@ -418,42 +429,27 @@ export default function SchedulePlanner({
                 <ul className="planner-pool">
                   {pool.map((request) => (
                     <li key={request.id}>
-                      <label>
-                        <Checkbox
-                          checked={requestIds.includes(request.id)}
-                          onCheckedChange={(value) => toggleRequest(request.id, value === true)}
-                        />
-                        <span>
-                          <b>{request.ownerName}</b>
-                          {request.requestType === "URGENT" && <span className="badge urgent">URGENT</span>}
-                          {request.projectName && <small>{request.projectName}</small>}
-                          {request.destinations.map((item) => (
-                            <small key={item.id}>
+                      <span className="planner-pool-owner">
+                        <b>{request.ownerName}</b>
+                        {request.requestType === "URGENT" && <span className="badge urgent">URGENT</span>}
+                        {request.projectName && <small>{request.projectName}</small>}
+                      </span>
+                      <ul className="planner-pool-stops">
+                        {request.destinations.map((item) => (
+                          <li key={item.id} className={servedStopIds.has(item.id) ? "done" : ""}>
+                            <span aria-hidden="true">{servedStopIds.has(item.id) ? "✓" : "○"}</span>
+                            <span>
+                              <span className="sr-only">{servedStopIds.has(item.id) ? "On the route: " : "Waiting: "}</span>
                               {item.destinationName} — {item.purposeName}
-                            </small>
-                          ))}
-                        </span>
-                      </label>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="helper">No requests are waiting for this day.</p>
-              )}
-              {matches.length > 0 && (
-                <div className="planner-matches">
-                  <h3>Matching destinations</h3>
-                  <p>
-                    These selected requests go to the same place. You can serve them at one shared stop if the timing
-                    works, or give each its own leg. Nothing is combined unless you tick it on a leg.
-                  </p>
-                  {matches.map((group) => (
-                    <p key={group.destinationId}>
-                      <b>{group.destinationName}:</b>{" "}
-                      {group.stops.map((stop) => `${stop.requester} (${stop.purposeName})`).join(", ")}
-                    </p>
-                  ))}
-                </div>
               )}
             </section>
 
@@ -545,7 +541,7 @@ export default function SchedulePlanner({
               </div>
             </div>
             {legs.map((leg, index) => {
-              const candidates = candidatesForLeg(legs, index, selectedStops);
+              const candidates = candidatesForLeg(legs, index, poolStops);
               const served = leg.stops.map((id) => stopsById.get(id)).filter((stop) => !!stop);
               return (
                 <div className="leg-card" key={leg.key}>
@@ -562,7 +558,7 @@ export default function SchedulePlanner({
                             size="icon"
                             aria-label={`Move leg ${index + 1} up`}
                             disabled={index === 0}
-                            onClick={() => setLegs(moveLeg(legs, index, -1))}
+                            onClick={() => applyLegs(moveLeg(legs, index, -1))}
                           >
                             <ArrowUp size={16} />
                           </Button>
@@ -571,7 +567,7 @@ export default function SchedulePlanner({
                             size="icon"
                             aria-label={`Move leg ${index + 1} down`}
                             disabled={index === legs.length - 1 || legs[index + 1].isFinal}
-                            onClick={() => setLegs(moveLeg(legs, index, 1))}
+                            onClick={() => applyLegs(moveLeg(legs, index, 1))}
                           >
                             <ArrowDown size={16} />
                           </Button>
@@ -580,7 +576,7 @@ export default function SchedulePlanner({
                       {legs.length > 1 && (
                         <Button
                           variant="ghost"
-                          onClick={() => (legHasContent(leg) ? setRemovingLeg(index) : setLegs(removeLeg(legs, index)))}
+                          onClick={() => (legHasContent(leg) ? setRemovingLeg(index) : applyLegs(removeLeg(legs, index)))}
                         >
                           Remove leg
                         </Button>
@@ -597,18 +593,20 @@ export default function SchedulePlanner({
                         <span>Destination</span>
                         <Input value={BASE} readOnly />
                       </label>
+                    ) : leg.stops.length > 0 ? (
+                      <label className="field">
+                        <span>Destination (from the request pool)</span>
+                        <Input value={destinationName(leg.destinationId)} readOnly />
+                      </label>
                     ) : (
                       <label className="field">
-                        <span>Destination *</span>
-                        <Select
-                          value={leg.destinationId}
-                          onValueChange={(value) => setLegs(setLegDestination(legs, index, value, selectedStops))}
-                        >
+                        <span>Other stop destination *</span>
+                        <Select value={leg.destinationId} onValueChange={(value) => changeLeg(index, { destinationId: value })}>
                           <SelectTrigger aria-label={`Leg ${index + 1} destination`}>
-                            <SelectValue placeholder="Select a destination" />
+                            <SelectValue placeholder="Select a fuel/errand stop" />
                           </SelectTrigger>
                           <SelectContent>
-                            {destinationChoices.map((option) => (
+                            {otherStopChoices.map((option) => (
                               <SelectItem key={option.id} value={option.id}>
                                 {option.name}
                               </SelectItem>
@@ -618,16 +616,17 @@ export default function SchedulePlanner({
                       </label>
                     )}
                     <label className="field">
-                      <span>Planned Time Out *</span>
+                      <span>Planned Time Out</span>
                       <Input
                         type="time"
                         value={leg.plannedTimeOut}
                         aria-label={`Leg ${index + 1} planned Time Out`}
                         onChange={(event) => changeLeg(index, { plannedTimeOut: event.target.value })}
                       />
+                      <small className="field-hint">Not required to save a draft — needed before you submit.</small>
                     </label>
                     <label className="field">
-                      <span>Planned Time In *</span>
+                      <span>Planned Time In</span>
                       <Input
                         type="time"
                         value={leg.plannedTimeIn}
@@ -655,27 +654,27 @@ export default function SchedulePlanner({
                       ))}
                     </ul>
                   )}
-                  {!leg.isFinal && leg.destinationId && (
+                  {!leg.isFinal && leg.stops.length > 0 && (
                     <div className="leg-stops">
                       <span className="summary-label">
                         Requests served here
                         {served.length > 1 && <span className="badge">One stop for {served.length} requests</span>}
                       </span>
-                      {candidates.length ? (
-                        candidates.map((stop) => (
-                          <label key={stop.id}>
-                            <Checkbox
-                              checked={leg.stops.includes(stop.id)}
-                              onCheckedChange={(value) => toggleStop(index, stop.id, value === true)}
-                            />
-                            <span>
-                              <b>{stop.requester}</b> — {stop.purposeName}
-                            </span>
-                          </label>
-                        ))
-                      ) : (
-                        <p className="helper">No selected request needs this destination.</p>
-                      )}
+                      {candidates.map((stop) => (
+                        <label key={stop.id}>
+                          <Checkbox
+                            checked={leg.stops.includes(stop.id)}
+                            onCheckedChange={(value) => toggleStop(index, stop.id, value === true)}
+                          />
+                          <span>
+                            <b>{stop.requester}</b> — {stop.purposeName}
+                          </span>
+                        </label>
+                      ))}
+                      <p className="helper">
+                        Every request going here is served automatically. Untick one only if it shouldn&apos;t travel
+                        with the rest of this leg.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -683,10 +682,29 @@ export default function SchedulePlanner({
             })}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
-                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => setLegs(addLeg(legs))}>
-                  <Plus size={16} /> Add leg
+                <label className="field">
+                  <span>Add stop</span>
+                  <Select
+                    value=""
+                    disabled={!canAddLeg(legs) || !poolChoices.length}
+                    onValueChange={(value) => addStop(value)}
+                  >
+                    <SelectTrigger aria-label="Add a stop from the request pool">
+                      <SelectValue placeholder={poolChoices.length ? "Choose a destination" : "Nothing left to add"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {poolChoices.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
+                  <Plus size={16} /> Add other stop
                 </Button>
-                <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => setLegs([...legs, finalLeg()])}>
+                <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => applyLegs([...legs, finalLeg()])}>
                   <Flag size={16} /> Add return leg to ANONANG
                 </Button>
               </div>
@@ -825,7 +843,7 @@ export default function SchedulePlanner({
             <AlertDialogAction
               className="danger"
               onClick={() => {
-                if (removingLeg !== null) setLegs(removeLeg(legs, removingLeg));
+                if (removingLeg !== null) applyLegs(removeLeg(legs, removingLeg));
                 setRemovingLeg(null);
               }}
             >

@@ -4,18 +4,18 @@ import { toBookingOption, toBookingOptions, toPerson, toProblemReport, toSchedul
 describe("toBookingOptions", () => {
   it("groups rows by their group column", () => {
     const options = toBookingOptions([
-      { group: "projects", id: "p1", name: "Project 1", status: "Active" },
-      { group: "destinations", id: "d1", name: "Warehouse", status: "Active" },
-      { group: "purposes", id: "u1", name: "Delivery", status: "Inactive" },
-      { group: "projects", id: "p2", name: "Project 2", status: "Inactive" },
+      { group: "projects", id: "p1", name: "Project 1", status: "Active", is_other_stop: false },
+      { group: "destinations", id: "d1", name: "Warehouse", status: "Active", is_other_stop: false },
+      { group: "purposes", id: "u1", name: "Delivery", status: "Inactive", is_other_stop: false },
+      { group: "projects", id: "p2", name: "Project 2", status: "Inactive", is_other_stop: false },
     ]);
     expect(options).toEqual({
       projects: [
-        { id: "p1", name: "Project 1", status: "Active" },
-        { id: "p2", name: "Project 2", status: "Inactive" },
+        { id: "p1", name: "Project 1", status: "Active", isOtherStop: false },
+        { id: "p2", name: "Project 2", status: "Inactive", isOtherStop: false },
       ],
-      destinations: [{ id: "d1", name: "Warehouse", status: "Active" }],
-      purposes: [{ id: "u1", name: "Delivery", status: "Inactive" }],
+      destinations: [{ id: "d1", name: "Warehouse", status: "Active", isOtherStop: false }],
+      purposes: [{ id: "u1", name: "Delivery", status: "Inactive", isOtherStop: false }],
     });
   });
 
@@ -26,7 +26,7 @@ describe("toBookingOptions", () => {
 
 describe("toBookingOption", () => {
   it("maps a single row", () => {
-    expect(toBookingOption({ id: "p1", name: "Project 1", status: "Active" })).toEqual({ id: "p1", name: "Project 1", status: "Active" });
+    expect(toBookingOption({ id: "p1", name: "Project 1", status: "Active", is_other_stop: false })).toEqual({ id: "p1", name: "Project 1", status: "Active", isOtherStop: false });
   });
 });
 

@@ -820,3 +820,37 @@ Decided by the project owner at the start of Phase 5:
 - **CI runs vitest, so run it locally too.** `tsc`, lint and build passed
   before the push, but two `tripChecklist` tests had gone stale after
   `ac04d82` moved checklist details onto each leg; fixed in `521e664`.
+
+## v2.2 Planner: request-pool rewrite (2026-09-28)
+
+- **The request pool went from an input to a status display.** Previously
+  the Scheduler ticked which requests to include, then separately built
+  each leg and ticked which stop it served. Now ticking is gone entirely:
+  the pool just shows what's done/waiting, and legs are built by picking a
+  destination via "Add stop" (`lib/trip-record.ts`'s `addPoolLeg`), which
+  pulls in every matching unplaced stop automatically. `requestIds` is no
+  longer state — it's derived each render from which stops are on a leg
+  (`servedRequestIds`), which also simplified opening an existing draft for
+  edit (no separate sync step needed).
+- **A stop-less leg needed a real database rule, not just a UI one.**
+  Before this pass, "Add leg" let a Scheduler pick any Active destination
+  regardless of whether a request needed it; a client bug or a direct API
+  call could always do the same. `write_revision_content` now rejects a
+  non-final leg with zero request stops unless its destination has the new
+  `booking_options.is_other_stop` flag, so the fuel/errand-stop escape
+  hatch is real and audited, not just a client convention.
+- **Leg times are optional to save a draft, required to submit.** This
+  needed `schedule_legs.planned_time_out`/`planned_time_in` to become
+  nullable (they were `not null` with a `check (planned_time_in >
+  planned_time_out)` — that check already tolerates nulls on either side,
+  so only the `not null` constraints needed dropping, plus a new
+  `check ((planned_time_out is null) = (planned_time_in is null))` so a leg
+  can't have just one of the two). `write_revision_content` only records a
+  `schedule_reservations` row once every leg in the revision is fully
+  timed; `assert_revision_complete` (called by `submit_schedule`) is where
+  missing times now actually block progress.
+- **pgTAP test gotcha:** a temp table created with `create temp table`
+  inside a test file needs an explicit `grant select, insert on <table> to
+  authenticated` before a function running `act_as()`'d as a test account
+  can read or write it — easy to forget when copying a fixture pattern from
+  a test file that never switches role before touching its temp id table.

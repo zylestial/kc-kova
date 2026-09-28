@@ -3,6 +3,7 @@ import type { Schedule } from "@/lib/kova-api";
 import {
   MAX_LEGS,
   addLeg,
+  addPoolLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
@@ -10,14 +11,16 @@ import {
   conflictsWith,
   finalLeg,
   initialLegs,
+  isOtherStopLeg,
   keepStops,
   legHasContent,
   legOrigins,
-  matchingDestinations,
   moveLeg,
   newLeg,
+  poolDestinationChoices,
+  reflowFinalLegTimeOut,
   scheduleState,
-  setLegDestination,
+  servedRequestIds,
   setLegTimeIn,
   toScheduleInput,
   tripChecklist,
@@ -146,31 +149,105 @@ describe("new Trip Record defaults", () => {
   });
 });
 
+describe("pool destination choices", () => {
+  it("offers every destination with an unplaced pool stop", () => {
+    expect(poolDestinationChoices(stops, [])).toEqual([
+      { id: "d1", name: "City Hall" },
+      { id: "d2", name: "Port Office" },
+    ]);
+  });
+
+  it("drops a destination once every stop needing it is placed", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] })];
+    expect(poolDestinationChoices(stops, legs)).toEqual([{ id: "d2", name: "Port Office" }]);
+  });
+});
+
+describe("addPoolLeg", () => {
+  it("builds a new leg with every unplaced stop for that destination automatically", () => {
+    const legs = addPoolLeg([finalLeg()], "d1", stops);
+    expect(legs[0]).toMatchObject({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] });
+    expect(legs[1].isFinal).toBe(true);
+  });
+
+  it("merges into an existing request-linked leg instead of duplicating it", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] }), finalLeg()];
+    const next = addPoolLeg(legs, "d1", stops);
+    expect(next).toHaveLength(2);
+    expect(next[0].stops).toEqual(["juan-ch", "maria-ch"]);
+  });
+
+  it("never merges into a stop-less (other-stop) leg", () => {
+    const legs = [leg({ destinationId: "d1", stops: [] }), finalLeg()];
+    const next = addPoolLeg(legs, "d1", stops);
+    expect(next).toHaveLength(3);
+    expect(next[0].stops).toEqual([]);
+    expect(next[1]).toMatchObject({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] });
+  });
+
+  it("does nothing once every stop for that destination is already placed", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), finalLeg()];
+    expect(addPoolLeg(legs, "d1", stops)).toBe(legs);
+  });
+});
+
+describe("isOtherStopLeg", () => {
+  it("is true only for a non-final leg whose destination is flagged", () => {
+    const otherStopIds = new Set(["shell"]);
+    expect(isOtherStopLeg(leg({ destinationId: "shell" }), otherStopIds)).toBe(true);
+    expect(isOtherStopLeg(leg({ destinationId: "d1" }), otherStopIds)).toBe(false);
+    expect(isOtherStopLeg({ ...finalLeg(), destinationId: "shell" }, otherStopIds)).toBe(false);
+  });
+});
+
 describe("shared stops", () => {
-  it("never combines requests automatically when several share a destination", () => {
-    const legs = setLegDestination([newLeg()], 0, "d1", stops);
-    expect(legs[0].stops).toEqual([]);
-    expect(candidatesForLeg(legs, 0, stops).map((stop) => stop.id)).toEqual(["juan-ch", "maria-ch"]);
-  });
-
-  it("ticks a lone matching stop", () => {
-    expect(setLegDestination([newLeg()], 0, "d2", stops)[0].stops).toEqual(["maria-po"]);
-  });
-
   it("doesn't offer a stop another leg already serves", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] }), leg({ destinationId: "d1" })];
     expect(candidatesForLeg(legs, 1, stops).map((stop) => stop.id)).toEqual(["maria-ch"]);
   });
 
-  it("groups matching destinations for review", () => {
-    expect(matchingDestinations(stops)).toEqual([
-      { destinationId: "d1", destinationName: "City Hall", stops: [stops[0], stops[1]] },
-    ]);
-  });
-
   it("drops stops of a request that is deselected", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] })];
     expect(keepStops(legs, new Set(["juan-ch"]))[0].stops).toEqual(["juan-ch"]);
+  });
+});
+
+describe("servedRequestIds", () => {
+  it("lists a request once any of its stops is on a leg", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] }), finalLeg()];
+    expect(servedRequestIds(legs, stops)).toEqual(["juan"]);
+  });
+
+  it("is empty when nothing has been placed yet", () => {
+    expect(servedRequestIds([finalLeg()], stops)).toEqual([]);
+  });
+});
+
+describe("reflowFinalLegTimeOut", () => {
+  it("fills the final leg's empty Time Out from the leg before it", () => {
+    const legs = [leg({ destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:00" }), finalLeg()];
+    expect(reflowFinalLegTimeOut(legs)[1].plannedTimeOut).toBe("09:00");
+  });
+
+  it("fixes a final Time Out left stale by a leg inserted after it was set", () => {
+    // The final leg's Time Out was copied from the old previous leg (09:00);
+    // a new leg lands before it with a later Time In (09:30).
+    const legs = [
+      leg({ destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
+      leg({ destinationId: "d2", plannedTimeOut: "09:00", plannedTimeIn: "09:30" }),
+      { ...finalLeg(), plannedTimeOut: "09:00" },
+    ];
+    expect(reflowFinalLegTimeOut(legs)[2].plannedTimeOut).toBe("09:30");
+  });
+
+  it("leaves an already-consistent final Time Out alone", () => {
+    const legs = [leg({ destinationId: "d1", plannedTimeOut: "08:00", plannedTimeIn: "09:00" }), { ...finalLeg(), plannedTimeOut: "10:00" }];
+    expect(reflowFinalLegTimeOut(legs)).toBe(legs);
+  });
+
+  it("does nothing when the leg before the final one has no Time In yet", () => {
+    const legs = [leg({ destinationId: "d1" }), finalLeg()];
+    expect(reflowFinalLegTimeOut(legs)).toBe(legs);
   });
 });
 
@@ -186,16 +263,39 @@ describe("tripProblems", () => {
     expect(tripProblems({ ...base, legs: complete })).toEqual({ save: [], submit: [] });
   });
 
-  it("requires times but never fills them in", () => {
+  it("doesn't require times to save a draft, only to submit it", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] })];
     expect(legs[0].plannedTimeOut).toBe("");
+    const problems = tripProblems({ ...base, legs });
+    expect(problems.save).not.toContain("Leg 1: enter planned Time Out and Time In.");
+    expect(problems.submit).toContain("Leg 1: enter planned Time Out and Time In.");
+  });
+
+  it("blocks a half-entered time at save, not just at submit", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "08:00" })];
     expect(tripProblems({ ...base, legs }).save).toContain("Leg 1: enter planned Time Out and Time In.");
+  });
+
+  it("rejects a leg with no request stops unless its destination is an other stop", () => {
+    const legs = [leg({ destinationId: "shell", plannedTimeOut: "08:00", plannedTimeIn: "09:00" })];
+    const blocked = tripProblems({ ...base, legs, requestIds: ["juan"], stops: [] });
+    expect(blocked.save).toContain(
+      "Leg 1: this stop has no request on it. Remove it, or mark its destination as an other stop in Settings.",
+    );
+    const allowed = tripProblems({
+      ...base,
+      legs,
+      requestIds: ["juan"],
+      stops: [],
+      otherStopDestinationIds: new Set(["shell"]),
+    });
+    expect(allowed.save).toEqual([]);
   });
 
   it("flags times that run backwards", () => {
     const legs = [
-      leg({ destinationId: "d1", plannedTimeOut: "09:00", plannedTimeIn: "08:00" }),
-      leg({ destinationId: "d2", plannedTimeOut: "07:00", plannedTimeIn: "10:00" }),
+      leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "09:00", plannedTimeIn: "08:00" }),
+      leg({ destinationId: "d2", stops: ["maria-po"], plannedTimeOut: "07:00", plannedTimeIn: "10:00" }),
     ];
     expect(tripProblems({ ...base, legs }).save).toEqual([
       "Leg 1: planned Time In must be after Time Out.",
@@ -217,7 +317,7 @@ describe("tripProblems", () => {
   it("requires a vehicle and a request", () => {
     expect(tripProblems({ plate: "", requestIds: [], stops: [], legs: complete }).save).toEqual([
       "Select a vehicle.",
-      "Select at least one request.",
+      "Serve at least one request.",
     ]);
   });
 });

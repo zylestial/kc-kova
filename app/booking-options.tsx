@@ -36,6 +36,7 @@ type Draft = {
   status: "Active" | "Inactive";
   projectIds: string[];
   accountId?: string;
+  isOtherStop: boolean;
 };
 const groups: [Group, string, string, string][] = [
   ["projects", "Projects / Sites", "Project / Site", "Add"],
@@ -55,6 +56,7 @@ export default function BookingOptions() {
     name: "",
     status: "Active",
     projectIds: [],
+    isOtherStop: false,
   });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -82,12 +84,14 @@ export default function BookingOptions() {
             status: item.status,
             projectIds: "projectIds" in item ? [...item.projectIds] : [],
             accountId: "accountId" in item ? item.accountId : undefined,
+            isOtherStop: "isOtherStop" in item && item.isOtherStop === true,
           }
         : {
             id: crypto.randomUUID(),
             name: "",
             status: "Active",
             projectIds: [],
+            isOtherStop: false,
           },
     );
     setError("");
@@ -119,6 +123,7 @@ export default function BookingOptions() {
           id: draft.id,
           name: draft.name,
           status: draft.status,
+          isOtherStop: modal.group === "destinations" ? draft.isOtherStop : undefined,
         });
       setModal(null);
       setNotice(`${modal.group === "people" ? "Person" : "Choice"} saved.`);
@@ -289,6 +294,20 @@ export default function BookingOptions() {
                         {p.status === "Inactive" ? " (Inactive)" : ""}
                       </label>
                     ))}
+                </div>
+              </div>
+            )}
+            {modal?.group === "destinations" && (
+              <div className="field">
+                <span>Other stop</span>
+                <div className="person-projects">
+                  <label>
+                    <Checkbox
+                      checked={draft.isOtherStop}
+                      onCheckedChange={(v) => setDraft({ ...draft, isOtherStop: v === true })}
+                    />
+                    Fuel/errand stop — the Planner can add this on its own, even when no request needs it.
+                  </label>
                 </div>
               </div>
             )}

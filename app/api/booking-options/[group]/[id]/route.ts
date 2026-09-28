@@ -20,12 +20,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ grou
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const status = STATUSES.includes(body?.status) ? body.status : "Active";
+  // Only meaningful for destinations; ignored (stays false) for every other group.
+  const isOtherStop = group === "destinations" && body?.isOtherStop === true;
   if (!name) return NextResponse.json({ message: "Name is required." }, { status: 422 });
 
   // booking_options_admin_write RLS policy enforces the Admin check server-side too.
   const { data, error } = await supabase
     .from("booking_options")
-    .upsert({ group, id, name, status }, { onConflict: "group,id" })
+    .upsert({ group, id, name, status, is_other_stop: isOtherStop }, { onConflict: "group,id" })
     .select("*")
     .single();
   if (error || !data) return NextResponse.json({ message: "Could not save the option." }, { status: 422 });
