@@ -44,7 +44,10 @@ function HomeCard({
 export default function HomeScreen() {
   const router = useRouter();
   const { account, viewAs, setViewAs, viewRole, leave } = useAccount();
-  const go = (path: string) => leave(() => router.push(path));
+  // HomeCard clicks are plain navigation, same as the old setScreen calls --
+  // only leaving a screen with a draft on it (new-request, create-schedule)
+  // and the viewing-as banner's "Return to Admin" are leave()-guarded.
+  const go = (path: string) => router.push(path);
   const counts = homeCounts(account, {
     requests: getRequests(),
     schedules: getSchedules(),
