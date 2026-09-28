@@ -7,8 +7,8 @@ const valid = {
   projectId: "pr1",
   projectOther: "",
   destinations: [
-    { destinationId: "d1", purposeId: "p1" },
-    { destinationId: "d2", purposeId: "p2" },
+    { destinationId: "d1", destinationOther: "", purposeId: "p1", purposeOther: "" },
+    { destinationId: "d2", destinationOther: "", purposeId: "p2", purposeOther: "" },
   ],
 };
 
@@ -22,11 +22,20 @@ describe("parseRequestInput", () => {
     expect(parsed).toMatchObject({ projectId: "", projectOther: "Barangay 5 hall" });
   });
 
+  it("accepts a typed Other destination or purpose in place of an id", () => {
+    const parsed = parseRequestInput({
+      ...valid,
+      destinations: [{ destinationId: "", destinationOther: "  Warehouse X ", purposeId: "p1", purposeOther: "" }],
+    });
+    expect(parsed?.destinations).toEqual([{ destinationId: "", destinationOther: "Warehouse X", purposeId: "p1", purposeOther: "" }]);
+  });
+
   it("rejects missing or malformed fields", () => {
     expect(parseRequestInput(null)).toBeNull();
     expect(parseRequestInput({ ...valid, date: "10/05/2026" })).toBeNull();
     expect(parseRequestInput({ ...valid, requestType: "SOON" })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [] })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "d1" }] })).toBeNull();
+    expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "", destinationOther: "", purposeId: "p1" }] })).toBeNull();
   });
 });
