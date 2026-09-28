@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(55);
+select plan(56);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -79,11 +79,23 @@ create function pg_temp.port_legs(p_out text, p_in text) returns jsonb language 
       'stops', jsonb_build_array(pg_temp.id('maria_port_rd'))));
 $$;
 
--- Only Scheduler creates schedules ----------------------------------------
+-- Only Scheduler creates schedules, plus Admin as a Scheduler override -----
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-select throws_ok(
+select lives_ok(
   $$ select save_schedule_draft(null, null, pg_temp.d(), 'V1', array[pg_temp.id('juan')], '[]') $$,
-  '42501', null, 'Admin cannot create a schedule, even by calling the RPC directly');
+  'Admin can create a schedule too, acting as Scheduler (view-as override)');
+select ok(
+  (select is_admin_override from audit_events
+   where table_name = 'schedules' and action = 'schedule.save'
+   order by id desc limit 1),
+  'The Admin-created schedule is audited with is_admin_override');
+-- Free the request the override above just consumed, via the matching
+-- Admin-as-Scheduler discard, so the fixtures below still start clean.
+select discard_schedule_draft(
+  (select schedule_id from schedule_requests where request_id = pg_temp.id('juan') and active),
+  (select sr.row_version from schedule_revisions sr
+     join schedule_requests sq on sq.schedule_id = sr.schedule_id
+     where sq.request_id = pg_temp.id('juan') and sq.active));
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select throws_ok(
   $$ select save_schedule_draft(null, null, pg_temp.d(), 'V1', array[pg_temp.id('juan')], '[]') $$,
