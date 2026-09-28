@@ -103,9 +103,12 @@ before it was ever approved), `CANCELLED` (Phase 7).
 
 Rules the database enforces:
 
-- **Only a Scheduler creates schedules.** Admin calling
-  `save_schedule_draft` without a schedule id gets `42501`. Admin can
-  change only a version that has been submitted to them.
+- **Only a Scheduler creates schedules** in the ordinary case. As of
+  migration 0034 (v2.2, "view as Scheduler"), Admin may also call
+  `save_schedule_draft` with no schedule id, and may edit a DRAFT/RETURNED
+  revision or start a proposal on an approved schedule — each flagged as
+  an override (see §4). Outside of an override, Admin can still change
+  only a version that has been submitted to them.
 - At most one open version (`DRAFT`/`SUBMITTED`/`RETURNED`) and one
   `APPROVED` version per schedule (partial unique indexes).
 - Closed versions (`APPROVED`/`SUPERSEDED`/`DISCARDED`) are immutable: a
@@ -159,6 +162,9 @@ and `anon` has no access at all.
 | `problem_reports` | — | all | all | own |
 | `audit_events` | — | — | all | — |
 
+Reads are unaffected by the admin-override RPCs below: Admin already saw
+every schedule, completion and problem report before 0034.
+
 Requesters who share a schedule never see each other's requests, stops or
 purposes. They see the route itself (legs), but only once it is published.
 
@@ -166,10 +172,21 @@ purposes. They see the route itself (legs), but only once it is published.
 |---|---|---|---|---|
 | `create_request` | ✓ (date rules) | — | ✓ (past dates allowed) | — |
 | `update_request` | own, unscheduled | — | own, unscheduled | — |
-| `save_schedule_draft` (create) | — | ✓ | **—** | — |
-| `save_schedule_draft` (edit) | — | DRAFT/RETURNED/new proposal | SUBMITTED only | — |
-| `submit_schedule`, `discard_schedule_draft` | — | ✓ | — | — |
+| `save_schedule_draft` (create) | — | ✓ | ✓ (override) | — |
+| `save_schedule_draft` (edit) | — | DRAFT/RETURNED/new proposal | SUBMITTED only; DRAFT/RETURNED/new proposal (override) | — |
+| `submit_schedule`, `discard_schedule_draft` | — | ✓ | ✓ (override) | — |
 | `approve_schedule`, `return_schedule` | — | — | ✓ | — |
+| `submit_completion`, `report_problem` | — | — | ✓ (override, any vehicle) | own |
+
+Since migration 0034 (v2.2, "view as Scheduler / Driver"), every cell
+marked **(override)** is Admin acting under their own account with the
+widened Scheduler/Driver checks above — not impersonation, and additive to
+the existing Scheduler-only/Driver-only paths, which are unchanged. A
+Driver-override completion or problem report is attributed to Admin's own
+`driver_id`, not the vehicle's real assigned Driver. Every override write
+sets `audit_events.is_admin_override = true`; Admin's pre-existing powers
+(the plain, non-override cells above, e.g. `approve_schedule`,
+`save_schedule_draft` (edit) on SUBMITTED) are never flagged.
 
 Request date rules (Asia/Manila calendar days, checked on the server):
 Regular requests must be at least 7 days ahead; Urgent requests must be
