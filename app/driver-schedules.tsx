@@ -285,6 +285,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           )}
           {selected && mode === "complete" && completeStep === "odometer" && (
             <>
+              <span className="planner-step">Step 1 of 2</span>
               <label className="field">
                 <span>Starting odometer (km) *</span>
                 <Input
@@ -323,9 +324,10 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           )}
           {selected && mode === "complete" && completeStep === "final" && (
             <>
+              <span className="planner-step">Step 2 of 2</span>
               <div className="field">
                 <span>Final return</span>
-                <div className="person-projects">
+                <div className="final-return-checks">
                   <label>
                     <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
                     Vehicle returned with a full tank
