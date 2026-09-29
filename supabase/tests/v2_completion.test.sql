@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(38);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -109,6 +109,10 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select lives_ok($$ select submit_completion(pg_temp.id('sp'), 1000, 1042) $$, 'The Driver completes an ended trip');
 select is((select distance from trip_completions where schedule_id = pg_temp.id('sp')), 42, 'Distance is derived');
 select is((select status from trip_completions where schedule_id = pg_temp.id('sp')), 'SUBMITTED', 'It starts SUBMITTED');
+select is((select full_tank from trip_completions where schedule_id = pg_temp.id('sp')), null,
+  'Full tank defaults to unanswered when not given');
+select is((select fleet_card_used from trip_completions where schedule_id = pg_temp.id('sp')), null,
+  'Fleet card used defaults to unanswered when not given');
 select is((select revision_id from trip_completions where schedule_id = pg_temp.id('sp')),
   (select published_revision_id from schedules where id = pg_temp.id('sp')), 'It pins the approved version');
 select is((select start_odometer from submit_completion(pg_temp.id('sp'), 5, 9)), 1000, 'Repeating returns the existing completion');
@@ -126,10 +130,13 @@ select ok(
   (select is_admin_override from audit_events
    where table_name = 'problem_reports' and record_id = (select id from problem_reports where schedule_id = pg_temp.id('sp2'))),
   'The Admin problem report is audited with is_admin_override');
-select lives_ok($$ select submit_completion(pg_temp.id('sp2'), 200, 260) $$,
-  'Admin completes a trip not assigned to them');
+select lives_ok($$ select submit_completion(pg_temp.id('sp2'), 200, 260, true, true, false) $$,
+  'Admin completes a trip not assigned to them, answering the return checks');
 select is((select driver_id from trip_completions where schedule_id = pg_temp.id('sp2')),
   '00000000-0000-0000-0000-00000000000a', 'The completion is attributed to Admin, not the real Driver');
+select is((select full_tank from trip_completions where schedule_id = pg_temp.id('sp2')), true, 'Full tank is recorded true');
+select is((select fleet_card_used from trip_completions where schedule_id = pg_temp.id('sp2')), true, 'Fleet card used is recorded true');
+select is((select gas_receipt_attached from trip_completions where schedule_id = pg_temp.id('sp2')), false, 'Gas receipt attached is recorded false');
 select ok(
   (select is_admin_override from audit_events
    where table_name = 'trip_completions' and record_id = (select id from trip_completions where schedule_id = pg_temp.id('sp2'))),
