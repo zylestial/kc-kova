@@ -95,7 +95,9 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
 [data-slot=button][data-size=default]{height:44px}
 
 /* Chrome sometimes fails to repaint text inside a fixed+translate(-50%,-50%)
-   dialog when its content reflows (e.g. a helper line mounting as you type),
-   leaving stale/partial glyphs until the next paint. Promoting the dialog to
-   its own compositing layer avoids the stale-paint glitch. */
-[data-slot=dialog-content]{will-change:transform}
+   dialog when its content reflows (e.g. a helper line mounting as you type)
+   or is text-selected, leaving stale/partial glyphs until the next paint.
+   will-change:transform alone (the original fix) didn't cover the
+   text-selection case; backface-visibility:hidden forces the same
+   compositing layer more reliably and fixes that case too. */
+[data-slot=dialog-content]{will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden}
