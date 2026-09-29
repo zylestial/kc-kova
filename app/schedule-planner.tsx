@@ -698,8 +698,7 @@ export default function SchedulePlanner({
                         </label>
                       ))}
                       <p className="helper">
-                        Every request going here is served automatically. Untick one only if it shouldn&apos;t travel
-                        with the rest of this leg.
+                        Served automatically — untick only if it shouldn&apos;t travel with this leg.
                       </p>
                     </div>
                   )}
