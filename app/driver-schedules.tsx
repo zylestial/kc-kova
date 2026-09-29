@@ -326,7 +326,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
                     </label>
                     <label>
                       <Checkbox checked={gasReceiptAttached} onCheckedChange={(v) => setGasReceiptAttached(v === true)} />
-                      Gas receipt attached
+                      Gas receipt submitted
                     </label>
                   </div>
                 </div>
