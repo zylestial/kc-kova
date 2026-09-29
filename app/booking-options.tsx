@@ -299,14 +299,14 @@ export default function BookingOptions() {
             )}
             {modal?.group === "destinations" && (
               <div className="field">
-                <span>Other stop</span>
+                <span>Fuel/errand stop</span>
                 <div className="person-projects">
                   <label>
                     <Checkbox
                       checked={draft.isOtherStop}
                       onCheckedChange={(v) => setDraft({ ...draft, isOtherStop: v === true })}
                     />
-                    Fuel/errand stop — the Planner can add this on its own, even when no request needs it.
+                    A Scheduler can pick this for a leg even when no request needs it.
                   </label>
                 </div>
               </div>

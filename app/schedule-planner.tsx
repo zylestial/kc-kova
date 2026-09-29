@@ -5,7 +5,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, S
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,6 @@ import {
   BASE,
   MAX_LEGS,
   addLeg,
-  addPoolLeg,
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
@@ -52,12 +51,14 @@ import {
   finalLeg,
   initialLegs,
   keepStops,
+  legGroupKey,
   legHasContent,
   legOrigins,
   legsFromRevision,
   moveLeg,
   currentRevision,
   openRevision,
+  pickLegDestination,
   poolDestinationChoices,
   reflowFinalLegTimeOut,
   removeLeg,
@@ -205,7 +206,12 @@ export default function SchedulePlanner({
   function destinationName(id: string) {
     return options.destinations.find((option) => option.id === id)?.name ?? stopsById.get(id)?.destinationName ?? "";
   }
-  const origins = legOrigins(legs, destinationName);
+  function legDestinationName(leg: LegDraft) {
+    if (leg.isFinal) return BASE;
+    if (leg.destinationOther) return leg.destinationOther;
+    return destinationName(leg.destinationId);
+  }
+  const origins = legOrigins(legs, legDestinationName);
 
   const driverFor = (vehiclePlate: string) => {
     const vehicle = vehicles.find((item) => item.plate === vehiclePlate);
@@ -236,11 +242,6 @@ export default function SchedulePlanner({
   // Structural changes (add, remove, reorder a leg) also re-check the final
   // leg's Time Out, since inserting or removing a leg can leave it stale.
   const applyLegs = (next: LegDraft[]) => setLegs(reflowFinalLegTimeOut(next));
-
-  /** "Add stop": builds or extends a leg for a pool destination automatically. */
-  function addStop(destinationId: string) {
-    applyLegs(addPoolLeg(legs, destinationId, poolStops));
-  }
 
   function changeLeg(index: number, patch: Partial<LegDraft>) {
     setLegs(legs.map((leg, position) => (position === index ? { ...leg, ...patch } : leg)));
@@ -307,7 +308,7 @@ export default function SchedulePlanner({
 
   const reviewLegs = legs.map((leg, index) => ({
     origin: origins[index],
-    destinationName: leg.isFinal ? BASE : destinationName(leg.destinationId) || "—",
+    destinationName: leg.isFinal ? BASE : legDestinationName(leg) || "—",
     plannedTimeOut: leg.plannedTimeOut,
     plannedTimeIn: leg.plannedTimeIn,
     contactName: leg.contactName,
@@ -417,6 +418,7 @@ export default function SchedulePlanner({
             <section className="editor-panel">
               <div className="section-heading">
                 <div>
+                  <span className="planner-step">Step 1</span>
                   <h2>Request pool</h2>
                   <p>
                     Requests for {dateLabel(date, { month: "short", day: "numeric" })}, grouped by who asked. A
@@ -453,34 +455,37 @@ export default function SchedulePlanner({
               )}
             </section>
 
-            <section className="editor-panel">
-              <div className="section-heading">
-                <div>
-                  <h2>Existing commitments</h2>
-                  <p>Time already held on this day by other schedules, including drafts.</p>
-                </div>
-              </div>
+            <section className={"editor-panel" + (commitments.length ? "" : " editor-panel-quiet")}>
               {commitments.length ? (
-                <ul className="planner-commitments">
-                  {commitments.map((item, index) => (
-                    <li key={`${item.scheduleId}-${index}`} className={clashes.includes(item) ? "clash" : ""}>
-                      <b>
-                        {item.start}–{item.end}
-                      </b>
-                      <span>
-                        {item.plate} · {item.driverName}
-                      </span>
-                      <span className={"status-pill " + scheduleStatePill[item.state]}>{scheduleStateLabel[item.state]}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <div className="section-heading">
+                    <div>
+                      <h2>Existing commitments</h2>
+                      <p>Time already held on this day by other schedules, including drafts.</p>
+                    </div>
+                  </div>
+                  <ul className="planner-commitments">
+                    {commitments.map((item, index) => (
+                      <li key={`${item.scheduleId}-${index}`} className={clashes.includes(item) ? "clash" : ""}>
+                        <b>
+                          {item.start}–{item.end}
+                        </b>
+                        <span>
+                          {item.plate} · {item.driverName}
+                        </span>
+                        <span className={"status-pill " + scheduleStatePill[item.state]}>{scheduleStateLabel[item.state]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               ) : (
-                <p className="helper">Nothing is scheduled on this day yet.</p>
+                <p className="helper">Nothing else is scheduled on this day yet.</p>
               )}
             </section>
           </div>
 
           <section className="editor-panel">
+            <span className="planner-step">Step 2</span>
             <h2>Vehicle and Driver</h2>
             <div className="fields planner-vehicle">
               <label className="field">
@@ -532,6 +537,7 @@ export default function SchedulePlanner({
           <section className="editor-panel">
             <div className="section-heading">
               <div>
+                <span className="planner-step">Step 3</span>
                 <h2>Trip Record</h2>
                 <p>
                   The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
@@ -595,22 +601,42 @@ export default function SchedulePlanner({
                       </label>
                     ) : leg.stops.length > 0 ? (
                       <label className="field">
-                        <span>Destination (from the request pool)</span>
-                        <Input value={destinationName(leg.destinationId)} readOnly />
+                        <span>Destination (automatic)</span>
+                        <Input value={legDestinationName(leg)} readOnly />
                       </label>
                     ) : (
                       <label className="field">
-                        <span>Other stop destination *</span>
-                        <Select value={leg.destinationId} onValueChange={(value) => changeLeg(index, { destinationId: value })}>
+                        <span>Destination *</span>
+                        <Select
+                          value={legGroupKey(leg)}
+                          onValueChange={(value) =>
+                            applyLegs(pickLegDestination(legs, index, value, poolStops, otherStopDestinationIds))
+                          }
+                        >
                           <SelectTrigger aria-label={`Leg ${index + 1} destination`}>
-                            <SelectValue placeholder="Select a fuel/errand stop" />
+                            <SelectValue placeholder="Select a destination" />
                           </SelectTrigger>
                           <SelectContent>
-                            {otherStopChoices.map((option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {option.name}
-                              </SelectItem>
-                            ))}
+                            {poolChoices.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel>From the request pool</SelectLabel>
+                                {poolChoices.map((option) => (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    {option.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
+                            {otherStopChoices.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel>Fuel/errand stops</SelectLabel>
+                                {otherStopChoices.map((option) => (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    {option.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
                           </SelectContent>
                         </Select>
                       </label>
@@ -682,27 +708,8 @@ export default function SchedulePlanner({
             })}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
-                <label className="field">
-                  <span>Add stop</span>
-                  <Select
-                    value=""
-                    disabled={!canAddLeg(legs) || !poolChoices.length}
-                    onValueChange={(value) => addStop(value)}
-                  >
-                    <SelectTrigger aria-label="Add a stop from the request pool">
-                      <SelectValue placeholder={poolChoices.length ? "Choose a destination" : "Nothing left to add"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {poolChoices.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {option.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
                 <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
-                  <Plus size={16} /> Add other stop
+                  <Plus size={16} /> Add stop
                 </Button>
                 <Button variant="outline" disabled={!canAddFinal(legs)} onClick={() => applyLegs([...legs, finalLeg()])}>
                   <Flag size={16} /> Add return leg to ANONANG

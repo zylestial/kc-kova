@@ -20,7 +20,8 @@ describe("unsaved changes registry", () => {
 });
 
 describe("requestDraftHasContent", () => {
-  const empty = { projectId: "", projectOther: "", destinations: [{ destinationId: "", purposeId: "" }] };
+  const emptyRow = { destinationId: "", destinationOther: "", purposeId: "", purposeOther: "" };
+  const empty = { projectId: "", projectOther: "", destinations: [emptyRow] };
 
   it("treats a fresh form as empty", () => {
     expect(requestDraftHasContent(empty)).toBe(false);
@@ -30,8 +31,10 @@ describe("requestDraftHasContent", () => {
   it("notices a project, a destination or a purpose", () => {
     expect(requestDraftHasContent({ ...empty, projectId: "p1" })).toBe(true);
     expect(requestDraftHasContent({ ...empty, projectOther: "Site B" })).toBe(true);
-    expect(requestDraftHasContent({ ...empty, destinations: [{ destinationId: "d1", purposeId: "" }] })).toBe(true);
-    expect(requestDraftHasContent({ ...empty, destinations: [{ destinationId: "", purposeId: "u1" }] })).toBe(true);
+    expect(requestDraftHasContent({ ...empty, destinations: [{ ...emptyRow, destinationId: "d1" }] })).toBe(true);
+    expect(requestDraftHasContent({ ...empty, destinations: [{ ...emptyRow, purposeId: "u1" }] })).toBe(true);
+    expect(requestDraftHasContent({ ...empty, destinations: [{ ...emptyRow, destinationOther: "Warehouse" }] })).toBe(true);
+    expect(requestDraftHasContent({ ...empty, destinations: [{ ...emptyRow, purposeOther: "Errand" }] })).toBe(true);
   });
 });
 

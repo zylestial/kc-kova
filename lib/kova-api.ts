@@ -47,10 +47,12 @@ export type RequestProgress =
 export type RequestDestination = {
   id: string;
   position: number;
-  destinationId: string;
+  destinationId?: string;
   destinationName: string;
-  purposeId: string;
+  destinationIsOther: boolean;
+  purposeId?: string;
   purposeName: string;
+  purposeIsOther: boolean;
 };
 /** A v2 transport request: a date and destinations, no vehicle or time. */
 export type TransportRequest = {
@@ -135,7 +137,7 @@ export type RequestInput = {
   requestType: "REGULAR" | "URGENT";
   projectId: string;
   projectOther: string;
-  destinations: Array<{ destinationId: string; purposeId: string }>;
+  destinations: Array<{ destinationId: string; destinationOther: string; purposeId: string; purposeOther: string }>;
 };
 export type ScheduleRevisionStatus = "DRAFT" | "SUBMITTED" | "RETURNED" | "APPROVED" | "SUPERSEDED" | "DISCARDED";
 /** One Trip Record leg. Origins are derived by the server. */

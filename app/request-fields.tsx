@@ -27,10 +27,26 @@ export type RequestDraft = {
   projectOther: string;
   projectOtherMode: boolean;
   // key keeps React rows stable while destinations are added and removed.
-  destinations: Array<{ key: string; destinationId: string; purposeId: string }>;
+  destinations: Array<{
+    key: string;
+    destinationId: string;
+    destinationOther: string;
+    destinationOtherMode: boolean;
+    purposeId: string;
+    purposeOther: string;
+    purposeOtherMode: boolean;
+  }>;
 };
 
-const newRow = () => ({ key: crypto.randomUUID(), destinationId: "", purposeId: "" });
+const newRow = () => ({
+  key: crypto.randomUUID(),
+  destinationId: "",
+  destinationOther: "",
+  destinationOtherMode: false,
+  purposeId: "",
+  purposeOther: "",
+  purposeOtherMode: false,
+});
 
 export function emptyDraft(date: string, requestType: "REGULAR" | "URGENT"): RequestDraft {
   return { date, requestType, projectId: "", projectOther: "", projectOtherMode: false, destinations: [newRow()] };
@@ -45,8 +61,12 @@ export function draftFromRequest(request: TransportRequest): RequestDraft {
     projectOtherMode: request.projectIsOther,
     destinations: request.destinations.map((item) => ({
       key: item.id,
-      destinationId: item.destinationId,
-      purposeId: item.purposeId,
+      destinationId: item.destinationIsOther ? "" : (item.destinationId ?? ""),
+      destinationOther: item.destinationIsOther ? item.destinationName : "",
+      destinationOtherMode: item.destinationIsOther,
+      purposeId: item.purposeIsOther ? "" : (item.purposeId ?? ""),
+      purposeOther: item.purposeIsOther ? item.purposeName : "",
+      purposeOtherMode: item.purposeIsOther,
     })),
   };
 }
@@ -57,7 +77,12 @@ export function draftToInput(draft: RequestDraft): RequestInput {
     requestType: draft.requestType,
     projectId: draft.projectOtherMode ? "" : draft.projectId,
     projectOther: draft.projectOtherMode ? draft.projectOther.trim() : "",
-    destinations: draft.destinations.map(({ destinationId, purposeId }) => ({ destinationId, purposeId })),
+    destinations: draft.destinations.map((item) => ({
+      destinationId: item.destinationOtherMode ? "" : item.destinationId,
+      destinationOther: item.destinationOtherMode ? item.destinationOther.trim() : "",
+      purposeId: item.purposeOtherMode ? "" : item.purposeId,
+      purposeOther: item.purposeOtherMode ? item.purposeOther.trim() : "",
+    })),
   };
 }
 
@@ -92,8 +117,14 @@ export function optionName(
 export function keptOptions(request?: TransportRequest | null) {
   return {
     projects: request && !request.projectIsOther && request.projectId ? [{ id: request.projectId, name: request.projectName }] : [],
-    destinations: request?.destinations.map((item) => ({ id: item.destinationId, name: item.destinationName })) ?? [],
-    purposes: request?.destinations.map((item) => ({ id: item.purposeId, name: item.purposeName })) ?? [],
+    destinations:
+      request?.destinations
+        .filter((item) => !item.destinationIsOther && item.destinationId)
+        .map((item) => ({ id: item.destinationId!, name: item.destinationName })) ?? [],
+    purposes:
+      request?.destinations
+        .filter((item) => !item.purposeIsOther && item.purposeId)
+        .map((item) => ({ id: item.purposeId!, name: item.purposeName })) ?? [],
   };
 }
 
@@ -201,33 +232,89 @@ export default function RequestFields({
           <b>{index + 1}</b>
           <label className="field">
             <span>Destination *</span>
-            <Select value={item.destinationId} onValueChange={(value) => setRow(item.key, { destinationId: value })}>
-              <SelectTrigger aria-label={`Destination ${index + 1}`}>
-                <SelectValue placeholder="Select Destination" />
-              </SelectTrigger>
-              <SelectContent>
-                {destinations.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {item.destinationOtherMode ? (
+              <div className="field-other">
+                <Input
+                  aria-label={`Destination ${index + 1}`}
+                  placeholder="Type a destination"
+                  value={item.destinationOther}
+                  onChange={(event) => setRow(item.key, { destinationOther: event.target.value })}
+                  maxLength={120}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="field-other-back"
+                  onClick={() => setRow(item.key, { destinationOtherMode: false, destinationOther: "" })}
+                >
+                  Choose from list
+                </button>
+              </div>
+            ) : (
+              <Select
+                value={item.destinationId}
+                onValueChange={(value) =>
+                  value === OTHER_OPTION
+                    ? setRow(item.key, { destinationOtherMode: true, destinationId: "" })
+                    : setRow(item.key, { destinationId: value })
+                }
+              >
+                <SelectTrigger aria-label={`Destination ${index + 1}`}>
+                  <SelectValue placeholder="Select Destination" />
+                </SelectTrigger>
+                <SelectContent>
+                  {destinations.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={OTHER_OPTION}>Other…</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </label>
           <label className="field">
             <span>Purpose *</span>
-            <Select value={item.purposeId} onValueChange={(value) => setRow(item.key, { purposeId: value })}>
-              <SelectTrigger aria-label={`Purpose for destination ${index + 1}`}>
-                <SelectValue placeholder="Select Purpose" />
-              </SelectTrigger>
-              <SelectContent>
-                {purposes.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {item.purposeOtherMode ? (
+              <div className="field-other">
+                <Input
+                  aria-label={`Purpose for destination ${index + 1}`}
+                  placeholder="Type a purpose"
+                  value={item.purposeOther}
+                  onChange={(event) => setRow(item.key, { purposeOther: event.target.value })}
+                  maxLength={120}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="field-other-back"
+                  onClick={() => setRow(item.key, { purposeOtherMode: false, purposeOther: "" })}
+                >
+                  Choose from list
+                </button>
+              </div>
+            ) : (
+              <Select
+                value={item.purposeId}
+                onValueChange={(value) =>
+                  value === OTHER_OPTION
+                    ? setRow(item.key, { purposeOtherMode: true, purposeId: "" })
+                    : setRow(item.key, { purposeId: value })
+                }
+              >
+                <SelectTrigger aria-label={`Purpose for destination ${index + 1}`}>
+                  <SelectValue placeholder="Select Purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  {purposes.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={OTHER_OPTION}>Other…</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </label>
           <Button
             variant="ghost"

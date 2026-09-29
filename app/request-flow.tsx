@@ -252,8 +252,8 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
             <ol className="request-review-list">
               {draft.destinations.map((item) => (
                 <li key={item.key}>
-                  <b>{optionName(options.destinations, item.destinationId)}</b> —{" "}
-                  {optionName(options.purposes, item.purposeId)}
+                  <b>{item.destinationOtherMode ? item.destinationOther.trim() : optionName(options.destinations, item.destinationId)}</b>{" "}
+                  — {item.purposeOtherMode ? item.purposeOther.trim() : optionName(options.purposes, item.purposeId)}
                 </li>
               ))}
             </ol>

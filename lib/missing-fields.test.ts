@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { accountMissing, requestDraftMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
 
+const row = (over: Partial<Parameters<typeof requestDraftMissing>[0]["destinations"][number]> = {}) => ({
+  destinationId: "d1",
+  destinationOtherMode: false,
+  destinationOther: "",
+  purposeId: "p1",
+  purposeOtherMode: false,
+  purposeOther: "",
+  ...over,
+});
+
 const draft = (over: Partial<Parameters<typeof requestDraftMissing>[0]> = {}) => ({
   date: "2026-10-05",
   projectOtherMode: false,
   projectOther: "",
-  destinations: [{ destinationId: "d1", purposeId: "p1" }],
+  destinations: [row()],
   ...over,
 });
 
@@ -22,18 +32,30 @@ describe("requestDraftMissing", () => {
   });
 
   it("names the destination and purpose that are empty, numbered when there are several stops", () => {
-    expect(requestDraftMissing(draft({ destinations: [{ destinationId: "", purposeId: "" }] }))).toEqual(["Destination", "Purpose"]);
+    expect(requestDraftMissing(draft({ destinations: [row({ destinationId: "", purposeId: "" })] }))).toEqual([
+      "Destination",
+      "Purpose",
+    ]);
     expect(
       requestDraftMissing(
         draft({
           destinations: [
-            { destinationId: "d1", purposeId: "p1" },
-            { destinationId: "d2", purposeId: "" },
-            { destinationId: "", purposeId: "p3" },
+            row({ destinationId: "d1", purposeId: "p1" }),
+            row({ destinationId: "d2", purposeId: "" }),
+            row({ destinationId: "", purposeId: "p3" }),
           ],
         }),
       ),
     ).toEqual(["Purpose 2", "Destination 3"]);
+  });
+
+  it("accepts a typed Other destination or purpose in place of an id", () => {
+    expect(
+      requestDraftMissing(draft({ destinations: [row({ destinationId: "", destinationOtherMode: true, destinationOther: "Warehouse X" })] })),
+    ).toEqual([]);
+    expect(
+      requestDraftMissing(draft({ destinations: [row({ destinationId: "", destinationOtherMode: true, destinationOther: "  " })] })),
+    ).toEqual(["Destination"]);
   });
 
   it("needs a typed Project / Site only when Other is chosen", () => {

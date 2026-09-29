@@ -18,10 +18,15 @@ export function parseRequestInput(body: unknown): RequestInput | null {
 
   const destinations: RequestInput["destinations"] = [];
   for (const item of value.destinations) {
-    const destinationId = (item as Record<string, unknown>)?.destinationId;
-    const purposeId = (item as Record<string, unknown>)?.purposeId;
-    if (typeof destinationId !== "string" || !destinationId || typeof purposeId !== "string" || !purposeId) return null;
-    destinations.push({ destinationId, purposeId });
+    const row = item as Record<string, unknown>;
+    const str = (key: string) => (typeof row?.[key] === "string" ? (row[key] as string) : "");
+    const destinationId = str("destinationId");
+    const destinationOther = str("destinationOther").trim();
+    const purposeId = str("purposeId");
+    const purposeOther = str("purposeOther").trim();
+    if (!destinationId && !destinationOther) return null;
+    if (!purposeId && !purposeOther) return null;
+    destinations.push({ destinationId, destinationOther, purposeId, purposeOther });
   }
 
   return { date, requestType, projectId: text("projectId"), projectOther: text("projectOther").trim(), destinations };
