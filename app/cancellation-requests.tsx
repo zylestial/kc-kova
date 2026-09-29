@@ -130,14 +130,13 @@ export default function CancellationRequests() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{deciding?.action === "confirm" ? "Cancel this request?" : "Keep this request?"}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="dialog-context">
               {target && `${target.ownerName} · ${dateLabel(target.date)}`}
             </DialogDescription>
           </DialogHeader>
           {deciding?.action === "confirm" ? (
             <p className="helper">
-              Only this request is cancelled. Anyone else on the same stop keeps their trip. If other requests remain,
-              the Scheduler updates the route and you approve the new version; if none do, the schedule is cancelled.
+              Only this request is cancelled — others on the same stop keep their trip. The Scheduler updates the route if needed.
             </p>
           ) : (
             <label className="field">

@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, FilePlus2 } from "lucide-react";
+import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,6 +65,7 @@ export default function Schedules({
   onEdit,
   notice,
   initialDate,
+  initialOpenId,
 }: {
   canEdit?: boolean;
   /** Admin: approve or return a schedule that has been submitted. */
@@ -74,6 +75,8 @@ export default function Schedules({
   notice?: string;
   /** The day to open on, e.g. the one just planned; defaults to today. */
   initialDate?: string;
+  /** A schedule to open the detail dialog for immediately, e.g. from a notification. */
+  initialOpenId?: string;
 }) {
   const [data, setData] = useState(readData);
   const [view, setView] = useState<"day" | "week">("week");
@@ -81,7 +84,7 @@ export default function Schedules({
   const [vehicle, setVehicle] = useState("all");
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState<"all" | ScheduleState>("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [returning, setReturning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [comment, setComment] = useState("");
@@ -165,10 +168,12 @@ export default function Schedules({
           {scheduleStateLabel[scheduleState(schedule)]}
         </span>
       </span>
-      <span>
+      <span className="schedule-card-vehicle">
+        <Car size={13} />
         {revision ? `${vehicleName(revision.plate)} · ${revision.plate}` : "—"}
+        <User size={13} />
+        {revision?.driverName ?? "—"}
       </span>
-      <span>{revision?.driverName}</span>
       <small>{revision && requesters(revision.requestIds)}</small>
       {revision?.requestIds.some((id) => requestsById.get(id)?.cancellationPending) && <small>Cancellation requested</small>}
       {needsUpdate(schedule) && <small>Route needs updating</small>}
@@ -320,7 +325,7 @@ export default function Schedules({
         <DialogContent className="review-trip-modal">
           <DialogHeader>
             <DialogTitle>Trip Record</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="dialog-context">
               {selected && dateLabel(selected.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </DialogDescription>
           </DialogHeader>

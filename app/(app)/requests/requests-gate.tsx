@@ -14,10 +14,11 @@ export default function RequestsGate() {
   const params = useSearchParams();
   // Read once, then strip from the URL so a refresh doesn't re-show it.
   const [notice, setNotice] = useState(() => params.get("notice") ?? "");
+  const [openRequestId] = useState(() => params.get("open") ?? undefined);
   useAutoClear(notice, setNotice);
   useEffect(() => {
-    if (params.get("notice")) router.replace("/requests");
-    // Only ever runs once, on mount, to consume the initial ?notice=.
+    if (params.get("notice") || params.get("open")) router.replace("/requests");
+    // Only ever runs once, on mount, to consume the initial ?notice=/?open=.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
@@ -25,7 +26,7 @@ export default function RequestsGate() {
       <Button variant="ghost" className="back" onClick={() => router.push("/home")}>
         <ArrowLeft size={17} /> {account.role} Home
       </Button>
-      <MyRequests notice={notice} />
+      <MyRequests notice={notice} openRequestId={openRequestId} />
     </RequireRole>
   );
 }

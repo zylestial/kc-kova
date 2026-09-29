@@ -9,7 +9,10 @@ export function HowItWorks({ role }: { role: Role }) {
   return (
     <ol className="how-steps">
       {howItWorks[role].map((step) => (
-        <li key={step}>{step}</li>
+        <li key={step.title}>
+          <b>{step.title}</b>
+          <span>{step.detail}</span>
+        </li>
       ))}
     </ol>
   );

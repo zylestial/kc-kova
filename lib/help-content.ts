@@ -2,40 +2,43 @@ import type { Role } from "@/lib/kova-api";
 
 /**
  * Plain-language help shown on each role's Home ("How this works") and in
- * the Help dialog. Written for someone using KOVA for the first time, so it
- * avoids system words and says who does what next.
+ * the Help dialog. Each step is a short title (readable at a glance) plus
+ * one short line of detail — not a paragraph — so the whole thing can be
+ * learned in one look rather than read start to finish.
  */
-export const howItWorks: Record<Role, string[]> = {
+export type HelpStep = { title: string; detail: string };
+
+export const howItWorks: Record<Role, HelpStep[]> = {
   Requester: [
-    "Choose New request, pick the date you need transport, then add each destination with its purpose.",
-    "Regular requests need at least 7 days' notice. Urgent requests are for today or tomorrow only.",
-    "A Scheduler plans the vehicle, Driver and times, and an Admin approves it. My requests shows how far along it is.",
-    "You can edit a request until scheduling starts. After that, ask for a cancellation and an Admin decides.",
+    { title: "Request a trip", detail: "Pick a date, add each stop and its purpose." },
+    { title: "Regular vs Urgent", detail: "Regular needs 7 days' notice; Urgent is today or tomorrow." },
+    { title: "Track progress", detail: "My requests shows Scheduler and Admin approval status." },
+    { title: "Change your mind", detail: "Edit before scheduling starts; after that, ask to cancel." },
   ],
   Scheduler: [
-    "In Create schedule, pick the day, then tick the requests waiting for that day.",
-    "Choose a vehicle. Its Driver comes with it.",
-    "Fill in the Trip Record: one leg per stop, each with a planned Time Out and Time In. The trip starts and ends at ANONANG.",
-    "Save a draft to hold the time, or Submit for approval. The Driver only sees the trip once an Admin approves it, and an Admin may send it back for changes.",
+    { title: "Build the day", detail: "Create schedule, then pick from the waiting requests." },
+    { title: "Vehicle picks the Driver", detail: "Choosing a vehicle assigns its Driver for you." },
+    { title: "Fill the Trip Record", detail: "One leg per stop, timed Out/In, starting and ending at ANONANG." },
+    { title: "Submit for approval", detail: "Draft holds the time; Admin approves or sends it back." },
   ],
   Driver: [
-    "My Schedule lists your approved trips.",
-    "Open a trip to see its Trip Record: the stops and their planned times.",
-    "After the trip's last planned Time In, choose Complete trip and enter the odometer at the start and at the end.",
-    "If a trip can't go as planned, choose Report a problem. You can do this at any time.",
+    { title: "See your trips", detail: "My Schedule lists only your approved trips." },
+    { title: "Check the plan", detail: "Open a trip for its stops and planned times." },
+    { title: "Complete the trip", detail: "After the last Time In, log the start/end odometer." },
+    { title: "Something went wrong?", detail: "Report a problem — you can do this any time." },
   ],
   Admin: [
-    "In Schedules, review submitted schedules, then Approve them or Return them with a note. Cancellation requests are handled there too.",
-    "In Finished Trips, check each Driver's odometer readings, correct them if needed, deal with reported problems, then mark the trip Done.",
-    "In Settings, manage accounts (including password resets), vehicles and their Drivers, and the choices people pick from in requests.",
-    "You can also make requests yourself, including for a date that has already passed.",
+    { title: "Review schedules", detail: "Approve, Return with a note, or handle cancellations." },
+    { title: "Close out trips", detail: "Check odometers, fix if needed, resolve problems, mark Done." },
+    { title: "Manage the system", detail: "Accounts, passwords, vehicles, Drivers, request choices." },
+    { title: "Act as anyone", detail: "You can also submit requests, even for a past date." },
   ],
 };
 
 /** Who to turn to, since KOVA has no self-service password reset. */
 export const whoToAsk: Record<Role, string> = {
-  Requester: "Forgot your password or can't sign in? Ask an Admin. They can set a new one for you.",
-  Scheduler: "Forgot your password or can't sign in? Ask an Admin. They can set a new one for you.",
-  Driver: "Forgot your password or can't sign in? Ask an Admin. They can set a new one for you.",
+  Requester: "Forgot your password? Ask an Admin — they can set a new one.",
+  Scheduler: "Forgot your password? Ask an Admin — they can set a new one.",
+  Driver: "Forgot your password? Ask an Admin — they can set a new one.",
   Admin: "Forgot your password? Ask another Admin to set a new one in Settings.",
 };

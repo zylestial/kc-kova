@@ -19,6 +19,7 @@ import {
   getProblems,
   getRequests,
   getSchedules,
+  getVehicles,
   reportProblem,
   submitCompletion,
   type ProblemReport,
@@ -83,10 +84,12 @@ function loadTrips(driverId: string | null): Trip[] {
  * Complete trip (one odometer pair, once the trip has ended) and Report a
  * problem. The database enforces who and when; this only shapes the screen.
  */
-export default function DriverSchedules({ driverId }: { driverId: string | null }) {
+export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [requests, setRequests] = useState(getRequests());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [vehicles, setVehicles] = useState(getVehicles());
+  const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
+  const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
   const [start, setStart] = useState("");
@@ -104,6 +107,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
     function refresh() {
       setTrips(loadTrips(driverId));
       setRequests(getRequests());
+      setVehicles(getVehicles());
     }
     refresh();
     window.addEventListener("kova-data-update", refresh);
@@ -200,7 +204,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
                   return (
                     <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
                       <td>{dateLabel(trip.schedule.date)}</td>
-                      <td>{trip.revision.plate}</td>
+                      <td className="trip-vehicle">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
                       <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
                       <td>
                         <span className={"status-pill " + pill}>{label}</span>
@@ -241,7 +245,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
             <DialogTitle>
               {mode === "complete" ? "Complete this trip" : mode === "problem" ? "Report a problem" : "Trip Record"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
             </DialogDescription>
           </DialogHeader>
@@ -281,6 +285,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
           )}
           {selected && mode === "complete" && completeStep === "odometer" && (
             <>
+              <span className="planner-step">Step 1 of 2</span>
               <label className="field">
                 <span>Starting odometer (km) *</span>
                 <Input
@@ -319,9 +324,10 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
           )}
           {selected && mode === "complete" && completeStep === "final" && (
             <>
+              <span className="planner-step">Step 2 of 2</span>
               <div className="field">
                 <span>Final return</span>
-                <div className="person-projects">
+                <div className="final-return-checks">
                   <label>
                     <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
                     Vehicle returned with a full tank
