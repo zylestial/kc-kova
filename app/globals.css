@@ -108,11 +108,12 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
    is scrolled all the way down -- measured as an actual ~8px overlap, not
    just a tight-looking gap. A positive margin-top on the footer restores
    real clearance regardless of that shrink. */
-/* The footer sticks to the bottom of a scrolled dialog (see comment below)
-   from the moment it opens if there's enough content to overflow, so its
-   opaque background can start out already covering the tail end of that
-   content -- normal sticky behaviour, but cutting a line of text off
-   abruptly like a glitch. A soft fade above it reads as "more below, keep
-   scrolling" instead of looking broken. */
-[data-slot=dialog-footer]{margin-top:20px}
-[data-slot=dialog-footer]::before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;background:linear-gradient(to bottom,transparent,var(--background));pointer-events:none}
+/* The shared DialogFooter is sticky by default, so it pins to the bottom
+   of a scrolled dialog and its opaque background can cover -- not just
+   sit near -- whatever content hasn't been scrolled past yet. A fade
+   softened the edge of that but couldn't fix the underlying problem: real
+   content (the Destinations list, a cancellation notice) could still be
+   fully hidden behind it depending on scroll position. Un-stickying it
+   removes the whole category of bug: the footer now sits at the true end
+   of the content, in normal flow, so nothing can ever render behind it. */
+[data-slot=dialog-footer]{position:static;margin-top:20px}
