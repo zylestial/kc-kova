@@ -83,10 +83,10 @@ function loadTrips(driverId: string | null): Trip[] {
  * Complete trip (one odometer pair, once the trip has ended) and Report a
  * problem. The database enforces who and when; this only shapes the screen.
  */
-export default function DriverSchedules({ driverId }: { driverId: string | null }) {
+export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [requests, setRequests] = useState(getRequests());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
   const [start, setStart] = useState("");

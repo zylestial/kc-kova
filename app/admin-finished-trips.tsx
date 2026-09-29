@@ -47,7 +47,7 @@ type Mode = "view" | "correct" | "done" | "handle";
  * (which locks it), handle the Driver's problem reports and print the form.
  * Postgres decides what is allowed; this only shapes the screen.
  */
-export default function AdminFinishedTrips() {
+export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: string } = {}) {
   const [trips, setTrips] = useState<FinishedTrip[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [requests, setRequests] = useState(getRequests());
@@ -56,7 +56,7 @@ export default function AdminFinishedTrips() {
   const [vehicle, setVehicle] = useState("all");
   const [status, setStatus] = useState("all");
   const [problems, setProblems] = useState("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<Mode>("view");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");

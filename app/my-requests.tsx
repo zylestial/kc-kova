@@ -60,7 +60,7 @@ const editable = (request: TransportRequest) => request.status === "ACTIVE" && r
 const canCancel = (request: TransportRequest) =>
   request.status === "ACTIVE" && !request.cancellationPending && !["COMPLETED", "DONE"].includes(request.progress);
 
-export default function MyRequests({ notice }: { notice?: string }) {
+export default function MyRequests({ notice, openRequestId }: { notice?: string; openRequestId?: string }) {
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
   const [requests, setRequests] = useState<TransportRequest[]>([]);
@@ -89,6 +89,15 @@ export default function MyRequests({ notice }: { notice?: string }) {
     window.addEventListener("kova-data-update", refresh);
     return () => window.removeEventListener("kova-data-update", refresh);
   }, [account?.id]);
+
+  // Opens straight into a specific request when arriving from a notification.
+  useEffect(() => {
+    if (!openRequestId) return;
+    const match = requests.find((item) => item.id === openRequestId);
+    if (match) setSelected(match);
+    // Only re-run when the target id changes or the list first loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequestId, requests.length]);
 
   // Keep the details modal showing the latest copy after a refresh.
   const shown = selected ? requests.find((item) => item.id === selected.id) ?? selected : null;

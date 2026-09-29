@@ -65,6 +65,7 @@ export default function Schedules({
   onEdit,
   notice,
   initialDate,
+  initialOpenId,
 }: {
   canEdit?: boolean;
   /** Admin: approve or return a schedule that has been submitted. */
@@ -74,6 +75,8 @@ export default function Schedules({
   notice?: string;
   /** The day to open on, e.g. the one just planned; defaults to today. */
   initialDate?: string;
+  /** A schedule to open the detail dialog for immediately, e.g. from a notification. */
+  initialOpenId?: string;
 }) {
   const [data, setData] = useState(readData);
   const [view, setView] = useState<"day" | "week">("week");
@@ -81,7 +84,7 @@ export default function Schedules({
   const [vehicle, setVehicle] = useState("all");
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState<"all" | ScheduleState>("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [returning, setReturning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [comment, setComment] = useState("");
