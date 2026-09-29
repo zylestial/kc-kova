@@ -39,7 +39,7 @@
 .viewas-row{display:flex;align-items:center;gap:10px;margin:18px 0 60px}
 .viewas-label{font-size:13px;color:#79869a}
 @media print{.viewas-row{display:none}}
-.how-steps{margin:0;padding-left:22px;list-style:decimal;display:grid;gap:8px;font-size:15px;line-height:1.5;color:#3d4757}
+.how-steps{margin:0;padding-left:22px;list-style:decimal;display:grid;gap:14px}.how-steps li{display:flex;flex-direction:column;gap:3px}.how-steps b{font-size:16px;font-weight:700;color:#16243a}.how-steps span{font-size:13px;color:#56647a;line-height:1.4}
 .planner-checklist{margin-top:22px;padding:14px 18px;background:#f5f8ff;border:1px solid #d7e1f7;border-radius:6px;font-size:14px;color:#2c3a55}
 .planner-checklist.ready{background:#eef8f1;border-color:#cde8d6;color:#1f5a35}
 .planner-checklist p{margin:4px 0 0;font-size:13px}
