@@ -665,15 +665,32 @@ chat (last). Each item gets its own branch and PR to `master`.
       `lib/trip-record.ts`'s pool-grouping and leg-matching, previously keyed
       everywhere by `destinationId`, now key by a `stopGroupKey`/`legGroupKey`
       that falls back to the free text when there's no id, so
-      `poolDestinationChoices`, `addPoolLeg` and `candidatesForLeg` all work
-      correctly for both. One real bug was found and fixed while verifying
-      this by hand: a composite/row PL/pgSQL variable's own `IS NOT NULL`
-      check is true only when *every* field is non-null, which is never true
-      for an Other stop's row since `destination_id`/`purpose_id` are null by
-      design — fixed by checking a field that's never null (`.id`) instead of
-      the row itself. `tsc --noEmit`, lint, vitest (147/147) and `next build`
-      all pass; a new pgTAP file (`v2_request_other.test.sql`, 12 checks)
-      covers the validation rules, the Planner leg-builder deriving a
-      destination from an Other stop, and two differently-named Other stops
-      being rejected from sharing a leg (282/282 total, against a local
-      `supabase db reset`). Not yet walked through in a real browser.
+      `poolDestinationChoices`, `pickLegDestination` (replacing the earlier
+      `addPoolLeg`) and `candidatesForLeg` all work correctly for both. One
+      real bug was found and fixed while verifying this by hand: a
+      composite/row PL/pgSQL variable's own `IS NOT NULL` check is true only
+      when *every* field is non-null, which is never true for an Other stop's
+      row since `destination_id`/`purpose_id` are null by design — fixed by
+      checking a field that's never null (`.id`) instead of the row itself.
+      **Followed by a Create Schedule UI/UX pass** (three more commits on the
+      same branch) after the owner found the original leg-builder screen too
+      cluttered: the separate top-level pool-destination dropdown, the manual
+      "Add other stop" button, and "other" wording throughout were all
+      removed. A leg's destination is now chosen from one per-leg dropdown
+      (shown once a blank leg has no stops yet) with two labelled groups,
+      "From the request pool" and "Fuel/errand stops" — the latter sourced
+      from booking options an Admin flags in Settings → Request choices,
+      relabelled from "Other stop" to "Fuel/errand stop" there
+      (`app/booking-options.tsx`) since it's an operational flag, not a
+      Requester-facing Other option. Picking a pool entry attaches every
+      unplaced stop sharing its group key, same as before; picking a
+      fuel/errand entry leaves the leg stop-free. `tsc --noEmit`, lint, vitest
+      (148/148) and `next build` all pass; a new pgTAP file
+      (`v2_request_other.test.sql`, 12 checks) covers the validation rules,
+      the Planner leg-builder deriving a destination from an Other stop, and
+      two differently-named Other stops being rejected from sharing a leg
+      (282/282 total, against a local `supabase db reset`). The owner
+      click-tested the redesigned Create Schedule page locally (against a
+      local Supabase instance, not the hosted `kc-kova` project) and
+      confirmed the picker is correct; the Other-destination/purpose request
+      flow itself has not yet had its own real-browser click-through.
