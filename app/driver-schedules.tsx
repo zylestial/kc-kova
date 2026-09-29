@@ -88,6 +88,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
   const [requests, setRequests] = useState(getRequests());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
+  const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [fullTank, setFullTank] = useState(false);
@@ -116,6 +117,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
     if (busy) return;
     setSelectedId(null);
     setMode("view");
+    setCompleteStep("odometer");
     setStart("");
     setEnd("");
     setFullTank(false);
@@ -267,6 +269,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
                 {!selected.completion && (
                   <Button className="primary" disabled={!selected.ended} onClick={() => {
                       setMode("complete");
+                      setCompleteStep("odometer");
                       if (!start && lastReading !== null) setStart(String(lastReading));
                     }}
                   >
@@ -276,7 +279,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
               </DialogFooter>
             </>
           )}
-          {selected && mode === "complete" && (
+          {selected && mode === "complete" && completeStep === "odometer" && (
             <>
               <label className="field">
                 <span>Starting odometer (km) *</span>
@@ -312,25 +315,27 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
                   {longTripWarning(endNumber - startNumber)}
                 </p>
               )}
-              {!odometerError && (
-                <div className="field">
-                  <span>Final return</span>
-                  <div className="person-projects">
-                    <label>
-                      <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
-                      Vehicle returned with a full tank
-                    </label>
-                    <label>
-                      <Checkbox checked={fleetCardUsed} onCheckedChange={(v) => setFleetCardUsed(v === true)} />
-                      Fleet card used
-                    </label>
-                    <label>
-                      <Checkbox checked={gasReceiptAttached} onCheckedChange={(v) => setGasReceiptAttached(v === true)} />
-                      Gas receipt submitted
-                    </label>
-                  </div>
+            </>
+          )}
+          {selected && mode === "complete" && completeStep === "final" && (
+            <>
+              <div className="field">
+                <span>Final return</span>
+                <div className="person-projects">
+                  <label>
+                    <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
+                    Vehicle returned with a full tank
+                  </label>
+                  <label>
+                    <Checkbox checked={fleetCardUsed} onCheckedChange={(v) => setFleetCardUsed(v === true)} />
+                    Fleet card used
+                  </label>
+                  <label>
+                    <Checkbox checked={gasReceiptAttached} onCheckedChange={(v) => setGasReceiptAttached(v === true)} />
+                    Gas receipt submitted
+                  </label>
                 </div>
-              )}
+              </div>
               <p className="helper">
                 Submitting can&apos;t be undone. It locks the trip for you; an Admin reviews it.
               </p>
@@ -349,21 +354,40 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
           )}
           {selected && mode !== "view" && (
             <DialogFooter>
-              <Button variant="outline" disabled={busy} onClick={() => { setMode("view"); setError(""); }}>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  if (mode === "complete" && completeStep === "final") {
+                    setCompleteStep("odometer");
+                  } else {
+                    setMode("view");
+                  }
+                  setError("");
+                }}
+              >
                 Back
               </Button>
-              <Button
-                className="primary"
-                disabled={busy || (mode === "complete" ? !!odometerError : !note.trim())}
-                onClick={submit}
-              >
-                {busy ? "Working…" : mode === "complete" ? "Submit trip" : "Send report"}
-              </Button>
+              {mode === "complete" && completeStep === "odometer" ? (
+                <Button className="primary" disabled={!!odometerError} onClick={() => setCompleteStep("final")}>
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  className="primary"
+                  disabled={busy || (mode === "problem" && !note.trim())}
+                  onClick={submit}
+                >
+                  {busy ? "Working…" : mode === "complete" ? "Submit trip" : "Send report"}
+                </Button>
+              )}
             </DialogFooter>
           )}
-          {mode === "complete" && odometerError && (start || end) && <p className="helper">{odometerError}</p>}
-          {mode === "complete" && odometerError && !start && !end && (
-            <p className="helper">Enter the starting and ending readings to submit.</p>
+          {mode === "complete" && completeStep === "odometer" && odometerError && (start || end) && (
+            <p className="helper">{odometerError}</p>
+          )}
+          {mode === "complete" && completeStep === "odometer" && odometerError && !start && !end && (
+            <p className="helper">Enter the starting and ending readings to continue.</p>
           )}
           {mode === "problem" && !note.trim() && <p className="helper">Describe what went wrong to send the report.</p>}
         </DialogContent>
