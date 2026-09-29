@@ -38,7 +38,6 @@ export default function FinishedTripPrint({
   return createPortal(
     <article className="print-form">
       <header className="print-header">
-        <span className="print-header-tag">COMPANY TRIP FORM - TRUCK UTILIZATION</span>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/kova-print-logo.png" alt="Kayelen's Construction logo" />
       </header>
