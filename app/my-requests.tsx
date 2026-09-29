@@ -94,7 +94,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
   useEffect(() => {
     if (!openRequestId) return;
     const match = requests.find((item) => item.id === openRequestId);
-    if (match) setSelected(match);
+    if (match) queueMicrotask(() => setSelected(match));
     // Only re-run when the target id changes or the list first loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequestId, requests.length]);
