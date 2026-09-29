@@ -35,7 +35,9 @@ function HomeCard({
       {icon}
       <span className="home-label">
         {label}
-        {count && <small className="home-count">{count}</small>}
+        {/* Always rendered, even blank, so every card's title sits at the
+            same height whether or not it has a count line below it. */}
+        <small className="home-count">{count ?? ""}</small>
       </span>
     </Button>
   );
