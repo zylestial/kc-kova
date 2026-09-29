@@ -487,15 +487,25 @@ Released through PR #46 to `master` and tagged `v2.1`.
 - [x] Tagged `v2.0` on the pre-merge `master` (`02163bc`) and `v2.1` on
       the merge commit; recorded in `docs/v2/git-and-release.md`.
 
-## v2.2 (in progress)
+## v2.2 (released 2026-09-29)
 
 Scope and priority order agreed with the owner 2026-09-28: Planner
 request-pool rewrite (priority), Admin full powers/overrides, notifications,
 button/greeting polish, route-based navigation, then a Today view/Copy for
-chat (last). Each item gets its own branch and PR to `master`.
+chat (last). Each item gets its own branch and PR to `master`. **"Today
+view / Copy for chat" was dropped from scope 2026-09-29** — not built, not
+carried into a later version.
 
-- [x] **Planner builds legs from the request pool** — code complete on
-      `feat/planner-request-pool`, not yet merged. The request pool is now a
+All items below are merged to `master` via PRs #49–#56 (2026-09-28 to
+2026-09-29): #49 planner-request-pool, #50 admin-role-override,
+#51 notifications, #52 topbar-declutter, #53 route-based-navigation,
+#54 fix/session-loop-and-logo, #55 other-destination-purpose,
+#56 return-tank-confirmation. This corrects earlier entries below that said
+"not yet merged" — that was stale at the time the entries were written and
+is no longer accurate.
+
+- [x] **Planner builds legs from the request pool** — merged via PR #49
+      (`feat/planner-request-pool`). The request pool is now a
       read-only status list grouped by requester; ticking a request no
       longer exists. Instead the Scheduler picks a destination via "Add
       stop" (limited to the day's request-pool destinations) and every
@@ -520,7 +530,8 @@ chat (last). Each item gets its own branch and PR to `master`.
       other-stop rule and the optional-times behavior, and the full pgTAP
       suite (237/237) passes against a local `supabase db reset`. Not yet
       walked through in a real browser.
-- [x] **Admin full powers/overrides** — not impersonation: Admin's own
+- [x] **Admin full powers/overrides** — merged via PR #50
+      (`feat/admin-role-override`). Not impersonation: Admin's own
       account temporarily gains the ability to perform Scheduler and Driver
       writes, attributed to Admin, never to any Scheduler/Driver account.
       `0034_admin_role_override.sql` widens `save_schedule_draft`,
@@ -553,8 +564,8 @@ chat (last). Each item gets its own branch and PR to `master`.
       reporting a problem on another Driver's trip, both attributed to Admin
       with `is_admin_override` set, alongside unchanged rejections for
       Requester and other-Driver. Not yet walked through in a real browser.
-- [x] **In-app notifications** — code complete on `feat/notifications`, not
-      yet merged. An in-app notification center, not email/push: a bell icon
+- [x] **In-app notifications** — merged via PR #51 (`feat/notifications`).
+      An in-app notification center, not email/push: a bell icon
       with an unread-count badge in the top bar opens a dropdown of recent
       events, backed by a new `notifications` table
       (`0035_notifications.sql`). Every notification is written from inside
@@ -584,8 +595,8 @@ chat (last). Each item gets its own branch and PR to `master`.
       appeared live within the poll interval, the badge count and panel
       contents were correct, marking one read and "Mark all read" both
       cleared the badge with zero console errors.
-- [x] **Button/greeting polish** — code complete on `feat/topbar-declutter`,
-      not yet merged. Top bar decluttered: Refresh, Notifications and Help
+- [x] **Button/greeting polish** — merged via PR #52
+      (`feat/topbar-declutter`). Top bar decluttered: Refresh, Notifications and Help
       are icon-only with tooltips on all widths (previously text-labeled on
       desktop), the "Updated HH:MM" text folds into the Refresh button's
       tooltip, and the avatar/name/role block was removed at the owner's
@@ -604,9 +615,9 @@ chat (last). Each item gets its own branch and PR to `master`.
       actual topbar CSS (a full authenticated browser walkthrough wasn't
       possible — this environment's local Supabase project doesn't have the
       `admin1`/`test1234` UAT seed account provisioned).
-- [x] **Route-based navigation** — code complete on `feat/route-based-navigation`
-      (branched from `master`, not from `feat/topbar-declutter`, per the
-      owner's request), not yet merged. Every screen now has its own URL
+- [x] **Route-based navigation** — merged via PR #53
+      (`feat/route-based-navigation`, branched from `master`, not from
+      `feat/topbar-declutter`, per the owner's request). Every screen now has its own URL
       instead of one address with client-side screen-switching: `/sign-in`,
       `/home` (role-branched dashboard, absorbing all four old `*-home`
       screens), `/settings` (Admin), `/requests` + `/requests/new`
@@ -644,8 +655,8 @@ chat (last). Each item gets its own branch and PR to `master`.
       browser's native Back button can't be intercepted by the
       unsaved-changes guard the way an in-app Back button could — flagged for
       the next real-browser pass rather than silently worked around.
-- [x] **"Other" destination and purpose on a request stop** — code complete
-      on `feat/other-destination-purpose`, not yet merged. Mirrors the
+- [x] **"Other" destination and purpose on a request stop** — merged via
+      PR #55 (`feat/other-destination-purpose`). Mirrors the
       existing Project/Site "Other" pattern: a Requester can type free text
       for a stop's Destination or Purpose instead of only picking from the
       list, via an "Other…" entry that reveals a text box.
@@ -694,8 +705,8 @@ chat (last). Each item gets its own branch and PR to `master`.
       local Supabase instance, not the hosted `kc-kova` project) and
       confirmed the picker is correct; the Other-destination/purpose request
       flow itself has not yet had its own real-browser click-through.
-- [x] **Final return / full-tank confirmation on Complete trip** — code
-      complete on `feat/return-tank-confirmation`, not yet merged. The paper
+- [x] **Final return / full-tank confirmation on Complete trip** — merged
+      via PR #56 (`feat/return-tank-confirmation`). The paper
       Daily Vehicle Trip form's "FINAL RETURN / FULL-TANK CONFIRMATION"
       section (full-tank confirmation, fleet card used, gas receipt attached)
       was previously left as blank checkboxes for handwriting
