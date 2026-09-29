@@ -101,9 +101,16 @@ async function seedAccount({ username, name, role }) {
 }
 
 async function seedVehicle(plate, name, assignedDriverId) {
+  if (assignedDriverId) {
+    // A Driver can only be assigned to one vehicle at a time (unique index);
+    // clear wherever this driver is currently assigned first, in case an
+    // earlier seeding pass left them on a different plate.
+    await admin.from("vehicles").update({ assigned_driver_id: null }).eq("assigned_driver_id", assignedDriverId);
+  }
   const { data: existing } = await admin.from("vehicles").select("plate").eq("plate", plate).maybeSingle();
   if (existing) {
-    await admin.from("vehicles").update({ assigned_driver_id: assignedDriverId }).eq("plate", plate);
+    const { error } = await admin.from("vehicles").update({ assigned_driver_id: assignedDriverId }).eq("plate", plate);
+    if (error) throw new Error(`vehicles update(${plate}) failed: ${error.message}`);
     return;
   }
   const { error } = await admin.from("vehicles").insert({ plate, name, status: "Active", assigned_driver_id: assignedDriverId });
