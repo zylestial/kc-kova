@@ -3,8 +3,30 @@ import { parseCompletionInput, parseHandleProblemInput, parseProblemNote } from 
 
 describe("parseCompletionInput", () => {
   it("accepts whole-number odometers, including equal readings", () => {
-    expect(parseCompletionInput({ startOdometer: 1000, endOdometer: 1042 })).toEqual({ startOdometer: 1000, endOdometer: 1042 });
-    expect(parseCompletionInput({ startOdometer: 0, endOdometer: 0 })).toEqual({ startOdometer: 0, endOdometer: 0 });
+    expect(parseCompletionInput({ startOdometer: 1000, endOdometer: 1042 })).toEqual({
+      startOdometer: 1000,
+      endOdometer: 1042,
+      fullTank: null,
+      fleetCardUsed: null,
+      gasReceiptAttached: null,
+    });
+    expect(parseCompletionInput({ startOdometer: 0, endOdometer: 0 })).toEqual({
+      startOdometer: 0,
+      endOdometer: 0,
+      fullTank: null,
+      fleetCardUsed: null,
+      gasReceiptAttached: null,
+    });
+  });
+
+  it("reads the optional return checks when given as booleans", () => {
+    expect(
+      parseCompletionInput({ startOdometer: 1000, endOdometer: 1042, fullTank: true, fleetCardUsed: false, gasReceiptAttached: true }),
+    ).toEqual({ startOdometer: 1000, endOdometer: 1042, fullTank: true, fleetCardUsed: false, gasReceiptAttached: true });
+  });
+
+  it("treats a non-boolean return check as unanswered", () => {
+    expect(parseCompletionInput({ startOdometer: 1000, endOdometer: 1042, fullTank: "yes" })?.fullTank).toBeNull();
   });
 
   it("rejects an end below the start or a negative start", () => {

@@ -694,3 +694,43 @@ chat (last). Each item gets its own branch and PR to `master`.
       local Supabase instance, not the hosted `kc-kova` project) and
       confirmed the picker is correct; the Other-destination/purpose request
       flow itself has not yet had its own real-browser click-through.
+- [x] **Final return / full-tank confirmation on Complete trip** — code
+      complete on `feat/return-tank-confirmation`, not yet merged. The paper
+      Daily Vehicle Trip form's "FINAL RETURN / FULL-TANK CONFIRMATION"
+      section (full-tank confirmation, fleet card used, gas receipt attached)
+      was previously left as blank checkboxes for handwriting
+      (`app/finished-trip-print.tsx`) with nowhere in the app to answer them.
+      `0037_return_tank_confirmation.sql` adds three nullable booleans to
+      `trip_completions` (`full_tank`, `fleet_card_used`,
+      `gas_receipt_attached`; null means not answered, distinct from an
+      explicit false) and widens `submit_completion` to accept them as
+      optional parameters, defaulting to null — none of the three are
+      required to complete a trip, matching the owner's explicit direction.
+      The Driver's Complete trip step (`app/driver-schedules.tsx`) is now two
+      screens: enter and confirm the odometer pair first (Next is disabled
+      until the readings are valid), then a second "Final return" screen with
+      the three checkboxes — "Vehicle returned with a full tank", "Fleet card
+      used", "Gas receipt submitted" (worded to prompt the Driver to actually
+      turn it in; the printed form keeps "GAS RECEIPT ATTACHED" unchanged) —
+      before Submit trip. None of the three are required, per the owner's
+      explicit direction, and the UI never says "optional" out loud; leaving
+      them unchecked just submits null. `correct_completion` (Admin's
+      odometer correction) is untouched, since these fields aren't part of
+      that flow. The printed form's three checkboxes now render ☑ when the
+      Driver checked the corresponding box and ☐ otherwise, instead of always
+      being blank. Also on this branch: two sitewide CSS fixes found while
+      click-testing this flow — outline buttons (e.g. "Back") defaulted to
+      shadcn's 36px height while the app's own `.primary` class forced 44px,
+      visibly mismatching any Back/Next or Back/Submit pair, so every
+      default-size button is now 44px; and dialog text could render with
+      stale/clipped glyphs after content reflows (e.g. a helper line mounting
+      as you type) because of a known Chrome repaint bug with
+      `fixed` + `translate(-50%,-50%)` dialogs, fixed by promoting the dialog
+      to its own compositing layer (`will-change: transform`). `tsc --noEmit`,
+      lint, vitest (151/151) and `next build` all pass; `v2_completion.test.sql`
+      gained 5 checks covering the new fields' null-by-default behavior and
+      being recorded correctly when answered (287/287 total, against a local
+      `supabase db reset`). Click-tested locally by the owner (local Supabase,
+      not `kc-kova`): odometer entry, the Final return screen, and submission
+      all worked; the button-height and text-clip fixes were prompted by that
+      pass but still need a final look on other screens.

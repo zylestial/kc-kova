@@ -23,6 +23,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ sch
     p_schedule_id: scheduleId,
     p_start_odometer: input.startOdometer,
     p_end_odometer: input.endOdometer,
+    p_full_tank: input.fullTank,
+    p_fleet_card_used: input.fleetCardUsed,
+    p_gas_receipt_attached: input.gasReceiptAttached,
   });
   if (error) return scheduleErrorResponse(error, "Could not submit the trip.");
 

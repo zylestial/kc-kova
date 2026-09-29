@@ -125,7 +125,8 @@ export default function FinishedTripPrint({
             <strong>FUELING LOCATION</strong> SHELL
           </p>
           <p>
-            <strong>FULL-TANK CONFIRMATION</strong> ☐ DRIVER CONFIRMS VEHICLE IS RETURNED IN FULL-TANK CONDITION
+            <strong>FULL-TANK CONFIRMATION</strong> {completion.fullTank ? "☑" : "☐"} DRIVER CONFIRMS VEHICLE IS RETURNED IN
+            FULL-TANK CONDITION
           </p>
           <p>
             <strong>DRIVER CERTIFICATION</strong> I certify that the vehicle was refueled to FULL TANK before returning
@@ -134,10 +135,10 @@ export default function FinishedTripPrint({
         </div>
         <div>
           <p>
-            <strong>FLEET CARD</strong> ☐ USED
+            <strong>FLEET CARD</strong> {completion.fleetCardUsed ? "☑" : "☐"} USED
           </p>
           <p>
-            <strong>GAS RECEIPT</strong> ☐ ATTACHED
+            <strong>GAS RECEIPT</strong> {completion.gasReceiptAttached ? "☑" : "☐"} ATTACHED
           </p>
           <p>
             <strong>SIGNATURE</strong> ________________

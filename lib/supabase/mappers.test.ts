@@ -190,7 +190,30 @@ describe("toTripCompletion and toProblemReport", () => {
       distance: 42,
       submittedAt: "2026-10-05T10:00:00Z",
       status: "SUBMITTED",
+      fullTank: null,
+      fleetCardUsed: null,
+      gasReceiptAttached: null,
     });
+  });
+
+  it("maps the return-confirmation fields of a completion", () => {
+    const completion = toTripCompletion({
+      id: "c1",
+      schedule_id: "s1",
+      revision_id: "v1",
+      driver_id: "d1",
+      start_odometer: 1000,
+      end_odometer: 1042,
+      distance: 42,
+      submitted_at: "2026-10-05T10:00:00Z",
+      status: "SUBMITTED",
+      full_tank: true,
+      fleet_card_used: true,
+      gas_receipt_attached: false,
+    });
+    expect(completion.fullTank).toBe(true);
+    expect(completion.fleetCardUsed).toBe(true);
+    expect(completion.gasReceiptAttached).toBe(false);
   });
 
   it("maps a problem report row", () => {
