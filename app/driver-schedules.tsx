@@ -312,23 +312,25 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
                   {longTripWarning(endNumber - startNumber)}
                 </p>
               )}
-              <div className="field">
-                <span>Final return (optional)</span>
-                <div className="person-projects">
-                  <label>
-                    <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
-                    Vehicle returned with a full tank
-                  </label>
-                  <label>
-                    <Checkbox checked={fleetCardUsed} onCheckedChange={(v) => setFleetCardUsed(v === true)} />
-                    Fleet card used
-                  </label>
-                  <label>
-                    <Checkbox checked={gasReceiptAttached} onCheckedChange={(v) => setGasReceiptAttached(v === true)} />
-                    Gas receipt attached
-                  </label>
+              {!odometerError && (
+                <div className="field">
+                  <span>Final return (optional)</span>
+                  <div className="person-projects">
+                    <label>
+                      <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
+                      Vehicle returned with a full tank
+                    </label>
+                    <label>
+                      <Checkbox checked={fleetCardUsed} onCheckedChange={(v) => setFleetCardUsed(v === true)} />
+                      Fleet card used
+                    </label>
+                    <label>
+                      <Checkbox checked={gasReceiptAttached} onCheckedChange={(v) => setGasReceiptAttached(v === true)} />
+                      Gas receipt attached
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
               <p className="helper">
                 Submitting can&apos;t be undone. It locks the trip for you; an Admin reviews it.
               </p>
