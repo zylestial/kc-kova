@@ -19,6 +19,7 @@ import {
   getProblems,
   getRequests,
   getSchedules,
+  getVehicles,
   reportProblem,
   submitCompletion,
   type ProblemReport,
@@ -86,6 +87,8 @@ function loadTrips(driverId: string | null): Trip[] {
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [requests, setRequests] = useState(getRequests());
+  const [vehicles, setVehicles] = useState(getVehicles());
+  const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
@@ -104,6 +107,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     function refresh() {
       setTrips(loadTrips(driverId));
       setRequests(getRequests());
+      setVehicles(getVehicles());
     }
     refresh();
     window.addEventListener("kova-data-update", refresh);
@@ -200,7 +204,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   return (
                     <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
                       <td>{dateLabel(trip.schedule.date)}</td>
-                      <td>{trip.revision.plate}</td>
+                      <td className="trip-vehicle">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
                       <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
                       <td>
                         <span className={"status-pill " + pill}>{label}</span>

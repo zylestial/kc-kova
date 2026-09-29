@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, FilePlus2 } from "lucide-react";
+import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -168,10 +168,12 @@ export default function Schedules({
           {scheduleStateLabel[scheduleState(schedule)]}
         </span>
       </span>
-      <span>
+      <span className="schedule-card-vehicle">
+        <Car size={13} />
         {revision ? `${vehicleName(revision.plate)} · ${revision.plate}` : "—"}
+        <User size={13} />
+        {revision?.driverName ?? "—"}
       </span>
-      <span>{revision?.driverName}</span>
       <small>{revision && requesters(revision.requestIds)}</small>
       {revision?.requestIds.some((id) => requestsById.get(id)?.cancellationPending) && <small>Cancellation requested</small>}
       {needsUpdate(schedule) && <small>Route needs updating</small>}
