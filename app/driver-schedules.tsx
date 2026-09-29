@@ -5,6 +5,7 @@ import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +90,9 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [fullTank, setFullTank] = useState(false);
+  const [fleetCardUsed, setFleetCardUsed] = useState(false);
+  const [gasReceiptAttached, setGasReceiptAttached] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -114,6 +118,9 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
     setMode("view");
     setStart("");
     setEnd("");
+    setFullTank(false);
+    setFleetCardUsed(false);
+    setGasReceiptAttached(false);
     setNote("");
     setError("");
   }
@@ -134,7 +141,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
     setError("");
     try {
       if (mode === "complete") {
-        await submitCompletion(selected.schedule.id, startNumber, endNumber);
+        await submitCompletion(selected.schedule.id, startNumber, endNumber, { fullTank, fleetCardUsed, gasReceiptAttached });
         setNotice(`Trip on ${dateLabel(selected.schedule.date)} submitted.`);
       } else {
         await reportProblem(selected.schedule.id, note.trim());
@@ -305,6 +312,23 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
                   {longTripWarning(endNumber - startNumber)}
                 </p>
               )}
+              <div className="field">
+                <span>Final return (optional)</span>
+                <div className="person-projects">
+                  <label>
+                    <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
+                    Vehicle returned with a full tank
+                  </label>
+                  <label>
+                    <Checkbox checked={fleetCardUsed} onCheckedChange={(v) => setFleetCardUsed(v === true)} />
+                    Fleet card used
+                  </label>
+                  <label>
+                    <Checkbox checked={gasReceiptAttached} onCheckedChange={(v) => setGasReceiptAttached(v === true)} />
+                    Gas receipt attached
+                  </label>
+                </div>
+              </div>
               <p className="helper">
                 Submitting can&apos;t be undone. It locks the trip for you; an Admin reviews it.
               </p>
