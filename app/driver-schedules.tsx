@@ -314,7 +314,7 @@ export default function DriverSchedules({ driverId }: { driverId: string | null 
               )}
               {!odometerError && (
                 <div className="field">
-                  <span>Final return (optional)</span>
+                  <span>Final return</span>
                   <div className="person-projects">
                     <label>
                       <Checkbox checked={fullTank} onCheckedChange={(v) => setFullTank(v === true)} />
