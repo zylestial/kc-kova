@@ -108,4 +108,11 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
    is scrolled all the way down -- measured as an actual ~8px overlap, not
    just a tight-looking gap. A positive margin-top on the footer restores
    real clearance regardless of that shrink. */
+/* The footer sticks to the bottom of a scrolled dialog (see comment below)
+   from the moment it opens if there's enough content to overflow, so its
+   opaque background can start out already covering the tail end of that
+   content -- normal sticky behaviour, but cutting a line of text off
+   abruptly like a glitch. A soft fade above it reads as "more below, keep
+   scrolling" instead of looking broken. */
 [data-slot=dialog-footer]{margin-top:20px}
+[data-slot=dialog-footer]::before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;background:linear-gradient(to bottom,transparent,var(--background));pointer-events:none}
