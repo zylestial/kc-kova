@@ -354,6 +354,26 @@ Postgres instance and checking the *returned message*, not just that an error
 was raised — a unit test or type check would have passed either way. See the
 commit history on `feat/vehicle-driver-assignment` (PR #20) for the fixes.
 
+## v2.2 closed out (2026-09-29)
+
+`docs/TASKS.md`'s v2.2 section had gone stale: every feature branch it
+listed as "code complete, not yet merged" (planner-request-pool,
+admin-role-override, notifications, topbar-declutter,
+route-based-navigation, other-destination-purpose, return-tank-confirmation,
+plus `fix/session-loop-and-logo`) had in fact already merged to `master` via
+PRs #49–#56 between 2026-09-28 and 2026-09-29 — confirmed against
+`git branch -r --merged origin/master` and `gh pr list --state merged`
+rather than trusting the doc. Corrected in place rather than left to drift
+further.
+
+**"Today view / Copy for chat"**, the last item in v2.2's originally agreed
+scope order, was dropped by the owner 2026-09-29 before any work started on
+it. Not deferred to a later version — out of scope entirely unless
+re-requested.
+
+No `v2.2` git tag exists yet (`v2.0` and `v2.1` do). Tagging the release is
+a separate step, not yet done as of this entry.
+
 ## Open questions
 
 - **`docs/PRD.md` has no "Success metrics" or "Acceptance criteria"
