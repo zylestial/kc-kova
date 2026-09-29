@@ -101,3 +101,11 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
    text-selection case; backface-visibility:hidden forces the same
    compositing layer more reliably and fixes that case too. */
 [data-slot=dialog-content]{will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+
+/* The sticky dialog footer's negative bottom margin (Tailwind -mb-6, to
+   bleed it flush to the dialog's edge) pulls it far enough up that it can
+   overlap the last few pixels of the content right above it once a dialog
+   is scrolled all the way down -- measured as an actual ~8px overlap, not
+   just a tight-looking gap. A positive margin-top on the footer restores
+   real clearance regardless of that shrink. */
+[data-slot=dialog-footer]{margin-top:20px}
