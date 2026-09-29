@@ -88,3 +88,14 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
 .planner-step{display:block;font-size:11px;letter-spacing:1.4px;font-weight:800;color:#2357d9;text-transform:uppercase;margin-bottom:6px}
 .editor-panel-quiet{background:none;border:0;padding:20px 0 0}
 .leg-add{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap}
+
+/* Outline/ghost buttons default to shadcn's 36px height while .primary
+   forces 44px, so a "Back"/"Next" pair in the same row visibly mismatched.
+   Match every default-size button to .primary's height for a consistent row. */
+[data-slot=button][data-size=default]{height:44px}
+
+/* Chrome sometimes fails to repaint text inside a fixed+translate(-50%,-50%)
+   dialog when its content reflows (e.g. a helper line mounting as you type),
+   leaving stale/partial glyphs until the next paint. Promoting the dialog to
+   its own compositing layer avoids the stale-paint glitch. */
+[data-slot=dialog-content]{will-change:transform}
