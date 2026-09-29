@@ -96,7 +96,13 @@ export type TripCompletion = {
   status: "SUBMITTED" | "DONE";
   doneAt?: string;
   doneByAccountId?: string;
+  /** Optional final-return checks (0037); null means not answered. */
+  fullTank: boolean | null;
+  fleetCardUsed: boolean | null;
+  gasReceiptAttached: boolean | null;
 };
+/** Optional final-return checks a Driver may answer alongside odometers. */
+export type ReturnChecks = { fullTank?: boolean | null; fleetCardUsed?: boolean | null; gasReceiptAttached?: boolean | null };
 /** A Driver's note that a trip couldn't go as planned (0017, 0029). */
 export type ProblemReport = {
   id: string;
@@ -348,7 +354,7 @@ export const submitSchedule = (id: string, rowVersion: number) => refreshAfter(r
 export const approveSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const returnSchedule = (id: string, rowVersion: number, comment: string) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/return`, { method: "POST", body: JSON.stringify({ rowVersion, comment }) }));
 export const discardScheduleDraft =(id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/discard`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
-export const submitCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer }) }));
+export const submitCompletion = (id: string, startOdometer: number, endOdometer: number, checks?: ReturnChecks) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer, ...checks }) }));
 export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));

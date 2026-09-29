@@ -38,6 +38,9 @@ const completion = (scheduleId: string, revisionId: string, submittedAt: string)
   distance: 10,
   submittedAt,
   status: "SUBMITTED",
+  fullTank: null,
+  fleetCardUsed: null,
+  gasReceiptAttached: null,
 });
 
 const problem = (scheduleId: string, status: ProblemReport["status"]): ProblemReport => ({

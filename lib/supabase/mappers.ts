@@ -153,6 +153,9 @@ type CompletionRow = {
   status: TripCompletion["status"];
   done_at?: string | null;
   done_by_account_id?: string | null;
+  full_tank?: boolean | null;
+  fleet_card_used?: boolean | null;
+  gas_receipt_attached?: boolean | null;
 };
 
 export function toTripCompletion(row: CompletionRow): TripCompletion {
@@ -168,6 +171,9 @@ export function toTripCompletion(row: CompletionRow): TripCompletion {
     status: row.status,
     doneAt: row.done_at ?? undefined,
     doneByAccountId: row.done_by_account_id ?? undefined,
+    fullTank: row.full_tank ?? null,
+    fleetCardUsed: row.fleet_card_used ?? null,
+    gasReceiptAttached: row.gas_receipt_attached ?? null,
   };
 }
 
