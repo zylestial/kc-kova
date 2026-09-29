@@ -306,7 +306,7 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
                     ? "Mark problem as handled"
                     : "Finished trip"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} — ${selected.revision.driverName}`}
             </DialogDescription>
           </DialogHeader>

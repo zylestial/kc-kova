@@ -237,7 +237,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request details</DialogTitle>
-            <DialogDescription>{shown && dateLabel(shown.date)}</DialogDescription>
+            <DialogDescription className="dialog-context">{shown && dateLabel(shown.date)}</DialogDescription>
           </DialogHeader>
           {shown && (
             <>

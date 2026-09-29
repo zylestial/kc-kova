@@ -245,7 +245,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <DialogTitle>
               {mode === "complete" ? "Complete this trip" : mode === "problem" ? "Report a problem" : "Trip Record"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
             </DialogDescription>
           </DialogHeader>

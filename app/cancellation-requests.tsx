@@ -130,7 +130,7 @@ export default function CancellationRequests() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{deciding?.action === "confirm" ? "Cancel this request?" : "Keep this request?"}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="dialog-context">
               {target && `${target.ownerName} · ${dateLabel(target.date)}`}
             </DialogDescription>
           </DialogHeader>

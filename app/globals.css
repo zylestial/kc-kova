@@ -62,7 +62,7 @@
 .notif-item{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-bottom:1px solid #e9edf3;font-size:13px;color:#374863;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%;cursor:pointer}
 .notif-item:last-child{border-bottom:0}
 .notif-item.unread{background:#f5f8ff}
-.notif-item small{color:#5a6a84;font-size:12px}
+.notif-item small{color:#5a6a84;font-size:12px}.dialog-context{font-size:15px;font-weight:700;color:var(--foreground)}
 .notif-empty{padding:30px 16px;text-align:center;color:#8290a4;font-size:13px}
 @media(max-width:700px){.notif-panel{width:300px}}
 .show-password{justify-self:start;height:auto;padding:0!important;font-size:13px;color:#2357d9}

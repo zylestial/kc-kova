@@ -325,7 +325,7 @@ export default function Schedules({
         <DialogContent className="review-trip-modal">
           <DialogHeader>
             <DialogTitle>Trip Record</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="dialog-context">
               {selected && dateLabel(selected.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </DialogDescription>
           </DialogHeader>
