@@ -964,3 +964,12 @@ Decided by the project owner at the start of Phase 5:
   zero browser console errors. Backend correctness per RPC (who gets
   notified, with what type) is covered by pgTAP rather than re-walked by
   hand in the browser.
+
+## Problem reports on unsubmitted trips (2026-10-01)
+
+- **A problem report doesn't imply a completion.** Drivers (and Admin) may
+  report a problem on an active trip before submitting it, so any screen or
+  count over problem reports must not assume the trip is finished. Admin
+  Finished Trips uses `buildAdminTrips`, whose `completion` is nullable;
+  `buildFinishedTrips` (Driver screen, print form) still only returns
+  trips with a completion.

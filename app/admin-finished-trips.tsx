@@ -30,7 +30,7 @@ import {
   markCompletionDone,
   type Schedule,
 } from "@/lib/kova-api";
-import { buildFinishedTrips, hasOpenProblem, type FinishedTrip } from "@/lib/finished-trips";
+import { buildAdminTrips, hasOpenProblem, type AdminTrip } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
@@ -41,14 +41,17 @@ const dateLabel = (date: string) =>
 
 type Mode = "view" | "correct" | "done" | "handle";
 
+const notSubmitted = "Not submitted yet";
+
 /**
- * Admin Finished Trips: every submitted completion, newest first. An Admin
+ * Admin Finished Trips: every submitted completion, plus unsubmitted trips
+ * with a problem report (only handling applies to those), newest first. An Admin
  * can correct the odometers until the trip is marked Done, mark it Done
  * (which locks it), handle the Driver's problem reports and print the form.
  * Postgres decides what is allowed; this only shapes the screen.
  */
 export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: string } = {}) {
-  const [trips, setTrips] = useState<FinishedTrip[]>([]);
+  const [trips, setTrips] = useState<AdminTrip[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [requests, setRequests] = useState(getRequests());
   const [date, setDate] = useState("");
@@ -72,7 +75,7 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
     function refresh() {
       const all = getSchedules();
       setSchedules(all);
-      setTrips(buildFinishedTrips(all, getCompletions(), getProblems()));
+      setTrips(buildAdminTrips(all, getCompletions(), getProblems()));
       setRequests(getRequests());
     }
     refresh();
@@ -87,13 +90,13 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
       (!date || trip.schedule.date === date) &&
       (driver === "all" || trip.revision.driverName === driver) &&
       (vehicle === "all" || trip.revision.plate === vehicle) &&
-      (status === "all" || (status === "done" ? trip.completion.status === "DONE" : trip.completion.status !== "DONE")) &&
+      (status === "all" || status === (trip.completion?.status ?? "UNSUBMITTED")) &&
       (problems === "all" || (problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
   );
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
-  const isDone = selected?.completion.status === "DONE";
+  const isDone = selected?.completion?.status === "DONE";
   // Any other published, active schedule can follow up on a problem.
   const followUps = schedules
     .filter((item) => item.status === "ACTIVE" && item.publishedRevisionId && item.id !== selectedId)
@@ -223,8 +226,9 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="submitted">{completionLabel.SUBMITTED}</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
+                <SelectItem value="SUBMITTED">{completionLabel.SUBMITTED}</SelectItem>
+                <SelectItem value="DONE">{completionLabel.DONE}</SelectItem>
+                <SelectItem value="UNSUBMITTED">{notSubmitted}</SelectItem>
               </SelectContent>
             </Select>
           </label>
@@ -259,10 +263,10 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
                     <td>{trip.revision.plate}</td>
                     <td>{trip.revision.driverName}</td>
                     <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
-                    <td>{trip.completion.distance} km</td>
+                    <td>{trip.completion ? `${trip.completion.distance} km` : "—"}</td>
                     <td>
-                      <span className={"badge " + (trip.completion.status === "DONE" ? "complete" : "")}>
-                        {completionLabel[trip.completion.status]}
+                      <span className={"badge " + (trip.completion?.status === "DONE" ? "complete" : "")}>
+                        {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
                       {hasOpenProblem(trip) && <small>Open problem</small>}
                     </td>
@@ -313,11 +317,20 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
           {selected && mode === "view" && (
             <>
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
-              <p className="helper">
-                Odometer: {selected.completion.startOdometer} → {selected.completion.endOdometer} ({selected.completion.distance} km) ·{" "}
-                {completionLabel[selected.completion.status]}
-              </p>
-              <p className="helper">{completionMeaning[selected.completion.status]}</p>
+              {selected.completion ? (
+                <>
+                  <p className="helper">
+                    Odometer: {selected.completion.startOdometer} → {selected.completion.endOdometer} ({selected.completion.distance} km) ·{" "}
+                    {completionLabel[selected.completion.status]}
+                  </p>
+                  <p className="helper">{completionMeaning[selected.completion.status]}</p>
+                </>
+              ) : (
+                <p className="helper">
+                  The Driver reported a problem but hasn&apos;t submitted this trip yet. You can handle the problem now; the
+                  odometers can be reviewed once it&apos;s submitted.
+                </p>
+              )}
               {selected.problems.map((item) => (
                 <div className="helper" key={item.id}>
                   <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong> {item.note}
@@ -336,25 +349,27 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
                 </div>
               ))}
               {isDone && <p className="helper">This trip is done and locked.</p>}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => window.print()}>
-                  Print
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={isDone}
-                  onClick={() => {
-                    setStart(String(selected.completion.startOdometer));
-                    setEnd(String(selected.completion.endOdometer));
-                    setMode("correct");
-                  }}
-                >
-                  Correct odometers
-                </Button>
-                <Button className="primary" disabled={isDone} onClick={() => setMode("done")}>
-                  Mark as done
-                </Button>
-              </DialogFooter>
+              {selected.completion && (
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => window.print()}>
+                    Print
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={isDone}
+                    onClick={() => {
+                      setStart(String(selected.completion!.startOdometer));
+                      setEnd(String(selected.completion!.endOdometer));
+                      setMode("correct");
+                    }}
+                  >
+                    Correct odometers
+                  </Button>
+                  <Button className="primary" disabled={isDone} onClick={() => setMode("done")}>
+                    Mark as done
+                  </Button>
+                </DialogFooter>
+              )}
             </>
           )}
           {selected && mode === "correct" && (
@@ -419,7 +434,9 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
           )}
         </DialogContent>
       </Dialog>
-      {selected && <FinishedTripPrint trip={selected} stopsById={stopsById} requests={requests} />}
+      {selected?.completion && (
+        <FinishedTripPrint trip={{ ...selected, completion: selected.completion }} stopsById={stopsById} requests={requests} />
+      )}
     </>
   );
 }

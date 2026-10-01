@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFinishedTrips, hasOpenProblem } from "@/lib/finished-trips";
+import { buildAdminTrips, buildFinishedTrips, hasOpenProblem } from "@/lib/finished-trips";
 import type { ProblemReport, Schedule, ScheduleRevision, TripCompletion } from "@/lib/kova-api";
 
 const revision = (id: string): ScheduleRevision => ({
@@ -93,6 +93,28 @@ describe("buildFinishedTrips", () => {
     const schedules = [schedule("a", "2026-10-01", [revision("ra")], "ra")];
     const [trip] = buildFinishedTrips(schedules, [completion("a", "ra", "t1")], [problem("a", "OPEN"), problem("z", "OPEN")]);
     expect(trip.problems).toHaveLength(1);
+  });
+});
+
+describe("buildAdminTrips", () => {
+  it("adds unsubmitted trips that have a problem report, with no completion", () => {
+    const schedules = [
+      schedule("a", "2026-10-01", [revision("ra")], "ra"),
+      schedule("b", "2026-10-03", [revision("rb")], "rb"),
+      schedule("c", "2026-10-05", [revision("rc")], "rc"),
+    ];
+    const trips = buildAdminTrips(schedules, [completion("a", "ra", "t1")], [problem("b", "OPEN")]);
+    expect(trips.map((trip) => trip.schedule.id)).toEqual(["b", "a"]);
+    expect(trips[0].completion).toBeNull();
+    expect(trips[0].revision.id).toBe("rb");
+    expect(hasOpenProblem(trips[0])).toBe(true);
+  });
+
+  it("doesn't list a reported trip twice once it's submitted", () => {
+    const schedules = [schedule("a", "2026-10-01", [revision("ra")], "ra")];
+    const trips = buildAdminTrips(schedules, [completion("a", "ra", "t1")], [problem("a", "OPEN")]);
+    expect(trips).toHaveLength(1);
+    expect(trips[0].completion).not.toBeNull();
   });
 });
 
