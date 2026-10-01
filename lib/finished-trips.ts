@@ -33,5 +33,37 @@ export function buildFinishedTrips(
   );
 }
 
+/**
+ * A trip on the Admin's Finished Trips screen. Besides every finished trip,
+ * it includes trips the Driver reported a problem on but hasn't submitted
+ * yet (problem reports don't wait for the trip to end), with no completion,
+ * so the Admin can still handle those problems.
+ */
+export type AdminTrip = Omit<FinishedTrip, "completion"> & { completion: TripCompletion | null };
+
+/** Finished trips plus unsubmitted trips with problem reports, newest trip first. */
+export function buildAdminTrips(
+  schedules: Schedule[],
+  completions: TripCompletion[],
+  problems: ProblemReport[],
+): AdminTrip[] {
+  const finished: AdminTrip[] = buildFinishedTrips(schedules, completions, problems);
+  const reported = schedules.flatMap((schedule) => {
+    if (completions.some((item) => item.scheduleId === schedule.id)) return [];
+    const own = problems.filter((item) => item.scheduleId === schedule.id);
+    if (!own.length) return [];
+    const revision =
+      schedule.revisions.find((item) => item.id === own[0].revisionId) ??
+      schedule.revisions.find((item) => item.id === schedule.publishedRevisionId);
+    if (!revision) return [];
+    return [{ schedule, revision, completion: null, problems: own }];
+  });
+  const latest = (trip: AdminTrip) =>
+    trip.completion?.submittedAt ?? trip.problems.map((item) => item.createdAt).sort().at(-1) ?? "";
+  return [...finished, ...reported].sort(
+    (a, b) => b.schedule.date.localeCompare(a.schedule.date) || latest(b).localeCompare(latest(a)),
+  );
+}
+
 /** True while any problem report on the trip is still waiting for an Admin. */
-export const hasOpenProblem = (trip: FinishedTrip) => trip.problems.some((item) => item.status === "OPEN");
+export const hasOpenProblem = (trip: { problems: ProblemReport[] }) => trip.problems.some((item) => item.status === "OPEN");
