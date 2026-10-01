@@ -144,7 +144,11 @@ export default function RequestFields({
   dateHint?: string;
 }) {
   const projects = choices(options.projects, kept.projects);
-  const destinations = choices(options.destinations, kept.destinations);
+  // Fuel/errand stops are for the Scheduler to add, never a Requester's destination.
+  const destinations = choices(
+    options.destinations.filter((item) => !item.isOtherStop),
+    kept.destinations,
+  );
   const purposes = choices(options.purposes, kept.purposes);
   const setRow = (key: string, change: Partial<RequestDraft["destinations"][number]>) =>
     onChange({
