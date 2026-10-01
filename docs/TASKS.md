@@ -3,11 +3,13 @@
 Kept as a living checklist of what's implemented vs. outstanding. Update
 this file whenever a task's status changes.
 
-## Status: v2.1 live (2026-09-25)
+## Status: v2.3 merged to `master` (2026-10-01)
 
 v2.0 was released to production on 2026-09-25 (see "v2.0" below), and
 v2.1, a UX pass on top of it, followed the same day (see "v2.1" below).
-The v1.0 notes that follow are kept as history.
+v2.2 was released 2026-09-29, and v2.3, a UI/UX pass across all roles plus
+follow-up fixes, was merged 2026-10-01 (see "v2.3" below). The v1.0 notes
+that follow are kept as history.
 
 All planned v1.0 functionality is implemented and verified: `tsc --noEmit`,
 `eslint`, `vitest`, and `next build` all pass clean; the app has been
@@ -744,9 +746,72 @@ is no longer accurate.
       `supabase db reset`). Click-tested locally by the owner (local Supabase,
       not `kc-kova`): odometer entry, the Final return screen, and submission
       all worked; the button-height and text-clip fixes were prompted by that
-      pass but still need a final look on other screens.
-- [x] **Open problems on unsubmitted trips were unreachable** — branch
-      `fix/unfinished-trip-problems`. Admin Home's Finished Trips card
+      pass but still need a final look on other screens. (Done in v2.3: the
+      UI pass walked every role and fixed the remaining text-selection
+      repaint case.)
+
+## v2.3 (merged to `master` 2026-10-01)
+
+A UI/UX pass across all four roles, then follow-up fixes found while
+walking it. All items below are merged to `master` via PRs #58–#60
+(`feat/v2.3-ui-pass`, `fix/unfinished-trip-problems`). `tsc --noEmit`,
+lint, vitest and `next build` pass on `master`. The UI pass was walked by
+the owner across Requester/Scheduler/Admin/Driver against local seed data,
+and its dialog/CSS fixes were checked in headless Chromium.
+
+- [x] **Clickable notifications** — every notification type now opens its
+      screen and the specific item: request types go to
+      `/requests?open=<id>`, `CANCELLATION_REQUESTED`/`SCHEDULE_SUBMITTED`
+      to `/schedules?open=<id>`, `PROBLEM_REPORTED` to `/finished?open=<id>`,
+      `TRIP_PUBLISHED` to `/my-schedule?open=<id>`, and `SCHEDULE_RETURNED`
+      to the Planner (`/schedules/new?scheduleId=<id>`). The mapping is
+      `notificationTarget` in `app/notification-bell.tsx`; each screen's
+      gate reads the `open` search param and opens that item's dialog.
+- [x] **Help steps made scannable** — the Help dialog
+      (`lib/help-content.ts`, `app/how-it-works.tsx`) is now a numbered list
+      of bold step titles with a one-line detail each, replacing paragraphs.
+- [x] **Vehicle + driver up front** — shown bold on Scheduler/Admin
+      schedule cards and the Driver's own trip list, not only inside the
+      detail dialog.
+- [x] **Readability** — darkened several low-contrast grays that were near
+      or below WCAG AA; enlarged table/helper text, the Driver's
+      odometer/distance readouts and the final-return checkboxes; tightened
+      two dense helper-text explanations; the dialog date/context line is
+      now bold (`.dialog-context`) rather than muted.
+- [x] **Complete trip step indicator** — the Driver's two-screen Complete
+      trip flow (odometers, then Final return) shows "Step 1 of 2" /
+      "Step 2 of 2".
+- [x] **Status pills stay on one line** — `white-space: nowrap`.
+- [x] **Print header** — removed the "COMPANY TRIP FORM - TRUCK
+      UTILIZATION" text above the logo on the printed Daily Vehicle Trip
+      form.
+- [x] **Dialog footer could hide content** — the shared `DialogFooter` was
+      `position: sticky`, so its opaque background could fully cover
+      content (the Destinations list, a cancellation notice) depending on
+      scroll position. It now sits in normal flow after all content
+      (`[data-slot=dialog-footer]{position:static}`), so nothing can render
+      behind it. An earlier margin/fade fix on the branch was superseded.
+- [x] **Stale glyphs on dialog text selection** — the v2.2
+      `will-change: transform` fix didn't cover selecting text in a dialog;
+      adding `backface-visibility: hidden` fixes both cases.
+- [x] **Home cards unchanged** — several Home card layout changes were
+      tried during the pass (one briefly clipped cards to 44px via a
+      specificity clash with the v2.2 button-height rule); all were
+      reverted, so Home card spacing is the same as v2.2.
+- [x] **v2 demo seed script** — `scripts/seed-v2-demo.mjs` seeds every
+      request/schedule/completion/problem/cancellation state and 8 of 9
+      notification types through the real RPCs, signed in as each seed
+      persona, so triggers and notifications fire for real. Local Supabase
+      only, and not idempotent for demo data (re-running adds a second
+      batch). A follow-up fix clears a Driver's existing vehicle assignment
+      before reassigning, since a Driver can hold only one vehicle (unique
+      index).
+- [x] **Fuel/errand stops hidden from Requesters** — the request form's
+      destination list (`app/request-fields.tsx`) filters out
+      `is_other_stop` destinations; only the Scheduler adds those, in the
+      Planner.
+- [x] **Open problems on unsubmitted trips were unreachable** — PR #59
+      (`fix/unfinished-trip-problems`). Admin Home's Finished Trips card
       counted every open problem report, but the Finished Trips screen only
       listed trips with a submitted completion, so a problem a Driver
       reported before submitting (allowed: problem reports have no time

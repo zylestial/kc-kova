@@ -973,3 +973,23 @@ Decided by the project owner at the start of Phase 5:
   Finished Trips uses `buildAdminTrips`, whose `completion` is nullable;
   `buildFinishedTrips` (Driver screen, print form) still only returns
   trips with a completion.
+
+## v2.3 UI pass decisions (2026-10-01)
+
+- **Notification deep links use `?open=<id>`.** `/requests`, `/schedules`,
+  `/finished` and `/my-schedule` accept an `open` search param and open that
+  item's dialog on load; `SCHEDULE_RETURNED` goes to
+  `/schedules/new?scheduleId=<id>` instead. A new notification type needs a
+  case in `notificationTarget` (`app/notification-bell.tsx`), or it stays
+  unclickable. Opening the dialog from that param follows the
+  `queueMicrotask` setState pattern above (`app/my-requests.tsx`).
+- **Dialog footers are not sticky.** The shared `DialogFooter` is overridden
+  to `position: static` in `app/globals.css`: a sticky footer's opaque
+  background could fully hide dialog content depending on scroll position,
+  and margin/fade tweaks didn't fix that. Don't re-enable sticky footers.
+- **Fuel/errand stops are Scheduler-only.** Destinations with
+  `is_other_stop` are filtered out of the Requester's destination picker
+  (`app/request-fields.tsx`); they're only added in the Planner.
+- **`scripts/seed-v2-demo.mjs` is local-only and not idempotent** for demo
+  data — it doesn't check which project `.env.local` points at, so never
+  run it against `kc-kova`, and re-running it doubles the lists.
