@@ -745,3 +745,16 @@ is no longer accurate.
       not `kc-kova`): odometer entry, the Final return screen, and submission
       all worked; the button-height and text-clip fixes were prompted by that
       pass but still need a final look on other screens.
+- [x] **Open problems on unsubmitted trips were unreachable** — branch
+      `fix/unfinished-trip-problems`. Admin Home's Finished Trips card
+      counted every open problem report, but the Finished Trips screen only
+      listed trips with a submitted completion, so a problem a Driver
+      reported before submitting (allowed: problem reports have no time
+      limit) was counted but couldn't be seen or handled anywhere. The
+      Admin screen now uses `buildAdminTrips` (`lib/finished-trips.ts`),
+      which adds trips that have a problem report but no completion, shown
+      as "Not submitted yet" (new Status filter option) with only problem
+      handling available — no odometers, correction, Mark as done or Print
+      until the Driver submits. The Driver's Finished Trips screen is
+      unchanged. `tsc --noEmit`, lint, vitest (153/153) and `next build`
+      pass; not yet click-tested in a browser.
