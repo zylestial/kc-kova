@@ -38,6 +38,8 @@ export type StopInfo = {
   destinationName: string;
   destinationIsOther: boolean;
   purposeName: string;
+  /** The request is Urgent, so the Scheduler places it before Regular ones. */
+  urgent?: boolean;
 };
 
 /**
@@ -101,8 +103,15 @@ export function stopsFor(requests: TransportRequest[]): StopInfo[] {
       destinationName: destination.destinationName,
       destinationIsOther: destination.destinationIsOther,
       purposeName: destination.purposeName,
+      urgent: request.requestType === "URGENT",
     })),
   );
+}
+
+/** Request pool order: Urgent first, then by requester and when they asked. */
+export function poolOrder(a: TransportRequest, b: TransportRequest): number {
+  const urgency = Number(b.requestType === "URGENT") - Number(a.requestType === "URGENT");
+  return urgency || a.ownerName.localeCompare(b.ownerName) || a.createdAt.localeCompare(b.createdAt);
 }
 
 /** Leg 1 starts at ANONANG; every later leg starts where the previous one ended. */
@@ -192,15 +201,25 @@ export const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(val
 /**
  * The destinations the Scheduler can add a stop for: the request pool's
  * destinations that still have at least one unplaced stop. A destination
- * drops out once every request needing it is on a leg.
+ * drops out once every request needing it is on a leg. Destinations an
+ * unplaced Urgent stop needs come first, so they get placed first.
  */
-export function poolDestinationChoices(poolStops: StopInfo[], legs: LegDraft[]): Array<{ id: string; name: string }> {
-  const choices = new Map<string, string>();
+export function poolDestinationChoices(
+  poolStops: StopInfo[],
+  legs: LegDraft[],
+): Array<{ id: string; name: string; urgent: boolean }> {
+  const choices = new Map<string, { id: string; name: string; urgent: boolean }>();
   for (const stop of unassignedStops(poolStops, legs)) {
     const key = stopGroupKey(stop);
-    if (!choices.has(key)) choices.set(key, stop.destinationName);
+    const choice = choices.get(key) ?? { id: key, name: stop.destinationName, urgent: false };
+    choices.set(key, { ...choice, urgent: choice.urgent || !!stop.urgent });
   }
-  return [...choices.entries()].map(([id, name]) => ({ id, name }));
+  return [...choices.values()].sort((a, b) => Number(b.urgent) - Number(a.urgent));
+}
+
+/** Urgent requests in the pool with a stop not yet on any leg. */
+export function unplacedUrgentRequestIds(poolStops: StopInfo[], legs: LegDraft[]): string[] {
+  return [...new Set(unassignedStops(poolStops, legs).filter((stop) => stop.urgent).map((stop) => stop.requestId))];
 }
 
 /**

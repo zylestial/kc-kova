@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Schedule } from "@/lib/kova-api";
+import type { Schedule, TransportRequest } from "@/lib/kova-api";
 import {
   MAX_LEGS,
   addLeg,
@@ -18,6 +18,7 @@ import {
   newLeg,
   pickLegDestination,
   poolDestinationChoices,
+  poolOrder,
   reflowFinalLegTimeOut,
   scheduleState,
   servedRequestIds,
@@ -26,6 +27,7 @@ import {
   tripChecklist,
   tripProblems,
   tripWindow,
+  unplacedUrgentRequestIds,
   type LegDraft,
   type StopInfo,
 } from "@/lib/trip-record";
@@ -152,14 +154,44 @@ describe("new Trip Record defaults", () => {
 describe("pool destination choices", () => {
   it("offers every destination with an unplaced pool stop", () => {
     expect(poolDestinationChoices(stops, [])).toEqual([
-      { id: "d1", name: "City Hall" },
-      { id: "d2", name: "Port Office" },
+      { id: "d1", name: "City Hall", urgent: false },
+      { id: "d2", name: "Port Office", urgent: false },
     ]);
   });
 
   it("drops a destination once every stop needing it is placed", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] })];
-    expect(poolDestinationChoices(stops, legs)).toEqual([{ id: "d2", name: "Port Office" }]);
+    expect(poolDestinationChoices(stops, legs)).toEqual([{ id: "d2", name: "Port Office", urgent: false }]);
+  });
+
+  it("lists destinations an unplaced Urgent stop needs first", () => {
+    const urgentStops = stops.map((stop) => (stop.id === "maria-po" ? { ...stop, urgent: true } : stop));
+    expect(poolDestinationChoices(urgentStops, []).map((choice) => [choice.id, choice.urgent])).toEqual([
+      ["d2", true],
+      ["d1", false],
+    ]);
+  });
+});
+
+describe("Urgent requests", () => {
+  const request = (patch: Partial<TransportRequest>) =>
+    ({ id: "r", ownerName: "Juan", createdAt: "2026-10-01T00:00:00Z", requestType: "REGULAR", ...patch }) as TransportRequest;
+
+  it("sorts the pool Urgent first, then by requester and creation time", () => {
+    const pool = [
+      request({ id: "a", ownerName: "Ana" }),
+      request({ id: "z", ownerName: "Zed", requestType: "URGENT" }),
+      request({ id: "b2", ownerName: "Ben", createdAt: "2026-10-02T00:00:00Z" }),
+      request({ id: "b1", ownerName: "Ben" }),
+    ];
+    expect(pool.sort(poolOrder).map((item) => item.id)).toEqual(["z", "a", "b1", "b2"]);
+  });
+
+  it("lists Urgent requests that still have a stop off the route", () => {
+    const urgentStops = stops.map((stop) => (stop.requestId === "maria" ? { ...stop, urgent: true } : stop));
+    expect(unplacedUrgentRequestIds(urgentStops, [])).toEqual(["maria"]);
+    expect(unplacedUrgentRequestIds(urgentStops, [leg({ destinationId: "d1", stops: ["maria-ch"] })])).toEqual(["maria"]);
+    expect(unplacedUrgentRequestIds(urgentStops, [leg({ stops: ["maria-ch", "maria-po"] })])).toEqual([]);
   });
 });
 
@@ -208,8 +240,8 @@ describe("Other-destination pool stops", () => {
   it("groups Other stops by their free text, not by (absent) id", () => {
     expect(poolDestinationChoices(otherStops, [])).toEqual(
       expect.arrayContaining([
-        { id: "other:Warehouse X", name: "Warehouse X" },
-        { id: "other:Different Site", name: "Different Site" },
+        { id: "other:Warehouse X", name: "Warehouse X", urgent: false },
+        { id: "other:Different Site", name: "Different Site", urgent: false },
       ]),
     );
   });
