@@ -815,3 +815,6 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
 - [x] `authed()` wrapper (`lib/api-route.ts`) replaces the sign-in boilerplate
       in 29 route handlers (-136 lines); an anonymous caller now gets 401
       before the booking-option group check.
+- [x] All screens read data through `useKovaData()` instead of ten copies of
+      a `kova-data-update` listener. This also fixed the Home card counts not
+      redrawing after a refresh; eight unused getters were removed.

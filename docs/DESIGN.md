@@ -105,4 +105,8 @@ Record editor, review and history viewers) were removed with migration 0032.
 All screens are client components (`"use client"`) that read/write through
 `lib/kova-api.ts`'s in-memory cache, refreshed by re-calling
 `hydrateKovaData()` (a fresh `GET /api/bootstrap`) after every mutating
-call, and by listening for the `kova-data-update` window event.
+call. Screens read it with the `useKovaData()` hook (`lib/use-kova-data.ts`,
+built on `useSyncExternalStore`), which re-renders them whenever the cache is
+replaced; derive lists from it with `useMemo` rather than copying them into
+state. A screen that must hold a snapshot (the Planner's schedule being
+edited) reads `getSchedules()`/`getRequests()` once instead.
