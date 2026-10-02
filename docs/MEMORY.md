@@ -1026,3 +1026,11 @@ Decided by the project owner at the start of Phase 5:
   runs after saving the draft and before `submit_schedule`, so a failed
   split submits nothing; a split followed by a failed submit leaves the new
   request in the pool. The requester gets a `REQUEST_SPLIT` notification.
+
+## Urgent window (2026-10-02)
+
+- **Urgent is today up to 6 days ahead; Regular is 7+.** The owner wanted
+  any date before the 7-day Regular notice to be bookable as Urgent, so the
+  old 2–6 day gap is gone and the date alone decides the type. Today still
+  counts as Urgent. Migration 0040 numbered after PR #62's 0038/0039 so the
+  two can merge in either order.

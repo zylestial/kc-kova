@@ -190,8 +190,9 @@ sets `audit_events.is_admin_override = true`; Admin's pre-existing powers
 
 Request date rules (Asia/Manila calendar days, checked on the server):
 Regular requests must be at least 7 days ahead; Urgent requests must be
-for today or tomorrow; 2–6 days ahead is refused for both types. Admin may
-also request a past date.
+for today up to 6 days ahead (since migration 0040; before that Urgent was
+today or tomorrow only and 2–6 days ahead was refused for both types).
+Admin may also request a past date.
 
 ## 5. Concurrency
 

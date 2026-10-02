@@ -784,3 +784,14 @@ is no longer accurate.
       so its other stops can go on another car or back to the requester.
       `v2_split_request.test.sql` (12 checks) passes; the split-on-submit
       flow was click-tested end to end.
+- [x] **Urgent covers today up to 6 days ahead** — branch
+      `feat/urgent-within-week`. Urgent used to be today or tomorrow only,
+      so dates 2–6 days ahead couldn't be requested at all. Migration 0040
+      changes `check_request_date` so Urgent is today to 6 days ahead and
+      Regular stays 7+ days ahead: every future date suits exactly one type.
+      The form (`requestDateError`), the New request date strip and legend,
+      the type picker, the edit dialog and Help all follow. vitest
+      (153/153), lint and `next build` pass; `v2_urgent_window.test.sql`
+      (7 checks) passes; `v2_requests.test.sql`'s old "Urgent 2 days ahead
+      is rejected" check now uses 7 days, but that file wasn't re-run (it
+      needs a local `supabase db reset`).

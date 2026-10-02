@@ -11,7 +11,7 @@ export type HelpStep = { title: string; detail: string };
 export const howItWorks: Record<Role, HelpStep[]> = {
   Requester: [
     { title: "Request a trip", detail: "Pick a date, add each stop and its purpose." },
-    { title: "Regular vs Urgent", detail: "Regular needs 7 days' notice; Urgent is today or tomorrow." },
+    { title: "Regular vs Urgent", detail: "Urgent is for today up to 6 days ahead; Regular is for 7 or more days ahead." },
     { title: "Track progress", detail: "My requests shows Scheduler and Admin approval status." },
     { title: "Change your mind", detail: "Edit before scheduling starts; after that, ask to cancel." },
   ],
