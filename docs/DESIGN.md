@@ -78,7 +78,7 @@ guessed at: form-validation error presentation (`react-hook-form`/
 `zod` are dependencies but their usage wasn't traced screen-by-screen),
 and a systematic accessibility pass beyond the one confirmed
 focus-visible rule and the one outstanding `<img>`/`next/image` lint
-warning (see `docs/TASKS.md`). Treat this section as a starting point,
+warning (the only one `pnpm lint` reports). Treat this section as a starting point,
 not a complete audit.
 
 ## UI structure

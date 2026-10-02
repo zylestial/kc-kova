@@ -87,4 +87,5 @@ and never returned by this app's own code.
 - [docs/RULES.md](docs/RULES.md) — business rules plus engineering/agent conventions
 - [docs/TASKS.md](docs/TASKS.md) — what's done vs. outstanding
 - [docs/MEMORY.md](docs/MEMORY.md) — decision log, gotchas, open questions
+- [docs/archive/](docs/archive/) — older decision log and task history, moved out of the two files above
 - [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md) — the original API contract `lib/kova-api.ts` was built against (historical reference; `docs/ARCHITECTURE.md`'s API table is the maintained summary)

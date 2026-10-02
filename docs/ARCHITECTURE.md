@@ -307,8 +307,8 @@ error the first time a route touches Supabase.
 
 `next.config.ts` sets baseline security response headers
 (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
-`Permissions-Policy`) on every response. A `Content-Security-Policy` header
-is deliberately not set yet — see `docs/TASKS.md`.
+`Permissions-Policy`) on every response, plus a static (non-nonce)
+`Content-Security-Policy`; see `docs/MEMORY.md`, "Content-Security-Policy".
 
 ## Deployment and migrations
 
@@ -342,4 +342,4 @@ means (a manual SQL Editor run, a dashboard action) rather than through
 `db push` will try to re-run that migration and fail with a `relation
 already exists` error. Fix with `supabase migration repair --status
 applied <migration-id>...` for the migrations whose *tables* already exist,
-before pushing the new ones. See `docs/MEMORY.md` for the full account.
+before pushing the new ones. See `docs/archive/MEMORY-history.md` for the full account.

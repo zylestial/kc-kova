@@ -18,7 +18,7 @@ Both halves must be done together.
 
 ## 1a. While the database holds only test data
 
-The owner has confirmed there is no real data (`docs/MEMORY.md`, "No live
+The owner has confirmed there is no real data (`docs/archive/MEMORY-history.md`, "No live
 production data exists yet"). In that case the rollback is **reset and
 reseed**, not a restore, and sections 2 and 3's restore paths are not needed:
 

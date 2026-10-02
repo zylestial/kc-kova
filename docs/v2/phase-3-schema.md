@@ -2,10 +2,10 @@
 
 Branch `feat/v2-foundation`. Everything here was applied and tested on the
 **local Docker database only** — nothing has been applied to the shared
-`kc-kova` Supabase project (see `docs/MEMORY.md`, "Phase 3 design
+`kc-kova` Supabase project (see `docs/archive/MEMORY-history.md`, "Phase 3 design
 decisions").
 
-Decisions this phase is built on (all in `docs/MEMORY.md`):
+Decisions this phase is built on (all in `docs/archive/MEMORY-history.md`):
 
 - v2 reservations are a new table with minute-precision time ranges and
   Postgres exclusion constraints; legacy `bookings`/`booking_slots` are kept

@@ -14,9 +14,9 @@ Supabase project state), it is marked **unverified** rather than assumed.
 | Default/production branch | `master` (`origin/HEAD -> origin/master`) | `git branch -a` |
 | Local `.vercel` link | Not present locally | `ls .vercel` — gitignored, never linked in this working copy |
 | Vercel CLI | Not installed locally; `npx vercel` requires an install this session didn't perform | attempted `npx vercel whoami` |
-| **Vercel project name/production branch/env-var scopes** | **Unverified this session** — `docs/MEMORY.md` records a prior session's claim of project `kc-kova` tracking `master`, but this session has no dashboard/CLI access to confirm it independently | not verifiable without Vercel credentials |
+| **Vercel project name/production branch/env-var scopes** | **Unverified this session** — `docs/archive/MEMORY-history.md` records a prior session's claim of project `kc-kova` tracking `master`, but this session has no dashboard/CLI access to confirm it independently | not verifiable without Vercel credentials |
 | Database provider | Supabase (Postgres + Auth + RLS + RPC) | `supabase/` folder, `lib/supabase/*`, `ARCHITECTURE.md` |
-| **Live Supabase project ref** | **Unverified this session** — `docs/MEMORY.md` records project `kc-kova` (`rhzqdtgruhpdhopkksuf`) from a prior deployment, not re-confirmed here | `.env.local` exists but was not read (contains real secrets per repo convention) |
+| **Live Supabase project ref** | **Unverified this session** — `docs/archive/MEMORY-history.md` records project `kc-kova` (`rhzqdtgruhpdhopkksuf`) from a prior deployment, not re-confirmed here | `.env.local` exists but was not read (contains real secrets per repo convention) |
 | CI | GitHub Actions, `.github/workflows/ci.yml`: `pnpm install --frozen-lockfile` → `tsc --noEmit` → `lint` → `test` → `build`, on push/PR to `main`/`master` | read directly |
 | Git tags | **None exist** (`git tag` empty) — so no `v1.2-stable` tag yet; Phase 1 starts from a clean slate here | `git tag` |
 | Branches present | `master`, `docs/rename-v1_3-to-v2_0` (current), plus several stale local/remote feature and dependabot branches (see §4) | `git branch -a` |
@@ -161,7 +161,7 @@ Worth calling out so Phase 3's scope estimate doesn't undercount it as
 
 ### Conflict 3 — "Trip leg buttons" is already an open v1.2 task that overlaps Phase 5/9
 
-`docs/TASKS.md`'s v1.2 backlog has an unbuilt item, **"Trip leg buttons and
+`docs/archive/TASKS-history.md`'s v1.2 backlog has an unbuilt item, **"Trip leg buttons and
 final return"**, that reworks the exact same leg-entry UI (`Add Leg`/`Add
 Final Leg` buttons, ANONANG start/end validation) that v2 Phase 5's Trip
 Record and Phase 9's printing also touch. Recommendation: fold that v1.2
@@ -208,7 +208,7 @@ previous request-creation role" step.
   project settings and the live Supabase project's actual current state
   are not independently verified this session** — carry this into Phase 1/2
   as an open verification step, ideally with you providing dashboard
-  access or confirming the values already recorded in `docs/MEMORY.md`
+  access or confirming the values already recorded in `docs/archive/MEMORY-history.md`
   are still current.
 - No production data or live traffic was touched. No migrations were run.
   No files were deleted.

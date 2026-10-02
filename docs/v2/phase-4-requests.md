@@ -4,7 +4,7 @@ Branch `feat/v2-requests`, stacked on `feat/v2-foundation` (Phase 3, PR
 #28). Migrations were applied and tested on the **local Docker database
 only**, as in Phase 3.
 
-Decisions this phase is built on are in `docs/MEMORY.md`, "Phase 4 design
+Decisions this phase is built on are in `docs/archive/MEMORY-history.md`, "Phase 4 design
 decisions".
 
 ## 1. What a Requester or Admin can now do
@@ -26,7 +26,7 @@ decisions".
   still Not yet scheduled can be edited in a modal. Once a Scheduler
   includes it in a saved draft, the modal says it can no longer be edited.
 - Admin keeps the v1 Schedule and Booking Approvals screens for now. See
-  `docs/MEMORY.md` for why.
+  `docs/archive/MEMORY-history.md` for why.
 
 ## 2. Migrations
 
@@ -64,7 +64,7 @@ without retrying).
 0021 (`save_schedule_draft`, `submit_schedule`, `approve_schedule`,
 `return_schedule`, `discard_schedule_draft`) raise `40001` the same way and
 will hang the same way once Phase 5 calls them over HTTP. Tracked in
-`docs/TASKS.md`.
+`docs/archive/TASKS-history.md`.
 
 ## 5. Removed
 
