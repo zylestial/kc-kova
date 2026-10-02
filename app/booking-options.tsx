@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { stillNeeded } from "@/lib/missing-fields";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ListChecks, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,11 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  getBookingOptions,
-  saveBookingOption,
-  type BookingOption,
-} from "@/lib/kova-api";
+import { saveBookingOption, type BookingOption } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 
 type Group = "projects" | "destinations" | "purposes";
 type Draft = {
@@ -39,7 +36,7 @@ const groups: [Group, string, string, string][] = [
   ["purposes", "Purposes", "Purpose", "Add Purpose"],
 ];
 export default function BookingOptions() {
-  const [options, setOptions] = useState(() => getBookingOptions());
+  const { options } = useKovaData();
   const [modal, setModal] = useState<{
     group: Group;
     mode: "add" | "edit";
@@ -54,13 +51,6 @@ export default function BookingOptions() {
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
-  function load() {
-    setOptions(getBookingOptions());
-  }
-  useEffect(() => {
-    window.addEventListener("kova-data-update", load);
-    return () => window.removeEventListener("kova-data-update", load);
-  }, []);
   function open(group: Group, mode: "add" | "edit", item?: BookingOption) {
     setModal({ group, mode });
     setDraft(
@@ -98,7 +88,6 @@ export default function BookingOptions() {
       });
       setModal(null);
       setNotice("Choice saved.");
-      load();
     } catch (e) {
       setError((e as Error).message);
     } finally {
