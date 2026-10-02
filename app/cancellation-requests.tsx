@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,12 +14,10 @@ import {
 import {
   confirmCancellation,
   declineCancellation,
-  getPendingCancellations,
-  getRequests,
-  getSchedules,
   hydrateKovaData,
   type CancellationRequest,
 } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import { currentRevision } from "@/lib/trip-record";
 
 const dateLabel = (date: string) =>
@@ -27,27 +25,19 @@ const dateLabel = (date: string) =>
 const askedLabel = (iso: string) =>
   new Date(iso).toLocaleString("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-const readData = () => ({ pending: getPendingCancellations(), requests: getRequests(), schedules: getSchedules() });
-
 /**
  * Admin: Requesters' asks to cancel a request that is already in a
  * schedule. The schedule stays in force until one is confirmed; declining
  * needs a note so the Requester knows why the request stays.
  */
 export default function CancellationRequests() {
-  const [data, setData] = useState(readData);
+  const { cancellations, requests, schedules } = useKovaData();
+  const pending = cancellations.filter((item) => item.status === "PENDING");
   const [deciding, setDeciding] = useState<{ item: CancellationRequest; action: "confirm" | "decline" } | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const refresh = () => setData(readData());
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, []);
-
-  const { pending, requests, schedules } = data;
   if (!pending.length) return null;
 
   const scheduleOf = (requestId: string) =>
