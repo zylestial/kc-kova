@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAdminTrips, buildFinishedTrips, hasOpenProblem } from "@/lib/finished-trips";
+import { buildAdminTrips, buildFinishedTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
 import type { ProblemReport, Schedule, ScheduleRevision, TripCompletion } from "@/lib/kova-api";
 
 const revision = (id: string): ScheduleRevision => ({
@@ -125,5 +125,25 @@ describe("hasOpenProblem", () => {
     const [handled] = buildFinishedTrips(schedules, [completion("a", "ra", "t1")], [problem("a", "HANDLED")]);
     expect(hasOpenProblem(open)).toBe(true);
     expect(hasOpenProblem(handled)).toBe(false);
+  });
+});
+
+describe("cleanTrips", () => {
+  const schedules = ["a", "b", "c", "d"].map((id) => schedule(id, "2026-10-01", [revision("r" + id)], "r" + id));
+  const done = { ...completion("c", "rc", "t3"), status: "DONE" as const };
+
+  it("keeps submitted trips with no open problem, including ones whose problems were handled", () => {
+    const trips = buildAdminTrips(
+      schedules,
+      [completion("a", "ra", "t1"), completion("b", "rb", "t2"), done],
+      [problem("a", "HANDLED"), problem("b", "OPEN")],
+    );
+    expect(cleanTrips(trips).map((trip) => trip.schedule.id)).toEqual(["a"]);
+  });
+
+  it("skips trips already done and trips the Driver hasn't submitted", () => {
+    const trips = buildAdminTrips(schedules, [done], [problem("d", "OPEN")]);
+    expect(trips.map((trip) => trip.schedule.id).sort()).toEqual(["c", "d"]);
+    expect(cleanTrips(trips)).toEqual([]);
   });
 });

@@ -28,9 +28,10 @@ import {
   getSchedules,
   handleProblem,
   markCompletionDone,
+  markCompletionsDone,
   type Schedule,
 } from "@/lib/kova-api";
-import { buildAdminTrips, hasOpenProblem, type AdminTrip } from "@/lib/finished-trips";
+import { buildAdminTrips, cleanTrips, hasOpenProblem, type AdminTrip } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
@@ -72,6 +73,8 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkError, setBulkError] = useState("");
   useAutoClear(notice, setNotice);
 
   useEffect(() => {
@@ -98,6 +101,9 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
       (problems === "all" || (problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
   );
 
+  // "Mark all clean trips done" only ever touches what the filters show.
+  const clean = cleanTrips(visible);
+
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const isDone = selected?.completion?.status === "DONE";
@@ -119,6 +125,21 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
     setHandlingNote("");
     setFollowUp("none");
     setError("");
+  }
+
+  async function markCleanDone() {
+    setBusy(true);
+    setBulkError("");
+    const { done, failed } = await markCompletionsDone(clean.map((trip) => trip.schedule.id));
+    setBusy(false);
+    if (failed.length) {
+      setBulkError(
+        `${done.length} marked done, ${failed.length} couldn't be: ${failed[0].message}${failed.length > 1 ? " (and others)" : ""}`,
+      );
+      return;
+    }
+    setBulkOpen(false);
+    setNotice(`${done.length} ${done.length === 1 ? "trip" : "trips"} marked as done.`);
   }
 
   const startNumber = start.trim() === "" ? NaN : Number(start);
@@ -184,6 +205,17 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
             <h2>Submitted trips</h2>
             <span className="count">{visible.length}</span>
           </div>
+          <Button
+            className="primary"
+            disabled={!clean.length}
+            title="Submitted trips with no open problem, among those shown below"
+            onClick={() => {
+              setBulkError("");
+              setBulkOpen(true);
+            }}
+          >
+            Mark {clean.length || "all"} clean {clean.length === 1 ? "trip" : "trips"} done
+          </Button>
         </div>
         <div className="admin-trip-filters">
           <DateRangeFilter value={dates} onChange={setDates} />
@@ -298,6 +330,54 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
           </div>
         )}
       </section>
+
+      <Dialog open={bulkOpen} onOpenChange={(open) => !busy && setBulkOpen(open)}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Mark {clean.length} {clean.length === 1 ? "trip" : "trips"} as done?
+            </DialogTitle>
+            <DialogDescription>
+              These trips are submitted and have no open problem. Marking them done locks them for everyone, and odometers
+              can&apos;t be corrected afterwards. Check the distances first.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="schedule-table">
+            <table>
+              <thead>
+                <tr>
+                  {["DATE", "PLATE NUMBER", "DRIVER", "DISTANCE"].map((title) => (
+                    <th key={title}>{title}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {clean.map((trip) => (
+                  <tr key={trip.schedule.id}>
+                    <td>{dateLabel(trip.schedule.date)}</td>
+                    <td>{trip.revision.plate}</td>
+                    <td>{trip.revision.driverName}</td>
+                    <td>{trip.completion ? `${trip.completion.distance} km` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {bulkError && (
+            <p className="modal-error" role="alert">
+              {bulkError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setBulkOpen(false)}>
+              Go back
+            </Button>
+            <Button className="primary" disabled={busy || !clean.length} onClick={() => void markCleanDone()}>
+              {busy ? "Working…" : `Mark ${clean.length} done`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) close(); }}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
