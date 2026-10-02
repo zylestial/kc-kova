@@ -2,7 +2,8 @@ import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { getNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead, type Notification } from "@/lib/kova-api";
+import { markAllNotificationsRead, markNotificationRead, type Notification } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 
 /** Where clicking a notification should land, per its type. */
 function notificationTarget(notification: Notification): string | undefined {
@@ -60,8 +61,8 @@ function NotificationItem({ notification }: { notification: Notification }) {
 }
 
 export default function NotificationBell() {
-  const notifications = getNotifications();
-  const unreadCount = getUnreadNotificationCount();
+  const { notifications } = useKovaData();
+  const unreadCount = notifications.filter((item) => !item.readAt).length;
 
   return (
     <Popover>

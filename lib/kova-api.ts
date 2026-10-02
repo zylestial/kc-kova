@@ -220,7 +220,7 @@ export type BootstrapData = {
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
 let sessionAccount: Account | null = null;
-let cache: BootstrapData = {
+const emptyData: BootstrapData = {
   accounts: [],
   vehicles: [],
   options: { projects: [], destinations: [], purposes: [] },
@@ -231,6 +231,8 @@ let cache: BootstrapData = {
   problems: [],
   notifications: [],
 };
+// Replaced (never mutated) on every load, so a changed reference means new data.
+let cache: BootstrapData = emptyData;
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
@@ -260,6 +262,14 @@ function notify() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("kova-data-update"));
 }
 
+/** For useKovaData (lib/use-kova-data.ts): the current cache, and a way to hear when it changes. */
+export const getKovaData = () => cache;
+export const getEmptyKovaData = () => emptyData;
+export function subscribeKovaData(listener: () => void) {
+  window.addEventListener("kova-data-update", listener);
+  return () => window.removeEventListener("kova-data-update", listener);
+}
+
 export async function hydrateKovaData() {
   cache = await request<BootstrapData>("/api/bootstrap");
   notify();
@@ -286,7 +296,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
-  cache = { accounts: [], vehicles: [], options: { projects: [], destinations: [], purposes: [] }, requests: [], schedules: [], cancellations: [], completions: [], problems: [], notifications: [] };
+  cache = emptyData;
   notify();
 }
 
@@ -301,12 +311,10 @@ export const getCancellations = () => cache.cancellations;
 export const getPendingCancellations = () => cache.cancellations.filter((item) => item.status === "PENDING");
 export const getCompletions = () => cache.completions;
 export const getProblems = () => cache.problems;
-export const getNotifications = () => cache.notifications;
-export const getUnreadNotificationCount = () => cache.notifications.filter((item) => !item.readAt).length;
 
 // Lighter than hydrateKovaData(): used after marking a notification read and
-// after the live stream (lib/notifications-stream.ts) signals a new one, so
-// neither has to refetch every other table just to update the bell.
+// by the poller (lib/notifications-poll.ts), so neither has to refetch
+// every other table just to update the bell.
 export async function refreshNotifications() {
   cache = { ...cache, notifications: await request<Notification[]>("/api/notifications") };
   notify();
