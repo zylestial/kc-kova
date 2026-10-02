@@ -772,4 +772,9 @@ is no longer accurate.
       `next build` pass; `v2_send_back.test.sql` (13 checks) passes, and the
       round trip was smoke-tested through the API on a local dev server. The
       other pgTAP files weren't re-run (they need a local `supabase db
-      reset`), and the planner/My requests UI hasn't been click-tested yet.
+      reset`). Click-tested in headless Chrome (Playwright) against local
+      Supabase as `sched1` and `req1`: day-picker urgent count, Urgent-first
+      pool and dropdown, single and bulk send-back, and My requests "Sent
+      back" → Pick another day, with no console errors. That pass found and
+      fixed a sent-back request being counted as "already in another
+      schedule".
