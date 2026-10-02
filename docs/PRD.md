@@ -3,84 +3,99 @@
 ## What KOVA is
 
 KOVA (Kayelen's Operations and Vehicle Allocation) is an internal fleet
-booking and trip-logging system. It replaces manual scheduling of company
-vehicles and paper "Daily Vehicle Record" forms with a single web app that
-covers: booking a vehicle and driver, recording the trip as it happens, and
-routing the completed record through Admin review to a locked, final state.
+scheduling and trip-logging system. It replaces manual scheduling of company
+vehicles and the paper "Daily Vehicle Trip & Utilization Form" with one web
+app that covers: asking for transport, planning a vehicle's route for the
+day, getting that plan approved, recording the trip as it happens, and
+routing the finished trip through Admin review to a locked, final state.
 
 There is no public sign-up. Every account is provisioned by an Admin.
 
 ## Roles
 
+A person has exactly one role; there is no multi-role account.
+
 | Role | Can do |
 | --- | --- |
-| **Requester** | Create/edit/cancel their own vehicle bookings. See the shared schedule. Cannot manage accounts, vehicles, booking options, or Finance data. |
-| **Scheduler** | New in v2. Builds schedules (vehicle + ordered Trip Record) from Requesters' requests and submits them for Admin approval. The only role that can create a schedule. Screens arrive in v2 Phase 5. |
-| **Driver** | See only their own assigned bookings ("My Schedule"). Fill in and submit the Daily Vehicle Record for a trip once it has ended. Cannot create bookings for themselves or others. |
-| **Admin** | Everything a Requester can do, plus: manage Accounts, Vehicles, and Booking Options (Projects/Destinations/Purposes/People); review and edit submitted trip records; mark records Done (locking them); see Finance fields and the fixed approval names (PM, COO). |
-
-A single person only ever has one role at a time; there is no multi-role
-account.
+| **Requester** | Ask for transport (a date and one or more stops, each with a purpose). Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
+| **Scheduler** | Plan a day: take requests from the day's pool, pick a vehicle (its assigned Driver comes with it), build the route as a Trip Record, and submit it for approval. Send back requests that won't fit, or split a request across vehicles. The only role that creates schedules. |
+| **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers, handle problem reports, mark Done), and manage Accounts, Vehicles and request choices. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
+| **Driver** | See the approved trips assigned to them ("My Schedule"). After a trip ends, submit its odometer readings and final-return checks. Report a problem on a trip at any time. |
 
 ## Core workflows
 
-1. **Book a trip.** A Requester (or Admin) picks a date, vehicle, time range,
-   driver, destination, and purpose. The system rejects the booking if the
-   chosen vehicle or driver is already booked for an overlapping hour that
-   day. All vehicles booked for the same vehicle on the same day must share
-   one driver — one daily form covers every trip that vehicle makes that day.
-2. **Drive and log.** Once a booking's scheduled end time has passed, the
-   assigned Driver opens it from "My Schedule" and fills in the Daily
-   Vehicle Record: start/end odometer, one or more trip legs (origin,
-   destination, purpose, times, contact), and return-condition checkboxes
-   (full tank, fleet card used, gas receipt attached). The trip must start
-   and end at ANONANG (the home base). The Driver submits when done; the
-   record locks against further Driver edits and moves to Admin review.
-3. **Review and close out.** An Admin reviews submitted records, can correct
-   fields (every correction is recorded as an immutable history entry with
-   before/after values), fills in the fixed approval names (PM: Joedel
-   Capillan; COO: President Vargas) and Finance fields (received-by,
-   reference #, finance status, dates), then marks the record **Done**. Once
-   Done, the record is read-only.
-4. **Cancel a booking.** The Requester who created a booking, or an Admin, may
-   cancel it before it has been submitted as a trip record. Cancelling never
-   deletes the row — it flips status to `CANCELLED` so history and audit
-   trails stay intact, and frees the vehicle/driver's time slots.
-5. **Administer reference data.** An Admin maintains the roster of Accounts,
-   Vehicles, and the option lists used when booking (Projects, Destinations,
-   Purposes) and People (a legacy/auxiliary roster distinct from Accounts).
-   Nothing is ever hard-deleted; entries are marked Inactive instead so past
-   bookings and records keep displaying correctly.
+1. **Request a trip.** A Requester picks a date and adds each stop with its
+   purpose (a destination or purpose not on the list can be typed in). The
+   date decides the type: **Urgent** for today up to 6 days ahead, **Regular**
+   for 7 or more days ahead. An Admin may also log a past date for a trip
+   nobody requested at the time; that is recorded as Regular. No vehicle,
+   Driver or time is chosen at this stage.
+2. **Plan the day.** A Scheduler opens a day and sees its request pool, Urgent
+   first and grouped by requester. They pick a vehicle (an Admin assigns each
+   vehicle a Driver) and build the **Trip Record**: legs in travel order,
+   starting and ending at ANONANG (the home base), with times for each leg.
+   Fuel or errand stops can be added without a request. Saving a draft
+   reserves the time and locks the requests so nobody else plans them. A
+   request that won't fit can be sent back to its requester (with a reason) to
+   pick another day, or split so part of it goes on another vehicle.
+3. **Approve.** The Scheduler submits the plan. An Admin approves it, which
+   publishes it to the Requesters and the Driver, or returns it with a
+   comment saying what to change. A published schedule can be revised through
+   the same steps, and an Admin can cancel it with a reason.
+4. **Drive and record.** Once the trip's last planned time has passed, the
+   assigned Driver submits one odometer pair for the whole schedule and may
+   answer the final-return checks (full tank, fleet card used, gas receipt
+   attached). A Driver can report a problem on a trip at any time, even
+   before submitting.
+5. **Review and close out.** An Admin reviews submitted trips in Finished
+   Trips: corrects the odometers if needed, handles problem reports (a note,
+   and optionally the follow-up schedule), and marks the trip **Done**, which
+   locks it for everyone. Trips with no open problem can be marked Done in one
+   step. The Admin can print the official form for any submitted trip.
+6. **Cancel.** A Requester cancels an unplanned request directly. Once a
+   schedule holds the request, they ask for a cancellation and an Admin
+   confirms or declines it (a note is required to decline). Cancelling never
+   deletes anything; history stays intact.
+7. **Administer reference data.** An Admin maintains Accounts, Vehicles (with
+   each vehicle's assigned Driver) and the request choices (Projects/Sites,
+   Destinations, Purposes, and which destinations are fuel/errand stops).
+   Nothing is ever hard-deleted; entries are marked Inactive so past records
+   keep displaying correctly.
+8. **Stay informed.** An in-app bell tells people what changed for them (a
+   request scheduled, returned or sent back; a schedule waiting for approval;
+   a trip published; a problem reported).
 
 ## Non-goals
 
-- No public registration or self-service password reset — Admin manages all
+- No public registration or self-service password reset — an Admin manages all
   credentials.
 - No mobile app; KOVA is a responsive web app only.
 - No multi-tenant support — this is a single organization's fleet.
+- No email or push notifications; the bell is in-app only.
 
 ## Key constraints carried into every design decision
 
-- **Hide-the-button is not security.** Every permission, ownership, and
+- **Hide-the-button is not security.** Every permission, ownership and
   conflict rule enforced in the UI must also be enforced by the backend.
 - **Nothing referenced by history is ever hard-deleted** (vehicles, accounts,
-  booking options) — inactive status only.
-- **Booking conflicts must be impossible even under concurrent requests.**
-  Two people racing to book the same vehicle/hour, or the same driver for two
-  trips at once, must never both succeed.
+  request choices) — inactive status only.
+- **Conflicts must be impossible even under concurrent requests.** Two people
+  planning the same request, or reserving the same vehicle or Driver for
+  overlapping time, must never both succeed.
+- **A Done trip is locked for everyone**, the service role included.
 
 ## Acceptance criteria
 
-TBD. The core workflows above imply the natural acceptance checks (a
-booking can't be double-booked, a record can't be submitted before the
-trip's scheduled end, Finance fields can't be set by a Driver, etc.), and
-those are enforced and tested in code (see `docs/RULES.md`,
-`docs/TASKS.md`). A formal, stakeholder-reviewed acceptance criteria list
+TBD. The workflows above imply the natural checks (a vehicle or Driver can't
+be double-booked, a trip can't be submitted before it ends, a Driver can't set
+Admin-only fields, a Done trip can't change), and those are enforced and
+tested in code (see `docs/RULES.md` and the database tests in
+`supabase/tests/`). A formal, stakeholder-reviewed acceptance criteria list
 doesn't exist yet — see `docs/MEMORY.md` "Open questions".
 
 ## Success metrics
 
 TBD. No stakeholder input or analytics exist yet to define what KOVA's
-actual operators consider success (e.g. adoption vs. the paper process it
-replaces, time-to-log a trip, Admin review turnaround). See
-`docs/MEMORY.md` "Open questions".
+operators consider success (for example adoption against the paper process,
+time to plan a day, or Admin review turnaround). See `docs/MEMORY.md` "Open
+questions".
