@@ -1006,3 +1006,9 @@ Decided by the project owner at the start of Phase 5:
   matches `assert_revision_complete`: a request is served once any of its
   stops is on a leg, and then all of its stops must be. To leave a
   half-placed request for someone else, untick its stop on the leg.
+- **Submitting can send back the leftovers.** The submit dialog lists pool
+  requests with no stop on the route, with "Send these back" ticked by
+  default (the owner's call). It stays optional because a day may need a
+  second vehicle. The send-back runs after `submit_schedule` as a separate
+  call; if it fails, the schedule is still submitted, the notice says so,
+  and the requests stay in the pool.
