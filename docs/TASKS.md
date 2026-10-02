@@ -802,3 +802,6 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
 - [x] Remove the unused People list and the hidden account `project` field.
 - [x] Poll notifications every 30s instead of an SSE stream; fix the bell not
       redrawing when new notifications arrived.
+- [x] Date range quick picks (Today, This week, This month, Last month,
+      Custom) on Finished Trips and My requests; Progress and Type filters on
+      My requests; Requester filter on Schedules.
