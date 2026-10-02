@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAccount } from "@/lib/supabase/session";
+import { authed } from "@/lib/api-route";
 import { toBookingOption } from "@/lib/supabase/mappers";
 
 const GROUPS = ["projects", "destinations", "purposes"] as const;
 const STATUSES = ["Active", "Inactive"] as const;
 
-export async function PUT(request: Request, { params }: { params: Promise<{ group: string; id: string }> }) {
-  const { group, id } = await params;
+export const PUT = authed<{ group: string; id: string }>(async ({ request, supabase, account, params: { group, id } }) => {
   if (!GROUPS.includes(group as (typeof GROUPS)[number])) {
     return NextResponse.json({ message: "Unknown booking option group." }, { status: 404 });
   }
-
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
   const body = await request.json().catch(() => null);
@@ -33,4 +27,4 @@ export async function PUT(request: Request, { params }: { params: Promise<{ grou
   if (error || !data) return NextResponse.json({ message: "Could not save the option." }, { status: 422 });
 
   return NextResponse.json(toBookingOption(data));
-}
+});
