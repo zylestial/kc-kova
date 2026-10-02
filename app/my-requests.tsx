@@ -12,6 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
+import DateRangeFilter from "./date-range-filter";
 import {
   currentAccount,
   cancelRequest,
@@ -24,7 +27,7 @@ import {
   type RequestProgress,
   type TransportRequest,
 } from "@/lib/kova-api";
-import { requestDateError, requestTypeFor } from "@/lib/timezone";
+import { manilaToday, requestDateError, requestTypeFor } from "@/lib/timezone";
 import RequestFields, {
   draftComplete,
   draftFromRequest,
@@ -81,6 +84,9 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [dates, setDates] = useState<DateFilter>(anyDate);
+  const [progress, setProgress] = useState<"all" | RequestProgress>("all");
+  const [type, setType] = useState<"all" | TransportRequest["requestType"]>("all");
 
   useEffect(() => {
     function refresh() {
@@ -102,6 +108,14 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
     // Only re-run when the target id changes or the list first loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequestId, requests.length]);
+
+  const today = manilaToday();
+  const visible = requests.filter(
+    (request) =>
+      inDateFilter(request.date, dates, today) &&
+      (progress === "all" || request.progress === progress) &&
+      (type === "all" || request.requestType === type),
+  );
 
   // Keep the details modal showing the latest copy after a refresh.
   const shown = selected ? requests.find((item) => item.id === selected.id) ?? selected : null;
@@ -184,10 +198,44 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
           <div>
             <ClipboardList size={20} />
             <h2>Your requests</h2>
-            <span className="count">{requests.length}</span>
+            <span className="count">{visible.length}</span>
           </div>
         </div>
-        {requests.length ? (
+        {requests.length > 0 && (
+          <div className="admin-trip-filters">
+            <DateRangeFilter value={dates} onChange={setDates} />
+            <label className="field">
+              <span>Progress</span>
+              <Select value={progress} onValueChange={(value) => setProgress(value as typeof progress)}>
+                <SelectTrigger aria-label="Progress filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {(Object.keys(requestProgressLabel) as RequestProgress[]).map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {requestProgressLabel[item]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="field">
+              <span>Type</span>
+              <Select value={type} onValueChange={(value) => setType(value as typeof type)}>
+                <SelectTrigger aria-label="Type filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="URGENT">Urgent</SelectItem>
+                  <SelectItem value="REGULAR">Regular</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
+        )}
+        {visible.length ? (
           <div className="schedule-table admin-trip-table">
             <table>
               <thead>
@@ -198,7 +246,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
                 </tr>
               </thead>
               <tbody>
-                {requests.map((request) => (
+                {visible.map((request) => (
                   <tr key={request.id} onClick={() => { setSelected(request); setError(""); }}>
                     <td>{dateLabel(request.date)}</td>
                     <td>
@@ -234,8 +282,8 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
             <div className="empty-icon">
               <ClipboardList size={30} />
             </div>
-            <h3>No requests yet</h3>
-            <p>Transport you request will appear here.</p>
+            <h3>{requests.length ? "No matching requests" : "No requests yet"}</h3>
+            <p>{requests.length ? "Try another filter." : "Transport you request will appear here."}</p>
           </div>
         )}
       </section>
