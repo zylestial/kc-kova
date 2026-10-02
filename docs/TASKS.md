@@ -799,3 +799,4 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
 - [x] Remove 52 unused vendored UI components and 14 unused npm packages.
 - [x] CI runs the pgTAP suite and `concurrency.sh` on a fresh database.
 - [x] Request type is set from the date; the Requester no longer picks it.
+- [x] Remove the unused People list and the hidden account `project` field.

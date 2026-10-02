@@ -10,7 +10,6 @@ import {
   toTripCompletion,
   scheduleSelect,
   toBookingOptions,
-  toPerson,
   toSchedule,
   toTransportRequest,
   toVehicle,
@@ -27,11 +26,10 @@ export async function GET() {
   const account = await requireAccount(supabase);
   if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
 
-  const [accountsRes, vehiclesRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes, notificationsRes] = await Promise.all([
+  const [accountsRes, vehiclesRes, optionsRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes, notificationsRes] = await Promise.all([
     supabase.from("accounts").select("*"),
     supabase.from("vehicles").select("*"),
     supabase.from("booking_options").select("*"),
-    supabase.from("people").select("*"),
     supabase.from("requests").select("*, request_destinations(*)").eq("request_destinations.active", true),
     supabase.from("request_progress").select("*"),
     supabase
@@ -45,7 +43,7 @@ export async function GET() {
     supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
   ]);
 
-  const firstError = [accountsRes, vehiclesRes, optionsRes, peopleRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes, notificationsRes].find((res) => res.error)?.error;
+  const firstError = [accountsRes, vehiclesRes, optionsRes, requestsRes, progressRes, schedulesRes, cancellationsRes, completionsRes, problemsRes, notificationsRes].find((res) => res.error)?.error;
   if (firstError) {
     return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
   }
@@ -56,7 +54,6 @@ export async function GET() {
     accounts: (accountsRes.data ?? []).map(toAccount),
     vehicles: (vehiclesRes.data ?? []).map(toVehicle),
     options: toBookingOptions(optionsRes.data ?? []),
-    people: (peopleRes.data ?? []).map(toPerson),
     requests: (requestsRes.data ?? []).map((row) => toTransportRequest(row, progressById.get(row.id))),
     schedules: (schedulesRes.data ?? []).map(toSchedule),
     // Requesters get their own asks, Admin all of them (0014 policy).

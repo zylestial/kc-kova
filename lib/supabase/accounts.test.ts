@@ -19,7 +19,6 @@ describe("toAccount", () => {
       name: "Jane Doe",
       role: "Requester",
       status: "Active",
-      project: "Site A",
     });
     expect(account).toEqual({
       id: "11111111-1111-1111-1111-111111111111",
@@ -27,19 +26,6 @@ describe("toAccount", () => {
       username: "jane",
       role: "Requester",
       status: "Active",
-      project: "Site A",
     });
-  });
-
-  it("maps a null project to undefined", () => {
-    const account = toAccount({
-      id: "1",
-      username: "jane",
-      name: "Jane Doe",
-      role: "Admin",
-      status: "Active",
-      project: null,
-    });
-    expect(account.project).toBeUndefined();
   });
 });

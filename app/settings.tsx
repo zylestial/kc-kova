@@ -34,7 +34,6 @@ type Account = {
   username: string;
   role: "Requester" | "Scheduler" | "Admin" | "Driver";
   status: "Active" | "Inactive";
-  project?: string;
 };
 type Vehicle = {
   plate: string;
@@ -49,7 +48,6 @@ const blankAccount = () => ({
   password: "",
   role: "Requester" as Account["role"],
   status: "Active" as Account["status"],
-  project: "Unassigned",
 });
 const blankVehicle = () => ({
   plate: "",
@@ -162,7 +160,6 @@ export default function Settings({ onBack }: { onBack: () => void }) {
       role: a.role,
       status: a.status,
       password: "",
-      project: a.project || "Unassigned",
     });
     setAccountId(a.id);
     setAccountModal("edit");
@@ -183,7 +180,6 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         username: account.username.trim(),
         role: account.role,
         status: account.status,
-        project: account.project,
         password: accountModal === "add" ? account.password : undefined,
       });
       setAccountModal(null);

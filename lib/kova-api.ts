@@ -14,7 +14,6 @@ export type Account = {
   username: string;
   role: Role;
   status: "Active" | "Inactive";
-  project?: string;
 };
 export type Vehicle = {
   plate: string;
@@ -28,13 +27,6 @@ export type BookingOption = {
   status: "Active" | "Inactive";
   /** Destinations only: a non-request stop (e.g. fuel, an errand) the Planner may add on its own. */
   isOtherStop?: boolean;
-};
-export type Person = {
-  id: string;
-  name: string;
-  projectIds: string[];
-  status: "Active" | "Inactive";
-  accountId?: string;
 };
 export type RequestProgress =
   | "NOT_YET_SCHEDULED"
@@ -218,7 +210,6 @@ export type BootstrapData = {
   accounts: Account[];
   vehicles: Vehicle[];
   options: BookingOptions;
-  people: Person[];
   requests: TransportRequest[];
   schedules: Schedule[];
   cancellations: CancellationRequest[];
@@ -233,7 +224,6 @@ let cache: BootstrapData = {
   accounts: [],
   vehicles: [],
   options: { projects: [], destinations: [], purposes: [] },
-  people: [],
   requests: [],
   schedules: [],
   cancellations: [],
@@ -296,7 +286,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
-  cache = { accounts: [], vehicles: [], options: { projects: [], destinations: [], purposes: [] }, people: [], requests: [], schedules: [], cancellations: [], completions: [], problems: [], notifications: [] };
+  cache = { accounts: [], vehicles: [], options: { projects: [], destinations: [], purposes: [] }, requests: [], schedules: [], cancellations: [], completions: [], problems: [], notifications: [] };
   notify();
 }
 
@@ -304,7 +294,6 @@ export const currentAccount = () => sessionAccount;
 export const getAccounts = () => cache.accounts;
 export const getVehicles = () => cache.vehicles;
 export const getBookingOptions = () => cache.options;
-export const getPeople = () => cache.people;
 export const getRequests = () => cache.requests;
 export const getMyRequests = (accountId: string) => cache.requests.filter((item) => item.ownerAccountId === accountId);
 export const getSchedules = () => cache.schedules;
@@ -344,7 +333,6 @@ export const saveAccount = (account: Account & { password?: string }) => refresh
 export const changeAccountPassword = (accountId: string, password: string) => request<void>(`/api/accounts/${encodeURIComponent(accountId)}/password`, { method: "POST", body: JSON.stringify({ password }) });
 export const saveVehicle = (vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
 export const saveBookingOption = (group: "projects" | "destinations" | "purposes", option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
-export const savePerson = (person: Person) => refreshAfter(request<Person>(`/api/booking-options/people/${encodeURIComponent(person.id)}`, { method: "PUT", body: JSON.stringify(person) }));
 export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));

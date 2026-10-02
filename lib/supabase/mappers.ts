@@ -1,7 +1,6 @@
 import type {
   BookingOption,
   BookingOptions,
-  Person,
   RequestProgress,
   Schedule,
   TransportRequest,
@@ -42,18 +41,6 @@ export function toBookingOptions(rows: BookingOptionRow[]): BookingOptions {
 
 export function toBookingOption(row: { id: string; name: string; status: "Active" | "Inactive"; is_other_stop: boolean }): BookingOption {
   return { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop };
-}
-
-type PersonRow = { id: string; name: string; project_ids: string[]; status: "Active" | "Inactive"; account_id: string | null };
-
-export function toPerson(row: PersonRow): Person {
-  return {
-    id: row.id,
-    name: row.name,
-    projectIds: row.project_ids,
-    status: row.status,
-    accountId: row.account_id ?? undefined,
-  };
 }
 
 type RequestDestinationRow = {

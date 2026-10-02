@@ -18,7 +18,6 @@ type AccountRow = {
   name: string;
   role: Role;
   status: "Active" | "Inactive";
-  project: string | null;
 };
 
 export function toAccount(row: AccountRow): Account {
@@ -28,6 +27,5 @@ export function toAccount(row: AccountRow): Account {
     username: row.username,
     role: row.role,
     status: row.status,
-    project: row.project ?? undefined,
   };
 }

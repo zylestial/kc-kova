@@ -64,10 +64,9 @@ state transitions. The completion rules:
   which must be a different, active schedule. A `DONE` trip can still have
   problem reports handled.
 
-## Booking options and people
+## Booking options
 
-- Only an Admin may create or edit Projects, Destinations, Purposes, or
-  People.
+- Only an Admin may create or edit Projects, Destinations or Purposes.
 - Inactive options remain visible on existing requests but must not be
   offered when creating a *new* one (an edit may keep an option the request
   already had).
