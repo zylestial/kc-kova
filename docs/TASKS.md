@@ -812,3 +812,6 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
       someone), with a "Load older records" button; migration 0041 adds
       `requested_date` to `request_progress`; `v2_progress_window.test.sql`
       (3 checks).
+- [x] `authed()` wrapper (`lib/api-route.ts`) replaces the sign-in boilerplate
+      in 29 route handlers (-136 lines); an anonymous caller now gets 401
+      before the booking-option group check.
