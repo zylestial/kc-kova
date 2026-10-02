@@ -39,8 +39,15 @@ export function homeCounts(account: Account, data: HomeData, now: Date = new Dat
         request.progress !== "DONE",
     );
     const unscheduled = open.filter((request) => request.progress === "NOT_YET_SCHEDULED").length;
+    const sentBack = open.filter((request) => request.progress === "SENT_BACK").length;
     counts["my-requests"] = open.length
-      ? [`${open.length} open`, unscheduled ? `${unscheduled} not yet scheduled` : ""].filter(Boolean).join(" · ")
+      ? [
+          `${open.length} open`,
+          unscheduled ? `${unscheduled} not yet scheduled` : "",
+          sentBack ? `${sentBack} sent back` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ")
       : "No open requests";
   }
 

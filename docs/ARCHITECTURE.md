@@ -188,6 +188,15 @@ transitions, permission matrix and release order live in
 tables, their functions and their trigger functions were dropped by
 migration 0032 (release-time only; there was no legacy data to carry over).
 
+Since migration 0038 (v2.4), `requests` also carries `sent_back_at`,
+`sent_back_by_account_id` and `sent_back_reason`: set by the
+`send_back_requests` RPC when a Scheduler sends an unplaced request back
+to its requester, and cleared by a trigger once the request's date changes.
+`request_progress` reports such a request as `SENT_BACK`, and a trigger on
+`schedule_requests` stops any schedule from including it.
+`split_request` (migration 0039) moves stops a vehicle can't fit off a request
+into a new request for the same requester and day.
+
 ### `notifications` (migration 0035, v2.2)
 
 One row per (recipient, event): `account_id`, `type`, `message`,
@@ -198,7 +207,7 @@ no insert/update grant for clients at all: every row is written by
 `notify()`/`notify_admins()`, called from inside the existing RPC that
 causes the event (`submit_schedule`, `approve_schedule`, `return_schedule`,
 `request_cancellation`, `decline_cancellation`, `confirm_cancellation`,
-`cancel_schedule`, `report_problem`) in the same transaction as the change
+`cancel_schedule`, `report_problem`, `send_back_requests`, `split_request`) in the same transaction as the change
 itself, and `read_at` is only ever set by the `mark_notification_read`/
 `mark_all_notifications_read` RPCs.
 
@@ -230,6 +239,8 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/return` | `app/api/schedules/[scheduleId]/return/route.ts` | Admin (comment required) |
 | POST | `/api/schedules/:scheduleId/cancel` | `app/api/schedules/[scheduleId]/cancel/route.ts` | Admin (reason required) |
 | POST | `/api/requests/:requestId/cancel` | `app/api/requests/[requestId]/cancel/route.ts` | Owner, unscheduled request |
+| POST | `/api/requests/send-back` | `app/api/requests/send-back/route.ts` | Scheduler, Admin (as Scheduler); unplaced requests only, all or nothing |
+| POST | `/api/requests/:requestId/split` | `app/api/requests/[requestId]/split/route.ts` | Scheduler, Admin (as Scheduler); stops not on any live route, at least one stop left |
 | POST | `/api/requests/:requestId/cancellation` | `app/api/requests/[requestId]/cancellation/route.ts` | Owner, request in a schedule |
 | POST | `/api/cancellations/:cancellationId/confirm` | `app/api/cancellations/[cancellationId]/confirm/route.ts` | Admin |
 | POST | `/api/cancellations/:cancellationId/decline` | `app/api/cancellations/[cancellationId]/decline/route.ts` | Admin (note required) |

@@ -80,6 +80,8 @@ type RequestRow = {
   row_version: number;
   created_at: string;
   updated_at: string;
+  sent_back_at: string | null;
+  sent_back_reason: string;
   // Embedded by the bootstrap select; absent on a bare RPC result.
   request_destinations?: RequestDestinationRow[];
 };
@@ -112,8 +114,9 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
         purposeName: destination.purpose_name,
         purposeIsOther: destination.purpose_is_other,
       })),
-    progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : "NOT_YET_SCHEDULED"),
+    progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : row.sent_back_at ? "SENT_BACK" : "NOT_YET_SCHEDULED"),
     cancellationPending: progressRow?.cancellation_pending ?? false,
+    sentBack: row.sent_back_at ? { at: row.sent_back_at, reason: row.sent_back_reason } : undefined,
   };
 }
 
