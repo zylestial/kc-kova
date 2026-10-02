@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,15 +19,13 @@ import DateRangeFilter from "./date-range-filter";
 import {
   currentAccount,
   cancelRequest,
-  getBookingOptions,
-  getCancellations,
-  getMyRequests,
   hydrateKovaData,
   requestCancellation,
   updateRequest,
   type RequestProgress,
   type TransportRequest,
 } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import { manilaToday, requestDateError, requestTypeFor } from "@/lib/timezone";
 import RequestFields, {
   draftComplete,
@@ -71,8 +69,14 @@ const canCancel = (request: TransportRequest) =>
 export default function MyRequests({ notice, openRequestId }: { notice?: string; openRequestId?: string }) {
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
-  const [requests, setRequests] = useState<TransportRequest[]>([]);
-  const [options, setOptions] = useState(() => getBookingOptions());
+  const { requests: allRequests, options, cancellations } = useKovaData();
+  const requests = useMemo(
+    () =>
+      allRequests
+        .filter((item) => item.ownerAccountId === account?.id)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+    [allRequests, account?.id],
+  );
   const [selected, setSelected] = useState<TransportRequest | null>(null);
   // The request as it was when Edit was opened: its rowVersion is what the
   // save is checked against, so a form left open can't overwrite a newer
@@ -88,18 +92,6 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [progress, setProgress] = useState<"all" | RequestProgress>("all");
   const [type, setType] = useState<"all" | TransportRequest["requestType"]>("all");
-
-  useEffect(() => {
-    function refresh() {
-      setRequests(
-        getMyRequests(account?.id ?? "").sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
-      );
-      setOptions(getBookingOptions());
-    }
-    refresh();
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, [account?.id]);
 
   // Opens straight into a specific request when arriving from a notification.
   useEffect(() => {
@@ -163,7 +155,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
   }
 
   const declined = shown
-    ? getCancellations()
+    ? cancellations
         .filter((item) => item.requestId === shown.id && item.status === "DECLINED")
         .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0]
     : undefined;
