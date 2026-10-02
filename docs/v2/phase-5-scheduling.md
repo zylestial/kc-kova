@@ -4,7 +4,7 @@ Branch `feat/v2-scheduling`, stacked on `feat/v2-requests` (Phase 4).
 Migrations were applied and tested on the **local Docker database only**,
 as in Phases 3 and 4.
 
-Decisions this phase is built on are in `docs/MEMORY.md`, "Phase 5 design
+Decisions this phase is built on are in `docs/archive/MEMORY-history.md`, "Phase 5 design
 decisions": a schedule has at most 8 legs (the printed Daily Vehicle
 Record's rows), and there is no capacity check.
 

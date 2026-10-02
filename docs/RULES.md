@@ -88,7 +88,7 @@ state transitions. The completion rules:
 
 These apply to any change in this repo, human or AI-agent-authored.
 Several were learned the hard way during this project's own security/perf
-audit — see `docs/MEMORY.md` for the full incidents.
+audit — see `docs/MEMORY.md` and `docs/archive/MEMORY-history.md` for the full incidents.
 
 ### Code
 

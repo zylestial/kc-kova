@@ -342,4 +342,4 @@ means (a manual SQL Editor run, a dashboard action) rather than through
 `db push` will try to re-run that migration and fail with a `relation
 already exists` error. Fix with `supabase migration repair --status
 applied <migration-id>...` for the migrations whose *tables* already exist,
-before pushing the new ones. See `docs/MEMORY.md` for the full account.
+before pushing the new ones. See `docs/archive/MEMORY-history.md` for the full account.

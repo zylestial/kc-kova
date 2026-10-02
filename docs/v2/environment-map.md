@@ -3,7 +3,7 @@
 Verified directly against the live Vercel project via the Vercel CLI
 (logged in as `zylestial`, project `zyha/kc-kova`) and the already-linked
 local Supabase CLI (`supabase/.temp/project-ref` = `rhzqdtgruhpdhopkksuf`,
-matching `docs/MEMORY.md`'s prior record — now independently confirmed,
+matching `docs/archive/MEMORY-history.md`'s prior record — now independently confirmed,
 not just carried over from a previous session's claim).
 
 ## Vercel project — `kc-kova`
@@ -45,7 +45,7 @@ this as something to fix before v2 work proceeds.
 Shortly after, the owner clarified that **this Supabase project currently
 holds no real/live data** — v1.2 is still pre-launch, UAT-only, seeded test
 accounts only (see the "No live production data exists yet" entry in
-`docs/MEMORY.md`) — and the actual plan is to keep experimenting against
+`docs/archive/MEMORY-history.md`) — and the actual plan is to keep experimenting against
 this one shared project through v2 development, then clear it out before
 the real production launch. Given that, the owner asked to **revert**: all
 three variables were re-added to Preview (`vercel env add <name> preview`,
@@ -60,7 +60,7 @@ protect real data, and there currently isn't any to protect. **This
 decision needs revisiting before real users/data enter this project** —
 specifically, before Phase 11 (production release) at the latest, and
 sooner if real data gets entered earlier than planned. Whoever runs that
-phase should re-check `docs/MEMORY.md`'s "No live production data exists
+phase should re-check `docs/archive/MEMORY-history.md`'s "No live production data exists
 yet" entry is still accurate before assuming this shared setup is still
 fine.
 
@@ -95,7 +95,7 @@ production with real credentials — per `docs/RULES.md`'s prohibited-
 approaches list ("always confirm with a human before touching
 production"), this needs your explicit go-ahead even though a dump is
 read-only, since it establishes a live connection to the production
-database and (per `docs/MEMORY.md`'s prior incident) any output must never
+database and (per `docs/archive/MEMORY-history.md`'s prior incident) any output must never
 be pasted into this chat. If you'd like this done now, say so and I'll run
 it and save the dump to a local, gitignored path — never displayed inline.
 

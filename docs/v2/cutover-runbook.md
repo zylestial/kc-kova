@@ -17,7 +17,7 @@ go-ahead first (`docs/RULES.md`, prohibited approaches). Rollback is in
   fresh `supabase db reset`, pgTAP.
 - [ ] The owner has confirmed the production database still holds only test
   data, or has decided what to do with real data if that changed
-  (`docs/MEMORY.md`, "No live production data exists yet"). If real data
+  (`docs/archive/MEMORY-history.md`, "No live production data exists yet"). If real data
   exists, the Preview credential-sharing decision in `environment-map.md`
   must be revisited first.
 - [ ] Either the database holds only test data (rollback is reset and
@@ -32,7 +32,7 @@ connection string in a command or a chat.
 
 1. `supabase migration list --linked`. Compare local files against what
    production records. Repair the history first if they disagree (the
-   `migration repair` case in `docs/MEMORY.md`, 2026-09-21), before any push.
+   `migration repair` case in `docs/archive/MEMORY-history.md`, 2026-09-21), before any push.
 2. Confirm which of 0013 to 0022 are already applied. Previews share this
    database, so some may be.
 3. Count rows in `accounts`, `vehicles`, `bookings`, `booking_slots`,
