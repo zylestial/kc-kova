@@ -818,3 +818,6 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
 - [x] All screens read data through `useKovaData()` instead of ten copies of
       a `kova-data-update` listener. This also fixed the Home card counts not
       redrawing after a refresh; eight unused getters were removed.
+- [x] Planner split: `app/schedule-planner.tsx` 1,033 -> 441 lines, with ten
+      presentational parts in `app/planner/`. Behaviour unchanged (checked in a
+      browser: build a leg, save, submit/discard/send-back/remove dialogs).
