@@ -999,3 +999,10 @@ Decided by the project owner at the start of Phase 5:
 - **Regular's 7-day notice still applies when re-dating** a sent-back
   request, so a requester moving it to a date under 7 days out has to
   switch it to Urgent.
+- **Submit only needs the stops of requests the route serves.** The planner
+  used to pass every pool stop for the day to `tripProblems`, so a schedule
+  couldn't be submitted until every request that day was on it — wrong once
+  requests can go on another vehicle or be sent back. `missingStops` now
+  matches `assert_revision_complete`: a request is served once any of its
+  stops is on a leg, and then all of its stops must be. To leave a
+  half-placed request for someone else, untick its stop on the leg.
