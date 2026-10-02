@@ -54,8 +54,11 @@ const projectText = (request: TransportRequest) => request.projectName || "—";
 const destinationsText = (request: TransportRequest) =>
   request.destinations.map((item) => item.destinationName).join(" → ");
 
+/** No schedule holds it: never planned, or sent back to pick another day. */
+const unscheduled = (request: TransportRequest) => request.progress === "NOT_YET_SCHEDULED" || request.progress === "SENT_BACK";
+
 /** Only the owner's unscheduled, active requests can be edited. */
-const editable = (request: TransportRequest) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED";
+const editable = (request: TransportRequest) => request.status === "ACTIVE" && unscheduled(request);
 
 /** Cancellable until the Driver submits the trip; after that it's a finished record. */
 const canCancel = (request: TransportRequest) =>
@@ -132,7 +135,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
     setBusy(true);
     setError("");
     try {
-      if (cancelling.progress === "NOT_YET_SCHEDULED") await cancelRequest(cancelling.id);
+      if (unscheduled(cancelling)) await cancelRequest(cancelling.id);
       else await requestCancellation(cancelling.id, reason.trim());
       setCancelling(null);
       setReason("");
@@ -204,6 +207,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
                     <td>
                       <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
                       {request.cancellationPending && <small>Cancellation requested</small>}
+                      {request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Pick another day</small>}
                     </td>
                     <td>{submittedLabel(request.createdAt)}</td>
                     <td>
@@ -257,6 +261,11 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
                 ))}
               </div>
               <p className="helper">{requestProgressMeaning[shown.progress]}</p>
+              {shown.progress === "SENT_BACK" && shown.sentBack?.reason && (
+                <p className="helper">
+                  <b>Scheduler&apos;s note:</b> {shown.sentBack.reason}
+                </p>
+              )}
               <span className="summary-label">Destinations</span>
               <ol className="request-review-list">
                 {shown.destinations.map((item) => (
@@ -289,12 +298,12 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
                       setError("");
                     }}
                   >
-                    {shown.progress === "NOT_YET_SCHEDULED" ? "Cancel request" : "Request cancellation"}
+                    {unscheduled(shown) ? "Cancel request" : "Request cancellation"}
                   </Button>
                 )}
                 {editable(shown) && (
                   <Button className="primary" onClick={() => openEdit(shown)}>
-                    Edit
+                    {shown.progress === "SENT_BACK" ? "Pick another day" : "Edit"}
                   </Button>
                 )}
               </DialogFooter>
@@ -314,12 +323,12 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{cancelling?.progress === "NOT_YET_SCHEDULED" ? "Cancel this request?" : "Ask to cancel this request?"}</DialogTitle>
+            <DialogTitle>{cancelling && unscheduled(cancelling) ? "Cancel this request?" : "Ask to cancel this request?"}</DialogTitle>
             <DialogDescription>
               {cancelling && dateLabel(cancelling.date)} — {cancelling && destinationsText(cancelling)}
             </DialogDescription>
           </DialogHeader>
-          {cancelling?.progress === "NOT_YET_SCHEDULED" ? (
+          {cancelling && unscheduled(cancelling) ? (
             <p className="helper">The request is cancelled right away. It stays in your list as Cancelled.</p>
           ) : (
             <>
@@ -342,11 +351,11 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
               Keep request
             </Button>
             <Button
-              className={cancelling?.progress === "NOT_YET_SCHEDULED" ? "danger" : "primary"}
+              className={cancelling && unscheduled(cancelling) ? "danger" : "primary"}
               disabled={busy}
               onClick={confirmCancel}
             >
-              {busy ? "Working…" : cancelling?.progress === "NOT_YET_SCHEDULED" ? "Cancel request" : "Send to Admin"}
+              {busy ? "Working…" : cancelling && unscheduled(cancelling) ? "Cancel request" : "Send to Admin"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -369,6 +378,13 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
           </DialogHeader>
           {editing && draft && (
             <>
+              {editing.progress === "SENT_BACK" && (
+                <p className="helper" role="status">
+                  {draft.date === editing.date
+                    ? "This day had no room. Choose a new date to put the request back in the Scheduler's pool."
+                    : "Saving puts the request back in the Scheduler's pool for the new date."}
+                </p>
+              )}
               <label className="field">
                 <span>Date *</span>
                 <Input
