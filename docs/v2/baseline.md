@@ -161,7 +161,7 @@ Worth calling out so Phase 3's scope estimate doesn't undercount it as
 
 ### Conflict 3 — "Trip leg buttons" is already an open v1.2 task that overlaps Phase 5/9
 
-`docs/TASKS.md`'s v1.2 backlog has an unbuilt item, **"Trip leg buttons and
+`docs/archive/TASKS-history.md`'s v1.2 backlog has an unbuilt item, **"Trip leg buttons and
 final return"**, that reworks the exact same leg-entry UI (`Add Leg`/`Add
 Final Leg` buttons, ANONANG start/end validation) that v2 Phase 5's Trip
 Record and Phase 9's printing also touch. Recommendation: fold that v1.2

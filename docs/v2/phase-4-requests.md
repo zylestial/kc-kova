@@ -64,7 +64,7 @@ without retrying).
 0021 (`save_schedule_draft`, `submit_schedule`, `approve_schedule`,
 `return_schedule`, `discard_schedule_draft`) raise `40001` the same way and
 will hang the same way once Phase 5 calls them over HTTP. Tracked in
-`docs/TASKS.md`.
+`docs/archive/TASKS-history.md`.
 
 ## 5. Removed
 
