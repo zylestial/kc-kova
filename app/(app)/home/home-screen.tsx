@@ -9,13 +9,7 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  getCancellations,
-  getCompletions,
-  getProblems,
-  getRequests,
-  getSchedules,
-} from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import { homeCounts } from "@/lib/home-counts";
 import { useAccount } from "../providers";
 
@@ -48,13 +42,9 @@ export default function HomeScreen() {
   // only leaving a screen with a draft on it (new-request, create-schedule)
   // and the viewing-as banner's "Return to Admin" are leave()-guarded.
   const go = (path: string) => router.push(path);
-  const counts = homeCounts(account, {
-    requests: getRequests(),
-    schedules: getSchedules(),
-    cancellations: getCancellations(),
-    completions: getCompletions(),
-    problems: getProblems(),
-  });
+  // Re-renders when the app reloads its data, so the card counts stay current.
+  const { requests, schedules, cancellations, completions, problems } = useKovaData();
+  const counts = homeCounts(account, { requests, schedules, cancellations, completions, problems });
   return (
     <>
       {account.role === "Admin" && viewAs && (
