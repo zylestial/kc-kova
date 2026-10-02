@@ -1,6 +1,6 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,16 +22,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   correctCompletion,
-  getCompletions,
-  getProblems,
-  getRequests,
-  getSchedules,
   handleProblem,
   markCompletionDone,
   markCompletionsDone,
-  type Schedule,
 } from "@/lib/kova-api";
-import { buildAdminTrips, cleanTrips, hasOpenProblem, type AdminTrip } from "@/lib/finished-trips";
+import { useKovaData } from "@/lib/use-kova-data";
+import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
@@ -56,9 +52,8 @@ const notSubmitted = "Not submitted yet";
  * Postgres decides what is allowed; this only shapes the screen.
  */
 export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: string } = {}) {
-  const [trips, setTrips] = useState<AdminTrip[]>([]);
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [requests, setRequests] = useState(getRequests());
+  const { schedules, completions, problems: problemReports, requests } = useKovaData();
+  const trips = useMemo(() => buildAdminTrips(schedules, completions, problemReports), [schedules, completions, problemReports]);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [vehicle, setVehicle] = useState("all");
@@ -77,18 +72,6 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkError, setBulkError] = useState("");
   useAutoClear(notice, setNotice);
-
-  useEffect(() => {
-    function refresh() {
-      const all = getSchedules();
-      setSchedules(all);
-      setTrips(buildAdminTrips(all, getCompletions(), getProblems()));
-      setRequests(getRequests());
-    }
-    refresh();
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, []);
 
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
   const vehicles = [...new Set(trips.map((trip) => trip.revision.plate))].sort();
