@@ -1004,11 +1004,25 @@ Decided by the project owner at the start of Phase 5:
   couldn't be submitted until every request that day was on it — wrong once
   requests can go on another vehicle or be sent back. `missingStops` now
   matches `assert_revision_complete`: a request is served once any of its
-  stops is on a leg, and then all of its stops must be. To leave a
-  half-placed request for someone else, untick its stop on the leg.
+  stops is on a leg, and then all of its stops must be. A half-placed
+  request no longer blocks submit either: see "split on submit" below.
 - **Submitting can send back the leftovers.** The submit dialog lists pool
   requests with no stop on the route, with "Send these back" ticked by
   default (the owner's call). It stays optional because a day may need a
   second vehicle. The send-back runs after `submit_schedule` as a separate
   call; if it fails, the schedule is still submitted, the notice says so,
   and the requests stay in the pool.
+- **A request's stops can go on different cars by splitting, not by
+  sharing.** The owner wanted a request's stops spread across vehicles. The
+  whole model is one request = one trip on one schedule (unique active
+  `schedule_requests` per request; progress, cancellation and completion
+  all look up "the" schedule), so instead of letting a request span
+  schedules, submit splits a half-placed request (`split_request`, migration
+  0039): the stops on the route stay, the rest move into a new request with
+  the same requester, date, type and project. The new request is a normal
+  leftover: sent back with the others, or kept in the pool for another car.
+  The moved destinations are copied and the originals marked inactive, like
+  an edit, because past revisions' leg stops may reference them. The split
+  runs after saving the draft and before `submit_schedule`, so a failed
+  split submits nothing; a split followed by a failed submit leaves the new
+  request in the pool. The requester gets a `REQUEST_SPLIT` notification.
