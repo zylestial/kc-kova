@@ -27,3 +27,20 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+  # Database rules (RLS, RPC permissions, state transitions, races) against a
+  # throwaway local Postgres with every migration applied from 0001.
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - run: supabase db start
+
+      - run: supabase test db
+
+      - run: bash supabase/tests/concurrency.sh
