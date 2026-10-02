@@ -287,12 +287,28 @@ export function servedRequestIds(legs: LegDraft[], poolStops: StopInfo[]): strin
 /**
  * Unplaced stops of requests this route already serves. A request is served
  * once any of its stops is on a leg, and then all of them must be (as
- * assert_revision_complete requires). Pool requests with no stop placed are
- * not missing: they can go on another vehicle's schedule or be sent back.
+ * assert_revision_complete requires), so on submit these are split off into
+ * a new request (split_request) for another vehicle or the requester.
  */
 export function missingStops(stops: StopInfo[], legs: LegDraft[]): StopInfo[] {
   const served = new Set(servedRequestIds(legs, stops));
   return unassignedStops(stops, legs).filter((stop) => served.has(stop.requestId));
+}
+
+/** The stops submit will split off, one entry per half-placed request. */
+export function splitOffs(
+  stops: StopInfo[],
+  legs: LegDraft[],
+): Array<{ requestId: string; requester: string; urgent: boolean; stopIds: string[]; destinations: string[] }> {
+  const byRequest = new Map<string, StopInfo[]>();
+  for (const stop of missingStops(stops, legs)) byRequest.set(stop.requestId, [...(byRequest.get(stop.requestId) ?? []), stop]);
+  return [...byRequest.entries()].map(([requestId, missing]) => ({
+    requestId,
+    requester: missing[0].requester,
+    urgent: !!missing[0].urgent,
+    stopIds: missing.map((stop) => stop.id),
+    destinations: missing.map((stop) => stop.destinationName),
+  }));
 }
 
 /**
@@ -345,16 +361,14 @@ export function tripProblems(input: {
   });
 
   if (!hasFinal(input.legs)) submit.push("Add the final leg back to ANONANG.");
-  for (const stop of missingStops(input.stops, input.legs)) {
-    submit.push(`Put ${stop.requester}'s ${stop.destinationName} (${stop.purposeName}) on a leg.`);
-  }
+  // A served request's unplaced stops don't block submit: they're split off
+  // (splitOffs) instead.
   return { save, submit };
 }
 
 /**
  * What is still wrong with each leg, in leg order, so the form can show it on
- * the leg itself. An unplaced stop lands on the first leg going to its
- * destination; one with no such leg shows only in the checklist.
+ * the leg itself.
  */
 export function legWarnings(legs: LegDraft[], stops: StopInfo[], otherStopDestinationIds?: Set<string>): string[][] {
   const warnings = legs.map(() => [] as string[]);
@@ -362,10 +376,6 @@ export function legWarnings(legs: LegDraft[], stops: StopInfo[], otherStopDestin
   for (const problem of save) {
     const match = /^Leg (\d+): (.*)$/.exec(problem);
     if (match) warnings[Number(match[1]) - 1]?.push(match[2].charAt(0).toUpperCase() + match[2].slice(1));
-  }
-  for (const stop of missingStops(stops, legs)) {
-    const index = legs.findIndex((leg) => !leg.isFinal && legGroupKey(leg) === stopGroupKey(stop));
-    if (index >= 0) warnings[index].push(`Tick ${stop.requester}'s ${stop.purposeName} under "Requests served here".`);
   }
   return warnings;
 }
@@ -376,7 +386,7 @@ export type ChecklistItem = { label: string; done: boolean; detail?: string };
  * What the Scheduler still has to do, as a checklist that fills in as the
  * form does. It is derived from tripProblems, so it can never disagree with
  * the rules that enable Save draft (the first four items) and Submit (all
- * six). Problems on a leg show on that leg; an item's detail covers only what no leg can show.
+ * five). Problems on a leg show on that leg; an item's detail covers only what no leg can show.
  */
 export function tripChecklist(input: {
   plate: string;
@@ -393,11 +403,6 @@ export function tripChecklist(input: {
   // destination row isn't settled yet.
   const destinations = about(save, /choose a destination|has no request on it/);
   const times = about([...save, ...submit], /Time (In|Out)/);
-  const stops = about(submit, /^Put /);
-  // Stops that have a leg to go on are flagged on that leg; only the rest need a detail here.
-  const homeless = missingStops(input.stops, input.legs).filter(
-    (stop) => !input.legs.some((leg) => !leg.isFinal && legGroupKey(leg) === stopGroupKey(stop)),
-  );
   return [
     { label: "Serve at least one request", done: input.requestIds.length > 0 },
     {
@@ -407,11 +412,6 @@ export function tripChecklist(input: {
     },
     { label: "Choose a destination for every leg", done: input.legs.length > 0 && !destinations.length },
     { label: "Enter Time Out and Time In for every leg", done: input.legs.length > 0 && !times.length },
-    {
-      label: "Put all stops of each request you serve on a leg",
-      done: input.requestIds.length > 0 && !stops.length,
-      detail: homeless.length ? `Add a leg to ${[...new Set(homeless.map((stop) => stop.destinationName))].join(", ")}.` : undefined,
-    },
     { label: "End with the leg back to ANONANG", done: hasFinal(input.legs) },
   ];
 }

@@ -23,6 +23,7 @@ import {
   scheduleState,
   servedRequestIds,
   setLegTimeIn,
+  splitOffs,
   toScheduleInput,
   tripChecklist,
   tripProblems,
@@ -409,12 +410,20 @@ describe("tripProblems", () => {
     expect(tripProblems({ ...base, legs }).submit).toEqual([]);
   });
 
-  it("requires every stop of a request once one of its stops is on the route", () => {
+  it("doesn't block a request that is only partly on the route; its other stops are split off", () => {
     const legs = [
       leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
       { ...finalLeg(), plannedTimeOut: "09:30", plannedTimeIn: "10:30" },
     ];
-    expect(tripProblems({ ...base, legs }).submit).toEqual(["Put Maria's Port Office (Inspection) on a leg."]);
+    expect(tripProblems({ ...base, legs }).submit).toEqual([]);
+    expect(splitOffs(stops, legs)).toEqual([
+      { requestId: "maria", requester: "Maria", urgent: false, stopIds: ["maria-po"], destinations: ["Port Office"] },
+    ]);
+  });
+
+  it("splits nothing off a request with no stop on the route, or every stop on it", () => {
+    expect(splitOffs(stops, [leg({ destinationId: "d1", stops: ["juan-ch"] })])).toEqual([]);
+    expect(splitOffs(stops, [leg({ stops: ["maria-ch", "maria-po"] })])).toEqual([]);
   });
 
   it("requires a vehicle and a request", () => {
@@ -511,12 +520,12 @@ describe("tripChecklist", () => {
   const done = (input: Parameters<typeof tripChecklist>[0]) => tripChecklist(input).map((item) => item.done);
 
   it("ticks everything for a complete Trip Record", () => {
-    expect(done({ ...base, legs: complete })).toEqual([true, true, true, true, true, true]);
+    expect(done({ ...base, legs: complete })).toEqual([true, true, true, true, true]);
   });
 
   it("leaves everything to do on a brand-new Trip Record", () => {
     const items = tripChecklist({ plate: "", hasDriver: false, requestIds: [], legs: initialLegs(), stops: [] });
-    expect(items.map((item) => item.done)).toEqual([false, false, false, false, false, true]);
+    expect(items.map((item) => item.done)).toEqual([false, false, false, false, true]);
   });
 
   it("leaves missing times to the leg, with no checklist detail", () => {
@@ -526,27 +535,13 @@ describe("tripChecklist", () => {
     expect(times.detail).toBeUndefined();
   });
 
-  it("leaves a stop to its leg when a leg goes to that destination", () => {
-    const legs = [complete[0], { ...complete[1], stops: [] }, complete[2]];
-    const item = tripChecklist({ ...base, legs })[4];
-    expect(item.done).toBe(false);
-    expect(item.detail).toBeUndefined();
-  });
-
-  it("names a destination that has no leg to put its stop on", () => {
-    const legs = [complete[0], complete[2]];
-    const item = tripChecklist({ ...base, legs })[4];
-    expect(item.done).toBe(false);
-    expect(item.detail).toBe("Add a leg to Port Office.");
-  });
-
   it("explains a vehicle with no Driver", () => {
     const item = tripChecklist({ ...base, hasDriver: false, legs: complete })[1];
     expect(item.done).toBe(false);
     expect(item.detail).toMatch(/Admin assigns one in Settings/);
   });
 
-  it("agrees with tripProblems: the first four items are Save draft, all six are Submit", () => {
+  it("agrees with tripProblems: the first four items are Save draft, all five are Submit", () => {
     const cases = [
       complete,
       [complete[0], complete[1]],
