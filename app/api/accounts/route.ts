@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authed } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
-import { requireAccount } from "@/lib/supabase/session";
 
 const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const;
 const STATUSES = ["Active", "Inactive"] as const;
 
-export async function POST(request: Request) {
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+export const POST = authed(async ({ request, account }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
   const body = await request.json().catch(() => null);
@@ -48,4 +44,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(toAccount(accountRow), { status: 201 });
-}
+});

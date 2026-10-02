@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authed } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { requireAccount } from "@/lib/supabase/session";
 
-export async function POST(request: Request, { params }: { params: Promise<{ accountId: string }> }) {
-  const { accountId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+export const POST = authed<{ accountId: string }>(async ({ request, account, params: { accountId } }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
   const body = await request.json().catch(() => null);
@@ -21,4 +16,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ acc
   if (error) return NextResponse.json({ message: "Could not update the password." }, { status: 422 });
 
   return new Response(null, { status: 204 });
-}
+});

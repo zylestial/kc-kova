@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authed } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
-import { requireAccount } from "@/lib/supabase/session";
 
 const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const;
 const STATUSES = ["Active", "Inactive"] as const;
 
-export async function PUT(request: Request, { params }: { params: Promise<{ accountId: string }> }) {
-  const { accountId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+export const PUT = authed<{ accountId: string }>(async ({ request, account, params: { accountId } }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
   const body = await request.json().catch(() => null);
@@ -47,4 +42,4 @@ export async function PUT(request: Request, { params }: { params: Promise<{ acco
   }
 
   return NextResponse.json(toAccount(accountRow));
-}
+});
