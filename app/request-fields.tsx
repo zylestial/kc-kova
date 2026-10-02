@@ -170,7 +170,7 @@ export default function RequestFields({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="REGULAR">Regular · 7 days notice</SelectItem>
-              <SelectItem value="URGENT">Urgent · today or tomorrow</SelectItem>
+              <SelectItem value="URGENT">Urgent · today to 6 days ahead</SelectItem>
             </SelectContent>
           </Select>
           {dateHint && <small className="field-hint">{dateHint}</small>}

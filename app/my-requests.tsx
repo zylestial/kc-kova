@@ -364,7 +364,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
         <DialogContent className="edit-booking-modal">
           <DialogHeader>
             <DialogTitle>Edit request</DialogTitle>
-            <DialogDescription>Changes are saved only if nobody has started scheduling this request. The same notice rules apply: Regular requests need at least 7 days, Urgent requests are for today or tomorrow.</DialogDescription>
+            <DialogDescription>Changes are saved only if nobody has started scheduling this request. The same notice rules apply: Urgent is for today up to 6 days ahead, Regular for 7 or more days ahead.</DialogDescription>
           </DialogHeader>
           {editing && draft && (
             <>
