@@ -28,18 +28,16 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
 const fullDate = (value: string) =>
   dateLabel(value, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
-/** The type a date allows, or null for the 2-6 day gap (and past, for non-Admins). */
+/** The type a date allows, or null for a past date (non-Admins only). */
 function typeFor(date: string, isAdmin: boolean): RequestDraft["requestType"] | null {
   if (!requestDateError(date, "REGULAR", isAdmin)) return "REGULAR";
   if (!requestDateError(date, "URGENT", isAdmin)) return "URGENT";
   return null;
 }
 
-/** Why a date card is greyed out, for its tooltip and screen-reader label. */
-function unavailableReason(date: string, today: string): string {
-  return date < today
-    ? "This date has passed."
-    : "Dates 2 to 6 days away can't be requested: Regular needs 7 days' notice and Urgent is for today or tomorrow.";
+/** Why a date card is greyed out, for its tooltip and screen-reader label: only past dates are. */
+function unavailableReason(): string {
+  return "This date has passed.";
 }
 
 export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }) {
@@ -117,7 +115,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
           <h1>{step === 1 ? "When do you need transport?" : "Request details"}</h1>
           <p>
             {step === 1
-              ? "Regular requests need at least 7 days' notice. Urgent requests are for today or tomorrow."
+              ? "Urgent is for today up to 6 days ahead. Regular is for 7 or more days ahead."
               : "Add each destination with its own purpose. A Scheduler assigns the vehicle, Driver and times."}
           </p>
         </div>
@@ -142,8 +140,8 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
                     className={"date-card " + (draft.date === day ? "selected" : "")}
                     onClick={() => pickDate(day)}
                     aria-pressed={draft.date === day}
-                    aria-label={allowed ? fullDate(day) : `${fullDate(day)}, not available. ${unavailableReason(day, today)}`}
-                    title={allowed ? undefined : unavailableReason(day, today)}
+                    aria-label={allowed ? fullDate(day) : `${fullDate(day)}, not available. ${unavailableReason()}`}
+                    title={allowed ? undefined : unavailableReason()}
                     disabled={!allowed}
                   >
                     <span>{dateLabel(day, { weekday: "short" })}</span>
@@ -158,8 +156,8 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
             </Button>
           </div>
           <p className="date-legend">
-            <b>URGENT</b> today or tomorrow · <b>●</b> Regular, at least 7 days ahead · <b>—</b> can&apos;t be requested
-            (in the past, or 2 to 6 days away){isAdmin && <> · <b>PAST</b> already happened (Admin only)</>}
+            <b>URGENT</b> today up to 6 days ahead · <b>●</b> Regular, 7 or more days ahead · <b>—</b> can&apos;t be
+            requested (in the past){isAdmin && <> · <b>PAST</b> already happened (Admin only)</>}
           </p>
           <div className="date-other">
             <label>
@@ -173,7 +171,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
                   if (!value) return;
                   setAnchor(value);
                   if (typeFor(value, isAdmin)) pickDate(value);
-                  else setError("That date isn't available: dates 2 to 6 days away can't be requested.");
+                  else setError("That date has passed. Choose today or a later date.");
                 }}
               />
             </label>
