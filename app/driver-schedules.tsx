@@ -1,6 +1,6 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  getCompletions,
-  getProblems,
-  getRequests,
-  getSchedules,
-  getVehicles,
   reportProblem,
   submitCompletion,
   type ProblemReport,
@@ -27,6 +22,7 @@ import {
   type ScheduleRevision,
   type TripCompletion,
 } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import { stopsFor } from "@/lib/trip-record";
 import { hasTripEnded, manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
@@ -54,10 +50,8 @@ function availableAtLabel(date: string, timeIn: string): string {
   return date === manilaToday() ? time : `${dateLabel(date)}, ${time}`;
 }
 
-function loadTrips(driverId: string | null): Trip[] {
-  const completions = getCompletions();
-  const problems = getProblems();
-  return getSchedules()
+function buildTrips(schedules: Schedule[], completions: TripCompletion[], problems: ProblemReport[], driverId: string | null): Trip[] {
+  return schedules
     .flatMap((schedule) => {
       if (schedule.status !== "ACTIVE") return [];
       const revision = schedule.revisions.find((item) => item.id === schedule.publishedRevisionId);
@@ -85,9 +79,8 @@ function loadTrips(driverId: string | null): Trip[] {
  * problem. The database enforces who and when; this only shapes the screen.
  */
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [requests, setRequests] = useState(getRequests());
-  const [vehicles, setVehicles] = useState(getVehicles());
+  const { schedules, completions, problems, requests, vehicles } = useKovaData();
+  const trips = useMemo(() => buildTrips(schedules, completions, problems, driverId), [schedules, completions, problems, driverId]);
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
@@ -102,17 +95,6 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
-
-  useEffect(() => {
-    function refresh() {
-      setTrips(loadTrips(driverId));
-      setRequests(getRequests());
-      setVehicles(getVehicles());
-    }
-    refresh();
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, [driverId]);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
@@ -131,7 +113,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setError("");
   }
 
-  const lastReading = selected ? lastEndReading(selected.revision.plate, getSchedules(), getCompletions()) : null;
+  const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
   const startNumber = start.trim() === "" ? NaN : Number(start);
   const endNumber = end.trim() === "" ? NaN : Number(end);
   const odometerError =
