@@ -1,30 +1,8 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Flag, Plus, Save, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   createSchedule,
   discardScheduleDraft,
@@ -46,29 +24,22 @@ import {
   addLeg,
   canAddFinal,
   canAddLeg,
-  candidatesForLeg,
   commitmentsOn,
   conflictsWith,
   finalLeg,
   initialLegs,
   keepStops,
-  legGroupKey,
-  legHasContent,
   legOrigins,
   legsFromRevision,
-  moveLeg,
   currentRevision,
   openRevision,
-  pickLegDestination,
   poolDestinationChoices,
   poolOrder,
   reflowFinalLegTimeOut,
-  removeLeg,
   scheduleState,
   scheduleStateLabel,
   scheduleStatePill,
   servedRequestIds,
-  setLegTimeIn,
   splitOffs,
   stopsFor,
   toScheduleInput,
@@ -79,12 +50,17 @@ import {
   unplacedUrgentRequestIds,
   type LegDraft,
 } from "@/lib/trip-record";
-import TripRecordView from "./trip-record-view";
-
-const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
-  new Date(value + "T12:00:00").toLocaleDateString("en-US", options);
-const fullDate = (value: string) =>
-  dateLabel(value, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+import DayPicker from "./planner/day-picker";
+import RequestPool from "./planner/request-pool";
+import CommitmentsPanel from "./planner/commitments-panel";
+import VehiclePanel from "./planner/vehicle-panel";
+import LegCard from "./planner/leg-card";
+import TripChecklist from "./planner/trip-checklist";
+import SubmitDialog from "./planner/submit-dialog";
+import SendBackDialog from "./planner/send-back-dialog";
+import DiscardDialog from "./planner/discard-dialog";
+import RemoveLegDialog from "./planner/remove-leg-dialog";
+import { dateLabel, fullDate } from "./planner/format";
 
 /**
  * Create schedule (and continue a draft): choose a day, pick requests from
@@ -393,54 +369,7 @@ export default function SchedulePlanner({
       </div>
 
       {step === 1 && (
-        <>
-          <div className="request-month" aria-live="polite">
-            {months.join(" – ")}
-          </div>
-          <div className="date-strip-wrap">
-            <Button variant="outline" size="icon" aria-label="Previous dates" onClick={() => setAnchor(addDays(anchor, -7))}>
-              <ChevronLeft size={18} />
-            </Button>
-            <div className="date-strip">
-              {days.map((day) => {
-                const open = openOn(day);
-                const count = open.length;
-                const urgent = open.filter((request) => request.requestType === "URGENT").length;
-                return (
-                  <button
-                    key={day}
-                    className={"date-card " + (date === day ? "selected" : "")}
-                    onClick={() => pickDate(day)}
-                    aria-pressed={date === day}
-                    aria-label={`${fullDate(day)}, ${count} waiting${urgent ? `, ${urgent} urgent` : ""}`}
-                  >
-                    <span>{dateLabel(day, { weekday: "short" })}</span>
-                    <b>{dateLabel(day, { day: "numeric" })}</b>
-                    <small>{count ? `${count} waiting` : "none"}</small>
-                    {urgent > 0 && <small className="date-card-urgent">{urgent} urgent</small>}
-                  </button>
-                );
-              })}
-            </div>
-            <Button variant="outline" size="icon" aria-label="Next dates" onClick={() => setAnchor(addDays(anchor, 7))}>
-              <ChevronRight size={18} />
-            </Button>
-          </div>
-          <div className="date-other">
-            <label>
-              Jump to date{" "}
-              <Input
-                type="date"
-                value={date}
-                onChange={(event) => {
-                  if (!event.target.value) return;
-                  setAnchor(event.target.value);
-                  pickDate(event.target.value);
-                }}
-              />
-            </label>
-          </div>
-        </>
+        <DayPicker months={months} days={days} date={date} anchor={anchor} openOn={openOn} pickDate={pickDate} setAnchor={setAnchor} />
       )}
 
       {step === 2 && (
@@ -457,149 +386,12 @@ export default function SchedulePlanner({
             </div>
           )}
           <div className="planner-columns">
-            <section className="editor-panel">
-              <div className="section-heading">
-                <div>
-                  <span className="planner-step">Step 1</span>
-                  <h2>Request pool</h2>
-                  <p>
-                    Requests for {dateLabel(date, { month: "short", day: "numeric" })}, Urgent first, then grouped by who asked. A
-                    destination is ticked off once it&apos;s on the route below — use &quot;Add stop&quot; there, not here.
-                    {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
-                    {sentBackCount > 0 && ` ${sentBackCount} ${sentBackCount === 1 ? "was sent back to its requester" : "were sent back to their requesters"}.`}
-                    {" "}If a request won&apos;t fit, send it back so the requester can pick another day.
-                  </p>
-                </div>
-              </div>
-              {pool.length ? (
-                <ul className="planner-pool">
-                  {pool.map((request) => (
-                    <li key={request.id}>
-                      <span className="planner-pool-owner">
-                        <b>{request.ownerName}</b>
-                        {request.requestType === "URGENT" && <span className="badge urgent">URGENT</span>}
-                        {request.projectName && <small>{request.projectName}</small>}
-                        {unplacedIds.includes(request.id) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="planner-pool-send-back"
-                            disabled={busy}
-                            aria-label={`Send ${request.ownerName}'s request back`}
-                            onClick={() => setSendingBack([request.id])}
-                          >
-                            <Undo2 size={14} /> Send back
-                          </Button>
-                        )}
-                      </span>
-                      <ul className="planner-pool-stops">
-                        {request.destinations.map((item) => (
-                          <li key={item.id} className={servedStopIds.has(item.id) ? "done" : ""}>
-                            <span aria-hidden="true">{servedStopIds.has(item.id) ? "✓" : "○"}</span>
-                            <span>
-                              <span className="sr-only">{servedStopIds.has(item.id) ? "On the route: " : "Waiting: "}</span>
-                              {item.destinationName} — {item.purposeName}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="helper">No requests are waiting for this day.</p>
-              )}
-              {unplacedIds.length > 1 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="planner-pool-send-back-all"
-                  disabled={busy}
-                  onClick={() => setSendingBack(unplacedIds)}
-                >
-                  <Undo2 size={14} /> Send back all unplaced ({unplacedIds.length})
-                </Button>
-              )}
-            </section>
+            <RequestPool date={date} pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
 
-            <section className={"editor-panel" + (commitments.length ? "" : " editor-panel-quiet")}>
-              {commitments.length ? (
-                <>
-                  <div className="section-heading">
-                    <div>
-                      <h2>Existing commitments</h2>
-                      <p>Time already held on this day by other schedules, including drafts.</p>
-                    </div>
-                  </div>
-                  <ul className="planner-commitments">
-                    {commitments.map((item, index) => (
-                      <li key={`${item.scheduleId}-${index}`} className={clashes.includes(item) ? "clash" : ""}>
-                        <b>
-                          {item.start}–{item.end}
-                        </b>
-                        <span>
-                          {item.plate} · {item.driverName}
-                        </span>
-                        <span className={"status-pill " + scheduleStatePill[item.state]}>{scheduleStateLabel[item.state]}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : (
-                <p className="helper">Nothing else is scheduled on this day yet.</p>
-              )}
-            </section>
+            <CommitmentsPanel commitments={commitments} clashes={clashes} />
           </div>
 
-          <section className="editor-panel">
-            <span className="planner-step">Step 2</span>
-            <h2>Vehicle and Driver</h2>
-            <div className="fields planner-vehicle">
-              <label className="field">
-                <span>Vehicle *</span>
-                <Select value={plate} onValueChange={setPlate}>
-                  <SelectTrigger aria-label="Vehicle">
-                    <SelectValue placeholder="Select a vehicle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vehicles
-                      .filter((vehicle) => vehicle.status === "Active")
-                      .map((vehicle) => (
-                        <SelectItem key={vehicle.plate} value={vehicle.plate} disabled={!driverFor(vehicle.plate)}>
-                          {vehicle.name} · {vehicle.plate}
-                          {!driverFor(vehicle.plate) && " (no Driver assigned)"}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </label>
-              <label className="field">
-                <span>Driver (automatic)</span>
-                <Input value={driver?.name ?? ""} placeholder="Follows the vehicle" readOnly />
-              </label>
-            </div>
-            {!vehicles.some((vehicle) => vehicle.status === "Active") ? (
-              <p className="helper">There are no active vehicles. An Admin adds them in Settings, under Vehicles.</p>
-            ) : (
-              vehicles.some((vehicle) => vehicle.status === "Active" && !driverFor(vehicle.plate)) && (
-                <p className="helper">
-                  A vehicle marked &quot;no Driver assigned&quot; can&apos;t be used yet. An Admin assigns a Driver in Settings,
-                  under Vehicles.
-                </p>
-              )
-            )}
-            {clashes.length > 0 && (
-              <p className="field-hint planner-clash" role="alert">
-                {clashes
-                  .map((item) =>
-                    item.plate === plate
-                      ? `${item.plate} is already reserved ${item.start}–${item.end}.`
-                      : `${item.driverName} is already driving ${item.start}–${item.end}.`,
-                  )
-                  .join(" ")}
-              </p>
-            )}
-          </section>
+          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} driver={driver} clashes={clashes} />
 
           <section className="editor-panel">
             <div className="section-heading">
@@ -613,166 +405,9 @@ export default function SchedulePlanner({
                 </p>
               </div>
             </div>
-            {legs.map((leg, index) => {
-              const candidates = candidatesForLeg(legs, index, poolStops);
-              const served = leg.stops.map((id) => stopsById.get(id)).filter((stop) => !!stop);
-              return (
-                <div className="leg-card" key={leg.key}>
-                  <div className="leg-label">
-                    <b>
-                      LEG {String(index + 1).padStart(2, "0")}
-                      {leg.isFinal && " · RETURN TO ANONANG"}
-                    </b>
-                    <span className="leg-actions">
-                      {!leg.isFinal && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Move leg ${index + 1} up`}
-                            disabled={index === 0}
-                            onClick={() => applyLegs(moveLeg(legs, index, -1))}
-                          >
-                            <ArrowUp size={16} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Move leg ${index + 1} down`}
-                            disabled={index === legs.length - 1 || legs[index + 1].isFinal}
-                            onClick={() => applyLegs(moveLeg(legs, index, 1))}
-                          >
-                            <ArrowDown size={16} />
-                          </Button>
-                        </>
-                      )}
-                      {legs.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          onClick={() => (legHasContent(leg) ? setRemovingLeg(index) : applyLegs(removeLeg(legs, index)))}
-                        >
-                          Remove leg
-                        </Button>
-                      )}
-                    </span>
-                  </div>
-                  <div className="fields leg-fields">
-                    <label className="field">
-                      <span>Origin (automatic)</span>
-                      <Input value={origins[index]} readOnly />
-                    </label>
-                    {leg.isFinal ? (
-                      <label className="field">
-                        <span>Destination</span>
-                        <Input value={BASE} readOnly />
-                      </label>
-                    ) : leg.stops.length > 0 ? (
-                      <label className="field">
-                        <span>Destination (automatic)</span>
-                        <Input value={legDestinationName(leg)} readOnly />
-                      </label>
-                    ) : (
-                      <label className="field">
-                        <span>Destination *</span>
-                        <Select
-                          value={legGroupKey(leg)}
-                          onValueChange={(value) =>
-                            applyLegs(pickLegDestination(legs, index, value, poolStops, otherStopDestinationIds))
-                          }
-                        >
-                          <SelectTrigger aria-label={`Leg ${index + 1} destination`}>
-                            <SelectValue placeholder="Select a destination" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {poolChoices.length > 0 && (
-                              <SelectGroup>
-                                <SelectLabel>From the request pool</SelectLabel>
-                                {poolChoices.map((option) => (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    {option.name}
-                                    {option.urgent && <span className="badge urgent">URGENT</span>}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            )}
-                            {otherStopChoices.length > 0 && (
-                              <SelectGroup>
-                                <SelectLabel>Fuel/errand stops</SelectLabel>
-                                {otherStopChoices.map((option) => (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    {option.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </label>
-                    )}
-                    <label className="field">
-                      <span>Planned Time Out</span>
-                      <Input
-                        type="time"
-                        value={leg.plannedTimeOut}
-                        aria-label={`Leg ${index + 1} planned Time Out`}
-                        onChange={(event) => changeLeg(index, { plannedTimeOut: event.target.value })}
-                      />
-                      <small className="field-hint">Not required to save a draft — needed before you submit.</small>
-                    </label>
-                    <label className="field">
-                      <span>Planned Time In</span>
-                      <Input
-                        type="time"
-                        value={leg.plannedTimeIn}
-                        aria-label={`Leg ${index + 1} planned Time In`}
-                        onChange={(event) => setLegs(setLegTimeIn(legs, index, event.target.value))}
-                      />
-                    </label>
-                    {!leg.isFinal && (
-                      <>
-                        <label className="field">
-                          <span>Destination contact name</span>
-                          <Input value={leg.contactName} onChange={(event) => changeLeg(index, { contactName: event.target.value })} />
-                        </label>
-                        <label className="field">
-                          <span>Contact number</span>
-                          <Input value={leg.contactNumber} onChange={(event) => changeLeg(index, { contactNumber: event.target.value })} />
-                        </label>
-                      </>
-                    )}
-                  </div>
-                  {!!warnings[index]?.length && (
-                    <ul className="leg-warnings" role="alert">
-                      {warnings[index].map((warning) => (
-                        <li key={warning}>{warning}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {!leg.isFinal && leg.stops.length > 0 && (
-                    <div className="leg-stops">
-                      <span className="summary-label">
-                        Requests served here
-                        {served.length > 1 && <span className="badge">One stop for {served.length} requests</span>}
-                      </span>
-                      {candidates.map((stop) => (
-                        <label key={stop.id}>
-                          <Checkbox
-                            checked={leg.stops.includes(stop.id)}
-                            onCheckedChange={(value) => toggleStop(index, stop.id, value === true)}
-                          />
-                          <span>
-                            <b>{stop.requester}</b> — {stop.purposeName}
-                          </span>
-                        </label>
-                      ))}
-                      <p className="helper">
-                        Served automatically — untick only if it shouldn&apos;t travel with this leg.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {legs.map((leg, index) => (
+              <LegCard key={leg.key} leg={leg} index={index} legs={legs} origins={origins} legDestinationName={legDestinationName} poolStops={poolStops} stopsById={stopsById} poolChoices={poolChoices} otherStopChoices={otherStopChoices} otherStopDestinationIds={otherStopDestinationIds} warnings={warnings} applyLegs={applyLegs} changeLeg={changeLeg} setLegs={setLegs} toggleStop={toggleStop} setRemovingLeg={setRemovingLeg} />
+            ))}
             {(canAddLeg(legs) || canAddFinal(legs)) && (
               <div className="leg-add">
                 <Button variant="outline" disabled={!canAddLeg(legs)} onClick={() => applyLegs(addLeg(legs))}>
@@ -783,22 +418,7 @@ export default function SchedulePlanner({
                 </Button>
               </div>
             )}
-            <div className={"planner-checklist" + (ready ? " ready" : "")}>
-              <b>{ready ? "Ready to submit" : "Before you submit"}</b>
-              {!ready && <p>You can save a draft once the first four are done. Submitting needs all five.</p>}
-              <ul>
-                {checklist.map((item) => (
-                  <li key={item.label} className={item.done ? "done" : ""}>
-                    <span aria-hidden="true">{item.done ? "✓" : "○"}</span>
-                    <span>
-                      <span className="sr-only">{item.done ? "Done: " : "To do: "}</span>
-                      {item.label}
-                      {!item.done && item.detail && <small>{item.detail}</small>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <TripChecklist ready={ready} checklist={checklist} />
           </section>
         </>
       )}
@@ -852,182 +472,12 @@ export default function SchedulePlanner({
         )}
       </div>
 
-      <Dialog open={confirm === "submit"} onOpenChange={(open) => !busy && setConfirm(open ? "submit" : null)}>
-        <DialogContent className="review-trip-modal">
-          <DialogHeader>
-            <DialogTitle>Submit for approval</DialogTitle>
-            <DialogDescription>
-              {fullDate(date)} · {plate} · {driver?.name}
-            </DialogDescription>
-          </DialogHeader>
-          <TripRecordView legs={reviewLegs} stopsById={stopsById} />
-          {urgentLeft > 0 && (
-            <div className="notice" role="status">
-              {urgentLeft === 1 ? "1 Urgent request is" : `${urgentLeft} Urgent requests are`} not on this route. Add{" "}
-              {urgentLeft === 1 ? "it" : "them"} here or to another schedule for this day, or send{" "}
-              {urgentLeft === 1 ? "it" : "them"} back so the requester can pick another day.
-            </div>
-          )}
-          {leftoverLabels.length > 0 && (
-            <div className="planner-leftovers">
-              <span className="summary-label">Not on this route ({leftoverLabels.length})</span>
-              <ul className="planner-leftovers-list">
-                {leftoverLabels.map((label) => (
-                  <li key={label}>{label}</li>
-                ))}
-              </ul>
-              {splits.length > 0 && (
-                <p className="helper">
-                  A split-off stop becomes its own request for the same day, and the rest of that request stays on this
-                  route.
-                </p>
-              )}
-              <label className="planner-leftovers-toggle">
-                <Checkbox checked={sendLeftovers} onCheckedChange={(checked) => setSendLeftovers(checked === true)} />
-                Send {leftoverLabels.length === 1 ? "it" : "these"} back to{" "}
-                {leftoverLabels.length === 1 ? "the requester" : "their requesters"} to pick another day
-              </label>
-              {sendLeftovers ? (
-                <label className="field">
-                  <span>Reason (optional)</span>
-                  <Textarea
-                    value={leftoverReason}
-                    maxLength={500}
-                    placeholder="e.g. All vehicles are fully booked that day."
-                    onChange={(event) => setLeftoverReason(event.target.value)}
-                  />
-                </label>
-              ) : (
-                <p className="helper">
-                  {leftoverLabels.length === 1 ? "It stays" : "They stay"} in the pool, for another vehicle&apos;s schedule.
-                </p>
-              )}
-            </div>
-          )}
-          <p className="helper">An Admin reviews the schedule. The Driver sees it only once it&apos;s approved.</p>
-          {error && (
-            <p className="modal-error" role="alert">
-              {error}
-            </p>
-          )}
-          <DialogFooter className="booking-dialog-actions">
-            <Button variant="outline" disabled={busy} onClick={() => setConfirm(null)}>
-              Go back
-            </Button>
-            <Button className="primary" disabled={busy} onClick={submit}>
-              {busy ? "Submitting…" : "Submit for approval"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SubmitDialog confirm={confirm} setConfirm={setConfirm} busy={busy} date={date} plate={plate} driverName={driver?.name} reviewLegs={reviewLegs} stopsById={stopsById} urgentLeft={urgentLeft} leftoverLabels={leftoverLabels} splits={splits} sendLeftovers={sendLeftovers} setSendLeftovers={setSendLeftovers} leftoverReason={leftoverReason} setLeftoverReason={setLeftoverReason} error={error} submit={submit} />
 
-      <Dialog
-        open={!!sendingBack}
-        onOpenChange={(open) => {
-          if (open || busy) return;
-          setSendingBack(null);
-          setSendBackReason("");
-          setError("");
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {sendingBack?.length === 1 ? "Send this request back?" : `Send ${sendingBack?.length ?? 0} requests back?`}
-            </DialogTitle>
-            <DialogDescription className="dialog-context">
-              {pool
-                .filter((request) => sendingBack?.includes(request.id))
-                .map((request) => request.ownerName + (request.requestType === "URGENT" ? " (Urgent)" : ""))
-                .join(", ")}{" "}
-              · {fullDate(date)}
-            </DialogDescription>
-          </DialogHeader>
-          <p className="helper">
-            {sendingBack?.length === 1 ? "It leaves" : "They leave"} the pool for this day. The requester is notified and
-            can move {sendingBack?.length === 1 ? "it" : "them"} to another day, or cancel.
-          </p>
-          <label className="field">
-            <span>Reason (optional)</span>
-            <Textarea
-              value={sendBackReason}
-              maxLength={500}
-              placeholder="e.g. All vehicles are fully booked that day."
-              onChange={(event) => setSendBackReason(event.target.value)}
-            />
-          </label>
-          {error && (
-            <p className="modal-error" role="alert">
-              {error}
-            </p>
-          )}
-          <DialogFooter className="booking-dialog-actions">
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => {
-                setSendingBack(null);
-                setSendBackReason("");
-                setError("");
-              }}
-            >
-              Keep in pool
-            </Button>
-            <Button className="primary" disabled={busy} onClick={sendBack}>
-              {busy ? "Sending back…" : "Send back"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SendBackDialog sendingBack={sendingBack} setSendingBack={setSendingBack} sendBackReason={sendBackReason} setSendBackReason={setSendBackReason} busy={busy} pool={pool} date={date} error={error} setError={setError} sendBack={sendBack} />
 
-      <AlertDialog open={confirm === "discard"} onOpenChange={(open) => !busy && setConfirm(open ? "discard" : null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard this draft?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Its reserved time is released and its requests go back to Not yet scheduled, where they can be edited
-              and planned again.
-              {current?.publishedRevisionId && " The approved schedule stays in force."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Keep draft</AlertDialogCancel>
-            <AlertDialogAction
-              className="danger"
-              disabled={busy}
-              onClick={(event) => {
-                event.preventDefault();
-                discard();
-              }}
-            >
-              {busy ? "Discarding…" : "Discard draft"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={removingLeg !== null} onOpenChange={(open) => !open && setRemovingLeg(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove leg {removingLeg === null ? "" : removingLeg + 1}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Its destination, times, contact details and ticked requests are removed. The requests stay selected, so
-              you can put them on another leg.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep leg</AlertDialogCancel>
-            <AlertDialogAction
-              className="danger"
-              onClick={() => {
-                if (removingLeg !== null) applyLegs(removeLeg(legs, removingLeg));
-                setRemovingLeg(null);
-              }}
-            >
-              Remove leg
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} current={current} discard={discard} />
+      <RemoveLegDialog removingLeg={removingLeg} setRemovingLeg={setRemovingLeg} legs={legs} applyLegs={applyLegs} />
     </div>
   );
 }
