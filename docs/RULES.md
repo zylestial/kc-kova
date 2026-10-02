@@ -193,10 +193,12 @@ audit — see `docs/MEMORY.md` for the full incidents.
   broken.
 - Database behavior (RLS, RPC permissions, state transitions) is tested
   with pgTAP in `supabase/tests/*.test.sql` (`supabase test db`), and
-  races with two real sessions in `supabase/tests/concurrency.sh`. Both run
-  against the local Docker database only. Run them after any migration
-  change. Scope assertions to the test's own fixtures rather than whole
-  tables, because the concurrency script leaves committed rows behind.
+  races with two real sessions in `supabase/tests/concurrency.sh`. CI runs
+  both on every PR against a fresh database; locally they need the Docker
+  database and a `supabase db reset` first (demo data such as `req1`
+  collides with the test fixtures). Scope assertions to the test's own
+  fixtures rather than whole tables, because the concurrency script leaves
+  committed rows behind.
 - Add or update a test for every bug fix and security fix (see
   `lib/completion-input.test.ts` for the pattern: a pure helper function,
   unit-tested, called from the route).

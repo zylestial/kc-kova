@@ -133,14 +133,9 @@ post-v1.0 hardening, not blockers to this milestone.
       dependency (via `@hookform/resolvers`); worth a dedicated pass to
       define one schema per route body and parse with it up front, rather
       than mixing this into an unrelated fix.
-- [ ] **pgTAP / integration tests proving RLS isolation are still not a
-      committed, automated suite.** The manual verification exists (see
-      the local-instance and production Done items above: anon denied
-      everywhere, Driver ownership isolation, Admin full access, all four
-      RPCs end-to-end) but was run by hand against a local instance, not
-      as CI-checked tests. Turning it into a real pgTAP or integration
-      suite (e.g. against a Supabase instance spun up in CI) so this is
-      checked on every change, not just once by hand, remains open.
+- [x] **pgTAP / integration tests proving RLS isolation** — committed as
+      `supabase/tests/*.test.sql` in v2 and run by CI on every PR since
+      v2.5 (see below).
 - [x] **`vehicle_records` writes run through application code + the
       service-role client, not a Postgres RPC** (obsolete: the table and
       route were removed in Phase 9b) (see
@@ -802,3 +797,4 @@ is no longer accurate.
 From the 2026-10-02 system audit. One PR each, stacked in order.
 
 - [x] Remove 52 unused vendored UI components and 14 unused npm packages.
+- [x] CI runs the pgTAP suite and `concurrency.sh` on a fresh database.
