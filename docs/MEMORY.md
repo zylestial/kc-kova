@@ -974,6 +974,59 @@ Decided by the project owner at the start of Phase 5:
   `buildFinishedTrips` (Driver screen, print form) still only returns
   trips with a completion.
 
+## Request pool: Urgent first, send back (2026-10-02)
+
+- **Unplaced requests go back to the requester, not into limbo.** Before
+  this, a request that didn't fit stayed "Not yet scheduled" on a date that
+  would pass, and the requester was never told. The Scheduler now sends it
+  back (`send_back_requests`, migration 0038), and the requester re-dates
+  or cancels it. Decided with the owner: manual per request plus a bulk
+  "Send back all unplaced", not automatic, since there's no reliable
+  "planning is finished for this day" moment to trigger on.
+- **"Sent back", not "Returned".** `RETURNED` already means an Admin
+  returned a *schedule* to the Scheduler (and `REQUEST_RETURNED` is a
+  cancelled schedule releasing its requests), so the new request state is
+  `SENT_BACK` / `REQUEST_SENT_BACK` to keep the two apart.
+- **Sent back is stored, unlike the rest of `request_progress`.** It's a
+  decision, not a consequence of schedule rows, so it lives on `requests`
+  (`sent_back_at`/`_by_account_id`/`_reason`). Two triggers keep it honest
+  without new copies of `update_request` or `write_revision_content`: a
+  date change clears it, and `schedule_requests` refuses an inclusion of a
+  sent-back request. Editing without changing the date keeps it sent back.
+- **Urgent priority is guidance, not a rule.** The pool sorts Urgent first
+  and submit warns about an unplaced Urgent request, but nothing blocks
+  submitting without it: it may belong on another vehicle's schedule.
+- **Regular's 7-day notice still applies when re-dating** a sent-back
+  request, so a requester moving it to a date under 7 days out has to
+  switch it to Urgent.
+- **Submit only needs the stops of requests the route serves.** The planner
+  used to pass every pool stop for the day to `tripProblems`, so a schedule
+  couldn't be submitted until every request that day was on it — wrong once
+  requests can go on another vehicle or be sent back. `missingStops` now
+  matches `assert_revision_complete`: a request is served once any of its
+  stops is on a leg, and then all of its stops must be. A half-placed
+  request no longer blocks submit either: see "split on submit" below.
+- **Submitting can send back the leftovers.** The submit dialog lists pool
+  requests with no stop on the route, with "Send these back" ticked by
+  default (the owner's call). It stays optional because a day may need a
+  second vehicle. The send-back runs after `submit_schedule` as a separate
+  call; if it fails, the schedule is still submitted, the notice says so,
+  and the requests stay in the pool.
+- **A request's stops can go on different cars by splitting, not by
+  sharing.** The owner wanted a request's stops spread across vehicles. The
+  whole model is one request = one trip on one schedule (unique active
+  `schedule_requests` per request; progress, cancellation and completion
+  all look up "the" schedule), so instead of letting a request span
+  schedules, submit splits a half-placed request (`split_request`, migration
+  0039): the stops on the route stay, the rest move into a new request with
+  the same requester, date, type and project. The new request is a normal
+  leftover: sent back with the others, or kept in the pool for another car.
+  The moved destinations are copied and the originals marked inactive, like
+  an edit, because past revisions' leg stops may reference them. The split
+  runs after saving the draft and before `submit_schedule`, so a failed
+  split submits nothing; a split followed by a failed submit leaves the new
+  request in the pool. The requester gets a `REQUEST_SPLIT` notification.
+
 ## Urgent window (2026-10-02)
 
 - **Urgent is today up to 6 days ahead; Regular is 7+.** The owner wanted

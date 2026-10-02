@@ -1,9 +1,10 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -34,6 +35,8 @@ import {
   getVehicles,
   hydrateKovaData,
   saveScheduleDraft,
+  sendBackRequests,
+  splitRequest,
   submitSchedule,
   type Schedule,
 } from "@/lib/kova-api";
@@ -60,6 +63,7 @@ import {
   openRevision,
   pickLegDestination,
   poolDestinationChoices,
+  poolOrder,
   reflowFinalLegTimeOut,
   removeLeg,
   scheduleState,
@@ -67,12 +71,14 @@ import {
   scheduleStatePill,
   servedRequestIds,
   setLegTimeIn,
+  splitOffs,
   stopsFor,
   toScheduleInput,
   legWarnings,
   tripChecklist,
   tripProblems,
   tripWindow,
+  unplacedUrgentRequestIds,
   type LegDraft,
 } from "@/lib/trip-record";
 import TripRecordView from "./trip-record-view";
@@ -163,6 +169,13 @@ export default function SchedulePlanner({
   const [confirm, setConfirm] = useState<"submit" | "discard" | null>(null);
   // The leg waiting for the Scheduler to confirm its removal.
   const [removingLeg, setRemovingLeg] = useState<number | null>(null);
+  // Requests waiting for the Scheduler to confirm sending them back.
+  const [sendingBack, setSendingBack] = useState<string[] | null>(null);
+  const [sendBackReason, setSendBackReason] = useState("");
+  // On submit, the pool requests left off the route go back to their
+  // requesters too, unless the Scheduler is keeping them for another vehicle.
+  const [sendLeftovers, setSendLeftovers] = useState(true);
+  const [leftoverReason, setLeftoverReason] = useState("");
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
@@ -179,9 +192,11 @@ export default function SchedulePlanner({
   // Requests for the day that are free to plan, plus any this schedule holds.
   const pool = dayRequests
     .filter((request) => request.progress === "NOT_YET_SCHEDULED" || requestIds.includes(request.id))
-    .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || a.createdAt.localeCompare(b.createdAt));
+    .sort(poolOrder);
+  const sentBackCount = dayRequests.filter((request) => request.progress === "SENT_BACK").length;
   const heldElsewhere = dayRequests.filter(
-    (request) => request.progress !== "NOT_YET_SCHEDULED" && !requestIds.includes(request.id),
+    (request) =>
+      request.progress !== "NOT_YET_SCHEDULED" && request.progress !== "SENT_BACK" && !requestIds.includes(request.id),
   ).length;
   const poolStops = stopsFor(pool);
   const servedStopIds = new Set(legs.flatMap((leg) => leg.stops));
@@ -230,8 +245,24 @@ export default function SchedulePlanner({
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
   const months = [...new Set([days[0], days.at(-1)!].map((day) => dateLabel(day, { month: "long", year: "numeric" })))];
-  const openCount = (day: string) =>
-    requests.filter((request) => request.date === day && request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED").length;
+  const openOn = (day: string) =>
+    requests.filter((request) => request.date === day && request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED");
+  // Urgent requests in the pool still off the route, so they aren't missed.
+  const urgentLeft = unplacedUrgentRequestIds(poolStops, legs).length;
+  // Pool requests with no stop on this route can go back to their requester
+  // to pick another day. One with any stop placed belongs to this schedule.
+  const unplacedIds = pool.filter((request) => !requestIds.includes(request.id)).map((request) => request.id);
+  // A request only partly on this route has its other stops split off into a
+  // new request on submit, which then counts as a leftover too.
+  const splits = splitOffs(poolStops, legs);
+  const leftoverLabels = [
+    ...pool
+      .filter((request) => unplacedIds.includes(request.id))
+      .map((request) => request.ownerName + (request.requestType === "URGENT" ? " (Urgent)" : "")),
+    ...splits.map(
+      (part) => `${part.requester}${part.urgent ? " (Urgent)" : ""} — ${part.destinations.join(", ")}, split off`,
+    ),
+  ];
 
   function pickDate(day: string) {
     setDate(day);
@@ -292,8 +323,36 @@ export default function SchedulePlanner({
   const submit = () =>
     run(async () => {
       const saved = await saveDraft();
+      // Stops this vehicle can't take become their own request first, since
+      // submit needs every stop of every request it serves on the route.
+      const splitIds: string[] = [];
+      for (const part of splits) splitIds.push((await splitRequest(part.requestId, part.stopIds)).id);
       await submitSchedule(saved.id, saved.rowVersion);
-      onDone("Schedule submitted. An Admin will review and approve it.", date);
+      const leftovers = sendLeftovers ? [...unplacedIds, ...splitIds] : [];
+      let sentBack = "";
+      if (leftovers.length) {
+        // The schedule is already submitted, so a failure here is reported
+        // rather than thrown: the requests just stay in the pool.
+        try {
+          await sendBackRequests(leftovers, leftoverReason);
+          sentBack = ` ${leftovers.length === 1 ? "1 other request was" : `${leftovers.length} other requests were`} sent back to ${leftovers.length === 1 ? "its requester" : "their requesters"}.`;
+        } catch (caught) {
+          sentBack = ` The other requests couldn't be sent back (${(caught as Error).message}). Send them back from the pool.`;
+        }
+      }
+      onDone("Schedule submitted. An Admin will review and approve it." + sentBack, date);
+    });
+  const sendBack = () =>
+    run(async () => {
+      if (!sendingBack) return;
+      await sendBackRequests(sendingBack, sendBackReason);
+      setNotice(
+        sendingBack.length === 1
+          ? "Request sent back. The requester is notified and can pick another day."
+          : `${sendingBack.length} requests sent back. Their requesters are notified and can pick another day.`,
+      );
+      setSendingBack(null);
+      setSendBackReason("");
     });
   const discard = () =>
     run(async () => {
@@ -364,18 +423,21 @@ export default function SchedulePlanner({
             </Button>
             <div className="date-strip">
               {days.map((day) => {
-                const count = openCount(day);
+                const open = openOn(day);
+                const count = open.length;
+                const urgent = open.filter((request) => request.requestType === "URGENT").length;
                 return (
                   <button
                     key={day}
                     className={"date-card " + (date === day ? "selected" : "")}
                     onClick={() => pickDate(day)}
                     aria-pressed={date === day}
-                    aria-label={`${fullDate(day)}, ${count} waiting`}
+                    aria-label={`${fullDate(day)}, ${count} waiting${urgent ? `, ${urgent} urgent` : ""}`}
                   >
                     <span>{dateLabel(day, { weekday: "short" })}</span>
                     <b>{dateLabel(day, { day: "numeric" })}</b>
                     <small>{count ? `${count} waiting` : "none"}</small>
+                    {urgent > 0 && <small className="date-card-urgent">{urgent} urgent</small>}
                   </button>
                 );
               })}
@@ -421,9 +483,11 @@ export default function SchedulePlanner({
                   <span className="planner-step">Step 1</span>
                   <h2>Request pool</h2>
                   <p>
-                    Requests for {dateLabel(date, { month: "short", day: "numeric" })}, grouped by who asked. A
+                    Requests for {dateLabel(date, { month: "short", day: "numeric" })}, Urgent first, then grouped by who asked. A
                     destination is ticked off once it&apos;s on the route below — use &quot;Add stop&quot; there, not here.
                     {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
+                    {sentBackCount > 0 && ` ${sentBackCount} ${sentBackCount === 1 ? "was sent back to its requester" : "were sent back to their requesters"}.`}
+                    {" "}If a request won&apos;t fit, send it back so the requester can pick another day.
                   </p>
                 </div>
               </div>
@@ -435,6 +499,18 @@ export default function SchedulePlanner({
                         <b>{request.ownerName}</b>
                         {request.requestType === "URGENT" && <span className="badge urgent">URGENT</span>}
                         {request.projectName && <small>{request.projectName}</small>}
+                        {unplacedIds.includes(request.id) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="planner-pool-send-back"
+                            disabled={busy}
+                            aria-label={`Send ${request.ownerName}'s request back`}
+                            onClick={() => setSendingBack([request.id])}
+                          >
+                            <Undo2 size={14} /> Send back
+                          </Button>
+                        )}
                       </span>
                       <ul className="planner-pool-stops">
                         {request.destinations.map((item) => (
@@ -452,6 +528,17 @@ export default function SchedulePlanner({
                 </ul>
               ) : (
                 <p className="helper">No requests are waiting for this day.</p>
+              )}
+              {unplacedIds.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="planner-pool-send-back-all"
+                  disabled={busy}
+                  onClick={() => setSendingBack(unplacedIds)}
+                >
+                  <Undo2 size={14} /> Send back all unplaced ({unplacedIds.length})
+                </Button>
               )}
             </section>
 
@@ -623,6 +710,7 @@ export default function SchedulePlanner({
                                 {poolChoices.map((option) => (
                                   <SelectItem key={option.id} value={option.id}>
                                     {option.name}
+                                    {option.urgent && <span className="badge urgent">URGENT</span>}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>
@@ -717,7 +805,7 @@ export default function SchedulePlanner({
             )}
             <div className={"planner-checklist" + (ready ? " ready" : "")}>
               <b>{ready ? "Ready to submit" : "Before you submit"}</b>
-              {!ready && <p>You can save a draft once the first four are done. Submitting needs all six.</p>}
+              {!ready && <p>You can save a draft once the first four are done. Submitting needs all five.</p>}
               <ul>
                 {checklist.map((item) => (
                   <li key={item.label} className={item.done ? "done" : ""}>
@@ -740,7 +828,7 @@ export default function SchedulePlanner({
           {notice}
         </div>
       )}
-      {error && !confirm && (
+      {error && !confirm && !sendingBack && (
         <div className="notice" role="alert">
           {error}
         </div>
@@ -793,6 +881,49 @@ export default function SchedulePlanner({
             </DialogDescription>
           </DialogHeader>
           <TripRecordView legs={reviewLegs} stopsById={stopsById} />
+          {urgentLeft > 0 && (
+            <div className="notice" role="status">
+              {urgentLeft === 1 ? "1 Urgent request is" : `${urgentLeft} Urgent requests are`} not on this route. Add{" "}
+              {urgentLeft === 1 ? "it" : "them"} here or to another schedule for this day, or send{" "}
+              {urgentLeft === 1 ? "it" : "them"} back so the requester can pick another day.
+            </div>
+          )}
+          {leftoverLabels.length > 0 && (
+            <div className="planner-leftovers">
+              <span className="summary-label">Not on this route ({leftoverLabels.length})</span>
+              <ul className="planner-leftovers-list">
+                {leftoverLabels.map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+              {splits.length > 0 && (
+                <p className="helper">
+                  A split-off stop becomes its own request for the same day, and the rest of that request stays on this
+                  route.
+                </p>
+              )}
+              <label className="planner-leftovers-toggle">
+                <Checkbox checked={sendLeftovers} onCheckedChange={(checked) => setSendLeftovers(checked === true)} />
+                Send {leftoverLabels.length === 1 ? "it" : "these"} back to{" "}
+                {leftoverLabels.length === 1 ? "the requester" : "their requesters"} to pick another day
+              </label>
+              {sendLeftovers ? (
+                <label className="field">
+                  <span>Reason (optional)</span>
+                  <Textarea
+                    value={leftoverReason}
+                    maxLength={500}
+                    placeholder="e.g. All vehicles are fully booked that day."
+                    onChange={(event) => setLeftoverReason(event.target.value)}
+                  />
+                </label>
+              ) : (
+                <p className="helper">
+                  {leftoverLabels.length === 1 ? "It stays" : "They stay"} in the pool, for another vehicle&apos;s schedule.
+                </p>
+              )}
+            </div>
+          )}
           <p className="helper">An Admin reviews the schedule. The Driver sees it only once it&apos;s approved.</p>
           {error && (
             <p className="modal-error" role="alert">
@@ -805,6 +936,65 @@ export default function SchedulePlanner({
             </Button>
             <Button className="primary" disabled={busy} onClick={submit}>
               {busy ? "Submitting…" : "Submit for approval"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!sendingBack}
+        onOpenChange={(open) => {
+          if (open || busy) return;
+          setSendingBack(null);
+          setSendBackReason("");
+          setError("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {sendingBack?.length === 1 ? "Send this request back?" : `Send ${sendingBack?.length ?? 0} requests back?`}
+            </DialogTitle>
+            <DialogDescription className="dialog-context">
+              {pool
+                .filter((request) => sendingBack?.includes(request.id))
+                .map((request) => request.ownerName + (request.requestType === "URGENT" ? " (Urgent)" : ""))
+                .join(", ")}{" "}
+              · {fullDate(date)}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="helper">
+            {sendingBack?.length === 1 ? "It leaves" : "They leave"} the pool for this day. The requester is notified and
+            can move {sendingBack?.length === 1 ? "it" : "them"} to another day, or cancel.
+          </p>
+          <label className="field">
+            <span>Reason (optional)</span>
+            <Textarea
+              value={sendBackReason}
+              maxLength={500}
+              placeholder="e.g. All vehicles are fully booked that day."
+              onChange={(event) => setSendBackReason(event.target.value)}
+            />
+          </label>
+          {error && (
+            <p className="modal-error" role="alert">
+              {error}
+            </p>
+          )}
+          <DialogFooter className="booking-dialog-actions">
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setSendingBack(null);
+                setSendBackReason("");
+                setError("");
+              }}
+            >
+              Keep in pool
+            </Button>
+            <Button className="primary" disabled={busy} onClick={sendBack}>
+              {busy ? "Sending back…" : "Send back"}
             </Button>
           </DialogFooter>
         </DialogContent>

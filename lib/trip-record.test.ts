@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Schedule } from "@/lib/kova-api";
+import type { Schedule, TransportRequest } from "@/lib/kova-api";
 import {
   MAX_LEGS,
   addLeg,
@@ -18,14 +18,17 @@ import {
   newLeg,
   pickLegDestination,
   poolDestinationChoices,
+  poolOrder,
   reflowFinalLegTimeOut,
   scheduleState,
   servedRequestIds,
   setLegTimeIn,
+  splitOffs,
   toScheduleInput,
   tripChecklist,
   tripProblems,
   tripWindow,
+  unplacedUrgentRequestIds,
   type LegDraft,
   type StopInfo,
 } from "@/lib/trip-record";
@@ -152,14 +155,44 @@ describe("new Trip Record defaults", () => {
 describe("pool destination choices", () => {
   it("offers every destination with an unplaced pool stop", () => {
     expect(poolDestinationChoices(stops, [])).toEqual([
-      { id: "d1", name: "City Hall" },
-      { id: "d2", name: "Port Office" },
+      { id: "d1", name: "City Hall", urgent: false },
+      { id: "d2", name: "Port Office", urgent: false },
     ]);
   });
 
   it("drops a destination once every stop needing it is placed", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] })];
-    expect(poolDestinationChoices(stops, legs)).toEqual([{ id: "d2", name: "Port Office" }]);
+    expect(poolDestinationChoices(stops, legs)).toEqual([{ id: "d2", name: "Port Office", urgent: false }]);
+  });
+
+  it("lists destinations an unplaced Urgent stop needs first", () => {
+    const urgentStops = stops.map((stop) => (stop.id === "maria-po" ? { ...stop, urgent: true } : stop));
+    expect(poolDestinationChoices(urgentStops, []).map((choice) => [choice.id, choice.urgent])).toEqual([
+      ["d2", true],
+      ["d1", false],
+    ]);
+  });
+});
+
+describe("Urgent requests", () => {
+  const request = (patch: Partial<TransportRequest>) =>
+    ({ id: "r", ownerName: "Juan", createdAt: "2026-10-01T00:00:00Z", requestType: "REGULAR", ...patch }) as TransportRequest;
+
+  it("sorts the pool Urgent first, then by requester and creation time", () => {
+    const pool = [
+      request({ id: "a", ownerName: "Ana" }),
+      request({ id: "z", ownerName: "Zed", requestType: "URGENT" }),
+      request({ id: "b2", ownerName: "Ben", createdAt: "2026-10-02T00:00:00Z" }),
+      request({ id: "b1", ownerName: "Ben" }),
+    ];
+    expect(pool.sort(poolOrder).map((item) => item.id)).toEqual(["z", "a", "b1", "b2"]);
+  });
+
+  it("lists Urgent requests that still have a stop off the route", () => {
+    const urgentStops = stops.map((stop) => (stop.requestId === "maria" ? { ...stop, urgent: true } : stop));
+    expect(unplacedUrgentRequestIds(urgentStops, [])).toEqual(["maria"]);
+    expect(unplacedUrgentRequestIds(urgentStops, [leg({ destinationId: "d1", stops: ["maria-ch"] })])).toEqual(["maria"]);
+    expect(unplacedUrgentRequestIds(urgentStops, [leg({ stops: ["maria-ch", "maria-po"] })])).toEqual([]);
   });
 });
 
@@ -208,8 +241,8 @@ describe("Other-destination pool stops", () => {
   it("groups Other stops by their free text, not by (absent) id", () => {
     expect(poolDestinationChoices(otherStops, [])).toEqual(
       expect.arrayContaining([
-        { id: "other:Warehouse X", name: "Warehouse X" },
-        { id: "other:Different Site", name: "Different Site" },
+        { id: "other:Warehouse X", name: "Warehouse X", urgent: false },
+        { id: "other:Different Site", name: "Different Site", urgent: false },
       ]),
     );
   });
@@ -366,11 +399,31 @@ describe("tripProblems", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" })];
     const problems = tripProblems({ ...base, legs });
     expect(problems.save).toEqual([]);
-    expect(problems.submit).toEqual([
-      "Add the final leg back to ANONANG.",
-      "Put Maria's City Hall (Document delivery) on a leg.",
-      "Put Maria's Port Office (Inspection) on a leg.",
+    expect(problems.submit).toEqual(["Add the final leg back to ANONANG."]);
+  });
+
+  it("doesn't require pool requests this route doesn't serve", () => {
+    const legs = [
+      leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
+      { ...finalLeg(), plannedTimeOut: "09:30", plannedTimeIn: "10:30" },
+    ];
+    expect(tripProblems({ ...base, legs }).submit).toEqual([]);
+  });
+
+  it("doesn't block a request that is only partly on the route; its other stops are split off", () => {
+    const legs = [
+      leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
+      { ...finalLeg(), plannedTimeOut: "09:30", plannedTimeIn: "10:30" },
+    ];
+    expect(tripProblems({ ...base, legs }).submit).toEqual([]);
+    expect(splitOffs(stops, legs)).toEqual([
+      { requestId: "maria", requester: "Maria", urgent: false, stopIds: ["maria-po"], destinations: ["Port Office"] },
     ]);
+  });
+
+  it("splits nothing off a request with no stop on the route, or every stop on it", () => {
+    expect(splitOffs(stops, [leg({ destinationId: "d1", stops: ["juan-ch"] })])).toEqual([]);
+    expect(splitOffs(stops, [leg({ stops: ["maria-ch", "maria-po"] })])).toEqual([]);
   });
 
   it("requires a vehicle and a request", () => {
@@ -467,12 +520,12 @@ describe("tripChecklist", () => {
   const done = (input: Parameters<typeof tripChecklist>[0]) => tripChecklist(input).map((item) => item.done);
 
   it("ticks everything for a complete Trip Record", () => {
-    expect(done({ ...base, legs: complete })).toEqual([true, true, true, true, true, true]);
+    expect(done({ ...base, legs: complete })).toEqual([true, true, true, true, true]);
   });
 
   it("leaves everything to do on a brand-new Trip Record", () => {
     const items = tripChecklist({ plate: "", hasDriver: false, requestIds: [], legs: initialLegs(), stops: [] });
-    expect(items.map((item) => item.done)).toEqual([false, false, false, false, false, true]);
+    expect(items.map((item) => item.done)).toEqual([false, false, false, false, true]);
   });
 
   it("leaves missing times to the leg, with no checklist detail", () => {
@@ -482,27 +535,13 @@ describe("tripChecklist", () => {
     expect(times.detail).toBeUndefined();
   });
 
-  it("leaves a stop to its leg when a leg goes to that destination", () => {
-    const legs = [complete[0], { ...complete[1], stops: [] }, complete[2]];
-    const item = tripChecklist({ ...base, legs })[4];
-    expect(item.done).toBe(false);
-    expect(item.detail).toBeUndefined();
-  });
-
-  it("names a destination that has no leg to put its stop on", () => {
-    const legs = [complete[0], complete[2]];
-    const item = tripChecklist({ ...base, legs })[4];
-    expect(item.done).toBe(false);
-    expect(item.detail).toBe("Add a leg to Port Office.");
-  });
-
   it("explains a vehicle with no Driver", () => {
     const item = tripChecklist({ ...base, hasDriver: false, legs: complete })[1];
     expect(item.done).toBe(false);
     expect(item.detail).toMatch(/Admin assigns one in Settings/);
   });
 
-  it("agrees with tripProblems: the first four items are Save draft, all six are Submit", () => {
+  it("agrees with tripProblems: the first four items are Save draft, all five are Submit", () => {
     const cases = [
       complete,
       [complete[0], complete[1]],

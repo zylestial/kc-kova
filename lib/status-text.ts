@@ -9,6 +9,7 @@ import type { ScheduleState } from "@/lib/trip-record";
 
 export const requestProgressLabel: Record<RequestProgress, string> = {
   NOT_YET_SCHEDULED: "Not yet scheduled",
+  SENT_BACK: "Sent back",
   SCHEDULING: "Being scheduled",
   PENDING_APPROVAL: "Waiting for approval",
   APPROVED: "Approved",
@@ -19,6 +20,7 @@ export const requestProgressLabel: Record<RequestProgress, string> = {
 
 export const requestProgressMeaning: Record<RequestProgress, string> = {
   NOT_YET_SCHEDULED: "A Scheduler hasn't planned this trip yet.",
+  SENT_BACK: "No vehicle was free for this day. Move it to another day, or cancel it.",
   SCHEDULING: "A Scheduler is planning this trip.",
   PENDING_APPROVAL: "The plan is ready and waiting for an Admin to approve it.",
   APPROVED: "The trip is planned and approved. The Driver will make it on the day.",
