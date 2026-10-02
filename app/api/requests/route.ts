@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAccount } from "@/lib/supabase/session";
+import { authed } from "@/lib/api-route";
 import { toTransportRequest } from "@/lib/supabase/mappers";
 import { parseRequestInput } from "@/lib/request-input";
 import { requestDateError, requestTypeFor } from "@/lib/timezone";
@@ -10,11 +9,7 @@ function errorResponse(error: { code?: string; message: string }) {
   return NextResponse.json({ message: error.message || "Could not create the request." }, { status: 422 });
 }
 
-export async function POST(request: Request) {
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
+export const POST = authed(async ({ request, supabase, account }) => {
   const input = parseRequestInput(await request.json().catch(() => null));
   if (!input) {
     return NextResponse.json({ message: "Date and at least one destination with a purpose are required." }, { status: 422 });
@@ -40,4 +35,4 @@ export async function POST(request: Request) {
     .eq("request_destinations.active", true)
     .single();
   return NextResponse.json(toTransportRequest(row ?? data), { status: 201 });
-}
+});
