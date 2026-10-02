@@ -18,7 +18,6 @@ export async function POST(request: Request) {
   const username = typeof body?.username === "string" ? body.username.trim() : "";
   const role = body?.role;
   const status = STATUSES.includes(body?.status) ? body.status : "Active";
-  const project = typeof body?.project === "string" ? body.project : null;
   const password = typeof body?.password === "string" ? body.password : "";
   if (!name || !username || !ROLES.includes(role) || password.length < 8) {
     return NextResponse.json({ message: "Name, username, role, and an 8+ character password are required." }, { status: 422 });
@@ -38,7 +37,7 @@ export async function POST(request: Request) {
 
   const { data: accountRow, error: insertError } = await admin
     .from("accounts")
-    .insert({ id: created.user.id, username, name, role, status, project })
+    .insert({ id: created.user.id, username, name, role, status })
     .select("*")
     .single();
   if (insertError || !accountRow) {

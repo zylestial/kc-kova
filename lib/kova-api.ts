@@ -14,7 +14,6 @@ export type Account = {
   username: string;
   role: Role;
   status: "Active" | "Inactive";
-  project?: string;
 };
 export type Vehicle = {
   plate: string;

@@ -19,7 +19,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ acco
   const username = typeof body?.username === "string" ? body.username.trim() : "";
   const role = body?.role;
   const status = body?.status;
-  const project = typeof body?.project === "string" ? body.project : null;
   if (!name || !username || !ROLES.includes(role) || !STATUSES.includes(status)) {
     return NextResponse.json({ message: "Name, username, role, and status are required." }, { status: 422 });
   }
@@ -38,7 +37,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ acco
 
   const { data: accountRow, error: updateError } = await admin
     .from("accounts")
-    .update({ name, username, role, status, project })
+    .update({ name, username, role, status })
     .eq("id", accountId)
     .select("*")
     .single();
