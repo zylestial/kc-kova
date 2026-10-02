@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authed } from "@/lib/api-route";
 import { toAccount } from "@/lib/supabase/accounts";
-import { requireAccount } from "@/lib/supabase/session";
 import { parseSince } from "@/lib/bootstrap-window";
 import {
   liveRevisionStatuses,
@@ -31,11 +30,7 @@ const requestSelect = "*, request_destinations(*)";
 // regardless: a submitted trip nobody has closed, an open problem report
 // and a pending cancellation, together with the schedules and requests they
 // belong to.
-export async function GET(request: Request) {
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
+export const GET = authed(async ({ request, supabase }) => {
   const since = parseSince(new URL(request.url).searchParams.get("since"));
 
   const [
@@ -171,4 +166,4 @@ export async function GET(request: Request) {
     problems: [...(problemsRes.data ?? []), ...oldProblems].map(toProblemReport),
     notifications: (notificationsRes.data ?? []).map(toNotification),
   });
-}
+});
