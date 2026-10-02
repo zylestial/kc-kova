@@ -758,3 +758,14 @@ is no longer accurate.
       until the Driver submits. The Driver's Finished Trips screen is
       unchanged. `tsc --noEmit`, lint, vitest (153/153) and `next build`
       pass; not yet click-tested in a browser.
+- [x] **Urgent covers today up to 6 days ahead** — branch
+      `feat/urgent-within-week`. Urgent used to be today or tomorrow only,
+      so dates 2–6 days ahead couldn't be requested at all. Migration 0040
+      changes `check_request_date` so Urgent is today to 6 days ahead and
+      Regular stays 7+ days ahead: every future date suits exactly one type.
+      The form (`requestDateError`), the New request date strip and legend,
+      the type picker, the edit dialog and Help all follow. vitest
+      (153/153), lint and `next build` pass; `v2_urgent_window.test.sql`
+      (7 checks) passes; `v2_requests.test.sql`'s old "Urgent 2 days ahead
+      is rejected" check now uses 7 days, but that file wasn't re-run (it
+      needs a local `supabase db reset`).
