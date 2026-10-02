@@ -1,9 +1,10 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -34,6 +35,7 @@ import {
   getVehicles,
   hydrateKovaData,
   saveScheduleDraft,
+  sendBackRequests,
   submitSchedule,
   type Schedule,
 } from "@/lib/kova-api";
@@ -165,6 +167,9 @@ export default function SchedulePlanner({
   const [confirm, setConfirm] = useState<"submit" | "discard" | null>(null);
   // The leg waiting for the Scheduler to confirm its removal.
   const [removingLeg, setRemovingLeg] = useState<number | null>(null);
+  // Requests waiting for the Scheduler to confirm sending them back.
+  const [sendingBack, setSendingBack] = useState<string[] | null>(null);
+  const [sendBackReason, setSendBackReason] = useState("");
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
@@ -236,6 +241,9 @@ export default function SchedulePlanner({
     requests.filter((request) => request.date === day && request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED");
   // Urgent requests in the pool still off the route, so they aren't missed.
   const urgentLeft = unplacedUrgentRequestIds(poolStops, legs).length;
+  // Pool requests with no stop on this route can go back to their requester
+  // to pick another day. One with any stop placed belongs to this schedule.
+  const unplacedIds = pool.filter((request) => !requestIds.includes(request.id)).map((request) => request.id);
 
   function pickDate(day: string) {
     setDate(day);
@@ -298,6 +306,16 @@ export default function SchedulePlanner({
       const saved = await saveDraft();
       await submitSchedule(saved.id, saved.rowVersion);
       onDone("Schedule submitted. An Admin will review and approve it.", date);
+    });
+  const sendBack = () =>
+    run(async () => {
+      if (!sendingBack) return;
+      await sendBackRequests(sendingBack, sendBackReason);
+      setNotice(
+        `${sendingBack.length === 1 ? "Request" : `${sendingBack.length} requests`} sent back. The requester is notified and can pick another day.`,
+      );
+      setSendingBack(null);
+      setSendBackReason("");
     });
   const discard = () =>
     run(async () => {
@@ -431,8 +449,14 @@ export default function SchedulePlanner({
                     Requests for {dateLabel(date, { month: "short", day: "numeric" })}, Urgent first, then grouped by who asked. A
                     destination is ticked off once it&apos;s on the route below — use &quot;Add stop&quot; there, not here.
                     {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
+                    {" "}If a request won&apos;t fit, send it back so the requester can pick another day.
                   </p>
                 </div>
+                {unplacedIds.length > 1 && (
+                  <Button variant="outline" size="sm" disabled={busy} onClick={() => setSendingBack(unplacedIds)}>
+                    <Undo2 size={14} /> Send back all unplaced ({unplacedIds.length})
+                  </Button>
+                )}
               </div>
               {pool.length ? (
                 <ul className="planner-pool">
@@ -442,6 +466,18 @@ export default function SchedulePlanner({
                         <b>{request.ownerName}</b>
                         {request.requestType === "URGENT" && <span className="badge urgent">URGENT</span>}
                         {request.projectName && <small>{request.projectName}</small>}
+                        {unplacedIds.includes(request.id) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="planner-pool-send-back"
+                            disabled={busy}
+                            aria-label={`Send ${request.ownerName}'s request back`}
+                            onClick={() => setSendingBack([request.id])}
+                          >
+                            <Undo2 size={14} /> Send back
+                          </Button>
+                        )}
                       </span>
                       <ul className="planner-pool-stops">
                         {request.destinations.map((item) => (
@@ -748,7 +784,7 @@ export default function SchedulePlanner({
           {notice}
         </div>
       )}
-      {error && !confirm && (
+      {error && !confirm && !sendingBack && (
         <div className="notice" role="alert">
           {error}
         </div>
@@ -804,7 +840,8 @@ export default function SchedulePlanner({
           {urgentLeft > 0 && (
             <div className="notice" role="status">
               {urgentLeft === 1 ? "1 Urgent request is" : `${urgentLeft} Urgent requests are`} not on this route. Add{" "}
-              {urgentLeft === 1 ? "it" : "them"} here or to another schedule for this day.
+              {urgentLeft === 1 ? "it" : "them"} here or to another schedule for this day, or send{" "}
+              {urgentLeft === 1 ? "it" : "them"} back so the requester can pick another day.
             </div>
           )}
           <p className="helper">An Admin reviews the schedule. The Driver sees it only once it&apos;s approved.</p>
@@ -819,6 +856,65 @@ export default function SchedulePlanner({
             </Button>
             <Button className="primary" disabled={busy} onClick={submit}>
               {busy ? "Submitting…" : "Submit for approval"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!sendingBack}
+        onOpenChange={(open) => {
+          if (open || busy) return;
+          setSendingBack(null);
+          setSendBackReason("");
+          setError("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {sendingBack?.length === 1 ? "Send this request back?" : `Send ${sendingBack?.length ?? 0} requests back?`}
+            </DialogTitle>
+            <DialogDescription className="dialog-context">
+              {pool
+                .filter((request) => sendingBack?.includes(request.id))
+                .map((request) => request.ownerName + (request.requestType === "URGENT" ? " (Urgent)" : ""))
+                .join(", ")}{" "}
+              · {fullDate(date)}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="helper">
+            {sendingBack?.length === 1 ? "It leaves" : "They leave"} the pool for this day. The requester is notified and
+            can move {sendingBack?.length === 1 ? "it" : "them"} to another day, or cancel.
+          </p>
+          <label className="field">
+            <span>Reason (optional)</span>
+            <Textarea
+              value={sendBackReason}
+              maxLength={500}
+              placeholder="e.g. All vehicles are fully booked that day."
+              onChange={(event) => setSendBackReason(event.target.value)}
+            />
+          </label>
+          {error && (
+            <p className="modal-error" role="alert">
+              {error}
+            </p>
+          )}
+          <DialogFooter className="booking-dialog-actions">
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setSendingBack(null);
+                setSendBackReason("");
+                setError("");
+              }}
+            >
+              Keep in pool
+            </Button>
+            <Button className="primary" disabled={busy} onClick={sendBack}>
+              {busy ? "Sending back…" : "Send back"}
             </Button>
           </DialogFooter>
         </DialogContent>
