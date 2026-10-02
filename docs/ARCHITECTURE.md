@@ -21,7 +21,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     vehicles/           Admin: create/rename vehicles
     requests/           Requester/Admin: create/edit v2 transport requests
     schedules/          Scheduler: create, save, submit, discard; Admin: approve, return
-    booking-options/    Admin: Projects/Destinations/Purposes/People
+    booking-options/    Admin: Projects/Destinations/Purposes
   *.tsx                 Screens (my-requests, schedules, admin-finished-trips, settings, etc.) — client components
 lib/
   kova-api.ts           Typed frontend adapter: every fetch to /api/**, plus the in-memory
@@ -134,7 +134,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `name` | text | Display name |
 | `role` | text | `Requester` \| `Scheduler` \| `Admin` \| `Driver` (v2; `Booker` is converted to `Requester` by migration 0023) |
 | `status` | text | `Active` \| `Inactive` |
-| `project` | text, nullable | Free-text label, not a foreign key |
+| `project` | text, nullable | Unused since v2.5 (no screen showed it); kept for history |
 | `created_at` | timestamptz | |
 
 ### `vehicles`
@@ -156,6 +156,10 @@ KOVA enforces permissions in two places, and both must independently hold:
 PK: `(group, id)`.
 
 ### `people`
+
+Unused since v2.5: nothing in v2 read it, so its Settings panel and API
+route were removed. The table and its rows stay (nothing is hard-deleted).
+
 | Column | Type | Notes |
 | --- | --- | --- |
 | `id` | text PK | Client-generated |
@@ -250,7 +254,6 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/problems` | `app/api/schedules/[scheduleId]/problems/route.ts` | Assigned Driver |
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
-| PUT | `/api/booking-options/people/:id` | `app/api/booking-options/people/[id]/route.ts` | Admin |
 | GET | `/api/notifications` | `app/api/notifications/route.ts` | any session (own rows only, RLS) |
 | GET | `/api/notifications/stream` | `app/api/notifications/stream/route.ts` | any session (SSE, see above) |
 | POST | `/api/notifications/:id/read` | `app/api/notifications/[id]/read/route.ts` | any session, own notification |
@@ -258,7 +261,7 @@ Summary, with the implementing route file:
 
 Request/response bodies match the TypeScript types in `lib/kova-api.ts`
 (`Account`, `Vehicle`, `BookingOption`,
-`Person`, `TransportRequest`, `RequestInput`, `Schedule`, `ScheduleInput`,
+`TransportRequest`, `RequestInput`, `Schedule`, `ScheduleInput`,
 `TripCompletion`, `ProblemReport`, `Notification`, `BootstrapData`) — that file is the single source of truth for
 field names and is shared between the frontend and this doc.
 
@@ -266,7 +269,7 @@ field names and is shared between the frontend and this doc.
 
 `GET /api/bootstrap` is the single hydration call the frontend makes right
 after sign-in. It issues parallel `select *` queries (accounts, vehicles,
-booking_options, people, and the v2 `requests` with their active
+booking_options, and the v2 `requests` with their active
 destinations plus `request_progress`, the `schedules` with their live
 versions, legs and stops, and the completions and problem reports) through the
 **session-scoped client**, so RLS does the role-based filtering for free —
