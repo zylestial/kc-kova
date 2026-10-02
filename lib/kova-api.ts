@@ -125,6 +125,7 @@ export type NotificationType =
   | "REQUEST_SCHEDULED"
   | "REQUEST_RETURNED"
   | "REQUEST_SENT_BACK"
+  | "REQUEST_SPLIT"
   | "REQUEST_CANCELLED"
   | "CANCELLATION_DECLINED"
   | "CANCELLATION_REQUESTED"
@@ -349,6 +350,7 @@ export const createRequest = (input: RequestInput) => refreshAfter(request<Trans
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));
+export const splitRequest = (id: string, destinationIds: string[]) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/split`, { method: "POST", body: JSON.stringify({ destinationIds }) }));
 export const requestCancellation =(id: string, reason: string) => refreshAfter(request<CancellationRequest>(`/api/requests/${encodeURIComponent(id)}/cancellation`, { method: "POST", body: JSON.stringify({ reason }) }));
 export const confirmCancellation = (id: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/confirm`, { method: "POST" }));
 export const declineCancellation = (id: string, note: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/decline`, { method: "POST", body: JSON.stringify({ note }) }));
