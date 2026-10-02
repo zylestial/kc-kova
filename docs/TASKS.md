@@ -808,3 +808,7 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
 - [x] Finished Trips: "Mark N clean trips done" closes every submitted trip
       with no open problem among those the filters show, after a
       confirmation that lists them.
+- [x] Startup loads a 90-day window (plus anything older still needing
+      someone), with a "Load older records" button; migration 0041 adds
+      `requested_date` to `request_progress`; `v2_progress_window.test.sql`
+      (3 checks).

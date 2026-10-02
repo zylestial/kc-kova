@@ -1060,3 +1060,17 @@ Decided by the project owner at the start of Phase 5:
   (`markCompletionsDone`): each is its own atomic change, repeating one is
   safe, and a failure on one doesn't stop the rest. It reloads once at the
   end. The dialog reports "N marked done, M couldn't be" on a partial failure.
+
+## Startup data window (2026-10-02)
+
+- **Why a window:** `GET /api/bootstrap` returned every request, schedule and
+  completion ever made, and `request_progress` ran a function per request.
+  Both grow with every trip.
+- **Unfinished work is never hidden by age.** A trip submitted but not closed,
+  an open problem and a pending cancellation always load, with their
+  schedules and requests, so counts on Admin Home stay right.
+- **Not windowed:** accounts, vehicles, booking options, notifications (last
+  50). An old *unscheduled* past-dated request outside the window is not
+  loaded until "Load older records"; that was judged acceptable.
+- **`since` is validated** (`parseSince`); a bad value falls back to the
+  default instead of erroring.

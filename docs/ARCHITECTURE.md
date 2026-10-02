@@ -276,6 +276,17 @@ a Driver's query for `trip_completions` only ever returns their own rows, withou
 the route needing to know that rule itself. This is why `bootstrap`'s route
 code contains no role branching at all.
 
+**Windowed since v2.5.** Requests, schedules, cancellations, completions and
+problem reports load only from `?since=` on (default: the last 90 days,
+`lib/bootstrap-window.ts`; the response echoes it as `since`). Anything older
+that still needs someone is added back regardless: a `SUBMITTED` completion,
+an `OPEN` problem report and a `PENDING` cancellation, with the schedules
+and requests they belong to. `request_progress` carries `requested_date`
+(0041) so Postgres evaluates `request_progress_of()` only for the window.
+`loadOlderRecords()` (`lib/kova-api.ts`) asks for `since=2000-01-01` and
+remembers it for later reloads; the `OlderRecordsNotice` on Finished Trips,
+My requests and Schedules offers it.
+
 ## Environment
 
 Configuration is entirely in environment variables (`.env.example`):
