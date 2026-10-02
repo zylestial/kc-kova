@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
+import { authed } from "@/lib/api-route";
 import { parseCompletionInput } from "@/lib/completion-input";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { toTripCompletion } from "@/lib/supabase/mappers";
-import { requireAccount } from "@/lib/supabase/session";
 import { scheduleErrorResponse } from "@/lib/supabase/schedules";
 
 // The Driver completes their published schedule with one odometer pair, or
 // an Admin acting as Driver (view-as override) on any vehicle's schedule.
 // Repeating returns the existing completion.
-export async function POST(request: Request, { params }: { params: Promise<{ scheduleId: string }> }) {
-  const { scheduleId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
+export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, params: { scheduleId } }) => {
   const input = parseCompletionInput(await request.json().catch(() => null));
   if (!input) {
     return NextResponse.json({ message: "Enter whole-number odometer readings, with the end no lower than the start." }, { status: 422 });
@@ -30,16 +24,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ sch
   if (error) return scheduleErrorResponse(error, "Could not submit the trip.");
 
   return NextResponse.json(toTripCompletion(data));
-}
+});
 
 // An Admin corrects the odometer pair of a submitted completion. A done
 // completion is locked and refused by Postgres.
-export async function PATCH(request: Request, { params }: { params: Promise<{ scheduleId: string }> }) {
-  const { scheduleId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
+export const PATCH = authed<{ scheduleId: string }>(async ({ request, supabase, params: { scheduleId } }) => {
   const input = parseCompletionInput(await request.json().catch(() => null));
   if (!input) {
     return NextResponse.json({ message: "Enter whole-number odometer readings, with the end no lower than the start." }, { status: 422 });
@@ -53,4 +42,4 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sc
   if (error) return scheduleErrorResponse(error, "Could not correct the trip.", error.message);
 
   return NextResponse.json(toTripCompletion(data));
-}
+});

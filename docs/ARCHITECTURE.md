@@ -24,6 +24,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     booking-options/    Admin: Projects/Destinations/Purposes
   *.tsx                 Screens (my-requests, schedules, admin-finished-trips, settings, etc.) — client components
 lib/
+  api-route.ts          authed(): session client + 401 + params for route handlers
   kova-api.ts           Typed frontend adapter: every fetch to /api/**, plus the in-memory
                          cache the screens read from
   supabase/

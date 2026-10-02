@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAccount } from "@/lib/supabase/session";
+import { authed } from "@/lib/api-route";
 import { toTransportRequest } from "@/lib/supabase/mappers";
 import { parseRequestInput } from "@/lib/request-input";
 import { requestDateError, requestTypeFor } from "@/lib/timezone";
@@ -12,12 +11,7 @@ function errorResponse(error: { code?: string; message: string }) {
   return NextResponse.json({ message: error.message || "Could not update the request." }, { status: 422 });
 }
 
-export async function PUT(request: Request, { params }: { params: Promise<{ requestId: string }> }) {
-  const { requestId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
+export const PUT = authed<{ requestId: string }>(async ({ request, supabase, account, params: { requestId } }) => {
   const body = await request.json().catch(() => null);
   const input = parseRequestInput(body);
   const rowVersion = Number(body?.rowVersion);
@@ -59,4 +53,4 @@ export async function PUT(request: Request, { params }: { params: Promise<{ requ
     .eq("request_destinations.active", true)
     .single();
   return NextResponse.json(toTransportRequest(row ?? data));
-}
+});

@@ -97,6 +97,12 @@ audit — see `docs/MEMORY.md` for the full incidents.
 - Route handlers (`app/api/**/route.ts`) are the *only* code that talks to
   Supabase from the server. Screens (`app/*.tsx`) go through
   `lib/kova-api.ts`, never Supabase directly.
+- A route that needs a signed-in account is written as
+  `export const POST = authed<{ id: string }>(async ({ request, supabase, account, params }) => { ... })`
+  (`lib/api-route.ts`). `authed` builds the cookie-scoped client, answers
+  `401` when there is no Active account and resolves the params, so a new
+  route can't forget the check. Only the auth routes (sign-in, session,
+  sign-out) are written without it.
 - `components/ui/` (vendored shadcn/Radix) is not hand-edited; screen
   styling lives in `app/globals.css`.
 - **Check every Supabase `{ data, error }` result.** A route that

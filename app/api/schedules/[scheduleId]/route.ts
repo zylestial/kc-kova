@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAccount } from "@/lib/supabase/session";
+import { authed } from "@/lib/api-route";
 import { loadSchedule, scheduleErrorResponse } from "@/lib/supabase/schedules";
 import { parseScheduleInput } from "@/lib/schedule-input";
 
@@ -9,12 +8,7 @@ const invalidBody = "Date, vehicle, requests and legs are required.";
 // Saves changes to a schedule's open version. rowVersion is the version
 // the editor was opened on; save_schedule_draft refuses a stale save (409)
 // rather than overwrite someone else's change.
-export async function PUT(request: Request, { params }: { params: Promise<{ scheduleId: string }> }) {
-  const { scheduleId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
+export const PUT = authed<{ scheduleId: string }>(async ({ request, supabase, params: { scheduleId } }) => {
   const body = await request.json().catch(() => null);
   const input = parseScheduleInput(body);
   const rowVersion = body?.rowVersion === null ? null : Number(body?.rowVersion);
@@ -33,4 +27,4 @@ export async function PUT(request: Request, { params }: { params: Promise<{ sche
   if (error) return scheduleErrorResponse(error, "Could not save the draft.");
 
   return NextResponse.json(await loadSchedule(supabase, scheduleId));
-}
+});
