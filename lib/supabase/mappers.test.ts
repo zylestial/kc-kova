@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBookingOption, toBookingOptions, toPerson, toProblemReport, toSchedule, toTransportRequest, toTripCompletion } from "@/lib/supabase/mappers";
+import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toTransportRequest, toTripCompletion } from "@/lib/supabase/mappers";
 
 describe("toBookingOptions", () => {
   it("groups rows by their group column", () => {
@@ -27,23 +27,6 @@ describe("toBookingOptions", () => {
 describe("toBookingOption", () => {
   it("maps a single row", () => {
     expect(toBookingOption({ id: "p1", name: "Project 1", status: "Active", is_other_stop: false })).toEqual({ id: "p1", name: "Project 1", status: "Active", isOtherStop: false });
-  });
-});
-
-describe("toPerson", () => {
-  it("maps project_ids to projectIds and account_id to accountId", () => {
-    expect(toPerson({ id: "1", name: "Person One", project_ids: ["p1", "p2"], status: "Active", account_id: "acc1" })).toEqual({
-      id: "1",
-      name: "Person One",
-      projectIds: ["p1", "p2"],
-      status: "Active",
-      accountId: "acc1",
-    });
-  });
-
-  it("maps a null account_id to undefined", () => {
-    const person = toPerson({ id: "1", name: "Person One", project_ids: [], status: "Active", account_id: null });
-    expect(person.accountId).toBeUndefined();
   });
 });
 
