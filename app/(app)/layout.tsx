@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { hydrateKovaData, restoreSession, signOut as endSession, type Account } from "@/lib/kova-api";
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { watchTables } from "@/lib/stacked-tables";
-import { watchNotifications } from "@/lib/notifications-stream";
+import { watchNotifications } from "@/lib/notifications-poll";
 import { HelpDialog } from "../how-it-works";
 import KovaBrand from "../kova-brand";
 import { AccountProvider } from "./providers";
@@ -75,7 +75,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (account) void refreshData();
   }, [account, pathname, refreshData]);
-  // Live notifications: opens once per sign-in, closes on sign-out.
+  // Notifications: polled while signed in, stopped on sign-out.
   useEffect(() => {
     if (!account) return;
     return watchNotifications();
