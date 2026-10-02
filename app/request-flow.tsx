@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { createRequest, currentAccount, getBookingOptions } from "@/lib/kova-api";
+import { createRequest, currentAccount } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import { addDays, manilaToday, requestDateError, requestTypeFor } from "@/lib/timezone";
 import { requestDraftHasContent, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
@@ -46,18 +47,12 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
   const [step, setStep] = useState(1);
   const [anchor, setAnchor] = useState(today);
   const [draft, setDraft] = useState<RequestDraft>(() => emptyDraft(today));
-  const [options, setOptions] = useState(() => getBookingOptions());
+  const { options } = useKovaData();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // A half-filled request is lost if the Requester leaves.
   useUnsavedChanges("new-request", step === 2 && requestDraftHasContent(draft));
-
-  useEffect(() => {
-    const load = () => setOptions(getBookingOptions());
-    window.addEventListener("kova-data-update", load);
-    return () => window.removeEventListener("kova-data-update", load);
-  }, []);
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
   const months = [...new Set([days[0], days.at(-1)!].map((day) => dateLabel(day, { month: "long", year: "numeric" })))];
