@@ -973,3 +973,29 @@ Decided by the project owner at the start of Phase 5:
   Finished Trips uses `buildAdminTrips`, whose `completion` is nullable;
   `buildFinishedTrips` (Driver screen, print form) still only returns
   trips with a completion.
+
+## Request pool: Urgent first, send back (2026-10-02)
+
+- **Unplaced requests go back to the requester, not into limbo.** Before
+  this, a request that didn't fit stayed "Not yet scheduled" on a date that
+  would pass, and the requester was never told. The Scheduler now sends it
+  back (`send_back_requests`, migration 0038), and the requester re-dates
+  or cancels it. Decided with the owner: manual per request plus a bulk
+  "Send back all unplaced", not automatic, since there's no reliable
+  "planning is finished for this day" moment to trigger on.
+- **"Sent back", not "Returned".** `RETURNED` already means an Admin
+  returned a *schedule* to the Scheduler (and `REQUEST_RETURNED` is a
+  cancelled schedule releasing its requests), so the new request state is
+  `SENT_BACK` / `REQUEST_SENT_BACK` to keep the two apart.
+- **Sent back is stored, unlike the rest of `request_progress`.** It's a
+  decision, not a consequence of schedule rows, so it lives on `requests`
+  (`sent_back_at`/`_by_account_id`/`_reason`). Two triggers keep it honest
+  without new copies of `update_request` or `write_revision_content`: a
+  date change clears it, and `schedule_requests` refuses an inclusion of a
+  sent-back request. Editing without changing the date keeps it sent back.
+- **Urgent priority is guidance, not a rule.** The pool sorts Urgent first
+  and submit warns about an unplaced Urgent request, but nothing blocks
+  submitting without it: it may belong on another vehicle's schedule.
+- **Regular's 7-day notice still applies when re-dating** a sent-back
+  request, so a requester moving it to a date under 7 days out has to
+  switch it to Urgent.
