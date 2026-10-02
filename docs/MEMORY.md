@@ -1046,3 +1046,17 @@ Decided by the project owner at the start of Phase 5:
   Regular request 3 days before its day doesn't turn it Urgent.
 - **An Admin's past-date request is Regular.** It's a trip someone forgot to
   log, not an urgent ask, and Urgent would put it first in the planner pool.
+
+## Bulk "Mark clean trips done" (2026-10-02)
+
+- **Clean = submitted and no open problem report.** No distance check: the
+  owner chose that over reusing the 500 km warning. The confirmation lists
+  each trip's distance so an odd one can be spotted before confirming.
+- **It only closes what the filters show**, so the Admin can scope it to a
+  week, Driver or vehicle. Trips the Driver hasn't submitted are never
+  included.
+- **No new endpoint or migration.** The client calls the existing
+  `POST /api/schedules/:id/completion/done` once per trip
+  (`markCompletionsDone`): each is its own atomic change, repeating one is
+  safe, and a failure on one doesn't stop the rest. It reloads once at the
+  end. The dialog reports "N marked done, M couldn't be" on a partial failure.

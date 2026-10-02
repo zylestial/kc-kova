@@ -805,3 +805,6 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
 - [x] Date range quick picks (Today, This week, This month, Last month,
       Custom) on Finished Trips and My requests; Progress and Type filters on
       My requests; Requester filter on Schedules.
+- [x] Finished Trips: "Mark N clean trips done" closes every submitted trip
+      with no open problem among those the filters show, after a
+      confirmation that lists them.
