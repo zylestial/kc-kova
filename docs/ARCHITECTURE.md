@@ -54,13 +54,13 @@ Browser (React client components)
 
 The frontend never talks to Supabase directly and never holds a Supabase
 key — all access goes through KOVA's own API routes, which hold the session
-cookie and (for privileged operations) the service-role key. Live in-app
+cookie and (for privileged operations) the service-role key. In-app
 notifications (0035, v2.2) keep this invariant: rather than a client-side
 Supabase Realtime subscription (which would need the anon key and the
-user's JWT in the browser), `GET /api/notifications/stream` is a Server-
-Sent Events route of KOVA's own that polls the signed-in account's
-notifications every few seconds and pushes anything new; the browser only
-ever talks to this route, never to Supabase (`lib/notifications-stream.ts`).
+user's JWT in the browser), the browser refetches `GET /api/notifications`
+every 30 seconds while the tab is visible (`lib/notifications-poll.ts`).
+v2.2 used a Server-Sent Events route that held a Vercel function open per
+tab and queried every 4 seconds; v2.5 replaced it with this poll.
 
 ## Authentication
 
@@ -255,7 +255,6 @@ Summary, with the implementing route file:
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | GET | `/api/notifications` | `app/api/notifications/route.ts` | any session (own rows only, RLS) |
-| GET | `/api/notifications/stream` | `app/api/notifications/stream/route.ts` | any session (SSE, see above) |
 | POST | `/api/notifications/:id/read` | `app/api/notifications/[id]/read/route.ts` | any session, own notification |
 | POST | `/api/notifications/read-all` | `app/api/notifications/read-all/route.ts` | any session |
 
