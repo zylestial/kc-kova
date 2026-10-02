@@ -61,6 +61,8 @@ describe("toTransportRequest", () => {
     row_version: 2,
     created_at: "2026-09-24T01:00:00Z",
     updated_at: "2026-09-24T02:00:00Z",
+    sent_back_at: null,
+    sent_back_reason: "",
     request_destinations: [
       {
         id: "rd2",
@@ -104,6 +106,13 @@ describe("toTransportRequest", () => {
     expect(toTransportRequest(row).progress).toBe("NOT_YET_SCHEDULED");
     expect(toTransportRequest({ ...row, status: "CANCELLED" }).progress).toBe("CANCELLED");
     expect(toTransportRequest({ ...row, request_destinations: undefined }).destinations).toEqual([]);
+  });
+
+  it("maps a send-back, and defaults its progress to SENT_BACK", () => {
+    const sent = toTransportRequest({ ...row, sent_back_at: "2026-10-01T03:00:00Z", sent_back_reason: "All vehicles full" });
+    expect(sent.sentBack).toEqual({ at: "2026-10-01T03:00:00Z", reason: "All vehicles full" });
+    expect(sent.progress).toBe("SENT_BACK");
+    expect(toTransportRequest(row).sentBack).toBeUndefined();
   });
 });
 

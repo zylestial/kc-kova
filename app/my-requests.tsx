@@ -38,6 +38,7 @@ import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 // Reuses the existing status-pill colours.
 const progressPill: Record<RequestProgress, string> = {
   NOT_YET_SCHEDULED: "pending",
+  SENT_BACK: "rejected",
   SCHEDULING: "pending",
   PENDING_APPROVAL: "pending",
   APPROVED: "scheduled",

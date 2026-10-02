@@ -38,6 +38,7 @@ export type Person = {
 };
 export type RequestProgress =
   | "NOT_YET_SCHEDULED"
+  | "SENT_BACK"
   | "SCHEDULING"
   | "PENDING_APPROVAL"
   | "APPROVED"
@@ -70,6 +71,8 @@ export type TransportRequest = {
   updatedAt: string;
   destinations: RequestDestination[];
   progress: RequestProgress;
+  /** Set when a Scheduler sent it back unplaced; cleared once its date changes. */
+  sentBack?: { at: string; reason: string };
   cancellationPending: boolean;
 };
 /** A Requester's ask to cancel a request a schedule holds; an Admin decides. */
@@ -121,6 +124,7 @@ export type ProblemReport = {
 export type NotificationType =
   | "REQUEST_SCHEDULED"
   | "REQUEST_RETURNED"
+  | "REQUEST_SENT_BACK"
   | "REQUEST_CANCELLED"
   | "CANCELLATION_DECLINED"
   | "CANCELLATION_REQUESTED"
