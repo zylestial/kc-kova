@@ -67,3 +67,11 @@ export function buildAdminTrips(
 
 /** True while any problem report on the trip is still waiting for an Admin. */
 export const hasOpenProblem = (trip: { problems: ProblemReport[] }) => trip.problems.some((item) => item.status === "OPEN");
+
+/**
+ * The trips "Mark all clean trips done" would close: submitted, still open
+ * for review, and with no problem report waiting for an Admin. A trip with
+ * no completion (problem reported before submitting) is never included.
+ */
+export const cleanTrips = <T extends { completion: { status: string } | null; problems: ProblemReport[] }>(trips: T[]) =>
+  trips.filter((trip) => trip.completion?.status === "SUBMITTED" && !hasOpenProblem(trip));
