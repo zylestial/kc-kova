@@ -117,3 +117,4 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
    removes the whole category of bug: the footer now sits at the true end
    of the content, in normal flow, so nothing can ever render behind it. */
 [data-slot=dialog-footer]{position:static;margin-top:20px}
+.older-records{margin:0;padding:12px 24px;border-bottom:1px solid var(--border);font-size:14px}

@@ -38,6 +38,7 @@ import {
 } from "@/lib/trip-record";
 import CancellationRequests from "./cancellation-requests";
 import { scheduleStateMeaning } from "@/lib/status-text";
+import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
@@ -245,6 +246,7 @@ export default function Schedules({
             </Button>
           </div>
         </div>
+        <OlderRecordsNotice />
         <div className="admin-trip-filters">
           <label className="field">
             <span>Date</span>

@@ -35,6 +35,7 @@ import { buildAdminTrips, cleanTrips, hasOpenProblem, type AdminTrip } from "@/l
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
+import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import DateRangeFilter from "./date-range-filter";
 import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
@@ -217,6 +218,7 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
             Mark {clean.length || "all"} clean {clean.length === 1 ? "trip" : "trips"} done
           </Button>
         </div>
+        <OlderRecordsNotice />
         <div className="admin-trip-filters">
           <DateRangeFilter value={dates} onChange={setDates} />
           <label className="field">
