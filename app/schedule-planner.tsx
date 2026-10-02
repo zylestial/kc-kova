@@ -170,6 +170,10 @@ export default function SchedulePlanner({
   // Requests waiting for the Scheduler to confirm sending them back.
   const [sendingBack, setSendingBack] = useState<string[] | null>(null);
   const [sendBackReason, setSendBackReason] = useState("");
+  // On submit, the pool requests left off the route go back to their
+  // requesters too, unless the Scheduler is keeping them for another vehicle.
+  const [sendLeftovers, setSendLeftovers] = useState(true);
+  const [leftoverReason, setLeftoverReason] = useState("");
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
@@ -307,7 +311,19 @@ export default function SchedulePlanner({
     run(async () => {
       const saved = await saveDraft();
       await submitSchedule(saved.id, saved.rowVersion);
-      onDone("Schedule submitted. An Admin will review and approve it.", date);
+      const leftovers = sendLeftovers ? unplacedIds : [];
+      let sentBack = "";
+      if (leftovers.length) {
+        // The schedule is already submitted, so a failure here is reported
+        // rather than thrown: the requests just stay in the pool.
+        try {
+          await sendBackRequests(leftovers, leftoverReason);
+          sentBack = ` ${leftovers.length === 1 ? "1 other request was" : `${leftovers.length} other requests were`} sent back to ${leftovers.length === 1 ? "its requester" : "their requesters"}.`;
+        } catch (caught) {
+          sentBack = ` The other requests couldn't be sent back (${(caught as Error).message}). Send them back from the pool.`;
+        }
+      }
+      onDone("Schedule submitted. An Admin will review and approve it." + sentBack, date);
     });
   const sendBack = () =>
     run(async () => {
@@ -853,6 +869,37 @@ export default function SchedulePlanner({
               {urgentLeft === 1 ? "1 Urgent request is" : `${urgentLeft} Urgent requests are`} not on this route. Add{" "}
               {urgentLeft === 1 ? "it" : "them"} here or to another schedule for this day, or send{" "}
               {urgentLeft === 1 ? "it" : "them"} back so the requester can pick another day.
+            </div>
+          )}
+          {unplacedIds.length > 0 && (
+            <div className="planner-leftovers">
+              <span className="summary-label">Not on this route ({unplacedIds.length})</span>
+              <p className="helper">
+                {pool
+                  .filter((request) => unplacedIds.includes(request.id))
+                  .map((request) => request.ownerName + (request.requestType === "URGENT" ? " (Urgent)" : ""))
+                  .join(", ")}
+              </p>
+              <label className="planner-leftovers-toggle">
+                <Checkbox checked={sendLeftovers} onCheckedChange={(checked) => setSendLeftovers(checked === true)} />
+                Send {unplacedIds.length === 1 ? "it" : "these"} back to {unplacedIds.length === 1 ? "its requester" : "their requesters"} to pick
+                another day
+              </label>
+              {sendLeftovers ? (
+                <label className="field">
+                  <span>Reason (optional)</span>
+                  <Textarea
+                    value={leftoverReason}
+                    maxLength={500}
+                    placeholder="e.g. All vehicles are fully booked that day."
+                    onChange={(event) => setLeftoverReason(event.target.value)}
+                  />
+                </label>
+              ) : (
+                <p className="helper">
+                  {unplacedIds.length === 1 ? "It stays" : "They stay"} in the pool, for another vehicle&apos;s schedule.
+                </p>
+              )}
             </div>
           )}
           <p className="helper">An Admin reviews the schedule. The Driver sees it only once it&apos;s approved.</p>
