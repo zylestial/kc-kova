@@ -60,3 +60,6 @@ From the 2026-10-02 system audit. One PR each, stacked in order.
 - [x] Planner split: `app/schedule-planner.tsx` 1,033 -> 441 lines, with ten
       presentational parts in `app/planner/`. Behaviour unchanged (checked in a
       browser: build a leg, save, submit/discard/send-back/remove dialogs).
+- [x] Docs trim: `docs/MEMORY.md` 1,076 -> ~430 lines and `docs/TASKS.md` 823 ->
+      ~65, with the history moved verbatim into `docs/archive/`; the PRD is
+      rewritten for v2; references to moved sections repointed.
