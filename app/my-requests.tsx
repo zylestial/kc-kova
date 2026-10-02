@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
+import OlderRecordsNotice from "./older-records-notice";
 import DateRangeFilter from "./date-range-filter";
 import {
   currentAccount,
@@ -201,6 +202,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
             <span className="count">{visible.length}</span>
           </div>
         </div>
+        <OlderRecordsNotice />
         {requests.length > 0 && (
           <div className="admin-trip-filters">
             <DateRangeFilter value={dates} onChange={setDates} />
