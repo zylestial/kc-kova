@@ -361,3 +361,24 @@ export const reportProblem = (id: string, note: string) => refreshAfter(request<
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));
 export const handleProblem = (id: string, handlingNote: string, followUpScheduleId?: string) => refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/handle`, { method: "POST", body: JSON.stringify({ handlingNote, followUpScheduleId }) }));
+
+/**
+ * Marks several trips done, one at a time through the same endpoint as a
+ * single trip, so each is its own atomic change and a failure on one doesn't
+ * stop the rest. Reloads once at the end. Returns the schedule ids it
+ * closed and, for the rest, why not.
+ */
+export async function markCompletionsDone(scheduleIds: string[]) {
+  const done: string[] = [];
+  const failed: Array<{ scheduleId: string; message: string }> = [];
+  for (const id of scheduleIds) {
+    try {
+      await request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" });
+      done.push(id);
+    } catch (caught) {
+      failed.push({ scheduleId: id, message: caught instanceof Error ? caught.message : "Something went wrong." });
+    }
+  }
+  await hydrateKovaData().catch(() => undefined);
+  return { done, failed };
+}
