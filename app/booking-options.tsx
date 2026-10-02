@@ -22,31 +22,24 @@ import {
 } from "@/components/ui/select";
 import {
   getBookingOptions,
-  getPeople,
   saveBookingOption,
-  savePerson,
   type BookingOption,
-  type Person,
 } from "@/lib/kova-api";
 
-type Group = "projects" | "people" | "destinations" | "purposes";
+type Group = "projects" | "destinations" | "purposes";
 type Draft = {
   id: string;
   name: string;
   status: "Active" | "Inactive";
-  projectIds: string[];
-  accountId?: string;
   isOtherStop: boolean;
 };
 const groups: [Group, string, string, string][] = [
   ["projects", "Projects / Sites", "Project / Site", "Add"],
-  ["people", "People", "Person", "Add"],
   ["destinations", "Destinations", "Destination", "Add Destination"],
   ["purposes", "Purposes", "Purpose", "Add Purpose"],
 ];
 export default function BookingOptions() {
   const [options, setOptions] = useState(() => getBookingOptions());
-  const [people, setPeople] = useState<Person[]>(() => getPeople());
   const [modal, setModal] = useState<{
     group: Group;
     mode: "add" | "edit";
@@ -55,7 +48,6 @@ export default function BookingOptions() {
     id: "",
     name: "",
     status: "Active",
-    projectIds: [],
     isOtherStop: false,
   });
   const [error, setError] = useState("");
@@ -64,17 +56,12 @@ export default function BookingOptions() {
   const [busy, setBusy] = useState(false);
   function load() {
     setOptions(getBookingOptions());
-    setPeople(getPeople());
   }
   useEffect(() => {
     window.addEventListener("kova-data-update", load);
     return () => window.removeEventListener("kova-data-update", load);
   }, []);
-  function open(
-    group: Group,
-    mode: "add" | "edit",
-    item?: BookingOption | Person,
-  ) {
+  function open(group: Group, mode: "add" | "edit", item?: BookingOption) {
     setModal({ group, mode });
     setDraft(
       item
@@ -82,15 +69,12 @@ export default function BookingOptions() {
             id: item.id,
             name: item.name,
             status: item.status,
-            projectIds: "projectIds" in item ? [...item.projectIds] : [],
-            accountId: "accountId" in item ? item.accountId : undefined,
-            isOtherStop: "isOtherStop" in item && item.isOtherStop === true,
+            isOtherStop: item.isOtherStop === true,
           }
         : {
             id: crypto.randomUUID(),
             name: "",
             status: "Active",
-            projectIds: [],
             isOtherStop: false,
           },
     );
@@ -99,34 +83,21 @@ export default function BookingOptions() {
   }
   async function save() {
     if (!modal) return;
-    const missing = [
-      draft.name.trim() ? "" : "Name",
-      modal.group === "people" && !draft.projectIds.length ? "Project / Site" : "",
-    ].filter(Boolean);
-    if (missing.length) {
-      setError(stillNeeded(missing));
+    if (!draft.name.trim()) {
+      setError(stillNeeded(["Name"]));
       return;
     }
     setBusy(true);
     setError("");
     try {
-      if (modal.group === "people")
-        await savePerson({
-          id: draft.id,
-          name: draft.name,
-          projectIds: draft.projectIds,
-          status: draft.status,
-          accountId: draft.accountId,
-        });
-      else
-        await saveBookingOption(modal.group, {
-          id: draft.id,
-          name: draft.name,
-          status: draft.status,
-          isOtherStop: modal.group === "destinations" ? draft.isOtherStop : undefined,
-        });
+      await saveBookingOption(modal.group, {
+        id: draft.id,
+        name: draft.name,
+        status: draft.status,
+        isOtherStop: modal.group === "destinations" ? draft.isOtherStop : undefined,
+      });
       setModal(null);
-      setNotice(`${modal.group === "people" ? "Person" : "Choice"} saved.`);
+      setNotice("Choice saved.");
       load();
     } catch (e) {
       setError((e as Error).message);
@@ -150,7 +121,7 @@ export default function BookingOptions() {
       )}
       <div className="booking-option-groups">
         {groups.map(([group, label, , addLabel]) => {
-          const items = group === "people" ? people : options[group];
+          const items = options[group];
           return (
             <section className="schedule-panel" key={group}>
               <div className="panel-toolbar">
@@ -158,14 +129,7 @@ export default function BookingOptions() {
                   <h2>{label}</h2>
                   <span className="count">{items.length}</span>
                 </div>
-                <Button
-                  className="primary"
-                  onClick={() => open(group, "add")}
-                  disabled={
-                    group === "people" &&
-                    !options.projects.some((p) => p.status === "Active")
-                  }
-                >
+                <Button className="primary" onClick={() => open(group, "add")}>
                   <Plus size={16} /> {addLabel}
                 </Button>
               </div>
@@ -175,7 +139,6 @@ export default function BookingOptions() {
                     <thead>
                       <tr>
                         <th>NAME</th>
-                        {group === "people" && <th>PROJECT / SITE</th>}
                         <th>STATUS</th>
                         <th />
                       </tr>
@@ -186,17 +149,6 @@ export default function BookingOptions() {
                           <td>
                             <b>{item.name}</b>
                           </td>
-                          {group === "people" && (
-                            <td>
-                              {(item as Person).projectIds
-                                .map(
-                                  (id) =>
-                                    options.projects.find((p) => p.id === id)
-                                      ?.name || "—",
-                                )
-                                .join(", ") || "—"}
-                            </td>
-                          )}
                           <td>
                             <span
                               className={
@@ -226,12 +178,7 @@ export default function BookingOptions() {
                     <ListChecks size={30} />
                   </div>
                   <h3>No {label.toLowerCase()} yet</h3>
-                  <p>
-                    {group === "people" &&
-                    !options.projects.some((p) => p.status === "Active")
-                      ? "Add an active Project / Site first."
-                      : "Add one to make it available for new requests."}
-                  </p>
+                  <p>Add one to make it available for new requests.</p>
                 </div>
               )}
             </section>
@@ -250,53 +197,18 @@ export default function BookingOptions() {
               {modal?.mode === "edit" ? "Edit" : "Add"} {title}
             </DialogTitle>
             <DialogDescription>
-              {modal?.group === "people"
-                ? "Choose where this person may be selected as Requested By."
-                : "Inactive choices stay on old requests but are not offered for new ones."}
+              Inactive choices stay on old requests but are not offered for new ones.
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
             <label className="field">
-              <span>{modal?.group === "people" ? "Name" : title} *</span>
+              <span>{title} *</span>
               <Input
                 value={draft.name}
                 maxLength={100}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
             </label>
-            {modal?.group === "people" && (
-              <div className="field">
-                <span>Project / Site *</span>
-                <div className="person-projects">
-                  {options.projects
-                    .filter(
-                      (p) =>
-                        p.status === "Active" ||
-                        draft.projectIds.includes(p.id),
-                    )
-                    .map((p) => (
-                      <label key={p.id}>
-                        <Checkbox
-                          checked={draft.projectIds.includes(p.id)}
-                          onCheckedChange={(v) =>
-                            setDraft({
-                              ...draft,
-                              projectIds:
-                                v === true
-                                  ? [...draft.projectIds, p.id]
-                                  : draft.projectIds.filter(
-                                      (id) => id !== p.id,
-                                    ),
-                            })
-                          }
-                        />
-                        {p.name}
-                        {p.status === "Inactive" ? " (Inactive)" : ""}
-                      </label>
-                    ))}
-                </div>
-              </div>
-            )}
             {modal?.group === "destinations" && (
               <div className="field">
                 <span>Fuel/errand stop</span>
