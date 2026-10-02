@@ -142,10 +142,9 @@ export type Notification = {
   createdAt: string;
   readAt?: string;
 };
-/** What the New request form and the Edit modal send. */
+/** What the New request form and the Edit modal send. The server sets the type from the date. */
 export type RequestInput = {
   date: string;
-  requestType: "REGULAR" | "URGENT";
   projectId: string;
   projectOther: string;
   destinations: Array<{ destinationId: string; destinationOther: string; purposeId: string; purposeOther: string }>;

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAccount } from "@/lib/supabase/session";
 import { toTransportRequest } from "@/lib/supabase/mappers";
 import { parseRequestInput } from "@/lib/request-input";
+import { requestDateError, requestTypeFor } from "@/lib/timezone";
 
 function errorResponse(error: { code?: string; message: string }) {
   if (error.code === "42501") return NextResponse.json({ message: "Not authorized to edit this request." }, { status: 403 });
@@ -21,7 +22,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ requ
   const input = parseRequestInput(body);
   const rowVersion = Number(body?.rowVersion);
   if (!input || !Number.isInteger(rowVersion)) {
-    return NextResponse.json({ message: "Date, request type, and at least one destination with a purpose are required." }, { status: 422 });
+    return NextResponse.json({ message: "Date and at least one destination with a purpose are required." }, { status: 422 });
+  }
+
+  // The type is set from the date when it was asked for; it only changes
+  // when the date does, so editing a Regular request's stops near its day
+  // doesn't turn it Urgent.
+  const { data: existing } = await supabase
+    .from("requests")
+    .select("requested_date, request_type")
+    .eq("id", requestId)
+    .maybeSingle();
+  const dateChanged = existing?.requested_date !== input.date;
+  if (dateChanged) {
+    const dateError = requestDateError(input.date, account.role === "Admin");
+    if (dateError) return NextResponse.json({ message: dateError }, { status: 422 });
   }
 
   // rowVersion is the version the form was opened on; update_request
@@ -30,7 +45,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ requ
     p_request_id: requestId,
     p_expected_row_version: rowVersion,
     p_requested_date: input.date,
-    p_request_type: input.requestType,
+    p_request_type: dateChanged || !existing ? requestTypeFor(input.date) : existing.request_type,
     p_project_id: input.projectId,
     p_project_other: input.projectOther,
     p_destinations: input.destinations,

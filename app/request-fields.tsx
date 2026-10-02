@@ -22,7 +22,6 @@ const NO_PROJECT = "__none__";
 
 export type RequestDraft = {
   date: string;
-  requestType: "REGULAR" | "URGENT";
   projectId: string;
   projectOther: string;
   projectOtherMode: boolean;
@@ -48,14 +47,13 @@ const newRow = () => ({
   purposeOtherMode: false,
 });
 
-export function emptyDraft(date: string, requestType: "REGULAR" | "URGENT"): RequestDraft {
-  return { date, requestType, projectId: "", projectOther: "", projectOtherMode: false, destinations: [newRow()] };
+export function emptyDraft(date: string): RequestDraft {
+  return { date, projectId: "", projectOther: "", projectOtherMode: false, destinations: [newRow()] };
 }
 
 export function draftFromRequest(request: TransportRequest): RequestDraft {
   return {
     date: request.date,
-    requestType: request.requestType,
     projectId: request.projectId ?? "",
     projectOther: request.projectIsOther ? request.projectName : "",
     projectOtherMode: request.projectIsOther,
@@ -74,7 +72,6 @@ export function draftFromRequest(request: TransportRequest): RequestDraft {
 export function draftToInput(draft: RequestDraft): RequestInput {
   return {
     date: draft.date,
-    requestType: draft.requestType,
     projectId: draft.projectOtherMode ? "" : draft.projectId,
     projectOther: draft.projectOtherMode ? draft.projectOther.trim() : "",
     destinations: draft.destinations.map((item) => ({
@@ -128,11 +125,14 @@ export function keptOptions(request?: TransportRequest | null) {
   };
 }
 
+export const requestTypeLabel = (type: TransportRequest["requestType"]) => (type === "URGENT" ? "Urgent" : "Regular");
+
 export default function RequestFields({
   draft,
   onChange,
   options,
   requestedBy,
+  requestType,
   kept = keptOptions(),
   dateHint,
 }: {
@@ -140,6 +140,8 @@ export default function RequestFields({
   onChange: (draft: RequestDraft) => void;
   options: BookingOptions;
   requestedBy: string;
+  /** Set by the date, never picked: shown so the Requester knows which it is. */
+  requestType: TransportRequest["requestType"];
   kept?: ReturnType<typeof keptOptions>;
   dateHint?: string;
 }) {
@@ -160,19 +162,8 @@ export default function RequestFields({
     <div className="request-fields">
       <div className="fields booking-fields">
         <label className="field">
-          <span>Request type *</span>
-          <Select
-            value={draft.requestType}
-            onValueChange={(value) => onChange({ ...draft, requestType: value as RequestDraft["requestType"] })}
-          >
-            <SelectTrigger aria-label="Request type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="REGULAR">Regular · 7 days notice</SelectItem>
-              <SelectItem value="URGENT">Urgent · today to 6 days ahead</SelectItem>
-            </SelectContent>
-          </Select>
+          <span>Request type (set by the date)</span>
+          <Input readOnly value={requestTypeLabel(requestType)} aria-label="Request type" />
           {dateHint && <small className="field-hint">{dateHint}</small>}
         </label>
         <label className="field">
