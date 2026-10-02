@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAccount } from "@/lib/supabase/session";
+import { authed } from "@/lib/api-route";
 import { toVehicle } from "@/lib/supabase/mappers";
 
 const STATUSES = ["Active", "Inactive"] as const;
 
-export async function POST(request: Request) {
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
+export const POST = authed(async ({ request, supabase, account }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
   const body = await request.json().catch(() => null);
@@ -39,4 +35,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(toVehicle(data), { status: 201 });
-}
+});
