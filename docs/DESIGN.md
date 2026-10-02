@@ -99,6 +99,13 @@ router/URL segments are used for in-app navigation.
 | `settings` | `app/settings.tsx` | Admin (accounts, vehicles, booking options) |
 | — | `app/booking-options.tsx` | Admin (projects/destinations/purposes/people) |
 
+The Planner (`app/schedule-planner.tsx`) holds the state and the save, submit,
+discard and send-back logic, and composes its screen from `app/planner/`: day
+picker, request pool, existing commitments, vehicle panel, one `LegCard` per
+leg, the checklist, and the submit, send-back, discard and remove-leg
+dialogs. Those parts only show what they're given and call back; they hold no
+state of their own.
+
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.
 
