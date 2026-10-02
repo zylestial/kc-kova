@@ -1,6 +1,6 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +17,10 @@ import {
 import {
   approveSchedule,
   cancelSchedule,
-  getAccounts,
-  getRequests,
-  getSchedules,
-  getVehicles,
   returnSchedule,
   type Schedule,
 } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import { addDays, manilaToday } from "@/lib/timezone";
 import {
   currentRevision,
@@ -45,13 +42,6 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
   new Date(value + "T12:00:00").toLocaleDateString("en-US", options);
 /** Monday of the week containing a date. */
 const weekStart = (value: string) => addDays(value, -((new Date(value + "T12:00:00").getDay() + 6) % 7));
-
-const readData = () => ({
-  schedules: getSchedules(),
-  requests: getRequests(),
-  vehicles: getVehicles(),
-  accounts: getAccounts(),
-});
 
 /**
  * Schedules: every schedule by day or week, filtered by vehicle, Driver
@@ -79,7 +69,7 @@ export default function Schedules({
   /** A schedule to open the detail dialog for immediately, e.g. from a notification. */
   initialOpenId?: string;
 }) {
-  const [data, setData] = useState(readData);
+  const { schedules, requests, vehicles, accounts } = useKovaData();
   const [view, setView] = useState<"day" | "week">("week");
   const [date, setDate] = useState(() => initialDate ?? manilaToday());
   const [vehicle, setVehicle] = useState("all");
@@ -95,13 +85,6 @@ export default function Schedules({
   const [decided, setDecided] = useState("");
   useAutoClear(decided, setDecided);
 
-  useEffect(() => {
-    const refresh = () => setData(readData());
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, []);
-
-  const { schedules, requests, vehicles, accounts } = data;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const requestsById = new Map(requests.map((request) => [request.id, request]));
   const days = view === "day" ? [date] : Array.from({ length: 7 }, (_, index) => addDays(weekStart(date), index));
