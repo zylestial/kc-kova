@@ -36,6 +36,7 @@ import {
   hydrateKovaData,
   saveScheduleDraft,
   sendBackRequests,
+  splitRequest,
   submitSchedule,
   type Schedule,
 } from "@/lib/kova-api";
@@ -70,6 +71,7 @@ import {
   scheduleStatePill,
   servedRequestIds,
   setLegTimeIn,
+  splitOffs,
   stopsFor,
   toScheduleInput,
   legWarnings,
@@ -250,6 +252,17 @@ export default function SchedulePlanner({
   // Pool requests with no stop on this route can go back to their requester
   // to pick another day. One with any stop placed belongs to this schedule.
   const unplacedIds = pool.filter((request) => !requestIds.includes(request.id)).map((request) => request.id);
+  // A request only partly on this route has its other stops split off into a
+  // new request on submit, which then counts as a leftover too.
+  const splits = splitOffs(poolStops, legs);
+  const leftoverLabels = [
+    ...pool
+      .filter((request) => unplacedIds.includes(request.id))
+      .map((request) => request.ownerName + (request.requestType === "URGENT" ? " (Urgent)" : "")),
+    ...splits.map(
+      (part) => `${part.requester}${part.urgent ? " (Urgent)" : ""} — ${part.destinations.join(", ")}, split off`,
+    ),
+  ];
 
   function pickDate(day: string) {
     setDate(day);
@@ -310,8 +323,12 @@ export default function SchedulePlanner({
   const submit = () =>
     run(async () => {
       const saved = await saveDraft();
+      // Stops this vehicle can't take become their own request first, since
+      // submit needs every stop of every request it serves on the route.
+      const splitIds: string[] = [];
+      for (const part of splits) splitIds.push((await splitRequest(part.requestId, part.stopIds)).id);
       await submitSchedule(saved.id, saved.rowVersion);
-      const leftovers = sendLeftovers ? unplacedIds : [];
+      const leftovers = sendLeftovers ? [...unplacedIds, ...splitIds] : [];
       let sentBack = "";
       if (leftovers.length) {
         // The schedule is already submitted, so a failure here is reported
@@ -788,7 +805,7 @@ export default function SchedulePlanner({
             )}
             <div className={"planner-checklist" + (ready ? " ready" : "")}>
               <b>{ready ? "Ready to submit" : "Before you submit"}</b>
-              {!ready && <p>You can save a draft once the first four are done. Submitting needs all six.</p>}
+              {!ready && <p>You can save a draft once the first four are done. Submitting needs all five.</p>}
               <ul>
                 {checklist.map((item) => (
                   <li key={item.label} className={item.done ? "done" : ""}>
@@ -871,19 +888,24 @@ export default function SchedulePlanner({
               {urgentLeft === 1 ? "it" : "them"} back so the requester can pick another day.
             </div>
           )}
-          {unplacedIds.length > 0 && (
+          {leftoverLabels.length > 0 && (
             <div className="planner-leftovers">
-              <span className="summary-label">Not on this route ({unplacedIds.length})</span>
-              <p className="helper">
-                {pool
-                  .filter((request) => unplacedIds.includes(request.id))
-                  .map((request) => request.ownerName + (request.requestType === "URGENT" ? " (Urgent)" : ""))
-                  .join(", ")}
-              </p>
+              <span className="summary-label">Not on this route ({leftoverLabels.length})</span>
+              <ul className="planner-leftovers-list">
+                {leftoverLabels.map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+              {splits.length > 0 && (
+                <p className="helper">
+                  A split-off stop becomes its own request for the same day, and the rest of that request stays on this
+                  route.
+                </p>
+              )}
               <label className="planner-leftovers-toggle">
                 <Checkbox checked={sendLeftovers} onCheckedChange={(checked) => setSendLeftovers(checked === true)} />
-                Send {unplacedIds.length === 1 ? "it" : "these"} back to {unplacedIds.length === 1 ? "its requester" : "their requesters"} to pick
-                another day
+                Send {leftoverLabels.length === 1 ? "it" : "these"} back to{" "}
+                {leftoverLabels.length === 1 ? "the requester" : "their requesters"} to pick another day
               </label>
               {sendLeftovers ? (
                 <label className="field">
@@ -897,7 +919,7 @@ export default function SchedulePlanner({
                 </label>
               ) : (
                 <p className="helper">
-                  {unplacedIds.length === 1 ? "It stays" : "They stay"} in the pool, for another vehicle&apos;s schedule.
+                  {leftoverLabels.length === 1 ? "It stays" : "They stay"} in the pool, for another vehicle&apos;s schedule.
                 </p>
               )}
             </div>
