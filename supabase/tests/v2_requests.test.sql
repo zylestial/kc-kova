@@ -65,8 +65,8 @@ select throws_ok(
   $$ select create_request(pg_temp.today() + 6, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
   '22023', null, 'Regular 6 days ahead is rejected');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 2, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
-  '22023', null, 'Urgent 2 days ahead is rejected');
+  $$ select create_request(pg_temp.today() + 7, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  '22023', null, 'Urgent 7 days ahead is rejected (that is Regular)');
 select lives_ok(
   $$ select create_request(pg_temp.today(), 'URGENT', null, 'Barangay 5 hall', '[{"destinationId":"d1","purposeId":"p1"}]') $$,
   'Urgent today with Other project text is accepted');
