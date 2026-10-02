@@ -794,4 +794,11 @@ is no longer accurate.
       (153/153), lint and `next build` pass; `v2_urgent_window.test.sql`
       (7 checks) passes; `v2_requests.test.sql`'s old "Urgent 2 days ahead
       is rejected" check now uses 7 days, but that file wasn't re-run (it
-      needs a local `supabase db reset`).
+      needs a local `supabase db reset`). Re-run 2026-10-02 against a clean
+      `supabase db reset`: all 12 pgTAP files pass (319/319).
+
+## v2.5 (simplification pass, 2026-10-02)
+
+From the 2026-10-02 system audit. One PR each, stacked in order.
+
+- [x] Remove 52 unused vendored UI components and 14 unused npm packages.
