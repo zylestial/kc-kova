@@ -457,11 +457,6 @@ export default function SchedulePlanner({
                     {" "}If a request won&apos;t fit, send it back so the requester can pick another day.
                   </p>
                 </div>
-                {unplacedIds.length > 1 && (
-                  <Button variant="outline" size="sm" disabled={busy} onClick={() => setSendingBack(unplacedIds)}>
-                    <Undo2 size={14} /> Send back all unplaced ({unplacedIds.length})
-                  </Button>
-                )}
               </div>
               {pool.length ? (
                 <ul className="planner-pool">
@@ -500,6 +495,17 @@ export default function SchedulePlanner({
                 </ul>
               ) : (
                 <p className="helper">No requests are waiting for this day.</p>
+              )}
+              {unplacedIds.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="planner-pool-send-back-all"
+                  disabled={busy}
+                  onClick={() => setSendingBack(unplacedIds)}
+                >
+                  <Undo2 size={14} /> Send back all unplaced ({unplacedIds.length})
+                </Button>
               )}
             </section>
 
