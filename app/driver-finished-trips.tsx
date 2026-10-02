@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,8 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getCompletions, getProblems, getRequests, getSchedules } from "@/lib/kova-api";
-import { buildFinishedTrips, type FinishedTrip } from "@/lib/finished-trips";
+import { useKovaData } from "@/lib/use-kova-data";
+import { buildFinishedTrips } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
@@ -24,19 +24,9 @@ const dateLabel = (date: string) =>
  * Bootstrap only sends this Driver's completions and reports.
  */
 export default function DriverFinishedTrips() {
-  const [trips, setTrips] = useState<FinishedTrip[]>([]);
-  const [requests, setRequests] = useState(getRequests());
+  const { schedules, completions, problems, requests } = useKovaData();
+  const trips = useMemo(() => buildFinishedTrips(schedules, completions, problems), [schedules, completions, problems]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    function refresh() {
-      setTrips(buildFinishedTrips(getSchedules(), getCompletions(), getProblems()));
-      setRequests(getRequests());
-    }
-    refresh();
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, []);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
