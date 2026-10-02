@@ -285,6 +285,17 @@ export function servedRequestIds(legs: LegDraft[], poolStops: StopInfo[]): strin
 }
 
 /**
+ * Unplaced stops of requests this route already serves. A request is served
+ * once any of its stops is on a leg, and then all of them must be (as
+ * assert_revision_complete requires). Pool requests with no stop placed are
+ * not missing: they can go on another vehicle's schedule or be sent back.
+ */
+export function missingStops(stops: StopInfo[], legs: LegDraft[]): StopInfo[] {
+  const served = new Set(servedRequestIds(legs, stops));
+  return unassignedStops(stops, legs).filter((stop) => served.has(stop.requestId));
+}
+
+/**
  * Problems that stop a save (the server needs a vehicle, requests and
  * valid times on every leg) and, separately, what else must be done
  * before the Trip Record can be submitted for approval.
@@ -334,7 +345,7 @@ export function tripProblems(input: {
   });
 
   if (!hasFinal(input.legs)) submit.push("Add the final leg back to ANONANG.");
-  for (const stop of unassignedStops(input.stops, input.legs)) {
+  for (const stop of missingStops(input.stops, input.legs)) {
     submit.push(`Put ${stop.requester}'s ${stop.destinationName} (${stop.purposeName}) on a leg.`);
   }
   return { save, submit };
@@ -352,7 +363,7 @@ export function legWarnings(legs: LegDraft[], stops: StopInfo[], otherStopDestin
     const match = /^Leg (\d+): (.*)$/.exec(problem);
     if (match) warnings[Number(match[1]) - 1]?.push(match[2].charAt(0).toUpperCase() + match[2].slice(1));
   }
-  for (const stop of unassignedStops(stops, legs)) {
+  for (const stop of missingStops(stops, legs)) {
     const index = legs.findIndex((leg) => !leg.isFinal && legGroupKey(leg) === stopGroupKey(stop));
     if (index >= 0) warnings[index].push(`Tick ${stop.requester}'s ${stop.purposeName} under "Requests served here".`);
   }
@@ -384,7 +395,7 @@ export function tripChecklist(input: {
   const times = about([...save, ...submit], /Time (In|Out)/);
   const stops = about(submit, /^Put /);
   // Stops that have a leg to go on are flagged on that leg; only the rest need a detail here.
-  const homeless = unassignedStops(input.stops, input.legs).filter(
+  const homeless = missingStops(input.stops, input.legs).filter(
     (stop) => !input.legs.some((leg) => !leg.isFinal && legGroupKey(leg) === stopGroupKey(stop)),
   );
   return [
@@ -397,8 +408,8 @@ export function tripChecklist(input: {
     { label: "Choose a destination for every leg", done: input.legs.length > 0 && !destinations.length },
     { label: "Enter Time Out and Time In for every leg", done: input.legs.length > 0 && !times.length },
     {
-      label: "Put every requested stop on a leg",
-      done: input.stops.length > 0 && !stops.length,
+      label: "Put all stops of each request you serve on a leg",
+      done: input.requestIds.length > 0 && !stops.length,
       detail: homeless.length ? `Add a leg to ${[...new Set(homeless.map((stop) => stop.destinationName))].join(", ")}.` : undefined,
     },
     { label: "End with the leg back to ANONANG", done: hasFinal(input.legs) },

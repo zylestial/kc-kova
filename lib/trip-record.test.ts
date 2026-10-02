@@ -398,11 +398,23 @@ describe("tripProblems", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" })];
     const problems = tripProblems({ ...base, legs });
     expect(problems.save).toEqual([]);
-    expect(problems.submit).toEqual([
-      "Add the final leg back to ANONANG.",
-      "Put Maria's City Hall (Document delivery) on a leg.",
-      "Put Maria's Port Office (Inspection) on a leg.",
-    ]);
+    expect(problems.submit).toEqual(["Add the final leg back to ANONANG."]);
+  });
+
+  it("doesn't require pool requests this route doesn't serve", () => {
+    const legs = [
+      leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
+      { ...finalLeg(), plannedTimeOut: "09:30", plannedTimeIn: "10:30" },
+    ];
+    expect(tripProblems({ ...base, legs }).submit).toEqual([]);
+  });
+
+  it("requires every stop of a request once one of its stops is on the route", () => {
+    const legs = [
+      leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"], plannedTimeOut: "08:00", plannedTimeIn: "09:00" }),
+      { ...finalLeg(), plannedTimeOut: "09:30", plannedTimeIn: "10:30" },
+    ];
+    expect(tripProblems({ ...base, legs }).submit).toEqual(["Put Maria's Port Office (Inspection) on a leg."]);
   });
 
   it("requires a vehicle and a request", () => {
