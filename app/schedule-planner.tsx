@@ -187,8 +187,10 @@ export default function SchedulePlanner({
   const pool = dayRequests
     .filter((request) => request.progress === "NOT_YET_SCHEDULED" || requestIds.includes(request.id))
     .sort(poolOrder);
+  const sentBackCount = dayRequests.filter((request) => request.progress === "SENT_BACK").length;
   const heldElsewhere = dayRequests.filter(
-    (request) => request.progress !== "NOT_YET_SCHEDULED" && !requestIds.includes(request.id),
+    (request) =>
+      request.progress !== "NOT_YET_SCHEDULED" && request.progress !== "SENT_BACK" && !requestIds.includes(request.id),
   ).length;
   const poolStops = stopsFor(pool);
   const servedStopIds = new Set(legs.flatMap((leg) => leg.stops));
@@ -449,6 +451,7 @@ export default function SchedulePlanner({
                     Requests for {dateLabel(date, { month: "short", day: "numeric" })}, Urgent first, then grouped by who asked. A
                     destination is ticked off once it&apos;s on the route below — use &quot;Add stop&quot; there, not here.
                     {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
+                    {sentBackCount > 0 && ` ${sentBackCount} ${sentBackCount === 1 ? "was sent back to its requester" : "were sent back to their requesters"}.`}
                     {" "}If a request won&apos;t fit, send it back so the requester can pick another day.
                   </p>
                 </div>
