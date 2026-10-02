@@ -314,7 +314,9 @@ export default function SchedulePlanner({
       if (!sendingBack) return;
       await sendBackRequests(sendingBack, sendBackReason);
       setNotice(
-        `${sendingBack.length === 1 ? "Request" : `${sendingBack.length} requests`} sent back. The requester is notified and can pick another day.`,
+        sendingBack.length === 1
+          ? "Request sent back. The requester is notified and can pick another day."
+          : `${sendingBack.length} requests sent back. Their requesters are notified and can pick another day.`,
       );
       setSendingBack(null);
       setSendBackReason("");
