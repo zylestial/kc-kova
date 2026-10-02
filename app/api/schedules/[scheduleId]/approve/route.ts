@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAccount } from "@/lib/supabase/session";
+import { authed } from "@/lib/api-route";
 import { loadSchedule, scheduleErrorResponse } from "@/lib/supabase/schedules";
 
 // Admin approves the submitted version, publishing it. approve_schedule
 // rechecks the Trip Record, the Driver, the vehicle and any pending
 // cancellations, and refuses a stale version.
-export async function POST(request: Request, { params }: { params: Promise<{ scheduleId: string }> }) {
-  const { scheduleId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const account = await requireAccount(supabase);
-  if (!account) return NextResponse.json({ message: "Sign in required." }, { status: 401 });
-
+export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, params: { scheduleId } }) => {
   const body = await request.json().catch(() => null);
   const rowVersion = Number(body?.rowVersion);
   if (!Number.isInteger(rowVersion)) return NextResponse.json({ message: "rowVersion is required." }, { status: 422 });
@@ -23,4 +17,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ sch
   if (error) return scheduleErrorResponse(error, "Could not approve the schedule.");
 
   return NextResponse.json(await loadSchedule(supabase, scheduleId));
-}
+});
