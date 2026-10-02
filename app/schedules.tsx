@@ -83,6 +83,7 @@ export default function Schedules({
   const [date, setDate] = useState(() => initialDate ?? manilaToday());
   const [vehicle, setVehicle] = useState("all");
   const [driver, setDriver] = useState("all");
+  const [requester, setRequester] = useState("all");
   const [status, setStatus] = useState<"all" | ScheduleState>("all");
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [returning, setReturning] = useState(false);
@@ -104,6 +105,10 @@ export default function Schedules({
   const requestsById = new Map(requests.map((request) => [request.id, request]));
   const days = view === "day" ? [date] : Array.from({ length: 7 }, (_, index) => addDays(weekStart(date), index));
   const drivers = accounts.filter((account) => account.role === "Driver");
+  // Everyone who has asked for a trip, so a schedule can be found by whose request it carries.
+  const requesterChoices = [...new Map(requests.map((request) => [request.ownerAccountId, request.ownerName])).entries()].sort((a, b) =>
+    a[1].localeCompare(b[1]),
+  );
 
   const visible = schedules
     .filter((schedule) => days.includes(schedule.date))
@@ -112,6 +117,7 @@ export default function Schedules({
       return (
         (vehicle === "all" || revision?.plate === vehicle) &&
         (driver === "all" || revision?.driverId === driver) &&
+        (requester === "all" || (revision?.requestIds ?? []).some((id) => requestsById.get(id)?.ownerAccountId === requester)) &&
         (status === "all" || scheduleState(schedule) === status)
       );
     })
@@ -271,6 +277,22 @@ export default function Schedules({
                 {drivers.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <label className="field">
+            <span>Requester</span>
+            <Select value={requester} onValueChange={setRequester}>
+              <SelectTrigger aria-label="Requester filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Requesters</SelectItem>
+                {requesterChoices.map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
                   </SelectItem>
                 ))}
               </SelectContent>

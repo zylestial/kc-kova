@@ -35,6 +35,9 @@ import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import TripRecordView from "./trip-record-view";
+import DateRangeFilter from "./date-range-filter";
+import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
+import { manilaToday } from "@/lib/timezone";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -54,7 +57,7 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
   const [trips, setTrips] = useState<AdminTrip[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [requests, setRequests] = useState(getRequests());
-  const [date, setDate] = useState("");
+  const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [vehicle, setVehicle] = useState("all");
   const [status, setStatus] = useState("all");
@@ -85,9 +88,10 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
 
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
   const vehicles = [...new Set(trips.map((trip) => trip.revision.plate))].sort();
+  const today = manilaToday();
   const visible = trips.filter(
     (trip) =>
-      (!date || trip.schedule.date === date) &&
+      inDateFilter(trip.schedule.date, dates, today) &&
       (driver === "all" || trip.revision.driverName === driver) &&
       (vehicle === "all" || trip.revision.plate === vehicle) &&
       (status === "all" || status === (trip.completion?.status ?? "UNSUBMITTED")) &&
@@ -182,10 +186,7 @@ export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: 
           </div>
         </div>
         <div className="admin-trip-filters">
-          <label className="field">
-            <span>Date</span>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
+          <DateRangeFilter value={dates} onChange={setDates} />
           <label className="field">
             <span>Driver</span>
             <Select value={driver} onValueChange={setDriver}>
