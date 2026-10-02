@@ -315,16 +315,8 @@ export async function signOut() {
 }
 
 export const currentAccount = () => sessionAccount;
-export const getAccounts = () => cache.accounts;
-export const getVehicles = () => cache.vehicles;
-export const getBookingOptions = () => cache.options;
 export const getRequests = () => cache.requests;
-export const getMyRequests = (accountId: string) => cache.requests.filter((item) => item.ownerAccountId === accountId);
 export const getSchedules = () => cache.schedules;
-export const getCancellations = () => cache.cancellations;
-export const getPendingCancellations = () => cache.cancellations.filter((item) => item.status === "PENDING");
-export const getCompletions = () => cache.completions;
-export const getProblems = () => cache.problems;
 
 // Lighter than hydrateKovaData(): used after marking a notification read and
 // by the poller (lib/notifications-poll.ts), so neither has to refetch
