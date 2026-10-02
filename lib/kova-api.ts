@@ -6,6 +6,7 @@
  * the backend. All permissions and conflict checks must also be enforced there.
  */
 import { friendlyErrorMessage, NETWORK_ERROR } from "@/lib/error-messages";
+import { ALL_TIME } from "@/lib/bootstrap-window";
 
 export type Role ="Requester" | "Scheduler" | "Admin" | "Driver";
 export type Account = {
@@ -207,6 +208,8 @@ export type BookingOptions = {
   purposes: BookingOption[];
 };
 export type BootstrapData = {
+  /** Records from this date on are loaded (plus older ones still needing someone); "" before the first load. */
+  since: string;
   accounts: Account[];
   vehicles: Vehicle[];
   options: BookingOptions;
@@ -221,6 +224,7 @@ export type BootstrapData = {
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
 let sessionAccount: Account | null = null;
 const emptyData: BootstrapData = {
+  since: "",
   accounts: [],
   vehicles: [],
   options: { projects: [], destinations: [], purposes: [] },
@@ -270,10 +274,19 @@ export function subscribeKovaData(listener: () => void) {
   return () => window.removeEventListener("kova-data-update", listener);
 }
 
+// Set once someone asks for older records, so every later reload keeps them.
+let requestedSince: string | null = null;
+
 export async function hydrateKovaData() {
-  cache = await request<BootstrapData>("/api/bootstrap");
+  cache = await request<BootstrapData>(requestedSince ? `/api/bootstrap?since=${requestedSince}` : "/api/bootstrap");
   notify();
   return cache;
+}
+
+/** Loads every request, schedule and trip, not just the recent window. */
+export async function loadOlderRecords() {
+  requestedSince = ALL_TIME;
+  return hydrateKovaData();
 }
 
 export async function restoreSession() {
@@ -296,6 +309,7 @@ export async function signIn(username: string, password: string) {
 export async function signOut() {
   await request<void>("/api/auth/sign-out", { method: "POST" });
   sessionAccount = null;
+  requestedSince = null;
   cache = emptyData;
   notify();
 }
