@@ -1034,3 +1034,19 @@ Decided by the project owner at the start of Phase 5:
   old 2–6 day gap is gone and the date alone decides the type. Today still
   counts as Urgent. Migration 0040 numbered after PR #62's 0038/0039 so the
   two can merge in either order.
+
+## Release of 0038–0040 (2026-10-02)
+
+- **Production's history was missing 0036 and 0037**, although both were
+  fully applied (their columns, constraints and function bodies were all
+  there; checked with a schema-only `supabase db dump --linked`). Something
+  applied them outside `db push`. A plain push would have re-run 0036 and
+  failed with "already exists", so the history was fixed first with
+  `supabase migration repair --linked --status applied 0036 0037`, and the
+  dry run then listed only 0038–0040. Run `supabase migration list --linked`
+  before every production push.
+- **Migrations go to production before the merge**, because merging to
+  `master` deploys straight to Production. 0038–0040 only add things, so
+  the code already live kept working while they were applied ahead of it.
+- **The harness blocked `db push` again** (after the owner approved in
+  chat); the owner ran it from a worktree holding all three migrations.
