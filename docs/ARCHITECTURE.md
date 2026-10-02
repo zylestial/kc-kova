@@ -300,7 +300,10 @@ is deliberately not set yet — see `docs/TASKS.md`.
 
 CI (`.github/workflows/ci.yml`) runs `pnpm install`, `pnpm exec tsc
 --noEmit`, `pnpm lint`, `pnpm test`, and `pnpm build` on every push and pull
-request to `main`/`master`. Dependabot (`.github/dependabot.yml`) opens
+request to `main`/`master`, and a second job starts a local Supabase
+database (`supabase db start`, every migration from `0001`) and runs the
+pgTAP suite (`supabase test db`) and `supabase/tests/concurrency.sh`
+against it. Dependabot (`.github/dependabot.yml`) opens
 weekly PRs for npm and GitHub Actions dependency updates.
 
 Schema changes are new files in `supabase/migrations/`, applied in order,
