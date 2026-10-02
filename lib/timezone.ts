@@ -39,10 +39,10 @@ export function dateInBusinessTimezone(isoTimestamp?: string): string {
 
 /**
  * Why a v2 request date isn't allowed, or "" when it is. Mirrors
- * check_request_date (supabase/migrations/0019_v2_request_rpcs.sql) so the
+ * check_request_date (supabase/migrations/0040_urgent_within_week.sql) so the
  * form can grey out days; the database still makes the real decision.
- * Regular: 7+ days ahead. Urgent: today or tomorrow. 2-6 days ahead is
- * refused for both. Admin may also pick any past date.
+ * Regular: 7+ days ahead. Urgent: today up to 6 days ahead, so every
+ * future date suits exactly one type. Admin may also pick any past date.
  */
 export function requestDateError(
   date: string,
@@ -53,7 +53,7 @@ export function requestDateError(
   const today = manilaToday(now);
   if (isAdmin && date < today) return "";
   if (requestType === "REGULAR" && date < addDays(today, 7)) return "Regular requests need at least 7 days' notice";
-  if (requestType === "URGENT" && date !== today && date !== addDays(today, 1)) return "Urgent requests are for today or tomorrow only";
+  if (requestType === "URGENT" && (date < today || date >= addDays(today, 7))) return "Urgent requests are for today up to 6 days ahead";
   return "";
 }
 

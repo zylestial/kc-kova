@@ -73,17 +73,20 @@ describe("requestDateError", () => {
     expect(requestDateError("2026-03-16", "REGULAR", false, now)).not.toBe("");
   });
 
-  it("allows Urgent today and tomorrow only", () => {
-    expect(requestDateError("2026-03-10", "URGENT", false, now)).toBe("");
-    expect(requestDateError("2026-03-11", "URGENT", false, now)).toBe("");
-    expect(requestDateError("2026-03-12", "URGENT", false, now)).not.toBe("");
+  it("allows Urgent from today up to 6 days ahead, not 7", () => {
+    for (const date of ["2026-03-10", "2026-03-11", "2026-03-12", "2026-03-16"]) {
+      expect(requestDateError(date, "URGENT", false, now)).toBe("");
+    }
     expect(requestDateError("2026-03-17", "URGENT", false, now)).not.toBe("");
   });
 
-  it("refuses 2-6 days ahead for both types", () => {
-    for (const date of ["2026-03-12", "2026-03-14", "2026-03-16"]) {
-      expect(requestDateError(date, "REGULAR", true, now)).not.toBe("");
-      expect(requestDateError(date, "URGENT", true, now)).not.toBe("");
+  it("leaves no gap: every future date suits exactly one type", () => {
+    for (let day = 10; day <= 24; day++) {
+      const date = `2026-03-${day}`;
+      const allowed = [requestDateError(date, "REGULAR", false, now), requestDateError(date, "URGENT", false, now)].filter(
+        (error) => !error,
+      );
+      expect(allowed).toHaveLength(1);
     }
   });
 
