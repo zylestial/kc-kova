@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createRequest, currentAccount, getBookingOptions } from "@/lib/kova-api";
-import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
+import { addDays, manilaToday, requestDateError, requestTypeFor } from "@/lib/timezone";
 import { requestDraftHasContent, useUnsavedChanges } from "@/lib/unsaved-changes";
 import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 import RequestFields, {
@@ -20,6 +20,7 @@ import RequestFields, {
   draftToInput,
   emptyDraft,
   optionName,
+  requestTypeLabel,
   type RequestDraft,
 } from "./request-fields";
 
@@ -28,11 +29,9 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
 const fullDate = (value: string) =>
   dateLabel(value, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
-/** The type a date allows, or null for a past date (non-Admins only). */
-function typeFor(date: string, isAdmin: boolean): RequestDraft["requestType"] | null {
-  if (!requestDateError(date, "REGULAR", isAdmin)) return "REGULAR";
-  if (!requestDateError(date, "URGENT", isAdmin)) return "URGENT";
-  return null;
+/** The type a date gets, or null for a past date (non-Admins only). */
+function typeFor(date: string, isAdmin: boolean): "REGULAR" | "URGENT" | null {
+  return requestDateError(date, isAdmin) ? null : requestTypeFor(date);
 }
 
 /** Why a date card is greyed out, for its tooltip and screen-reader label: only past dates are. */
@@ -46,7 +45,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
   const today = manilaToday();
   const [step, setStep] = useState(1);
   const [anchor, setAnchor] = useState(today);
-  const [draft, setDraft] = useState<RequestDraft>(() => emptyDraft(today, "URGENT"));
+  const [draft, setDraft] = useState<RequestDraft>(() => emptyDraft(today));
   const [options, setOptions] = useState(() => getBookingOptions());
   const [reviewOpen, setReviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,17 +61,12 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
   const months = [...new Set([days[0], days.at(-1)!].map((day) => dateLabel(day, { month: "long", year: "numeric" })))];
-  const dateHint = requestDateError(draft.date, draft.requestType, isAdmin);
+  const dateHint = requestDateError(draft.date, isAdmin);
+  const requestType = requestTypeLabel(requestTypeFor(draft.date));
 
   function pickDate(date: string) {
-    const allowed = typeFor(date, isAdmin);
-    if (!allowed) return;
-    // Keep the chosen type if the new date still allows it.
-    setDraft({
-      ...draft,
-      date,
-      requestType: requestDateError(date, draft.requestType, isAdmin) ? allowed : draft.requestType,
-    });
+    if (!typeFor(date, isAdmin)) return;
+    setDraft({ ...draft, date });
     setError("");
   }
 
@@ -115,7 +109,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
           <h1>{step === 1 ? "When do you need transport?" : "Request details"}</h1>
           <p>
             {step === 1
-              ? "Urgent is for today up to 6 days ahead. Regular is for 7 or more days ahead."
+              ? "The date sets the type: Urgent for today up to 6 days ahead, Regular for 7 or more days ahead."
               : "Add each destination with its own purpose. A Scheduler assigns the vehicle, Driver and times."}
           </p>
         </div>
@@ -189,6 +183,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
             onChange={setDraft}
             options={options}
             requestedBy={account?.name ?? ""}
+            requestType={requestTypeFor(draft.date)}
             dateHint={dateHint}
           />
           <p className="helper">Only active choices appear. No vehicle, Driver or time is chosen at this stage.</p>
@@ -206,7 +201,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
           <span>{fullDate(draft.date)}</span>
           {step === 2 && (
             <span>
-              {draft.requestType === "URGENT" ? "Urgent" : "Regular"} · {draft.destinations.length}{" "}
+              {requestType} · {draft.destinations.length}{" "}
               {draft.destinations.length === 1 ? "destination" : "destinations"}
             </span>
           )}
@@ -235,7 +230,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
           </DialogHeader>
           <div className="booking-details">
             <p>
-              <b>Type:</b> {draft.requestType === "URGENT" ? "Urgent" : "Regular"}
+              <b>Type:</b> {requestType}
             </p>
             <p>
               <b>Requested by:</b> {account?.name}

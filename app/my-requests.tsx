@@ -24,7 +24,7 @@ import {
   type RequestProgress,
   type TransportRequest,
 } from "@/lib/kova-api";
-import { requestDateError } from "@/lib/timezone";
+import { requestDateError, requestTypeFor } from "@/lib/timezone";
 import RequestFields, {
   draftComplete,
   draftFromRequest,
@@ -153,8 +153,10 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
         .sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))[0]
     : undefined;
 
-  const dateChanged = !!editing && !!draft && (draft.date !== editing.date || draft.requestType !== editing.requestType);
-  const dateHint = draft && dateChanged ? requestDateError(draft.date, draft.requestType, isAdmin) : "";
+  // The type follows the date, but only once the date changes (as the server does).
+  const dateChanged = !!editing && !!draft && draft.date !== editing.date;
+  const dateHint = draft && dateChanged ? requestDateError(draft.date, isAdmin) : "";
+  const editType = draft && dateChanged ? requestTypeFor(draft.date) : (editing?.requestType ?? "REGULAR");
 
   return (
     <>
@@ -374,7 +376,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
         <DialogContent className="edit-booking-modal">
           <DialogHeader>
             <DialogTitle>Edit request</DialogTitle>
-            <DialogDescription>Changes are saved only if nobody has started scheduling this request. The same notice rules apply: Urgent is for today up to 6 days ahead, Regular for 7 or more days ahead.</DialogDescription>
+            <DialogDescription>Changes are saved only if nobody has started scheduling this request. A new date sets the type again: Urgent for today up to 6 days ahead, Regular for 7 or more days ahead.</DialogDescription>
           </DialogHeader>
           {editing && draft && (
             <>
@@ -398,6 +400,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
                 onChange={setDraft}
                 options={options}
                 requestedBy={editing.ownerName}
+                requestType={editType}
                 kept={keptOptions(editing)}
                 dateHint={dateHint}
               />

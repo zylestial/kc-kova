@@ -3,7 +3,6 @@ import { parseRequestInput } from "@/lib/request-input";
 
 const valid = {
   date: "2026-10-05",
-  requestType: "REGULAR",
   projectId: "pr1",
   projectOther: "",
   destinations: [
@@ -30,10 +29,13 @@ describe("parseRequestInput", () => {
     expect(parsed?.destinations).toEqual([{ destinationId: "", destinationOther: "Warehouse X", purposeId: "p1", purposeOther: "" }]);
   });
 
+  it("ignores a request type sent by the client", () => {
+    expect(parseRequestInput({ ...valid, requestType: "URGENT" })).toEqual(valid);
+  });
+
   it("rejects missing or malformed fields", () => {
     expect(parseRequestInput(null)).toBeNull();
     expect(parseRequestInput({ ...valid, date: "10/05/2026" })).toBeNull();
-    expect(parseRequestInput({ ...valid, requestType: "SOON" })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [] })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "d1" }] })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "", destinationOther: "", purposeId: "p1" }] })).toBeNull();

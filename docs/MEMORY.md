@@ -1034,3 +1034,15 @@ Decided by the project owner at the start of Phase 5:
   old 2–6 day gap is gone and the date alone decides the type. Today still
   counts as Urgent. Migration 0040 numbered after PR #62's 0038/0039 so the
   two can merge in either order.
+
+## Request type set from the date (2026-10-02)
+
+- **The API sets the type; the Requester no longer picks it.** Since 0040
+  every date fits exactly one type, so the picker was pure friction. The
+  request routes call `requestTypeFor(date)` (`lib/timezone.ts`) and ignore
+  any `requestType` in the body; `check_request_date` still rejects a
+  mismatch, so no migration was needed.
+- **An edit keeps the type unless the date changes**, so adding a stop to a
+  Regular request 3 days before its day doesn't turn it Urgent.
+- **An Admin's past-date request is Regular.** It's a trip someone forgot to
+  log, not an urgent ask, and Urgent would put it first in the planner pool.

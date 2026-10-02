@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dateInBusinessTimezone, manilaToday, hasTripEnded, regularMinDate, requestDateError } from "@/lib/timezone";
+import { addDays, dateInBusinessTimezone, manilaToday, hasTripEnded, regularMinDate, requestDateError, requestTypeFor } from "@/lib/timezone";
 
 describe("manilaToday", () => {
   it("returns the Manila calendar date for a UTC time still on the same day", () => {
@@ -64,40 +64,41 @@ describe("dateInBusinessTimezone", () => {
   });
 });
 
-describe("requestDateError", () => {
+describe("requestTypeFor", () => {
   // 02:00 UTC on 2026-03-10 is 10:00 the same day in Manila.
   const now = new Date("2026-03-10T02:00:00Z");
 
-  it("allows Regular from 7 days ahead, not 6", () => {
-    expect(requestDateError("2026-03-17", "REGULAR", false, now)).toBe("");
-    expect(requestDateError("2026-03-16", "REGULAR", false, now)).not.toBe("");
+  it("is Urgent from today up to 6 days ahead", () => {
+    for (const date of ["2026-03-10", "2026-03-11", "2026-03-16"]) expect(requestTypeFor(date, now)).toBe("URGENT");
   });
 
-  it("allows Urgent from today up to 6 days ahead, not 7", () => {
-    for (const date of ["2026-03-10", "2026-03-11", "2026-03-12", "2026-03-16"]) {
-      expect(requestDateError(date, "URGENT", false, now)).toBe("");
-    }
-    expect(requestDateError("2026-03-17", "URGENT", false, now)).not.toBe("");
+  it("is Regular from 7 days ahead", () => {
+    expect(requestTypeFor("2026-03-17", now)).toBe("REGULAR");
+    expect(requestTypeFor("2026-04-30", now)).toBe("REGULAR");
   });
 
-  it("leaves no gap: every future date suits exactly one type", () => {
-    for (let day = 10; day <= 24; day++) {
-      const date = `2026-03-${day}`;
-      const allowed = [requestDateError(date, "REGULAR", false, now), requestDateError(date, "URGENT", false, now)].filter(
-        (error) => !error,
-      );
-      expect(allowed).toHaveLength(1);
+  it("is Regular for a past date", () => {
+    expect(requestTypeFor("2026-03-09", now)).toBe("REGULAR");
+  });
+
+  it("uses the Manila calendar day, not UTC", () => {
+    // 17:00 UTC on the 10th is already the 11th in Manila, so the 17th is 6 days ahead.
+    expect(requestTypeFor("2026-03-17", new Date("2026-03-10T17:00:00Z"))).toBe("URGENT");
+  });
+});
+
+describe("requestDateError", () => {
+  const now = new Date("2026-03-10T02:00:00Z");
+
+  it("allows today and any later date", () => {
+    for (const date of ["2026-03-10", "2026-03-16", "2026-03-17", "2026-09-01"]) {
+      expect(requestDateError(date, false, now)).toBe("");
     }
   });
 
   it("lets only Admin pick a past date", () => {
-    expect(requestDateError("2026-03-01", "REGULAR", true, now)).toBe("");
-    expect(requestDateError("2026-03-01", "REGULAR", false, now)).not.toBe("");
-  });
-
-  it("uses the Manila calendar day, not UTC", () => {
-    // 17:00 UTC on the 10th is already the 11th in Manila, so the 11th is "today".
-    expect(requestDateError("2026-03-12", "URGENT", false, new Date("2026-03-10T17:00:00Z"))).toBe("");
+    expect(requestDateError("2026-03-01", true, now)).toBe("");
+    expect(requestDateError("2026-03-01", false, now)).not.toBe("");
   });
 });
 

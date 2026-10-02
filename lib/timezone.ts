@@ -38,23 +38,20 @@ export function dateInBusinessTimezone(isoTimestamp?: string): string {
 }
 
 /**
- * Why a v2 request date isn't allowed, or "" when it is. Mirrors
- * check_request_date (supabase/migrations/0040_urgent_within_week.sql) so the
- * form can grey out days; the database still makes the real decision.
- * Regular: 7+ days ahead. Urgent: today up to 6 days ahead, so every
- * future date suits exactly one type. Admin may also pick any past date.
+ * The request type a date gets: Urgent for today up to 6 days ahead,
+ * Regular for 7+ days ahead. A past date (Admin logging a trip someone
+ * forgot to request) is Regular, so it never jumps the planner's queue.
+ * Matches check_request_date (supabase/migrations/0040_urgent_within_week.sql),
+ * which still rejects a type that doesn't fit the date.
  */
-export function requestDateError(
-  date: string,
-  requestType: "REGULAR" | "URGENT",
-  isAdmin: boolean,
-  now: Date = new Date(),
-): string {
+export function requestTypeFor(date: string, now: Date = new Date()): "REGULAR" | "URGENT" {
   const today = manilaToday(now);
-  if (isAdmin && date < today) return "";
-  if (requestType === "REGULAR" && date < addDays(today, 7)) return "Regular requests need at least 7 days' notice";
-  if (requestType === "URGENT" && (date < today || date >= addDays(today, 7))) return "Urgent requests are for today up to 6 days ahead";
-  return "";
+  return date >= today && date < addDays(today, 7) ? "URGENT" : "REGULAR";
+}
+
+/** Why a request date isn't allowed, or "" when it is: only Admin may pick a past date. */
+export function requestDateError(date: string, isAdmin: boolean, now: Date = new Date()): string {
+  return !isAdmin && date < manilaToday(now) ? "That date has passed. Choose today or a later date." : "";
 }
 
 /**
