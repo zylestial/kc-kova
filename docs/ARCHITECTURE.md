@@ -307,8 +307,8 @@ error the first time a route touches Supabase.
 
 `next.config.ts` sets baseline security response headers
 (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
-`Permissions-Policy`) on every response. A `Content-Security-Policy` header
-is deliberately not set yet — see `docs/TASKS.md`.
+`Permissions-Policy`) on every response, plus a static (non-nonce)
+`Content-Security-Policy`; see `docs/MEMORY.md`, "Content-Security-Policy".
 
 ## Deployment and migrations
 
