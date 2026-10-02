@@ -60,6 +60,7 @@ import {
   openRevision,
   pickLegDestination,
   poolDestinationChoices,
+  poolOrder,
   reflowFinalLegTimeOut,
   removeLeg,
   scheduleState,
@@ -73,6 +74,7 @@ import {
   tripChecklist,
   tripProblems,
   tripWindow,
+  unplacedUrgentRequestIds,
   type LegDraft,
 } from "@/lib/trip-record";
 import TripRecordView from "./trip-record-view";
@@ -179,7 +181,7 @@ export default function SchedulePlanner({
   // Requests for the day that are free to plan, plus any this schedule holds.
   const pool = dayRequests
     .filter((request) => request.progress === "NOT_YET_SCHEDULED" || requestIds.includes(request.id))
-    .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || a.createdAt.localeCompare(b.createdAt));
+    .sort(poolOrder);
   const heldElsewhere = dayRequests.filter(
     (request) => request.progress !== "NOT_YET_SCHEDULED" && !requestIds.includes(request.id),
   ).length;
@@ -230,8 +232,10 @@ export default function SchedulePlanner({
 
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
   const months = [...new Set([days[0], days.at(-1)!].map((day) => dateLabel(day, { month: "long", year: "numeric" })))];
-  const openCount = (day: string) =>
-    requests.filter((request) => request.date === day && request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED").length;
+  const openOn = (day: string) =>
+    requests.filter((request) => request.date === day && request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED");
+  // Urgent requests in the pool still off the route, so they aren't missed.
+  const urgentLeft = unplacedUrgentRequestIds(poolStops, legs).length;
 
   function pickDate(day: string) {
     setDate(day);
@@ -364,18 +368,21 @@ export default function SchedulePlanner({
             </Button>
             <div className="date-strip">
               {days.map((day) => {
-                const count = openCount(day);
+                const open = openOn(day);
+                const count = open.length;
+                const urgent = open.filter((request) => request.requestType === "URGENT").length;
                 return (
                   <button
                     key={day}
                     className={"date-card " + (date === day ? "selected" : "")}
                     onClick={() => pickDate(day)}
                     aria-pressed={date === day}
-                    aria-label={`${fullDate(day)}, ${count} waiting`}
+                    aria-label={`${fullDate(day)}, ${count} waiting${urgent ? `, ${urgent} urgent` : ""}`}
                   >
                     <span>{dateLabel(day, { weekday: "short" })}</span>
                     <b>{dateLabel(day, { day: "numeric" })}</b>
                     <small>{count ? `${count} waiting` : "none"}</small>
+                    {urgent > 0 && <small className="date-card-urgent">{urgent} urgent</small>}
                   </button>
                 );
               })}
@@ -421,7 +428,7 @@ export default function SchedulePlanner({
                   <span className="planner-step">Step 1</span>
                   <h2>Request pool</h2>
                   <p>
-                    Requests for {dateLabel(date, { month: "short", day: "numeric" })}, grouped by who asked. A
+                    Requests for {dateLabel(date, { month: "short", day: "numeric" })}, Urgent first, then grouped by who asked. A
                     destination is ticked off once it&apos;s on the route below — use &quot;Add stop&quot; there, not here.
                     {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
                   </p>
@@ -623,6 +630,7 @@ export default function SchedulePlanner({
                                 {poolChoices.map((option) => (
                                   <SelectItem key={option.id} value={option.id}>
                                     {option.name}
+                                    {option.urgent && <span className="badge urgent">URGENT</span>}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>
@@ -793,6 +801,12 @@ export default function SchedulePlanner({
             </DialogDescription>
           </DialogHeader>
           <TripRecordView legs={reviewLegs} stopsById={stopsById} />
+          {urgentLeft > 0 && (
+            <div className="notice" role="status">
+              {urgentLeft === 1 ? "1 Urgent request is" : `${urgentLeft} Urgent requests are`} not on this route. Add{" "}
+              {urgentLeft === 1 ? "it" : "them"} here or to another schedule for this day.
+            </div>
+          )}
           <p className="helper">An Admin reviews the schedule. The Driver sees it only once it&apos;s approved.</p>
           {error && (
             <p className="modal-error" role="alert">
