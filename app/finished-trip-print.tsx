@@ -1,6 +1,7 @@
 "use client";
 import { createPortal } from "react-dom";
-import { getVehicles, type TransportRequest } from "@/lib/kova-api";
+import type { TransportRequest } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import type { FinishedTrip } from "@/lib/finished-trips";
 import { dateInBusinessTimezone } from "@/lib/timezone";
 import { BASE, MAX_LEGS, type StopInfo } from "@/lib/trip-record";
@@ -25,7 +26,8 @@ export default function FinishedTripPrint({
   requests: TransportRequest[];
 }) {
   const { schedule, revision, completion } = trip;
-  const vehicle = getVehicles().find((item) => item.plate === revision.plate)?.name ?? "";
+  const { vehicles } = useKovaData();
+  const vehicle = vehicles.find((item) => item.plate === revision.plate)?.name ?? "";
   const projects = [
     ...new Set(
       requests
