@@ -1,6 +1,6 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Flag, Plus, Save, Send, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,11 +28,8 @@ import {
 import {
   createSchedule,
   discardScheduleDraft,
-  getAccounts,
-  getBookingOptions,
   getRequests,
   getSchedules,
-  getVehicles,
   hydrateKovaData,
   saveScheduleDraft,
   sendBackRequests,
@@ -40,6 +37,7 @@ import {
   submitSchedule,
   type Schedule,
 } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { tripSignature, useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
@@ -87,24 +85,6 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
   new Date(value + "T12:00:00").toLocaleDateString("en-US", options);
 const fullDate = (value: string) =>
   dateLabel(value, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-
-const readData = () => ({
-  requests: getRequests(),
-  schedules: getSchedules(),
-  vehicles: getVehicles(),
-  accounts: getAccounts(),
-  options: getBookingOptions(),
-});
-
-function useKovaData() {
-  const [data, setData] = useState(readData);
-  useEffect(() => {
-    const refresh = () => setData(readData());
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, []);
-  return data;
-}
 
 /**
  * Create schedule (and continue a draft): choose a day, pick requests from
