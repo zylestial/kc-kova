@@ -777,4 +777,10 @@ is no longer accurate.
       pool and dropdown, single and bulk send-back, and My requests "Sent
       back" → Pick another day, with no console errors. That pass found and
       fixed a sent-back request being counted as "already in another
-      schedule".
+      schedule". Follow-ups from the owner's click-through: submit no
+      longer needs every pool request on the route; the submit dialog lists
+      what's left off and sends it back (ticked by default); and a request
+      only partly on the route is split (migration 0039, `split_request`),
+      so its other stops can go on another car or back to the requester.
+      `v2_split_request.test.sql` (12 checks) passes; the split-on-submit
+      flow was click-tested end to end.
