@@ -1,15 +1,14 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Car, Plus } from "lucide-react";
 import {
-  getAccounts,
-  getVehicles,
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
   changeAccountPassword,
 } from "@/lib/kova-api";
+import { useKovaData } from "@/lib/use-kova-data";
 import BookingOptions from "./booking-options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,9 +111,7 @@ function Choice<T extends string>({
 }
 export default function Settings({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState("accounts");
-  const [accounts, setAccounts] = useState<Account[]>(() => getAccounts());
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => getVehicles());
-  const [loading, setLoading] = useState(false);
+  const { accounts, vehicles } = useKovaData();
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
@@ -133,21 +130,11 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   );
   const driverName = (id?: string | null) =>
     (id && accounts.find((a) => a.id === id)?.name) || "No Driver assigned";
+  // The lists follow the app's data (useKovaData), so another Admin's change
+  // shows once the app refreshes; after a save there is only the error to clear.
   function load() {
-    setAccounts(getAccounts());
-    setVehicles(getVehicles());
-    setLoading(false);
     setError("");
   }
-  // Pick up changes another Admin made, once the app refreshes its data.
-  useEffect(() => {
-    const refresh = () => {
-      setAccounts(getAccounts());
-      setVehicles(getVehicles());
-    };
-    window.addEventListener("kova-data-update", refresh);
-    return () => window.removeEventListener("kova-data-update", refresh);
-  }, []);
   function addAccount() {
     setAccount(blankAccount());
     setAccountModal("add");
@@ -294,9 +281,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           </Button>
         </div>
       )}
-      {loading ? (
-        <div className="editor-panel">Loading…</div>
-      ) : tab === "accounts" ? (
+      {tab === "accounts" ? (
         <section className="schedule-panel">
           <div className="panel-toolbar">
             <div>
