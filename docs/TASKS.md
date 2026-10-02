@@ -758,3 +758,18 @@ is no longer accurate.
       until the Driver submits. The Driver's Finished Trips screen is
       unchanged. `tsc --noEmit`, lint, vitest (153/153) and `next build`
       pass; not yet click-tested in a browser.
+- [x] **Request pool: Urgent first, and send back what won't fit** — branch
+      `feat/request-pool-priority`. The planner pool, the "From the request
+      pool" destination list and the day picker now put Urgent requests
+      first (`poolOrder`, `poolDestinationChoices`, "N urgent" on each day),
+      and the submit dialog warns when an Urgent request is left off the
+      route. A request that doesn't fit can be sent back to its requester
+      (per request, or "Send back all unplaced"), with an optional reason:
+      migration 0038 adds `send_back_requests`, a new `SENT_BACK` progress
+      and a `REQUEST_SENT_BACK` notification. The requester sees "Sent back"
+      in My requests and picks another day (Edit) or cancels; a new date
+      puts it back in the pool. `tsc --noEmit`, lint, vitest (158/158) and
+      `next build` pass; `v2_send_back.test.sql` (13 checks) passes, and the
+      round trip was smoke-tested through the API on a local dev server. The
+      other pgTAP files weren't re-run (they need a local `supabase db
+      reset`), and the planner/My requests UI hasn't been click-tested yet.
