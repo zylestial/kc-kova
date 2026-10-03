@@ -1,9 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signInAndWaitForHome } from "./helpers";
 
-// A far-off random day keeps repeated runs from colliding on the same vehicle.
+// A random day 2-12 weeks out keeps repeated runs from colliding on the same vehicle.
 function runDate() {
-  const day = new Date(Date.now() + (30 + Math.floor(Math.random() * 300)) * 86_400_000);
+  const day = new Date(Date.now() + (14 + Math.floor(Math.random() * 70)) * 86_400_000);
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(day);
 }
 
@@ -55,8 +55,14 @@ test("a request becomes an approved schedule", async ({ browser }) => {
   // Admin approves it.
   const admin = await pageFor("admin1");
   await admin.goto("/schedules");
-  await admin.goto("/schedules?date=" + date);
-  await admin.locator(".schedule-card", { hasText: /submitted|waiting|pending/i }).first().click();
+  const monday = new Date(date + "T12:00:00");
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const week = "Week of " + monday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  for (let i = 0; i < 14 && !(await admin.getByRole("heading", { name: week }).count()); i++) {
+    await admin.getByRole("button", { name: "Next week" }).click();
+  }
+  await admin.locator(".week-day-label").nth((new Date(date + "T12:00:00").getDay() + 6) % 7).click();
+  await admin.locator(".schedule-card").first().click();
   await admin.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(admin.getByText(/approved and published/i)).toBeVisible();
 
