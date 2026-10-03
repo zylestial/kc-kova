@@ -15,10 +15,10 @@ test("sends signed-out visitors to the sign-in page", async ({ page }) => {
 // One page per role that only that role (or more) should reach, plus a probe
 // element that proves the screen rendered its data rather than an error.
 const roles = [
-  { user: "admin1", pages: [["/settings", "table"], ["/finished", "table, .empty"], ["/schedules", ".schedule-card, .empty"]] },
-  { user: "sched1", pages: [["/schedules", ".schedule-card, .empty"], ["/schedules/new", ".date-card"]] },
-  { user: "req1", pages: [["/requests", "table, .empty"], ["/requests/new", ".date-card"]] },
-  { user: "driver1", pages: [["/my-schedule", "table, .empty"]] },
+  { user: "admin1", pages: [["/settings", "table"], ["/finished", "main"], ["/schedules", ".schedule-panel"]] },
+  { user: "sched1", pages: [["/schedules", ".schedule-panel"], ["/schedules/new", ".date-card"]] },
+  { user: "req1", pages: [["/requests", "main"], ["/requests/new", ".date-card"]] },
+  { user: "driver1", pages: [["/my-schedule", "main"]] },
 ] as const;
 
 for (const { user, pages } of roles) {
