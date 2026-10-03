@@ -34,6 +34,9 @@ const ACCOUNTS = [
   { username: "booker2", name: "QA Requester Two", role: "Requester" },
   { username: "driver1", name: "QA Driver One", role: "Driver" },
   { username: "driver2", name: "QA Driver Two", role: "Driver" },
+  // Used by the e2e suite (e2e/*.spec.ts).
+  { username: "sched1", name: "QA Scheduler", role: "Scheduler" },
+  { username: "req1", name: "QA Requester Three", role: "Requester" },
 ];
 
 const VEHICLES = [
@@ -100,6 +103,13 @@ async function seedBookingOption({ group, id, name }) {
 for (const account of ACCOUNTS) await seedAccount(account);
 for (const vehicle of VEHICLES) await seedVehicle(vehicle);
 for (const option of BOOKING_OPTIONS) await seedBookingOption(option);
+
+// The planner needs a vehicle whose Driver is set (e2e suite).
+const { data: driver1 } = await admin.from("accounts").select("id").eq("username", "driver1").maybeSingle();
+if (driver1) {
+  await admin.from("vehicles").update({ assigned_driver_id: null }).eq("assigned_driver_id", driver1.id);
+  await admin.from("vehicles").update({ assigned_driver_id: driver1.id }).eq("plate", "UAT-001");
+}
 
 console.log(`\nDone. All seeded accounts use the password: ${UAT_PASSWORD}`);
 console.log("Rotate/delete these accounts once UAT is complete.");
