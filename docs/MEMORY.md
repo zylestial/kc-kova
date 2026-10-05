@@ -470,3 +470,13 @@ a separate step, not yet done as of this entry.
   Schedulers get finished trips from request progress (`request_progress_of`
   is security definer and reads the completion) instead of a wider
   `trip_completions` policy. The trade-off: no odometer or distance for them.
+
+## Dashboard tile filters (2026-10-05)
+
+- **A status link opens Schedules on All dates**, not the current week:
+  tile counts span every date, so a week-bound list could show fewer than
+  the tile said. Agreed with the owner. Filter links are read once and
+  stripped from the URL, like `?notice=` and `?open=`.
+- **"Trips today" opens the Day view unfiltered.** The tile counts only
+  published trips, while the Day view also shows that day's drafts; there
+  is no single status filter that matches it.

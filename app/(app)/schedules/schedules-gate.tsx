@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Schedules from "../../schedules";
+import Schedules, { scheduleViews, type ScheduleView } from "../../schedules";
+import { scheduleStateLabel, type ScheduleState } from "@/lib/trip-record";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
@@ -14,10 +15,21 @@ export default function SchedulesGate() {
   // Read once, then strip from the URL so a refresh doesn't re-show it.
   const [notice, setNotice] = useState(() => params.get("notice") ?? "");
   const [openId] = useState(() => params.get("open") ?? undefined);
+  // A Dashboard tile's starting filter. A status filter on its own opens
+  // All dates, so the screen shows everything the tile counted.
+  const [status] = useState(() => {
+    const value = params.get("status");
+    return value && Object.hasOwn(scheduleStateLabel, value) ? (value as ScheduleState) : undefined;
+  });
+  const [view] = useState(() => {
+    const value = params.get("view") as ScheduleView | null;
+    return value && scheduleViews.includes(value) ? value : status ? "all" : undefined;
+  });
   useAutoClear(notice, setNotice);
   useEffect(() => {
-    if (params.get("notice") || params.get("open")) router.replace(date ? `/schedules?date=${encodeURIComponent(date)}` : "/schedules");
-    // Only ever runs once, on mount, to consume the initial ?notice=/?open=.
+    if (["notice", "open", "status", "view"].some((key) => params.get(key)))
+      router.replace(date ? `/schedules?date=${encodeURIComponent(date)}` : "/schedules");
+    // Only ever runs once, on mount, to consume the initial query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
@@ -29,6 +41,8 @@ export default function SchedulesGate() {
         notice={notice}
         initialDate={date}
         initialOpenId={openId}
+        initialView={view}
+        initialStatus={status}
         onCreate={viewRole === "Scheduler" ? () => router.push("/schedules/new") : undefined}
         onEdit={(id) => router.push("/schedules/new?scheduleId=" + encodeURIComponent(id))}
       />

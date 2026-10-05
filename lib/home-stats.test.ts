@@ -37,6 +37,12 @@ describe("homeStats", () => {
       "Sent back": 1,
       Scheduled: 1,
     });
+    expect(homeStats("Requester", "u1", data, NOW).map((stat) => stat.href)).toEqual([
+      "/requests",
+      "/requests?progress=NOT_YET_SCHEDULED",
+      "/requests?progress=SENT_BACK",
+      "/requests",
+    ]);
   });
 
   it("counts a Scheduler's waiting requests, drafts, returns and today's trips", () => {
@@ -55,6 +61,12 @@ describe("homeStats", () => {
       "Returned by Admin": 1,
       "Trips today": 1,
     });
+    expect(homeStats("Scheduler", "u1", data, NOW).map((stat) => stat.href)).toEqual([
+      "/schedules/new",
+      "/schedules?status=DRAFT",
+      "/schedules?status=RETURNED",
+      "/schedules?view=day",
+    ]);
   });
 
   it("counts what is waiting on an Admin", () => {
@@ -71,7 +83,12 @@ describe("homeStats", () => {
       "Trips to close": 1,
       "Open problems": 2,
     });
-    expect(homeStats("Admin", "u1", data, NOW).map((stat) => stat.href)).toEqual(["/schedules", "/schedules", "/finished", "/finished"]);
+    expect(homeStats("Admin", "u1", data, NOW).map((stat) => stat.href)).toEqual([
+      "/schedules?status=SUBMITTED",
+      "/schedules#cancellations",
+      "/finished?status=SUBMITTED",
+      "/finished?problems=open",
+    ]);
   });
 
   it("counts a Driver's own trips, or every driver's when viewed by Admin", () => {

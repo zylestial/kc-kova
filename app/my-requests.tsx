@@ -66,7 +66,16 @@ const editable = (request: TransportRequest) => request.status === "ACTIVE" && u
 const canCancel = (request: TransportRequest) =>
   request.status === "ACTIVE" && !request.cancellationPending && !["COMPLETED", "DONE"].includes(request.progress);
 
-export default function MyRequests({ notice, openRequestId }: { notice?: string; openRequestId?: string }) {
+export default function MyRequests({
+  notice,
+  openRequestId,
+  initialProgress,
+}: {
+  notice?: string;
+  openRequestId?: string;
+  /** A progress to filter by from the start, e.g. from a Dashboard tile. */
+  initialProgress?: RequestProgress;
+}) {
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
   const { requests: allRequests, options, cancellations } = useKovaData();
@@ -90,7 +99,7 @@ export default function MyRequests({ notice, openRequestId }: { notice?: string;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [dates, setDates] = useState<DateFilter>(anyDate);
-  const [progress, setProgress] = useState<"all" | RequestProgress>("all");
+  const [progress, setProgress] = useState<"all" | RequestProgress>(initialProgress ?? "all");
   const [type, setType] = useState<"all" | TransportRequest["requestType"]>("all");
 
   // Opens straight into a specific request when arriving from a notification.

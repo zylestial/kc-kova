@@ -51,14 +51,28 @@ const notSubmitted = "Not submitted yet";
  * (which locks it), handle the Driver's problem reports and print the form.
  * Postgres decides what is allowed; this only shapes the screen.
  */
-export default function AdminFinishedTrips({ initialOpenId }: { initialOpenId?: string } = {}) {
+// The Status and Problems filter values a link may start on.
+export const finishedStatusFilters = ["SUBMITTED", "DONE", "UNSUBMITTED"];
+export const finishedProblemFilters = ["open", "none"];
+
+export default function AdminFinishedTrips({
+  initialOpenId,
+  initialStatus,
+  initialProblems,
+}: {
+  initialOpenId?: string;
+  /** One of `finishedStatusFilters`, e.g. from a Dashboard tile. */
+  initialStatus?: string;
+  /** One of `finishedProblemFilters`, e.g. from a Dashboard tile. */
+  initialProblems?: string;
+} = {}) {
   const { schedules, completions, problems: problemReports, requests } = useKovaData();
   const trips = useMemo(() => buildAdminTrips(schedules, completions, problemReports), [schedules, completions, problemReports]);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [vehicle, setVehicle] = useState("all");
-  const [status, setStatus] = useState("all");
-  const [problems, setProblems] = useState("all");
+  const [status, setStatus] = useState(initialStatus ?? "all");
+  const [problems, setProblems] = useState(initialProblems ?? "all");
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<Mode>("view");
   const [start, setStart] = useState("");

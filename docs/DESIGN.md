@@ -69,7 +69,14 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
   takes its status color only when its count is above zero; a zero is
-  neutral grey.
+  neutral grey. A tile opens its screen filtered to what it counts, through
+  query parameters the screen reads once and strips (`/schedules?status=`
+  and `?view=`, `/requests?progress=`, `/finished?status=` and
+  `?problems=`); "Cancellation requests" jumps to `/schedules#cancellations`.
+- **Schedules has Day, Week and All dates views.** All dates lists every
+  matching schedule with its date on each card; a status link with no view
+  opens it, so the list shows everything the tile counted. Picking a date
+  switches back to Day.
 - Screens no longer have a "← Home" back button; the sidebar replaces it.
   The Planner keeps "← Schedules" when editing an existing schedule.
   Below 1024px the top bar shows **← Back** (in place of the logo) on every
