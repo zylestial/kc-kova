@@ -227,3 +227,7 @@ tbody tr:hover{background:#f5f7fd}
 .sign-card>p[role=status]{text-align:center}
 @media print{.sign-shell{background:none}}
 @media(max-width:700px){table[data-stack] td>.badge,table[data-stack] td>.status-pill{justify-self:end}}
+.stat-tile{color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}
+.stat-tile:hover{border-color:var(--primary);box-shadow:0 8px 24px rgba(27,46,110,.1);transform:translateY(-1px)}
+.stat-tile:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.stat-tile{transition:none}.stat-tile:hover{transform:none}}
