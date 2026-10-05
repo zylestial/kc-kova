@@ -4,7 +4,8 @@ import { hasTripEnded, manilaToday } from "@/lib/timezone";
 import { scheduleState } from "@/lib/trip-record";
 
 export type StatTone = "info" | "success" | "warning" | "error";
-// `href` is the screen where that work gets done.
+// `href` is the screen where that work gets done, filtered to what the tile
+// counts where that screen has a matching filter.
 export type HomeStat = { label: string; value: number; tone: StatTone; href: string };
 
 /**
@@ -34,8 +35,8 @@ export function homeStats(
     const sentBack = open.filter((request) => request.progress === "SENT_BACK").length;
     return [
       { label: "Open requests", href: "/requests", value: open.length, tone: "info" },
-      { label: "Not yet scheduled", href: "/requests", value: unscheduled, tone: "warning" },
-      { label: "Sent back", href: "/requests", value: sentBack, tone: "error" },
+      { label: "Not yet scheduled", href: "/requests?progress=NOT_YET_SCHEDULED", value: unscheduled, tone: "warning" },
+      { label: "Sent back", href: "/requests?progress=SENT_BACK", value: sentBack, tone: "error" },
       { label: "Scheduled", href: "/requests", value: open.length - unscheduled - sentBack, tone: "success" },
     ];
   }
@@ -50,9 +51,9 @@ export function homeStats(
     ).length;
     return [
       { label: "Waiting to be scheduled", href: "/schedules/new", value: waiting, tone: "warning" },
-      { label: "Drafts to finish", href: "/schedules", value: states.filter((state) => state === "DRAFT").length, tone: "info" },
-      { label: "Returned by Admin", href: "/schedules", value: states.filter((state) => state === "RETURNED").length, tone: "error" },
-      { label: "Trips today", href: "/schedules", value: tripsToday, tone: "success" },
+      { label: "Drafts to finish", href: "/schedules?status=DRAFT", value: states.filter((state) => state === "DRAFT").length, tone: "info" },
+      { label: "Returned by Admin", href: "/schedules?status=RETURNED", value: states.filter((state) => state === "RETURNED").length, tone: "error" },
+      { label: "Trips today", href: "/schedules?view=day", value: tripsToday, tone: "success" },
     ];
   }
 
@@ -76,17 +77,17 @@ export function homeStats(
   return [
     {
       label: "Schedules to approve",
-      href: "/schedules",
+      href: "/schedules?status=SUBMITTED",
       value: data.schedules.filter((schedule) => scheduleState(schedule) === "SUBMITTED").length,
       tone: "warning",
     },
     {
       label: "Cancellation requests",
-      href: "/schedules",
+      href: "/schedules#cancellations",
       value: data.cancellations.filter((item) => item.status === "PENDING").length,
       tone: "warning",
     },
-    { label: "Trips to close", href: "/finished", value: data.completions.filter((item) => item.status === "SUBMITTED").length, tone: "info" },
-    { label: "Open problems", href: "/finished", value: data.problems.filter((item) => item.status === "OPEN").length, tone: "error" },
+    { label: "Trips to close", href: "/finished?status=SUBMITTED", value: data.completions.filter((item) => item.status === "SUBMITTED").length, tone: "info" },
+    { label: "Open problems", href: "/finished?problems=open", value: data.problems.filter((item) => item.status === "OPEN").length, tone: "error" },
   ];
 }
