@@ -71,6 +71,7 @@ describe("homeStats", () => {
       "Trips to close": 1,
       "Open problems": 2,
     });
+    expect(homeStats("Admin", "u1", data, NOW).map((stat) => stat.href)).toEqual(["/schedules", "/schedules", "/finished", "/finished"]);
   });
 
   it("counts a Driver's own trips, or every driver's when viewed by Admin", () => {
