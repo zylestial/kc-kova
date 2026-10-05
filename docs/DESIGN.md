@@ -21,7 +21,7 @@ Defined as CSS custom properties in `app/globals.css`, built on shadcn's
 | `--destructive` | `#c62f2f` | Destructive actions |
 | `--border`, `--input` | `#e1e6ef`, `#d6dce8` | Borders and form field outlines |
 | `--ring` | `#2b47a8` | Focus rings |
-| `--radius` | `.5rem` (with `sm`/`md`/`lg`/`xl` steps) | Corner rounding |
+| `--radius` | `.5rem` (steps `sm` 6px, `md` 8px, `lg` 12px, `xl` 16px) | Corner rounding |
 
 Brand colors are taken from the Kayelen's Construction logo:
 `--brand-blue` `#2b47a8` (gears, hammer), `--brand-navy` `#1b2e6e`
@@ -45,11 +45,39 @@ background.
 
 Each is also a Tailwind color (`bg-warning-bg`, `text-error-fg`, ...).
 
-Typography is system sans (`Arial, Helvetica, sans-serif`) at a 16px base.
+Typography is Inter (falling back to Arial/Helvetica) at a 16px base.
 `components/ui/` holds the vendored shadcn/Radix primitives — per
 `docs/ARCHITECTURE.md`, these aren't hand-edited; screen-specific styling
 lives in `app/globals.css` instead, scoped by class name per screen (e.g.
 `.booking-flow`, `.driver-trip-table`, `.settings-shell`).
+
+## App shell and dashboard
+
+Signed-in screens sit in `app/(app)/layout.tsx`:
+
+- **Sidebar** (`app/(app)/sidebar.tsx`): navy (`--brand-navy`), 256px,
+  fixed on the left from 1024px up; below that it's a drawer opened from
+  the top bar's menu button and closed by the scrim, the X or Escape. It
+  holds the logo, the role's menu (`navItems()` in
+  `app/(app)/nav-items.ts`, with the longest matching path highlighted),
+  Help, the account and Sign out. Menu links are real links, but a plain
+  click goes through `leave()` so unsaved work still asks first. While an
+  Admin is viewing as another role, the menu is that role's.
+- **Top bar** (`app/(app)/topbar.tsx`): today's date (wide screens) or
+  the menu button and logo (narrow), the refresh-failed warning, Refresh
+  and notifications.
+- **Dashboard** (`/home`): a navy welcome banner, stat tiles from
+  `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
+  takes its status color only when its count is above zero; a zero is
+  neutral grey.
+- Screens no longer have a "← Home" back button; the sidebar replaces it.
+  The Planner keeps "← Schedules" when editing an existing schedule.
+- Fixed bottom bars (`.booking-bottom`) start after the sidebar on wide
+  screens.
+
+Cards and panels use 16px corners and `--shadow-card`; status pills carry a
+dot in their text color. The UI font is Inter (`next/font/google`,
+self-hosted at build time as `--font-inter`); printouts keep Arial.
 
 ## Responsive breakpoints
 
