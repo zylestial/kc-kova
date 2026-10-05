@@ -427,3 +427,18 @@ a separate step, not yet done as of this entry.
   loaded until "Load older records"; that was judged acceptable.
 - **`since` is validated** (`parseSince`); a bad value falls back to the
   default instead of erroring.
+
+## E2E test setup (2026-10-05)
+
+- **Setup goes through the API, the step under test through the UI.**
+  `publishTrip` (`e2e/helpers.ts`) files a request and has admin1 save,
+  submit and approve a schedule on UAT-001, driver1's vehicle. Only the
+  request → approval test drives the planner.
+- **Trip-record tests use a past date owned by admin1.** A trip can't be
+  recorded before its last Time In, and only an Admin may request a past
+  date. Keep it within the 90-day startup window or the Driver won't see it.
+- **Random day and hour, retried on a clash**, so reruns against a local
+  database full of old test trips don't collide on UAT-001.
+- **`next dev` can 404 an API route the first time it compiles it.** A local
+  run can fail once that way; rerun. CI tests a production build, so it
+  doesn't see this.
