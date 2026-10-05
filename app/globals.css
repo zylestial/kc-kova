@@ -226,3 +226,4 @@ tbody tr:hover{background:#f5f7fd}
 .sign-card .helper{text-align:center;font-size:13px!important}
 .sign-card>p[role=status]{text-align:center}
 @media print{.sign-shell{background:none}}
+@media(max-width:700px){table[data-stack] td>.badge,table[data-stack] td>.status-pill{justify-self:end}}
