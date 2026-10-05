@@ -1,29 +1,33 @@
 "use client";
-import { CircleHelp, RefreshCw } from "lucide-react";
+import { Menu, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import KovaBrand from "../kova-brand";
 import NotificationBell from "../notification-bell";
-import { useAccount } from "./providers";
 
+// Help, the account and Sign out live in the sidebar; the bar keeps the
+// refresh state and notifications, plus the menu button on narrow screens.
 export default function Topbar({
   refreshing,
   refreshFailed,
   updatedAt,
   onRefresh,
-  onHelp,
-  onSignOut,
+  onMenu,
 }: {
   refreshing: boolean;
   refreshFailed: boolean;
   updatedAt: Date | null;
   onRefresh: () => void;
-  onHelp: () => void;
-  onSignOut: () => void;
+  onMenu: () => void;
 }) {
-  const { leave } = useAccount();
   return (
     <header className="topbar">
+      <Button variant="ghost" size="icon" className="topbar-menu" aria-label="Open menu" onClick={onMenu}>
+        <Menu size={20} />
+      </Button>
       <KovaBrand />
+      <span className="topbar-title">
+        {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+      </span>
       {refreshFailed && (
         <span className="last-updated" role="status">
           Couldn&rsquo;t refresh. Showing older data.
@@ -47,13 +51,7 @@ export default function Topbar({
           <RefreshCw size={15} className={refreshing ? "animate-spin" : undefined} />
         </Button>
         <NotificationBell />
-        <Button variant="ghost" size="icon" aria-label="Help" title="Help" onClick={onHelp}>
-          <CircleHelp size={15} />
-        </Button>
       </div>
-      <Button variant="ghost" onClick={() => leave(onSignOut)}>
-        Sign Out
-      </Button>
     </header>
   );
 }
