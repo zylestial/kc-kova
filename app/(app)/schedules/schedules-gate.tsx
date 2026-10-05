@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import Schedules from "../../schedules";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { RequireRole } from "../require-role";
@@ -24,9 +22,6 @@ export default function SchedulesGate() {
   }, []);
   return (
     <RequireRole allow={viewRole === "Scheduler" || viewRole === "Admin"}>
-      <Button variant="ghost" className="back" onClick={() => router.push("/home")}>
-        <ArrowLeft size={17} /> {viewRole} Home
-      </Button>
       <Schedules
         key={date ?? "today"}
         canEdit={viewRole === "Scheduler"}

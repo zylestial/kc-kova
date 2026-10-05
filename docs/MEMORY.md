@@ -442,3 +442,16 @@ a separate step, not yet done as of this entry.
 - **`next dev` can 404 an API route the first time it compiles it.** A local
   run can fail once that way; rerun. CI tests a production build, so it
   doesn't see this.
+
+## UI refresh (2026-10-05)
+
+- **Colors come from the Kayelen's Construction logo.** Primary is the
+  logo blue `#2b47a8` (replacing `#2357d9`), with navy for dark surfaces.
+  Status colors are tokens (`--success`, `--warning`, `--error`, `--info`,
+  `--neutral`, each with `-bg`, `-border`, `-fg`); use them rather than
+  typing hex values. Decided with the owner.
+- **Sidebar instead of home-button navigation**, chosen by the owner over
+  restyling the old top bar. The dashboard keeps its quick-action cards.
+- **Turbopack can keep serving stale `globals.css`**, even across a dev
+  server restart, in a second git worktree on Windows. If a CSS change
+  doesn't show, stop the server, delete `.next` and start it again.

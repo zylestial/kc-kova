@@ -9,6 +9,7 @@ import { HelpDialog } from "../how-it-works";
 import KovaBrand from "../kova-brand";
 import { AccountProvider } from "./providers";
 import Topbar from "./topbar";
+import Sidebar from "./sidebar";
 import LeaveGuardDialog from "./leave-guard-dialog";
 
 // Opening a screen or returning to the tab reloads the data, but not more
@@ -21,6 +22,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   // Label table cells so the tables can stack as cards on a phone.
   useEffect(() => watchTables(), []);
@@ -115,13 +118,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AccountProvider account={account}>
       <div className="app-shell">
+        <Sidebar
+          open={menuOpen}
+          onClose={closeMenu}
+          onHelp={() => {
+            setMenuOpen(false);
+            setHelpOpen(true);
+          }}
+          onSignOut={signOut}
+        />
         <Topbar
           refreshing={refreshing}
           refreshFailed={refreshFailed}
           updatedAt={updatedAt}
           onRefresh={() => void refreshData(true)}
-          onHelp={() => setHelpOpen(true)}
-          onSignOut={signOut}
+          onMenu={() => setMenuOpen(true)}
         />
         <HelpDialog role={account.role} open={helpOpen} onOpenChange={setHelpOpen} />
         <LeaveGuardDialog />

@@ -11,22 +11,86 @@ Defined as CSS custom properties in `app/globals.css`, built on shadcn's
 
 | Token | Value | Used for |
 | --- | --- | --- |
-| `--background` | `#f4f6f9` | Page background |
-| `--foreground` | `#16243a` | Primary text |
+| `--background` | `#f4f6fa` | Page background |
+| `--foreground` | `#111827` | Primary text (logo black) |
 | `--card` | `#fff` | Panel/card surfaces |
-| `--primary` | `#2357d9` | Primary actions, links, active states |
-| `--secondary`, `--muted` | `#edf1f7` | Secondary surfaces, muted backgrounds |
-| `--accent` | `#eaf0ff` | Highlighted/selected backgrounds |
-| `--destructive` | `#bd3131` | Destructive actions, error text |
-| `--border`, `--input` | `#dfe5ed`, `#d7dfea` | Borders and form field outlines |
-| `--ring` | `#2357d9` | Focus rings |
-| `--radius` | `.5rem` (with `sm`/`md`/`lg`/`xl` steps) | Corner rounding |
+| `--primary` | `#2b47a8` | Primary actions, links, active states (logo blue) |
+| `--primary-hover` | `#22398a` | Hover on primary actions |
+| `--secondary`, `--muted` | `#eef1f8` | Secondary surfaces, muted backgrounds |
+| `--accent` | `#eaeefb` | Highlighted/selected backgrounds |
+| `--destructive` | `#c62f2f` | Destructive actions |
+| `--border`, `--input` | `#e1e6ef`, `#d6dce8` | Borders and form field outlines |
+| `--ring` | `#2b47a8` | Focus rings |
+| `--radius` | `.5rem` (steps `sm` 6px, `md` 8px, `lg` 12px, `xl` 16px) | Corner rounding |
 
-Typography is system sans (`Arial, Helvetica, sans-serif`) at a 16px base.
+Brand colors are taken from the Kayelen's Construction logo:
+`--brand-blue` `#2b47a8` (gears, hammer), `--brand-navy` `#1b2e6e`
+(dark surfaces such as the sidebar), `--brand-green` `#3b5228` (gears;
+small accents only) and `--steel` `#6b7280` (nails; secondary text).
+
+### Status colors
+
+Every status has a solid color plus a light background, border and text
+color for tinted surfaces (pills, banners, inline messages). Use these
+instead of hand-typed hex values. The text color is at least 5.4:1 on its
+background.
+
+| Status | Solid | `-bg` | `-border` | `-fg` | Used for |
+| --- | --- | --- | --- | --- | --- |
+| `--success` | `#2e8b4e` | `#eaf5ee` | `#bfe3cb` | `#1e6b3a` | Scheduled, done, saved |
+| `--warning` | `#e0a100` | `#fff6db` | `#f5d98a` | `#8a5a00` | Pending, leg warnings, unsaved changes |
+| `--error` | `#c62f2f` | `#fdecec` | `#f3c2c2` | `#a12c2c` | Rejected, failures, form errors |
+| `--info` | `#2f6fe0` | `#eaf1ff` | `#c3d5fa` | `#1f4fa8` | Notices and tips |
+| `--neutral` | `#6b7280` | `#f1f3f6` | `#dde2e8` | `#4b5563` | Cancelled, inactive |
+
+Each is also a Tailwind color (`bg-warning-bg`, `text-error-fg`, ...).
+
+Typography is Inter (falling back to Arial/Helvetica) at a 16px base.
 `components/ui/` holds the vendored shadcn/Radix primitives — per
 `docs/ARCHITECTURE.md`, these aren't hand-edited; screen-specific styling
 lives in `app/globals.css` instead, scoped by class name per screen (e.g.
 `.booking-flow`, `.driver-trip-table`, `.settings-shell`).
+
+## App shell and dashboard
+
+Signed-in screens sit in `app/(app)/layout.tsx`:
+
+- **Sidebar** (`app/(app)/sidebar.tsx`): navy (`--brand-navy`), 256px,
+  fixed on the left from 1024px up; below that it's a drawer opened from
+  the top bar's menu button and closed by the scrim, the X or Escape. It
+  holds the logo, the role's menu (`navItems()` in
+  `app/(app)/nav-items.ts`, with the longest matching path highlighted),
+  Help, the account and Sign out. Menu links are real links, but a plain
+  click goes through `leave()` so unsaved work still asks first. While an
+  Admin is viewing as another role, the menu is that role's.
+- **Top bar** (`app/(app)/topbar.tsx`): today's date (wide screens) or
+  the menu button and logo (narrow), the refresh-failed warning, Refresh
+  and notifications.
+- **Dashboard** (`/home`): a navy welcome banner, stat tiles from
+  `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
+  takes its status color only when its count is above zero; a zero is
+  neutral grey.
+- Screens no longer have a "← Home" back button; the sidebar replaces it.
+  The Planner keeps "← Schedules" when editing an existing schedule.
+- Fixed bottom bars (`.booking-bottom`) start after the sidebar on wide
+  screens.
+
+Each role has its own accent, set on `<html data-role>` by `AccountProvider`
+(the viewed role during Admin "View as"). It colors the sidebar, the
+dashboard banner, the active menu item, eyebrows, quick-action icons and
+card hover. Buttons, links and status colors are the same for every role.
+All pass 4.5:1 for their text.
+
+| Role | Sidebar/banner | Accent |
+| --- | --- | --- |
+| Admin | `#22398a` → `#1b2e6e` (logo navy) | `#2b47a8` |
+| Scheduler | `#5b3fb0` → `#33236e` (violet) | `#5b3fb0` |
+| Driver | `#4a6633` → `#2c3d1f` (logo green) | `#3f5a2b` |
+| Requester | `#136f7c` → `#0b4650` (teal) | `#11697a` |
+
+Cards and panels use 16px corners and `--shadow-card`; status pills carry a
+dot in their text color. The UI font is Inter (`next/font/google`,
+self-hosted at build time as `--font-inter`); printouts keep Arial.
 
 ## Responsive breakpoints
 

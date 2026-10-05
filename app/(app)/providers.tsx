@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { Account } from "@/lib/kova-api";
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 
@@ -44,6 +44,14 @@ export function AccountProvider({ account, children }: { account: Account; child
     setPendingLeave(null);
   }, [pendingLeave]);
   const cancelLeave = useCallback(() => setPendingLeave(null), []);
+  // Each role has its own accent color (globals.css, :root[data-role]). Set
+  // on <html> so dialogs, which render outside the app shell, match too.
+  useEffect(() => {
+    document.documentElement.dataset.role = viewRole;
+    return () => {
+      delete document.documentElement.dataset.role;
+    };
+  }, [viewRole]);
   return (
     <AccountContext.Provider
       value={{ account, viewAs, setViewAs, viewRole, leave, pendingLeave, confirmLeave, cancelLeave }}

@@ -1,16 +1,22 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   CalendarPlus,
   CheckCircle2,
+  CircleAlert,
+  CircleCheck,
   ClipboardList,
   FilePlus2,
+  Info,
   Settings as SettingsIcon,
+  TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKovaData } from "@/lib/use-kova-data";
 import { homeCounts } from "@/lib/home-counts";
+import { homeStats, type StatTone } from "@/lib/home-stats";
 import { useAccount } from "../providers";
 
 function HomeCard({
@@ -35,6 +41,13 @@ function HomeCard({
   );
 }
 
+const TONE_ICON: Record<StatTone, React.ReactNode> = {
+  info: <Info size={18} />,
+  success: <CircleCheck size={18} />,
+  warning: <TriangleAlert size={18} />,
+  error: <CircleAlert size={18} />,
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { account, viewAs, setViewAs, viewRole, leave } = useAccount();
@@ -45,6 +58,13 @@ export default function HomeScreen() {
   // Re-renders when the app reloads its data, so the card counts stay current.
   const { requests, schedules, cancellations, completions, problems } = useKovaData();
   const counts = homeCounts(account, { requests, schedules, cancellations, completions, problems });
+  const stats = homeStats(
+    viewRole,
+    account.id,
+    { requests, schedules, cancellations, completions, problems },
+    new Date(),
+    viewAs === "Driver" ? null : account.id,
+  );
   return (
     <>
       {account.role === "Admin" && viewAs && (
@@ -57,15 +77,26 @@ export default function HomeScreen() {
           </Button>
         </div>
       )}
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">{viewRole.toUpperCase()}</div>
-          <h1>
-            Welcome, {account.name}
-            <span className="title-dot">.</span>
-          </h1>
-        </div>
+      <section className="welcome-banner">
+        <div className="eyebrow">{viewRole.toUpperCase()} DASHBOARD</div>
+        <h1>Welcome back, {account.name}</h1>
+        <p>
+          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+          {" · "}Here&rsquo;s what needs you today.
+        </p>
+      </section>
+      <div className="stat-grid">
+        {stats.map((stat) => (
+          <Link key={stat.label} href={stat.href} className={"stat-tile tone-" + (stat.value ? stat.tone : "neutral")}>
+            <span className="stat-icon" aria-hidden="true">
+              {TONE_ICON[stat.tone]}
+            </span>
+            <strong>{stat.value}</strong>
+            <span>{stat.label}</span>
+          </Link>
+        ))}
       </div>
+      <h2 className="section-title">Quick actions</h2>
       <div className="home-options">
         {viewRole === "Driver" ? (
           <>
