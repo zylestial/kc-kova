@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -86,13 +87,13 @@ export default function HomeScreen() {
       </section>
       <div className="stat-grid">
         {stats.map((stat) => (
-          <div key={stat.label} className={"stat-tile tone-" + (stat.value ? stat.tone : "neutral")}>
+          <Link key={stat.label} href={stat.href} className={"stat-tile tone-" + (stat.value ? stat.tone : "neutral")}>
             <span className="stat-icon" aria-hidden="true">
               {TONE_ICON[stat.tone]}
             </span>
             <strong>{stat.value}</strong>
             <span>{stat.label}</span>
-          </div>
+          </Link>
         ))}
       </div>
       <h2 className="section-title">Quick actions</h2>
