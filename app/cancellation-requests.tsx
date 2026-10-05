@@ -70,7 +70,7 @@ export default function CancellationRequests() {
 
   return (
     <>
-      <section className="schedule-panel" aria-label="Cancellation requests" style={{ marginBottom: 24 }}>
+      <section id="cancellations" className="schedule-panel" aria-label="Cancellation requests" style={{ marginBottom: 24, scrollMarginTop: 80 }}>
         <div className="panel-toolbar">
           <div>
             <Ban size={20} />
