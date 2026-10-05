@@ -28,6 +28,18 @@ if (!url || !key) {
   console.error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or add them to .env.local).");
   process.exit(1);
 }
+// A legacy key is a JWT naming its role; the newer keys say it in a prefix.
+const jwtRole = (() => {
+  try {
+    return JSON.parse(Buffer.from(key.split(".")[1], "base64url").toString()).role;
+  } catch {
+    return undefined;
+  }
+})();
+if (key.startsWith("sb_publishable_") || (jwtRole && jwtRole !== "service_role")) {
+  console.error("That's the public (anon/publishable) key. Use the service_role / secret key from Project Settings → API.");
+  process.exit(1);
+}
 if (!/^https?:\/\/[^/]+\/?$/.test(url)) {
   console.error(`"${url}" isn't a Project URL. Use the one from Project Settings → API, like https://<ref>.supabase.co`);
   process.exit(1);
