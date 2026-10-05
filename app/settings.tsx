@@ -1,5 +1,6 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
+import { PASSWORD_HINT, passwordError } from "@/lib/password-policy";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
 import { useState } from "react";
 import { ArrowLeft, Car, Plus } from "lucide-react";
@@ -60,12 +61,14 @@ function TextField({
   onChange,
   type = "text",
   autoComplete,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (s: string) => void;
   type?: string;
   autoComplete?: string;
+  hint?: string;
 }) {
   return (
     <label className="field">
@@ -77,6 +80,7 @@ function TextField({
         autoComplete={autoComplete}
         maxLength={type === "password" ? 256 : 100}
       />
+      {hint && <small>{hint}</small>}
     </label>
   );
 }
@@ -230,8 +234,9 @@ export default function Settings({ onBack }: { onBack: () => void }) {
       setFormError("Passwords do not match.");
       return;
     }
-    if (!passwords.next) {
-      setFormError("Enter a new password.");
+    const problem = passwordError(passwords.next, passwordFor!.username);
+    if (problem) {
+      setFormError(problem);
       return;
     }
     setBusy(true);
@@ -431,6 +436,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
             {accountModal === "add" && (
               <TextField
                 label="Password"
+                hint={PASSWORD_HINT}
                 type="password"
                 value={account.password}
                 onChange={(v) => setAccount({ ...account, password: v })}
@@ -495,7 +501,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
             <DialogTitle>Change Password</DialogTitle>
             <DialogDescription>
               Set a new password for {passwordFor?.name}. They will use it the
-              next time they sign in.
+              next time they sign in. {PASSWORD_HINT}
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">

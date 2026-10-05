@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authed } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
+import { passwordError } from "@/lib/password-policy";
 
 const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const;
 const STATUSES = ["Active", "Inactive"] as const;
@@ -15,9 +16,11 @@ export const POST = authed(async ({ request, account }) => {
   const role = body?.role;
   const status = STATUSES.includes(body?.status) ? body.status : "Active";
   const password = typeof body?.password === "string" ? body.password : "";
-  if (!name || !username || !ROLES.includes(role) || password.length < 8) {
-    return NextResponse.json({ message: "Name, username, role, and an 8+ character password are required." }, { status: 422 });
+  if (!name || !username || !ROLES.includes(role) || !password) {
+    return NextResponse.json({ message: "Name, username, role, and a password are required." }, { status: 422 });
   }
+  const passwordProblem = passwordError(password, username);
+  if (passwordProblem) return NextResponse.json({ message: passwordProblem }, { status: 422 });
 
   const admin = createSupabaseAdminClient();
   const { data: created, error: createError } = await admin.auth.admin.createUser({

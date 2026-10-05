@@ -23,9 +23,8 @@ review. `tsc --noEmit`, `eslint`, `vitest`, `next build`, the pgTAP suite and
 
 ## Outstanding / follow-ups
 
-- [ ] **Apply migration 0041 to the hosted `kc-kova` project** (`supabase db push`) with the startup-window deploy: the bootstrap route filters on the new `request_progress.requested_date`.
 - [ ] **Zod (or similar) boundary validation** is not rolled out. Routes validate bodies by hand (`typeof body?.x === "string"`) or through small parsers in `lib/*-input.ts`; `lib/api-route.ts` now gives every route one place to hook a schema in. `zod` is a direct dependency (used by `lib/env.ts`).
-- [ ] **Password policy** is just "8+ characters" — revisit if the organization has stronger requirements.
+- [x] **Password policy**: 8+ characters with a letter and a number, not containing the username (`lib/password-policy.ts`, enforced in both account routes). Stronger rules (length, expiry) still need a decision from the organization.
 - [ ] **Rate limiting** only covers sign-in. If abuse becomes a concern on other write endpoints, the `login_attempts` pattern could be extended.
 - [ ] **Browser tests are manual.** The database rules are covered in CI; the screens are checked by hand or with ad hoc Playwright scripts, not a committed end-to-end suite.
 - [ ] **`docs/PRD.md`, `RULES.md` and `DESIGN.md` have not been reviewed by KOVA's operators.** They were written from the code and the schema; treat them as a first draft to correct.
