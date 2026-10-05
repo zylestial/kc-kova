@@ -218,3 +218,11 @@ tbody tr:hover{background:#f5f7fd}
 @media(min-width:1024px){.booking-bottom{left:256px;width:calc(100% - 256px);padding-left:max(24px,calc((100vw - 256px - 1000px)/2));padding-right:max(24px,calc((100vw - 256px - 1000px)/2))}}
 @media(max-width:700px){h1{font-size:25px}}
 @media(prefers-reduced-motion:reduce){tbody tr{transition:none}}
+/* Sign-in and loading: the card on the sidebar's navy. */
+.sign-shell{position:relative;overflow:hidden;background:radial-gradient(circle at 15% 20%,rgba(255,255,255,.08) 0 180px,transparent 181px),radial-gradient(circle at 88% 85%,rgba(255,255,255,.06) 0 240px,transparent 241px),linear-gradient(135deg,var(--brand-blue) 0%,var(--brand-navy) 100%)}
+.sign-card{border:0;border-radius:20px;box-shadow:0 30px 70px rgba(9,18,54,.35)}
+.sign-card h1{font-size:28px;letter-spacing:-.6px}
+.sign-card .modal-error{margin-top:14px!important;padding:10px 12px;border:1px solid var(--error-border);border-radius:10px;background:var(--error-bg)}
+.sign-card .helper{text-align:center;font-size:13px!important}
+.sign-card>p[role=status]{text-align:center}
+@media print{.sign-shell{background:none}}
