@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import MyRequests from "../../my-requests";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { RequireRole } from "../require-role";
@@ -23,9 +21,6 @@ export default function RequestsGate() {
   }, []);
   return (
     <RequireRole allow={account.role === "Requester" || account.role === "Admin"}>
-      <Button variant="ghost" className="back" onClick={() => router.push("/home")}>
-        <ArrowLeft size={17} /> {account.role} Home
-      </Button>
       <MyRequests notice={notice} openRequestId={openRequestId} />
     </RequireRole>
   );
