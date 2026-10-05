@@ -28,6 +28,10 @@ if (!url || !key) {
   console.error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or add them to .env.local).");
   process.exit(1);
 }
+if (!/^https?:\/\/[^/]+\/?$/.test(url)) {
+  console.error(`"${url}" isn't a Project URL. Use the one from Project Settings → API, like https://<ref>.supabase.co`);
+  process.exit(1);
+}
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 // Buffers lines, so piped input isn't lost while the database is checked.
@@ -54,12 +58,13 @@ function fail(message) {
 
 const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 
-const { count, error: countError } = await admin
-  .from("accounts")
-  .select("id", { count: "exact", head: true })
-  .eq("role", "Admin");
-if (countError) fail(`Could not read accounts: ${countError.message}`);
-if (count) fail("An Admin already exists. Create more accounts in Settings instead.");
+// Not a HEAD request: those carry no body, so a failure would have no message.
+const { data: admins, error: readError, status } = await admin.from("accounts").select("id").eq("role", "Admin").limit(1);
+if (readError) {
+  const detail = [readError.message, readError.code, readError.hint].filter(Boolean).join(" · ");
+  fail(`Could not read accounts (HTTP ${status}): ${detail.slice(0, 200) || "no details"}. Check the URL and the service_role key.`);
+}
+if (admins.length) fail("An Admin already exists. Create more accounts in Settings instead.");
 
 console.log(`Creating the first Admin on ${url}\n`);
 const username = (await ask("Username: ")).trim();
