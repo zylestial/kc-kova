@@ -118,3 +118,45 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
    of the content, in normal flow, so nothing can ever render behind it. */
 [data-slot=dialog-footer]{position:static;margin-top:20px}
 .older-records{margin:0;padding:12px 24px;border-bottom:1px solid var(--border);font-size:14px}
+/* Sidebar shell: fixed navy sidebar on wide screens, slide-out drawer below 1024px. */
+.sidebar{position:fixed;inset:0 auto 0 0;z-index:40;width:256px;display:flex;flex-direction:column;gap:8px;padding:18px 14px;background:linear-gradient(180deg,#22398a 0%,var(--brand-navy) 100%);color:#fff;overflow-y:auto}
+.sidebar-brand{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:4px 6px 18px;border-bottom:1px solid rgba(255,255,255,.12);position:relative}
+.sidebar-brand .kova-logo{height:34px;width:auto;max-width:100%;background:#fff;border-radius:10px;padding:6px 10px;box-sizing:content-box}
+.sidebar-lockup{display:flex;flex-direction:column;gap:3px;line-height:1.1}
+.sidebar-lockup strong{font-size:22px;letter-spacing:.5px}
+.sidebar-lockup span{font-size:12px;color:#c7d0ee}
+.sidebar-close{display:none;position:absolute;top:0;right:0;width:40px;height:40px;border:0;border-radius:8px;background:transparent;color:#fff;cursor:pointer;align-items:center;justify-content:center}
+.sidebar-close:hover{background:rgba(255,255,255,.1)}
+.sidebar-nav{display:flex;flex-direction:column;gap:4px;padding-top:10px}
+.sidebar-section{padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9fb0e3}
+.sidebar-link{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:#dde3f6;font:inherit;font-size:15px;font-weight:600;text-decoration:none;text-align:left;cursor:pointer;transition:background .15s,color .15s}
+.sidebar-link:hover{background:rgba(255,255,255,.08);color:#fff}
+.sidebar-link.active{background:#fff;color:var(--brand-blue);box-shadow:0 4px 14px rgba(9,18,54,.25)}
+.sidebar-link:focus-visible,.sidebar-signout:focus-visible,.sidebar-close:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+.sidebar-account{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.07)}
+.sidebar-account>div{display:flex;flex-direction:column;min-width:0;flex:1}
+.sidebar-account strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-account small{font-size:12px;color:#c7d0ee}
+.sidebar-avatar{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--brand-blue);font-weight:800}
+.sidebar-signout{flex:none;width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:#dde3f6;cursor:pointer;display:grid;place-items:center}
+.sidebar-signout:hover{background:rgba(255,255,255,.12);color:#fff}
+.sidebar-scrim{display:none}
+.app-shell{padding-left:256px}
+.app-shell>.topbar{position:sticky;top:0;z-index:30;height:64px;padding:0 5%;gap:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+.topbar-menu,.topbar .kova-brand{display:none}
+.topbar-title{font-size:14px;color:var(--muted-foreground)}
+@media(max-width:1023px){
+.app-shell{padding-left:0}
+.sidebar{transform:translateX(-100%);transition:transform .2s ease;box-shadow:none}
+.sidebar.open{transform:none;box-shadow:0 0 40px rgba(9,18,54,.35)}
+.sidebar-close{display:flex}
+.sidebar-scrim{display:block;position:fixed;inset:0;z-index:35;background:rgba(17,24,39,.45);opacity:0;pointer-events:none;transition:opacity .2s}
+.sidebar-scrim.open{opacity:1;pointer-events:auto}
+.topbar-menu{display:inline-flex}
+.topbar .kova-brand{display:flex}
+.topbar-title{display:none}
+.app-shell>.topbar{padding:0 14px}
+}
+@media(prefers-reduced-motion:reduce){.sidebar,.sidebar-scrim{transition:none}}
+@media print{.sidebar,.sidebar-scrim{display:none!important}}
