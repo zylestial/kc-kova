@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { parseWith } from "@/lib/validation";
+
 export type CompletionInput = {
   startOdometer: number;
   endOdometer: number;
@@ -6,10 +9,20 @@ export type CompletionInput = {
   gasReceiptAttached: boolean | null;
 };
 
+const reading = z.number().int().safe();
+
 /** A field that's optional and tri-state: true, false, or left unanswered (null/absent). */
-function optionalBoolean(value: unknown): boolean | null {
-  return typeof value === "boolean" ? value : null;
-}
+const optionalBoolean = z.boolean().nullable().catch(null);
+
+const completionBody = z
+  .object({
+    startOdometer: reading.min(0),
+    endOdometer: reading,
+    fullTank: optionalBoolean,
+    fleetCardUsed: optionalBoolean,
+    gasReceiptAttached: optionalBoolean,
+  })
+  .refine((body) => body.endOdometer >= body.startOdometer);
 
 /**
  * Shape-checks a Complete trip body before it reaches submit_completion.
@@ -19,30 +32,25 @@ function optionalBoolean(value: unknown): boolean | null {
  * required to complete a trip. Returns null when the body isn't usable.
  */
 export function parseCompletionInput(body: unknown): CompletionInput | null {
-  if (!body || typeof body !== "object") return null;
-  const { startOdometer, endOdometer, fullTank, fleetCardUsed, gasReceiptAttached } = body as Record<string, unknown>;
-  if (!Number.isSafeInteger(startOdometer) || !Number.isSafeInteger(endOdometer)) return null;
-  const start = startOdometer as number;
-  const end = endOdometer as number;
-  if (start < 0 || end < start) return null;
-  return {
-    startOdometer: start,
-    endOdometer: end,
-    fullTank: optionalBoolean(fullTank),
-    fleetCardUsed: optionalBoolean(fleetCardUsed),
-    gasReceiptAttached: optionalBoolean(gasReceiptAttached),
-  };
+  return parseWith(completionBody, body);
 }
+
+const problemBody = z.object({ note: z.string().trim().min(1) });
 
 /** A problem note, trimmed; null when missing or blank. */
 export function parseProblemNote(body: unknown): string | null {
-  if (!body || typeof body !== "object") return null;
-  const note = (body as Record<string, unknown>).note;
-  if (typeof note !== "string") return null;
-  return note.trim() || null;
+  return parseWith(problemBody, body)?.note ?? null;
 }
 
 export type HandleProblemInput = { handlingNote: string; followUpScheduleId: string | null };
+
+const handleProblemBody = z.object({
+  handlingNote: z.string().trim().min(1),
+  followUpScheduleId: z
+    .string()
+    .nullish()
+    .transform((id) => id || null),
+});
 
 /**
  * Shape-checks a Mark handled body: a required handling note (trimmed) and
@@ -50,9 +58,5 @@ export type HandleProblemInput = { handlingNote: string; followUpScheduleId: str
  * active one is enforced in Postgres. Returns null when the body isn't usable.
  */
 export function parseHandleProblemInput(body: unknown): HandleProblemInput | null {
-  if (!body || typeof body !== "object") return null;
-  const { handlingNote, followUpScheduleId } = body as Record<string, unknown>;
-  if (typeof handlingNote !== "string" || !handlingNote.trim()) return null;
-  if (followUpScheduleId != null && typeof followUpScheduleId !== "string") return null;
-  return { handlingNote: handlingNote.trim(), followUpScheduleId: followUpScheduleId || null };
+  return parseWith(handleProblemBody, body);
 }
