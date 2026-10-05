@@ -29,7 +29,7 @@ export function randomDate(min: number, max: number) {
 }
 
 type Option = { id: string; status: string; isOtherStop?: boolean };
-type Request = { id: string; date: string; status: string; progress: string; destinations: { id: string; destinationId: string }[] };
+type Request = { id: string; date: string; status: string; progress: string; cancellationPending: boolean; destinations: { id: string; destinationId: string }[] };
 
 /** Files a one-destination request as the page's account and returns it. */
 export async function createRequestVia(page: Page, date: string): Promise<Request> {
