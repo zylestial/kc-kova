@@ -35,6 +35,14 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Turbopack's on-disk cache (on by default since 16.3) served a stale
+  // app/globals.css: the 2026-10-05 production deploy shipped new markup
+  // with the old stylesheet, and `next dev` kept the old CSS across
+  // restarts. Builds start cold until that's fixed upstream.
+  experimental: {
+    turbopackFileSystemCacheForBuild: false,
+    turbopackFileSystemCacheForDev: false,
+  },
   async headers() {
     return [
       {
