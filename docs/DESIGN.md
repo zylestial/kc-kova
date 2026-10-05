@@ -72,6 +72,21 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   neutral grey.
 - Screens no longer have a "← Home" back button; the sidebar replaces it.
   The Planner keeps "← Schedules" when editing an existing schedule.
+  Below 1024px the top bar shows **← Back** (in place of the logo) on every
+  screen but the Dashboard: it goes to the previous screen visited in the
+  app, or the Dashboard when the page was opened directly, through
+  `leave()`.
+- **Done trips leave the working lists.** Once an Admin marks a trip Done
+  it no longer shows on Schedules or the Driver's My Schedule, only on
+  Finished Trips (`finishState()` in `lib/trip-finish.ts`). A trip waiting
+  for review stays. Schedules lists each day's pending schedules (draft,
+  returned, submitted) before approved ones, each by start time; My Schedule
+  lists trips still to complete before those waiting for review, each by
+  date.
+- **Schedulers have a read-only Finished Trips.** RLS doesn't let them read
+  `trip_completions`, so the list comes from request progress (`COMPLETED`
+  / `DONE`, which `request_progress_of` derives from the completion) and has
+  no odometer or distance.
 - Fixed bottom bars (`.booking-bottom`) start after the sidebar on wide
   screens.
 
