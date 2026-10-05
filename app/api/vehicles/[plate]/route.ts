@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { toVehicle } from "@/lib/supabase/mappers";
-
-const STATUSES = ["Active", "Inactive"] as const;
+import { updateVehicleBody } from "@/lib/admin-input";
+import { parseWith } from "@/lib/validation";
 
 export const PUT = authed<{ plate: string }>(async ({ request, supabase, account, params: { plate: originalPlate } }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
-  const plate = typeof body?.plate === "string" ? body.plate.trim() : "";
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const status = body?.status;
-  const assignedDriverId = typeof body?.assignedDriverId === "string" && body.assignedDriverId ? body.assignedDriverId : null;
-  if (!plate || !name || !STATUSES.includes(status)) {
+  const body = parseWith(updateVehicleBody, await readJson(request));
+  if (!body) {
     return NextResponse.json({ message: "Plate, name, and status are required." }, { status: 422 });
   }
+  const { plate, name, status, assignedDriverId } = body;
 
   const { data, error } = await supabase.rpc("rename_vehicle", {
     p_old_plate: decodeURIComponent(originalPlate),
