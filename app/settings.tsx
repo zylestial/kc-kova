@@ -3,7 +3,7 @@ import { useAutoClear } from "@/lib/use-auto-clear";
 import { PASSWORD_HINT, passwordError } from "@/lib/password-policy";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
 import { useState } from "react";
-import { ArrowLeft, Car, Plus } from "lucide-react";
+import { Car, Plus } from "lucide-react";
 import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
@@ -113,7 +113,7 @@ function Choice<T extends string>({
     </label>
   );
 }
-export default function Settings({ onBack }: { onBack: () => void }) {
+export default function Settings() {
   const [tab, setTab] = useState("accounts");
   const { accounts, vehicles } = useKovaData();
   const [error, setError] = useState("");
@@ -254,9 +254,6 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   }
   return (
     <section className="settings-shell">
-      <Button variant="ghost" onClick={onBack} className="back">
-        <ArrowLeft size={17} /> Admin Home
-      </Button>
       <div className="page-heading">
         <div>
           <div className="eyebrow">ADMIN</div>
