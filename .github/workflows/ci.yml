@@ -44,3 +44,48 @@ jobs:
       - run: supabase test db
 
       - run: bash supabase/tests/concurrency.sh
+
+  # Browser tests: the app built and served against a local Supabase seeded
+  # with the role accounts from scripts/seed-uat.mjs.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+
+      - name: Write .env.local from the local stack
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } > .env.local
+
+      - run: node scripts/seed-uat.mjs
+
+      - run: pnpm build
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm exec playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results

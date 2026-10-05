@@ -26,7 +26,7 @@ review. `tsc --noEmit`, `eslint`, `vitest`, `next build`, the pgTAP suite and
 - [ ] **Zod (or similar) boundary validation** is not rolled out. Routes validate bodies by hand (`typeof body?.x === "string"`) or through small parsers in `lib/*-input.ts`; `lib/api-route.ts` now gives every route one place to hook a schema in. `zod` is a direct dependency (used by `lib/env.ts`).
 - [x] **Password policy**: 8+ characters with a letter and a number, not containing the username (`lib/password-policy.ts`, enforced in both account routes). Stronger rules (length, expiry) still need a decision from the organization.
 - [ ] **Rate limiting** only covers sign-in. If abuse becomes a concern on other write endpoints, the `login_attempts` pattern could be extended.
-- [ ] **Browser tests are manual.** The database rules are covered in CI; the screens are checked by hand or with ad hoc Playwright scripts, not a committed end-to-end suite.
+- [x] **Browser tests**: a small Playwright suite in `e2e/` (sign-in per role, each role's screens, request → schedule → approval) runs in CI as the `e2e` job against a local Supabase seeded by `scripts/seed-uat.mjs`. Run locally with `pnpm exec playwright test` (needs local Supabase, `.env.local`, and the seed). Still uncovered: the Driver's trip record, Admin review and Done, cancellations.
 - [ ] **`docs/PRD.md`, `RULES.md` and `DESIGN.md` have not been reviewed by KOVA's operators.** They were written from the code and the schema; treat them as a first draft to correct.
 - [ ] **`docs/PRD.md` has no success metrics or acceptance criteria.** Not invented here since no stakeholder input exists; logged as an open question in `docs/MEMORY.md`.
 
