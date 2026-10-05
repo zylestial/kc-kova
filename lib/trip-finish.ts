@@ -1,4 +1,4 @@
-import type { Schedule, TransportRequest, TripCompletion } from "@/lib/kova-api";
+import type { ProblemReport, Schedule, ScheduleRevision, TransportRequest, TripCompletion } from "@/lib/kova-api";
 import { publishedRevision, scheduleState, tripWindow, currentRevision } from "@/lib/trip-record";
 
 /** How far the trip record has got: submitted by the Driver, or marked Done by an Admin. */
@@ -24,6 +24,32 @@ export function finishState(
   if (progress.length && progress.every((value) => value === "DONE")) return "DONE";
   if (progress.some((value) => value === "COMPLETED" || value === "DONE")) return "SUBMITTED";
   return null;
+}
+
+/** A finished trip as a Scheduler sees it: no odometer, which only the completion holds. */
+export type ScheduledFinishedTrip = {
+  schedule: Schedule;
+  revision: ScheduleRevision;
+  state: "SUBMITTED" | "DONE";
+  problems: ProblemReport[];
+};
+
+/** Every trip the Driver has submitted, from request progress, newest trip first. */
+export function buildScheduledFinishedTrips(
+  schedules: Schedule[],
+  completions: TripCompletion[],
+  requests: TransportRequest[],
+  problems: ProblemReport[],
+): ScheduledFinishedTrip[] {
+  const requestsById = new Map(requests.map((request) => [request.id, request]));
+  return schedules
+    .flatMap((schedule) => {
+      const state = finishState(schedule, completions, requestsById);
+      const revision = publishedRevision(schedule);
+      if (!state || !revision || schedule.status !== "ACTIVE") return [];
+      return [{ schedule, revision, state, problems: problems.filter((item) => item.scheduleId === schedule.id) }];
+    })
+    .sort((a, b) => b.schedule.date.localeCompare(a.schedule.date));
 }
 
 /** Still being planned or waiting on an Admin: draft, returned or submitted for approval. */

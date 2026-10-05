@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { compareSchedules, finishState } from "@/lib/trip-finish";
-import type { Schedule, ScheduleRevision, TransportRequest, TripCompletion } from "@/lib/kova-api";
+import { buildScheduledFinishedTrips, compareSchedules, finishState } from "@/lib/trip-finish";
+import type { ProblemReport, Schedule, ScheduleRevision, TransportRequest, TripCompletion } from "@/lib/kova-api";
 
 const revision = (over: Partial<ScheduleRevision>): ScheduleRevision =>
   ({ id: "v1", status: "APPROVED", requestIds: ["r1"], legs: [{ plannedTimeOut: "08:00", plannedTimeIn: "10:00" }], ...over }) as ScheduleRevision;
@@ -26,6 +26,29 @@ describe("finishState", () => {
     expect(finishState(s, [], requests(["r1", "APPROVED"], ["r2", "APPROVED"]))).toBeNull();
     expect(finishState(s, [], requests(["r1", "CANCELLED"], ["r2", "CANCELLED"]))).toBeNull();
     expect(finishState(s, [], new Map())).toBeNull();
+  });
+});
+
+describe("buildScheduledFinishedTrips", () => {
+  it("lists submitted and done trips from request progress, newest first", () => {
+    const list = [
+      schedule({ id: "old", date: "2026-10-01", revisions: [revision({ requestIds: ["r1"] })] }),
+      schedule({ id: "new", date: "2026-10-03", revisions: [revision({ requestIds: ["r2"] })] }),
+      schedule({ id: "open", date: "2026-10-04", revisions: [revision({ requestIds: ["r3"] })] }),
+      schedule({ id: "gone", date: "2026-10-02", status: "CANCELLED", revisions: [revision({ requestIds: ["r4"] })] }),
+    ];
+    const reqs = [
+      { id: "r1", progress: "DONE" },
+      { id: "r2", progress: "COMPLETED" },
+      { id: "r3", progress: "APPROVED" },
+      { id: "r4", progress: "DONE" },
+    ] as TransportRequest[];
+    const problems = [{ scheduleId: "new", status: "OPEN" }] as ProblemReport[];
+    const trips = buildScheduledFinishedTrips(list, [], reqs, problems);
+    expect(trips.map((trip) => [trip.schedule.id, trip.state, trip.problems.length])).toEqual([
+      ["new", "SUBMITTED", 1],
+      ["old", "DONE", 0],
+    ]);
   });
 });
 
