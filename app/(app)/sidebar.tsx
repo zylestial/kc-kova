@@ -49,7 +49,7 @@ export default function Sidebar({
           <img className="kova-logo" src="/images/kova-print-logo.png" alt="Kayelen's Construction" />
           <div className="sidebar-lockup">
             <strong>KOVA</strong>
-            <span>Operations &amp; Vehicle Allocation</span>
+            <span>Kayelen&apos;s Operations and Vehicle Allocation</span>
           </div>
           <button type="button" className="sidebar-close" aria-label="Close menu" onClick={onClose}>
             <X size={18} />
