@@ -1,43 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
-import { signInAndWaitForHome } from "./helpers";
-
-// A random day 2-12 weeks out keeps repeated runs from colliding on the same vehicle.
-function runDate() {
-  const day = new Date(Date.now() + (14 + Math.floor(Math.random() * 70)) * 86_400_000);
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(day);
-}
-
-async function createRequestVia(page: Page, date: string) {
-  const bootstrap = await (await page.request.get("/api/bootstrap")).json();
-  const options = bootstrap.options as Record<"projects" | "destinations" | "purposes", { id: string; status: string; isOtherStop?: boolean }[]>;
-  const active = (list: typeof options.projects) => list.filter((o) => o.status === "Active" && !o.isOtherStop);
-  const response = await page.request.post("/api/requests", {
-    data: {
-      date,
-      projectId: active(options.projects)[0].id,
-      projectOther: "",
-      destinations: [
-        { destinationId: active(options.destinations)[0].id, destinationOther: "", purposeId: active(options.purposes)[0].id, purposeOther: "" },
-      ],
-    },
-  });
-  expect(response.ok(), await response.text()).toBeTruthy();
-}
+import { expect, test } from "@playwright/test";
+import { createRequestVia, pageFor, randomDate } from "./helpers";
 
 test("a request becomes an approved schedule", async ({ browser }) => {
-  const date = runDate();
-  const pageFor = async (user: string) => {
-    const page = await (await browser.newContext()).newPage();
-    await signInAndWaitForHome(page, user);
-    return page;
-  };
+  const date = randomDate(14, 83);
 
   // Requester files a request for the day.
-  const requester = await pageFor("req1");
+  const requester = await pageFor(browser, "req1");
   await createRequestVia(requester, date);
 
   // Scheduler builds one trip from it and submits.
-  const scheduler = await pageFor("sched1");
+  const scheduler = await pageFor(browser, "sched1");
   await scheduler.goto("/schedules/new");
   await scheduler.getByLabel("Jump to date").fill(date);
   await scheduler.getByRole("button", { name: /continue/i }).click();
@@ -53,7 +25,7 @@ test("a request becomes an approved schedule", async ({ browser }) => {
   await scheduler.waitForURL("**/schedules**");
 
   // Admin approves it.
-  const admin = await pageFor("admin1");
+  const admin = await pageFor(browser, "admin1");
   await admin.goto("/schedules");
   const monday = new Date(date + "T12:00:00");
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
