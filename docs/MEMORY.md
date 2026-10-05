@@ -169,11 +169,11 @@ a separate step, not yet done as of this entry.
 
 ## Open questions
 
-- **`docs/PRD.md` has no "Success metrics" or "Acceptance criteria"
-  content.** Nothing in the existing docs or code establishes what KOVA's
-  actual operators consider success, or how a feature is formally accepted
-  — this needs stakeholder input, not an invented number. Marked `TBD` in
-  `docs/PRD.md` rather than guessed at.
+- **`docs/PRD.md` acceptance criteria and success metrics are drafts.**
+  The criteria restate what the code already enforces; the metrics name what
+  to measure from existing timestamps but leave every target blank. Both
+  need stakeholder review, and targets should come from the pilot week's
+  baseline, not be invented.
 
 ## Stacked PR merge order (2026-09-25)
 
