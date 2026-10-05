@@ -28,7 +28,7 @@ review. `tsc --noEmit`, `eslint`, `vitest`, `next build`, the pgTAP suite and
 - [ ] **Rate limiting** only covers sign-in. If abuse becomes a concern on other write endpoints, the `login_attempts` pattern could be extended.
 - [x] **Browser tests**: a small Playwright suite in `e2e/` (sign-in per role, each role's screens, request → schedule → approval, the Driver's trip record → Admin Done, request and schedule cancellations) runs in CI as the `e2e` job against a local Supabase seeded by `scripts/seed-uat.mjs`. Run locally with `pnpm exec playwright test` (needs local Supabase, `.env.local`, and the seed). Still uncovered: the Driver's trip record, Admin review and Done, cancellations.
 - [ ] **`docs/PRD.md`, `RULES.md` and `DESIGN.md` have not been reviewed by KOVA's operators.** They were written from the code and the schema; treat them as a first draft to correct.
-- [ ] **`docs/PRD.md` has no success metrics or acceptance criteria.** Not invented here since no stakeholder input exists; logged as an open question in `docs/MEMORY.md`.
+- [ ] **`docs/PRD.md` acceptance criteria and success metrics are drafts.** They need stakeholder review, and every metric target is still blank (set them from the pilot week's baseline). See `docs/MEMORY.md` "Open questions".
 
 ## v2.5 (simplification pass, 2026-10-02)
 

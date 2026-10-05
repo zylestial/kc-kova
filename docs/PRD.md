@@ -86,16 +86,70 @@ A person has exactly one role; there is no multi-role account.
 
 ## Acceptance criteria
 
-TBD. The workflows above imply the natural checks (a vehicle or Driver can't
-be double-booked, a trip can't be submitted before it ends, a Driver can't set
-Admin-only fields, a Done trip can't change), and those are enforced and
-tested in code (see `docs/RULES.md` and the database tests in
-`supabase/tests/`). A formal, stakeholder-reviewed acceptance criteria list
-doesn't exist yet — see `docs/MEMORY.md` "Open questions".
+**Draft — proposed, not yet reviewed by stakeholders.** Each line is a check
+a person can run in the app. The rules behind them are in `docs/RULES.md`;
+"(tested)" marks the ones the browser tests in `e2e/` or the database tests
+in `supabase/tests/` already check automatically.
+
+**Requests**
+- A Requester can file a request with a date and at least one stop with a
+  purpose, and sees it in My requests as Not yet scheduled. (tested)
+- A request 0–6 days ahead is Urgent; 7 or more days ahead is Regular. Only
+  an Admin can file a past date.
+- A Requester can edit or cancel their request until a Scheduler starts
+  planning it, and only ask for a cancellation after that. (tested)
+- A Requester never sees or changes another person's requests.
+
+**Planning and approval**
+- A Scheduler can build a schedule from a day's requests, pick a vehicle that
+  has a Driver, and submit it. (tested)
+- The same vehicle, Driver or request can never be booked twice for
+  overlapping time, even when two people save at once. (tested)
+- An Admin can approve a submitted schedule, which shows it to its
+  Requesters and Driver, or return it with a comment. (tested)
+- An Admin can cancel an approved schedule with a reason; its requests go
+  back to Not yet scheduled and the Driver no longer sees the trip. (tested)
+- An Admin can confirm or decline a cancellation request; declining needs a
+  note. (tested)
+
+**Driving and close-out**
+- A Driver sees only approved trips on their own vehicle. (tested)
+- A Driver can't submit a trip before its last planned Time In, and submits
+  one odometer pair with the end no lower than the start. (tested)
+- A Driver can report a problem on a trip at any time.
+- An Admin can correct a submitted trip's odometers and mark it Done; a Done
+  trip can't be changed by anyone. (tested)
+- An Admin can print the official form for any submitted trip, with the same
+  fields as the paper Daily Vehicle Trip & Utilization Form.
+
+**Accounts and access**
+- Only an Admin can create accounts, set passwords, and change vehicles and
+  request choices. Nothing is ever hard-deleted.
+- An inactive account can't sign in. Sign-in locks after 5 wrong passwords
+  in 15 minutes.
+- A new password has at least 8 characters, a letter and a number, and
+  doesn't contain the username. (tested)
+
+**Still to decide:** whether the first pilot week counts as acceptance, and
+who signs it off.
 
 ## Success metrics
 
-TBD. No stakeholder input or analytics exist yet to define what KOVA's
-operators consider success (for example adoption against the paper process,
-time to plan a day, or Admin review turnaround). See `docs/MEMORY.md` "Open
-questions".
+**Draft — proposed, targets not set.** Each metric can be measured from data
+KOVA already records (timestamps on requests, schedules and completions), so
+no new tracking is needed. The targets in brackets need stakeholder input;
+the pilot week gives the first baseline.
+
+| Metric | How it's measured | Target |
+| --- | --- | --- |
+| Paper form replaced | Share of trips in a week that have a submitted completion in KOVA | [__%] |
+| Requests planned in time | Share of requests in an approved schedule before their date | [__%] |
+| Approval turnaround | Median time from a schedule's submit to its approval | [__ hours] |
+| Trips recorded promptly | Median time from a trip's last planned Time In to the Driver's submit | [__ hours] |
+| Close-out turnaround | Median time from a Driver's submit to the Admin's Done | [__ days] |
+| Open problems | Problem reports still open after [__] days | [__] |
+| Sent back or returned | Share of requests sent back and schedules returned, as a sign of planning friction | [__%] |
+
+**Still to decide:** the targets, how often to review them, and whether "time
+to plan a day" is worth measuring (it would need the planner to record when
+planning starts).
