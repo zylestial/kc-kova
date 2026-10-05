@@ -35,6 +35,7 @@ import {
 } from "@/lib/trip-record";
 import CancellationRequests from "./cancellation-requests";
 import { scheduleStateMeaning } from "@/lib/status-text";
+import { compareSchedules, finishState } from "@/lib/trip-finish";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 
@@ -69,7 +70,7 @@ export default function Schedules({
   /** A schedule to open the detail dialog for immediately, e.g. from a notification. */
   initialOpenId?: string;
 }) {
-  const { schedules, requests, vehicles, accounts } = useKovaData();
+  const { schedules, requests, vehicles, accounts, completions } = useKovaData();
   const [view, setView] = useState<"day" | "week">("week");
   const [date, setDate] = useState(() => initialDate ?? manilaToday());
   const [vehicle, setVehicle] = useState("all");
@@ -94,8 +95,10 @@ export default function Schedules({
     a[1].localeCompare(b[1]),
   );
 
+  // A trip the Admin has marked Done lives on Finished Trips only.
   const visible = schedules
     .filter((schedule) => days.includes(schedule.date))
+    .filter((schedule) => finishState(schedule, completions, requestsById) !== "DONE")
     .filter((schedule) => {
       const revision = currentRevision(schedule);
       return (
@@ -106,7 +109,7 @@ export default function Schedules({
       );
     })
     .map((schedule) => ({ schedule, revision: currentRevision(schedule), time: tripWindow(currentRevision(schedule)?.legs ?? []) }))
-    .sort((a, b) => a.schedule.date.localeCompare(b.schedule.date) || (a.time?.start ?? "").localeCompare(b.time?.start ?? ""));
+    .sort((a, b) => compareSchedules(a.schedule, b.schedule));
 
   const selected = schedules.find((schedule) => schedule.id === selectedId);
   const selectedRevision = selected && currentRevision(selected);

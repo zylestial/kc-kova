@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdminFinishedTrips from "../../admin-finished-trips";
+import SchedulerFinishedTrips from "../../scheduler-finished-trips";
 import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
 
@@ -16,8 +17,8 @@ export default function FinishedGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <RequireRole allow={viewRole === "Admin"}>
-      <AdminFinishedTrips initialOpenId={openId} />
+    <RequireRole allow={viewRole === "Admin" || viewRole === "Scheduler"}>
+      {viewRole === "Scheduler" ? <SchedulerFinishedTrips /> : <AdminFinishedTrips initialOpenId={openId} />}
     </RequireRole>
   );
 }

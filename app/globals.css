@@ -247,3 +247,6 @@ tbody tr:hover{background:#f5f7fd}
 .home-options button>svg,.home-options [data-slot=button]>svg{background:var(--role-accent-bg);color:var(--role-accent)}
 .home-options button:hover,.stat-tile:hover{border-color:var(--role-accent);color:var(--role-accent)}
 .stat-tile:hover strong{color:var(--role-accent)}
+/* Phone Back button: replaces the logo in the top bar on every screen but the Dashboard. */
+.topbar-back{display:none}
+@media(max-width:1023px){.topbar.inner .topbar-back{display:inline-flex;gap:6px;padding:0 10px!important;font-weight:600;color:var(--foreground)}.topbar.inner .kova-brand{display:none}}

@@ -58,19 +58,23 @@ function buildTrips(schedules: Schedule[], completions: TripCompletion[], proble
       // null driverId means Admin viewing as Driver: show every vehicle's
       // trips, since Admin has no driver_id of their own to filter by.
       if (!revision || (driverId !== null && revision.driverId !== driverId)) return [];
+      const completion = completions.find((item) => item.scheduleId === schedule.id);
+      // Once an Admin marks it Done the trip lives on Finished Trips only.
+      if (completion?.status === "DONE") return [];
       const lastIn = revision.legs[revision.legs.length - 1]?.plannedTimeIn ?? "";
       return [
         {
           schedule,
           revision,
-          completion: completions.find((item) => item.scheduleId === schedule.id),
+          completion,
           problems: problems.filter((item) => item.scheduleId === schedule.id),
           ended: hasTripEnded(schedule.date, lastIn),
           availableAt: availableAtLabel(schedule.date, lastIn),
         },
       ];
     })
-    .sort((a, b) => a.schedule.date.localeCompare(b.schedule.date));
+    // Trips still to complete first, then those waiting for review, each by date.
+    .sort((a, b) => Number(!!a.completion) - Number(!!b.completion) || a.schedule.date.localeCompare(b.schedule.date));
 }
 
 /**

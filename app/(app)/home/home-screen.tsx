@@ -140,6 +140,11 @@ export default function HomeScreen() {
               count={counts["schedules"]}
               onClick={() => go("/schedules")}
             />
+            <HomeCard
+              icon={<CheckCircle2 size={24} />}
+              label="Finished Trips"
+              onClick={() => go("/finished")}
+            />
           </>
         ) : (
           <>
