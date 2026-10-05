@@ -455,3 +455,18 @@ a separate step, not yet done as of this entry.
 - **Turbopack can keep serving stale `globals.css`**, even across a dev
   server restart, in a second git worktree on Windows. If a CSS change
   doesn't show, stop the server, delete `.next` and start it again.
+- **Stale CSS in production (2026-10-05).** The #84 deploy shipped the new
+  markup with the old `globals.css`: Turbopack's filesystem build cache (on
+  by default since Next 16.3) was restored by Vercel and reused. Fixed by a
+  Redeploy without build cache, then #85 turned the cache off for build and
+  dev in `next.config.ts`. If styles ever look old after a deploy, compare
+  the served stylesheet with a clean local build first.
+
+## Done trips and Scheduler Finished Trips (2026-10-05)
+
+- **A trip leaves Schedules / My Schedule when the Admin marks it Done**,
+  not when the Driver submits; "Waiting for review" trips stay. Owner's call.
+- **No migration for Scheduler access.** The owner asked to avoid one, so
+  Schedulers get finished trips from request progress (`request_progress_of`
+  is security definer and reads the completion) instead of a wider
+  `trip_completions` policy. The trade-off: no odometer or distance for them.
