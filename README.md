@@ -44,13 +44,12 @@ diagram and [docs/PRD.md](docs/PRD.md) for what the product does and why.
    API from the same origin, so it's only needed if you're pointing the
    frontend at a KOVA API hosted elsewhere.
 5. Every account is provisioned by an Admin — there's no public sign-up and
-   no seed data. To get a first Admin account on a fresh database, insert
-   one directly (local Supabase example, via Studio's SQL Editor or
-   `supabase db execute`): create an Auth user (Studio → Authentication →
-   Add user, or the `auth.admin.createUser` API) with email
-   `<username>@accounts.kova.internal` (see
-   `lib/supabase/accounts.ts`), then insert a matching row into
-   `public.accounts` with that same `id` and `role = 'Admin'`.
+   no seed data. To get a first Admin account on a fresh database, run
+   `node scripts/create-admin.mjs`: it asks for a username, name and
+   password and refuses to run once an Admin exists. It uses the URL and
+   service-role key from `.env.local`; to target another project (e.g.
+   production), set `NEXT_PUBLIC_SUPABASE_URL` and
+   `SUPABASE_SERVICE_ROLE_KEY` in the shell first.
 6. Start the dev server: `pnpm dev`.
 
 ## Running and testing
