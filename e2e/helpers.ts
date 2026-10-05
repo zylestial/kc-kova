@@ -50,6 +50,51 @@ export async function createRequestVia(page: Page, date: string): Promise<Reques
   return response.json();
 }
 
+type Schedule = { id: string; date: string; status: string; revisions: { status: string; rowVersion: number }[] };
+
+/**
+ * Sets up an approved trip without the UI: `owner` files a request on a
+ * random day `min`..`max` days out and `admin` builds, submits and approves
+ * a one-leg schedule for it on UAT-001 (driver1's vehicle). Retries on a
+ * fresh day and hour if the vehicle is already booked then.
+ */
+export async function publishTrip(admin: Page, owner: Page, min: number, max: number) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  let failure = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const request = await createRequestVia(owner, randomDate(min, max));
+    const hour = 1 + Math.floor(Math.random() * 18);
+    const stop = request.destinations[0];
+    const saved = await admin.request.post("/api/schedules", {
+      data: {
+        date: request.date,
+        plate: "UAT-001",
+        requestIds: [request.id],
+        legs: [
+          { destinationId: stop.destinationId, plannedTimeOut: `${pad(hour)}:00`, plannedTimeIn: `${pad(hour)}:30`, stops: [stop.id] },
+          { isFinal: true, plannedTimeOut: `${pad(hour)}:40`, plannedTimeIn: `${pad(hour + 1)}:10` },
+        ],
+      },
+    });
+    if (!saved.ok()) {
+      failure = await saved.text();
+      continue;
+    }
+    const draft = (await saved.json()) as Schedule;
+    const submitted = await admin.request.post(`/api/schedules/${draft.id}/submit`, {
+      data: { rowVersion: draft.revisions.find((r) => r.status === "DRAFT")!.rowVersion },
+    });
+    expect(submitted.ok(), await submitted.text()).toBeTruthy();
+    const pending = (await submitted.json()) as Schedule;
+    const approved = await admin.request.post(`/api/schedules/${draft.id}/approve`, {
+      data: { rowVersion: pending.revisions.find((r) => r.status === "SUBMITTED")!.rowVersion },
+    });
+    expect(approved.ok(), await approved.text()).toBeTruthy();
+    return { request, schedule: (await approved.json()) as Schedule };
+  }
+  throw new Error("Could not book UAT-001 for a test trip: " + failure);
+}
+
 /** The page's account's view of one request, as /api/bootstrap returns it. */
 export async function requestAs(page: Page, id: string): Promise<Request | undefined> {
   const { requests } = await (await page.request.get("/api/bootstrap")).json();
