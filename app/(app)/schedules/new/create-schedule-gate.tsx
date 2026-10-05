@@ -13,13 +13,11 @@ export default function CreateScheduleGate() {
   const scheduleId = params.get("scheduleId") ?? undefined;
   return (
     <RequireRole allow={viewRole === "Scheduler"}>
-      <Button
-        variant="ghost"
-        className="back"
-        onClick={() => leave(() => router.push(scheduleId ? "/schedules" : "/home"))}
-      >
-        <ArrowLeft size={17} /> {scheduleId ? "Schedules" : "Scheduler Home"}
-      </Button>
+      {scheduleId && (
+        <Button variant="ghost" className="back" onClick={() => leave(() => router.push("/schedules"))}>
+          <ArrowLeft size={17} /> Schedules
+        </Button>
+      )}
       <SchedulePlanner
         key={scheduleId ?? "new"}
         scheduleId={scheduleId}
