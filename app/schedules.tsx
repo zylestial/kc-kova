@@ -232,7 +232,7 @@ export default function Schedules({
               All dates
             </Button>
             {view !== "all" && (
-              <>
+              <span className="schedules-step">
                 <Button
                   variant="outline"
                   size="icon"
@@ -249,7 +249,7 @@ export default function Schedules({
                 >
                   <ChevronRight size={18} />
                 </Button>
-              </>
+              </span>
             )}
           </div>
         </div>
