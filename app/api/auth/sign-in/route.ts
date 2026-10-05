@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { readJson } from "@/lib/api-route";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
 import { clearLoginAttempts, isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
+import { parseWith } from "@/lib/validation";
+
+const signInBody = z.object({ username: z.string().trim().min(1), password: z.string().min(1) });
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
-  const username = typeof body?.username === "string" ? body.username.trim() : "";
-  const password = typeof body?.password === "string" ? body.password : "";
-  if (!username || !password) {
+  const body = parseWith(signInBody, await readJson(request));
+  if (!body) {
     return NextResponse.json({ message: "Username and password are required." }, { status: 422 });
   }
+  const { username, password } = body;
 
   if (await isLoginRateLimited(username)) {
     return NextResponse.json({ message: "Too many sign-in attempts. Try again later." }, { status: 429 });

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { toBookingOption } from "@/lib/supabase/mappers";
+import { bookingOptionBody } from "@/lib/admin-input";
+import { parseWith } from "@/lib/validation";
 
 const GROUPS = ["projects", "destinations", "purposes"] as const;
-const STATUSES = ["Active", "Inactive"] as const;
 
 export const PUT = authed<{ group: string; id: string }>(async ({ request, supabase, account, params: { group, id } }) => {
   if (!GROUPS.includes(group as (typeof GROUPS)[number])) {
@@ -11,12 +12,11 @@ export const PUT = authed<{ group: string; id: string }>(async ({ request, supab
   }
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const status = STATUSES.includes(body?.status) ? body.status : "Active";
+  const body = parseWith(bookingOptionBody, await readJson(request));
+  if (!body) return NextResponse.json({ message: "Name is required." }, { status: 422 });
+  const { name, status } = body;
   // Only meaningful for destinations; ignored (stays false) for every other group.
-  const isOtherStop = group === "destinations" && body?.isOtherStop === true;
-  if (!name) return NextResponse.json({ message: "Name is required." }, { status: 422 });
+  const isOtherStop = group === "destinations" && body.isOtherStop;
 
   // booking_options_admin_write RLS policy enforces the Admin check server-side too.
   const { data, error } = await supabase

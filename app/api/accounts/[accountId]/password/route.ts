@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { passwordError } from "@/lib/password-policy";
+import { passwordBody } from "@/lib/admin-input";
 
 export const POST = authed<{ accountId: string }>(async ({ request, account, params: { accountId } }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
-  const password = typeof body?.password === "string" ? body.password : "";
+  const { password } = passwordBody.parse(await readJson(request));
   const admin = createSupabaseAdminClient();
   const { data: target } = await admin.from("accounts").select("username").eq("id", accountId).maybeSingle();
   if (!target) return NextResponse.json({ message: "Account not found." }, { status: 404 });

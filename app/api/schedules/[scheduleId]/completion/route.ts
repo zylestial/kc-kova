@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { parseCompletionInput } from "@/lib/completion-input";
 import { toTripCompletion } from "@/lib/supabase/mappers";
 import { scheduleErrorResponse } from "@/lib/supabase/schedules";
@@ -8,7 +8,7 @@ import { scheduleErrorResponse } from "@/lib/supabase/schedules";
 // an Admin acting as Driver (view-as override) on any vehicle's schedule.
 // Repeating returns the existing completion.
 export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, params: { scheduleId } }) => {
-  const input = parseCompletionInput(await request.json().catch(() => null));
+  const input = parseCompletionInput(await readJson(request));
   if (!input) {
     return NextResponse.json({ message: "Enter whole-number odometer readings, with the end no lower than the start." }, { status: 422 });
   }
@@ -29,7 +29,7 @@ export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, p
 // An Admin corrects the odometer pair of a submitted completion. A done
 // completion is locked and refused by Postgres.
 export const PATCH = authed<{ scheduleId: string }>(async ({ request, supabase, params: { scheduleId } }) => {
-  const input = parseCompletionInput(await request.json().catch(() => null));
+  const input = parseCompletionInput(await readJson(request));
   if (!input) {
     return NextResponse.json({ message: "Enter whole-number odometer readings, with the end no lower than the start." }, { status: 422 });
   }

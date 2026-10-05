@@ -1,24 +1,19 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
 import { passwordError } from "@/lib/password-policy";
-
-const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const;
-const STATUSES = ["Active", "Inactive"] as const;
+import { createAccountBody } from "@/lib/admin-input";
+import { parseWith } from "@/lib/validation";
 
 export const POST = authed(async ({ request, account }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const username = typeof body?.username === "string" ? body.username.trim() : "";
-  const role = body?.role;
-  const status = STATUSES.includes(body?.status) ? body.status : "Active";
-  const password = typeof body?.password === "string" ? body.password : "";
-  if (!name || !username || !ROLES.includes(role) || !password) {
+  const body = parseWith(createAccountBody, await readJson(request));
+  if (!body) {
     return NextResponse.json({ message: "Name, username, role, and a password are required." }, { status: 422 });
   }
+  const { name, username, role, status, password } = body;
   const passwordProblem = passwordError(password, username);
   if (passwordProblem) return NextResponse.json({ message: passwordProblem }, { status: 422 });
 

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { toTransportRequest } from "@/lib/supabase/mappers";
 import { parseRequestInput } from "@/lib/request-input";
+import { parseWith, rowVersionBody } from "@/lib/validation";
 import { requestDateError, requestTypeFor } from "@/lib/timezone";
 
 function errorResponse(error: { code?: string; message: string }) {
@@ -12,10 +13,10 @@ function errorResponse(error: { code?: string; message: string }) {
 }
 
 export const PUT = authed<{ requestId: string }>(async ({ request, supabase, account, params: { requestId } }) => {
-  const body = await request.json().catch(() => null);
+  const body = await readJson(request);
   const input = parseRequestInput(body);
-  const rowVersion = Number(body?.rowVersion);
-  if (!input || !Number.isInteger(rowVersion)) {
+  const version = parseWith(rowVersionBody, body);
+  if (!input || !version) {
     return NextResponse.json({ message: "Date and at least one destination with a purpose are required." }, { status: 422 });
   }
 
@@ -37,7 +38,7 @@ export const PUT = authed<{ requestId: string }>(async ({ request, supabase, acc
   // refuses the save if the request changed since, or was scheduled.
   const { data, error } = await supabase.rpc("update_request", {
     p_request_id: requestId,
-    p_expected_row_version: rowVersion,
+    p_expected_row_version: version.rowVersion,
     p_requested_date: input.date,
     p_request_type: dateChanged || !existing ? requestTypeFor(input.date) : existing.request_type,
     p_project_id: input.projectId,

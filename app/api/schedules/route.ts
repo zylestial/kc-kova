@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { loadSchedule, scheduleErrorResponse } from "@/lib/supabase/schedules";
 import { parseScheduleInput } from "@/lib/schedule-input";
 
@@ -9,7 +9,7 @@ const invalidBody = "Date, vehicle, requests and legs are required.";
 // a Scheduler, or an Admin acting as Scheduler (view-as override); anyone
 // else gets 403.
 export const POST = authed(async ({ request, supabase }) => {
-  const input = parseScheduleInput(await request.json().catch(() => null));
+  const input = parseScheduleInput(await readJson(request));
   if (!input) return NextResponse.json({ message: invalidBody }, { status: 422 });
 
   const { data, error } = await supabase.rpc("save_schedule_draft", {

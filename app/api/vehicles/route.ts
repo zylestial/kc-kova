@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { toVehicle } from "@/lib/supabase/mappers";
-
-const STATUSES = ["Active", "Inactive"] as const;
+import { createVehicleBody } from "@/lib/admin-input";
+import { parseWith } from "@/lib/validation";
 
 export const POST = authed(async ({ request, supabase, account }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
-  const plate = typeof body?.plate === "string" ? body.plate.trim() : "";
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const status = STATUSES.includes(body?.status) ? body.status : "Active";
-  const assignedDriverId = typeof body?.assignedDriverId === "string" && body.assignedDriverId ? body.assignedDriverId : null;
-  if (!plate || !name) {
+  const body = parseWith(createVehicleBody, await readJson(request));
+  if (!body) {
     return NextResponse.json({ message: "Plate and name are required." }, { status: 422 });
   }
+  const { plate, name, status, assignedDriverId } = body;
 
   // vehicles_admin_write RLS policy enforces the Admin check server-side too;
   // the assigned_driver_id triggers enforce it must be an active Driver and

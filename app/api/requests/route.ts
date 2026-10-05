@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { toTransportRequest } from "@/lib/supabase/mappers";
 import { parseRequestInput } from "@/lib/request-input";
 import { requestDateError, requestTypeFor } from "@/lib/timezone";
@@ -10,7 +10,7 @@ function errorResponse(error: { code?: string; message: string }) {
 }
 
 export const POST = authed(async ({ request, supabase, account }) => {
-  const input = parseRequestInput(await request.json().catch(() => null));
+  const input = parseRequestInput(await readJson(request));
   if (!input) {
     return NextResponse.json({ message: "Date and at least one destination with a purpose are required." }, { status: 422 });
   }

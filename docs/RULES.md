@@ -111,10 +111,12 @@ audit — see `docs/MEMORY.md` and `docs/archive/MEMORY-history.md` for the full
   actual failure — this was a real bug found and fixed in `GET
   /api/bootstrap` during this audit.
 - Validate all external input (request bodies, params) at the route
-  boundary before using it — every existing route does this with manual
-  `typeof body?.x === "..."` checks; keep that pattern consistent on new
-  routes (a repo-wide move to a schema validator like `zod` is a tracked,
-  not-yet-done follow-up — see `docs/TASKS.md`).
+  boundary before using it, with a `zod` schema: read the body with
+  `readJson` (`lib/api-route.ts`) and check it with `parseWith`
+  (`lib/validation.ts`), which returns `null` for a 422. Reuse the shared
+  pieces there (`text`, `trimmedText`, `isoDate`, `rowVersion`) and the
+  domain schemas in `lib/*-input.ts`. Schemas check shape only; business
+  rules stay in Postgres.
 - When a value is looked up by one identifier but written using other
   attacker-influenceable fields from the same request, verify those fields
   are actually consistent with the looked-up row — don't assume ownership

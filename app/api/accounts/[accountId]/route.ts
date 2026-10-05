@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server";
-import { authed } from "@/lib/api-route";
+import { authed, readJson } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
-
-const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const;
-const STATUSES = ["Active", "Inactive"] as const;
+import { updateAccountBody } from "@/lib/admin-input";
+import { parseWith } from "@/lib/validation";
 
 export const PUT = authed<{ accountId: string }>(async ({ request, account, params: { accountId } }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const username = typeof body?.username === "string" ? body.username.trim() : "";
-  const role = body?.role;
-  const status = body?.status;
-  if (!name || !username || !ROLES.includes(role) || !STATUSES.includes(status)) {
+  const body = parseWith(updateAccountBody, await readJson(request));
+  if (!body) {
     return NextResponse.json({ message: "Name, username, role, and status are required." }, { status: 422 });
   }
+  const { name, username, role, status } = body;
 
   const admin = createSupabaseAdminClient();
   const { data: existing } = await admin.from("accounts").select("*").eq("id", accountId).maybeSingle();
