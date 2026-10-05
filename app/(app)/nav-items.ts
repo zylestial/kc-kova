@@ -32,6 +32,7 @@ export function navItems(viewRole: Account["role"]): NavItem[] {
       home,
       { href: "/schedules/new", label: "Create schedule", icon: CalendarPlus },
       { href: "/schedules", label: "Schedules", icon: CalendarDays },
+      { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
     ];
   return [
     home,
