@@ -148,7 +148,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   }
 
   const statusOf = (trip: Trip) =>
-    trip.completion ? [completionLabel[trip.completion.status], "scheduled"] : trip.ended ? ["Ready to complete", "pending"] : ["Upcoming", "pending"];
+    trip.completion ? [completionLabel[trip.completion.status], "scheduled"] : trip.ended ? ["Ready to complete", "pending"] : ["Upcoming", "info"];
 
   return (
     <>

@@ -40,7 +40,7 @@ background.
 | `--success` | `#2e8b4e` | `#eaf5ee` | `#bfe3cb` | `#1e6b3a` | Scheduled, done, saved |
 | `--warning` | `#e0a100` | `#fff6db` | `#f5d98a` | `#8a5a00` | Pending, leg warnings, unsaved changes |
 | `--error` | `#c62f2f` | `#fdecec` | `#f3c2c2` | `#a12c2c` | Rejected, failures, form errors |
-| `--info` | `#2f6fe0` | `#eaf1ff` | `#c3d5fa` | `#1f4fa8` | Notices and tips |
+| `--info` | `#2f6fe0` | `#eaf1ff` | `#c3d5fa` | `#1f4fa8` | Notices and tips, upcoming trips |
 | `--neutral` | `#6b7280` | `#f1f3f6` | `#dde2e8` | `#4b5563` | Cancelled, inactive |
 
 Each is also a Tailwind color (`bg-warning-bg`, `text-error-fg`, ...).
