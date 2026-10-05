@@ -44,10 +44,13 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
 /** Monday of the week containing a date. */
 const weekStart = (value: string) => addDays(value, -((new Date(value + "T12:00:00").getDay() + 6) % 7));
 
+export type ScheduleView = "day" | "week" | "all";
+export const scheduleViews: ScheduleView[] = ["day", "week", "all"];
+
 /**
- * Schedules: every schedule by day or week, filtered by vehicle, Driver
- * and status, for weekly planning. A Scheduler opens a draft or returned
- * schedule to keep editing it, or proposes a revision of an approved one;
+ * Schedules: every schedule by day, by week or across all dates, filtered
+ * by vehicle, Driver and status, for weekly planning. A Scheduler opens a
+ * draft or returned schedule to keep editing it, or proposes a revision of an approved one;
  * an Admin approves or returns a submitted one; anything else is read-only.
  */
 export default function Schedules({
@@ -58,6 +61,8 @@ export default function Schedules({
   notice,
   initialDate,
   initialOpenId,
+  initialView,
+  initialStatus,
 }: {
   canEdit?: boolean;
   /** Admin: approve or return a schedule that has been submitted. */
@@ -69,14 +74,18 @@ export default function Schedules({
   initialDate?: string;
   /** A schedule to open the detail dialog for immediately, e.g. from a notification. */
   initialOpenId?: string;
+  /** Defaults to the week view. */
+  initialView?: ScheduleView;
+  /** A status to filter by from the start, e.g. from a Dashboard tile. */
+  initialStatus?: ScheduleState;
 }) {
   const { schedules, requests, vehicles, accounts, completions } = useKovaData();
-  const [view, setView] = useState<"day" | "week">("week");
+  const [view, setView] = useState<ScheduleView>(initialView ?? "week");
   const [date, setDate] = useState(() => initialDate ?? manilaToday());
   const [vehicle, setVehicle] = useState("all");
   const [driver, setDriver] = useState("all");
   const [requester, setRequester] = useState("all");
-  const [status, setStatus] = useState<"all" | ScheduleState>("all");
+  const [status, setStatus] = useState<"all" | ScheduleState>(initialStatus ?? "all");
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [returning, setReturning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -97,7 +106,7 @@ export default function Schedules({
 
   // A trip the Admin has marked Done lives on Finished Trips only.
   const visible = schedules
-    .filter((schedule) => days.includes(schedule.date))
+    .filter((schedule) => view === "all" || days.includes(schedule.date))
     .filter((schedule) => finishState(schedule, completions, requestsById) !== "DONE")
     .filter((schedule) => {
       const revision = currentRevision(schedule);
@@ -156,7 +165,10 @@ export default function Schedules({
   const card = ({ schedule, revision, time }: (typeof visible)[number]) => (
     <button key={schedule.id} className="schedule-card" onClick={() => setSelectedId(schedule.id)}>
       <span className="schedule-card-top">
-        <b>{time ? `${time.start}–${time.end}` : "No times yet"}</b>
+        <b>
+          {view === "all" && dateLabel(schedule.date, { weekday: "short", month: "short", day: "numeric" }) + " · "}
+          {time ? `${time.start}–${time.end}` : "No times yet"}
+        </b>
         <span className={"status-pill " + scheduleStatePill[scheduleState(schedule)]}>
           {scheduleStateLabel[scheduleState(schedule)]}
         </span>
@@ -182,7 +194,7 @@ export default function Schedules({
           <h1>
             Schedules<span className="title-dot">.</span>
           </h1>
-          <p>Every schedule by day or week: drafts, those waiting for approval, and approved trips.</p>
+          <p>Every schedule by day, by week or across all dates: drafts, those waiting for approval, and approved trips.</p>
         </div>
         {onCreate && (
           <Button className="primary" onClick={onCreate}>
@@ -201,9 +213,11 @@ export default function Schedules({
           <div>
             <CalendarDays size={20} />
             <h2>
-              {view === "day"
-                ? dateLabel(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })
-                : `Week of ${dateLabel(days[0], { month: "long", day: "numeric", year: "numeric" })}`}
+              {view === "all"
+                ? "All dates"
+                : view === "day"
+                  ? dateLabel(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })
+                  : `Week of ${dateLabel(days[0], { month: "long", day: "numeric", year: "numeric" })}`}
             </h2>
             <span className="count">{visible.length}</span>
           </div>
@@ -214,29 +228,45 @@ export default function Schedules({
             <Button variant={view === "week" ? "default" : "outline"} aria-pressed={view === "week"} onClick={() => setView("week")}>
               Week
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={view === "day" ? "Previous day" : "Previous week"}
-              onClick={() => setDate(addDays(date, view === "day" ? -1 : -7))}
-            >
-              <ChevronLeft size={18} />
+            <Button variant={view === "all" ? "default" : "outline"} aria-pressed={view === "all"} onClick={() => setView("all")}>
+              All dates
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={view === "day" ? "Next day" : "Next week"}
-              onClick={() => setDate(addDays(date, view === "day" ? 1 : 7))}
-            >
-              <ChevronRight size={18} />
-            </Button>
+            {view !== "all" && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={view === "day" ? "Previous day" : "Previous week"}
+                  onClick={() => setDate(addDays(date, view === "day" ? -1 : -7))}
+                >
+                  <ChevronLeft size={18} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={view === "day" ? "Next day" : "Next week"}
+                  onClick={() => setDate(addDays(date, view === "day" ? 1 : 7))}
+                >
+                  <ChevronRight size={18} />
+                </Button>
+              </>
+            )}
           </div>
         </div>
         <OlderRecordsNotice />
         <div className="admin-trip-filters">
           <label className="field">
             <span>Date</span>
-            <Input type="date" value={date} onChange={(event) => event.target.value && setDate(event.target.value)} />
+            {/* Picking a date leaves All dates for that day. */}
+            <Input
+              type="date"
+              value={date}
+              onChange={(event) => {
+                if (!event.target.value) return;
+                setDate(event.target.value);
+                if (view === "all") setView("day");
+              }}
+            />
           </label>
           <label className="field">
             <span>Vehicle</span>
@@ -326,7 +356,13 @@ export default function Schedules({
               <CalendarDays size={30} />
             </div>
             <h3>{schedules.length ? "No matching schedules" : "No schedules yet"}</h3>
-            <p>{schedules.length ? "Nothing matches this day and these filters. Try another day or clear a filter." : "Schedules you create will appear here."}</p>
+            <p>
+              {!schedules.length
+                ? "Schedules you create will appear here."
+                : view === "all"
+                  ? "Nothing matches these filters. Try clearing a filter."
+                  : "Nothing matches this day and these filters. Try another day or clear a filter."}
+            </p>
           </div>
         )}
       </section>
