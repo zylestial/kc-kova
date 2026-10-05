@@ -75,6 +75,19 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
 - Fixed bottom bars (`.booking-bottom`) start after the sidebar on wide
   screens.
 
+Each role has its own accent, set on `<html data-role>` by `AccountProvider`
+(the viewed role during Admin "View as"). It colors the sidebar, the
+dashboard banner, the active menu item, eyebrows, quick-action icons and
+card hover. Buttons, links and status colors are the same for every role.
+All pass 4.5:1 for their text.
+
+| Role | Sidebar/banner | Accent |
+| --- | --- | --- |
+| Admin | `#22398a` → `#1b2e6e` (logo navy) | `#2b47a8` |
+| Scheduler | `#5b3fb0` → `#33236e` (violet) | `#5b3fb0` |
+| Driver | `#4a6633` → `#2c3d1f` (logo green) | `#3f5a2b` |
+| Requester | `#136f7c` → `#0b4650` (teal) | `#11697a` |
+
 Cards and panels use 16px corners and `--shadow-card`; status pills carry a
 dot in their text color. The UI font is Inter (`next/font/google`,
 self-hosted at build time as `--font-inter`); printouts keep Arial.
