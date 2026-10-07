@@ -11,6 +11,7 @@ import {
   FilePlus2,
   Info,
   Settings as SettingsIcon,
+  UserCheck,
   TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -170,6 +171,11 @@ export default function HomeScreen() {
               label="Finished Trips"
               count={counts["finished"]}
               onClick={() => go("/finished")}
+            />
+            <HomeCard
+              icon={<UserCheck size={24} />}
+              label="Attendance"
+              onClick={() => go("/attendance")}
             />
             <HomeCard
               icon={<SettingsIcon size={24} />}
