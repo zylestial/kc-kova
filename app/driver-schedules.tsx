@@ -18,7 +18,6 @@ import {
   recordAttendance,
   reportProblem,
   submitCompletion,
-  type AttendanceTap,
   type ProblemReport,
   type Schedule,
   type ScheduleRevision,
@@ -30,12 +29,9 @@ import { stopsFor } from "@/lib/trip-record";
 import { hasTripEnded, manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
-import { tapNearLabel, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
+import { tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
 import { getPhoneLocation } from "@/lib/phone-location";
 import TripRecordView from "./trip-record-view";
-
-/** "at ANONANG", or "4.2 km from ANONANG, near Bolaoen, Pangasinan". */
-const whereLabel = (tap: AttendanceTap) => [tapPlaceLabel(tap), tapNearLabel(tap)].filter(Boolean).join(", ");
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -293,9 +289,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
               {selected.attendance && (
                 <p className="helper">
-                  Started {tapTimeLabel(selected.attendance.start.at)}, {whereLabel(selected.attendance.start)}.
+                  Started {tapTimeLabel(selected.attendance.start.at)}, {tapPlaceLabel(selected.attendance.start)}.
                   {selected.attendance.end &&
-                    ` Ended ${tapTimeLabel(selected.attendance.end.at)}, ${whereLabel(selected.attendance.end)}.`}
+                    ` Ended ${tapTimeLabel(selected.attendance.end.at)}, ${tapPlaceLabel(selected.attendance.end)}.`}
                 </p>
               )}
               {!selected.completion && !selected.attendance && (
