@@ -99,8 +99,8 @@ export type TripCompletion = {
 };
 /** Optional final-return checks a Driver may answer alongside odometers. */
 export type ReturnChecks = { fullTank?: boolean | null; fleetCardUsed?: boolean | null; gasReceiptAttached?: boolean | null };
-/** Where the phone was at a Start/End tap, and how far that is from ANONANG. */
-export type AttendanceLocation = { lat: number; lng: number; accuracyM: number | null; distanceM: number };
+/** Where the phone was at a Start/End tap, how far that is from ANONANG, and roughly what address (0043; null when the lookup found nothing). */
+export type AttendanceLocation = { lat: number; lng: number; accuracyM: number | null; distanceM: number; address: string | null };
 /** One Start or End tap: server time, who tapped, and the position if the phone shared it. */
 export type AttendanceTap = { at: string; recordedByAccountId: string; location: AttendanceLocation | null };
 /** A Driver's Start and End taps for a whole schedule, their attendance that day (0042). */

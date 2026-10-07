@@ -32,7 +32,7 @@ const schedule = (id: string, date: string, driverName?: string, status: Schedul
 const atBase: AttendanceTap = {
   at: "2026-10-07T00:05:00Z",
   recordedByAccountId: "d1",
-  location: { lat: 16.103769, lng: 120.436222, accuracyM: 10, distanceM: 20 },
+  location: { lat: 16.103769, lng: 120.436222, accuracyM: 10, distanceM: 20, address: null },
 };
 
 const taps = (scheduleId: string, start: AttendanceTap, end?: AttendanceTap): TripAttendance => ({
