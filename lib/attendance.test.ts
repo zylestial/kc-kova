@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAttendanceRows, distanceLabel, tapFlags, tapNearLabel, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
+import { buildAttendanceRows, coordinatesLabel, distanceLabel, tapFlags, tapNearLabel, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
 import type { AttendanceTap, Schedule, ScheduleRevision, TripAttendance } from "@/lib/kova-api";
 
 const revision = (id: string, driverName = "Dan"): ScheduleRevision => ({
@@ -149,5 +149,11 @@ describe("tapNearLabel", () => {
 describe("tapNearLabel with a rough reading", () => {
   it("names no address for a tap that could still be at base", () => {
     expect(tapNearLabel({ ...atBase, location: { ...atBase.location!, distanceM: 350, accuracyM: 250, address: "Bolaoen, Pangasinan" } })).toBeNull();
+  });
+});
+
+describe("coordinatesLabel", () => {
+  it("shows the position to 6 decimals", () => {
+    expect(coordinatesLabel({ lat: 16.1069131, lng: 120.436222 })).toBe("16.106913, 120.436222");
   });
 });

@@ -65,6 +65,11 @@ export function tapNearLabel(tap: AttendanceTap): string | null {
   return tap.location?.address && !couldBeAtBase(tap.location) ? `near ${tap.location.address}` : null;
 }
 
+/** The position exactly as the phone reported it, e.g. "16.106913, 120.436222" (6 decimals, about 0.1 m). */
+export function coordinatesLabel(location: { lat: number; lng: number }): string {
+  return `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`;
+}
+
 /** "45 m" or "1.2 km". */
 export function distanceLabel(metres: number): string {
   return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(1)} km`;
