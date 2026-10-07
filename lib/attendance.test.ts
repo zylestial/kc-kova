@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAttendanceRows, distanceLabel, tapFlags } from "@/lib/attendance";
+import { buildAttendanceRows, distanceLabel, tapFlags, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
 import type { AttendanceTap, Schedule, ScheduleRevision, TripAttendance } from "@/lib/kova-api";
 
 const revision = (id: string, driverName = "Dan"): ScheduleRevision => ({
@@ -107,5 +107,17 @@ describe("buildAttendanceRows", () => {
   it("orders drivers by name within a day", () => {
     const rows = buildAttendanceRows([schedule("b", today, "Zed"), schedule("a", today, "Ana")], [], today);
     expect(rows.map((row) => row.revision.driverName)).toEqual(["Ana", "Zed"]);
+  });
+});
+
+describe("tapTimeLabel and tapPlaceLabel", () => {
+  it("shows the Manila time", () => {
+    expect(tapTimeLabel("2026-10-07T00:05:00Z")).toBe("8:05 AM");
+  });
+
+  it("says where the tap was", () => {
+    expect(tapPlaceLabel(atBase)).toBe("at ANONANG");
+    expect(tapPlaceLabel({ ...atBase, location: { ...atBase.location!, distanceM: 1234 } })).toBe("1.2 km from ANONANG");
+    expect(tapPlaceLabel({ ...atBase, location: null })).toBe("no location");
   });
 });

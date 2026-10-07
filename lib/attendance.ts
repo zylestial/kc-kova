@@ -25,6 +25,17 @@ export function tapFlags(tap: AttendanceTap, scheduleDate: string): TapFlag[] {
   return flags;
 }
 
+/** A tap's time in Manila, e.g. "8:05 AM". */
+export function tapTimeLabel(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });
+}
+
+/** Where a tap was, e.g. "at ANONANG", "1.2 km from ANONANG" or "no location". */
+export function tapPlaceLabel(tap: AttendanceTap): string {
+  if (!tap.location) return "no location";
+  return tap.location.distanceM > BASE_RADIUS_M ? `${distanceLabel(tap.location.distanceM)} from ANONANG` : "at ANONANG";
+}
+
 /** "45 m" or "1.2 km". */
 export function distanceLabel(metres: number): string {
   return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(1)} km`;
