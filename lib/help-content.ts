@@ -24,12 +24,14 @@ export const howItWorks: Record<Role, HelpStep[]> = {
   Driver: [
     { title: "See your trips", detail: "My Schedule lists only your approved trips." },
     { title: "Check the plan", detail: "Open a trip for its stops and planned times." },
+    { title: "Start and end at ANONANG", detail: "Tap Start trip before you leave and End trip when back. It is your attendance." },
     { title: "Complete the trip", detail: "After the last Time In, log the start/end odometer." },
     { title: "Something went wrong?", detail: "Report a problem — you can do this any time." },
   ],
   Admin: [
     { title: "Review schedules", detail: "Approve, Return with a note, or handle cancellations." },
     { title: "Close out trips", detail: "Check odometers, fix if needed, resolve problems, mark Done." },
+    { title: "Check attendance", detail: "See when each Driver started and ended at ANONANG; odd taps are flagged." },
     { title: "Manage the system", detail: "Accounts, passwords, vehicles, Drivers, request choices." },
     { title: "Act as anyone", detail: "You can also submit requests, even for a past date." },
   ],
