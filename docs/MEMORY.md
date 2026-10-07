@@ -536,3 +536,9 @@ a separate step, not yet done as of this entry.
 - If taps at the compound keep landing in the same spot off base, check the
   saved ANONANG point itself (migration 0042 and `lib/attendance.ts`), not
   the phones.
+- **Coordinates instead of the estimated address** (owner's call, same
+  day): Attendance shows each tap's exact coordinates (6 decimals) under
+  the distance; the "near …" address is no longer shown anywhere. The
+  route still looks it up and stores it (0043), so it can come back
+  without a migration; stop the lookup if it stays unused, since it sends
+  each position to OpenStreetMap.
