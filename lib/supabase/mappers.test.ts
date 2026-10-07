@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toTransportRequest, toTripCompletion } from "@/lib/supabase/mappers";
+import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toTransportRequest, toTripAttendance, toTripCompletion } from "@/lib/supabase/mappers";
 
 describe("toBookingOptions", () => {
   it("groups rows by their group column", () => {
@@ -269,5 +269,46 @@ describe("toTripCompletion and toProblemReport", () => {
       handlingNote: "Tyre replaced",
       followUpScheduleId: "s2",
     });
+  });
+});
+
+describe("toTripAttendance", () => {
+  const row = {
+    id: "a1",
+    schedule_id: "s1",
+    revision_id: "v1",
+    driver_id: "d1",
+    start_at: "2026-10-07T00:05:00Z",
+    start_lat: 16.103769,
+    start_lng: 120.436222,
+    start_accuracy_m: 12,
+    start_distance_m: 0,
+    start_recorded_by_account_id: "d1",
+    end_at: null,
+    end_lat: null,
+    end_lng: null,
+    end_accuracy_m: null,
+    end_distance_m: null,
+    end_recorded_by_account_id: null,
+  };
+
+  it("maps a started trip, with no End yet", () => {
+    expect(toTripAttendance(row)).toEqual({
+      id: "a1",
+      scheduleId: "s1",
+      revisionId: "v1",
+      driverId: "d1",
+      start: {
+        at: "2026-10-07T00:05:00Z",
+        recordedByAccountId: "d1",
+        location: { lat: 16.103769, lng: 120.436222, accuracyM: 12, distanceM: 0 },
+      },
+      end: undefined,
+    });
+  });
+
+  it("maps an End tap the phone gave no position for", () => {
+    const attendance = toTripAttendance({ ...row, end_at: "2026-10-07T09:00:00Z", end_recorded_by_account_id: "admin" });
+    expect(attendance.end).toEqual({ at: "2026-10-07T09:00:00Z", recordedByAccountId: "admin", location: null });
   });
 });
