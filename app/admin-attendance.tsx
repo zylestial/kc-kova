@@ -15,7 +15,7 @@ import {
   type AttendanceRow,
   type AttendanceStatus,
 } from "@/lib/attendance";
-import { inDateFilter, type DateFilter } from "@/lib/date-range";
+import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import { manilaToday } from "@/lib/timezone";
 import DateRangeFilter from "./date-range-filter";
 import OlderRecordsNotice from "./older-records-notice";
@@ -57,7 +57,7 @@ export default function AdminAttendance() {
   const { schedules, attendance, accounts } = useKovaData();
   const today = manilaToday();
   const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today), [schedules, attendance, today]);
-  const [dates, setDates] = useState<DateFilter>({ preset: "this-week", from: "", to: "" });
+  const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState("all");
 
