@@ -30,6 +30,7 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
   "schedules": [],
   "cancellations": [],
   "completions": [],
+  "attendance": [],
   "problems": []
 }
 ```
@@ -38,7 +39,7 @@ Recommended cookie attributes: `HttpOnly`, `Secure`, `SameSite=Lax`, and a short
 
 `schedules` holds v2 schedules (see "Schedules (v2)" below) with their live versions only: the published one and any open draft. Discarded schedules and superseded versions are left out. Scheduler and Admin receive all, drafts included; Requesters and Drivers receive only published versions that concern them.
 
-`cancellations`, `completions` and `problems` hold cancellation asks, trip completions and problem reports. Requesters get their own cancellation asks and Admin gets all; a Driver gets only their own completions and problem reports, and Admin gets all.
+`cancellations`, `completions` and `problems` hold cancellation asks, trip completions and problem reports. Requesters get their own cancellation asks and Admin gets all; a Driver gets only their own completions and problem reports, and Admin gets all. `attendance` holds each schedule's Start/End taps (see "Trip attendance" below), with the same visibility as completions.
 
 Never include password hashes or session tokens. A Driver should receive only their own assigned schedules, completions and problem reports.
 
@@ -88,7 +89,15 @@ The database enforces the rules (`save_schedule_draft`, `submit_schedule`, `disc
 | POST | `/api/schedules/:scheduleId/problems` | Assigned Driver |
 | POST | `/api/problems/:problemId/handle` | Admin (handling note required, optional `followUpScheduleId`) |
 
-A completion is one odometer pair (`startOdometer`, `endOdometer`) for the whole schedule, pinned to the approved version. The server sets `submittedAt`; a Done completion is locked for everyone. Repeating a submit or Done returns the existing row. Errors follow the schedule routes: `403` wrong role, `404` unknown schedule or problem, `422` anything else, with a message to show.
+A completion needs the trip's Start and End taps first (below). A completion is one odometer pair (`startOdometer`, `endOdometer`) for the whole schedule, pinned to the approved version. The server sets `submittedAt`; a Done completion is locked for everyone. Repeating a submit or Done returns the existing row. Errors follow the schedule routes: `403` wrong role, `404` unknown schedule or problem, `422` anything else, with a message to show.
+
+## Trip attendance
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| POST | `/api/schedules/:scheduleId/attendance` | Assigned Driver, or Admin acting as Driver |
+
+Body: `{ "kind": "START" | "END", "location": { "lat", "lng", "accuracyM" } | null }`. Start opens on the trip's date; End needs Start. The server sets the time and the distance from ANONANG; a repeat returns the first tap. Response: `{ id, scheduleId, revisionId, driverId, start, end? }`, each tap `{ at, recordedByAccountId, location: { lat, lng, accuracyM, distanceM } | null }`. Errors as for completions.
 
 The printed form's approval names are fixed:
 
@@ -119,7 +128,7 @@ Inactive choices stay visible on existing requests but are not offered for new o
 - `booking_options` (Projects, Destinations, Purposes) and `people`
 - `requests`, `request_destinations`, `request_cancellations`
 - `schedules`, `schedule_revisions`, `revision_requests`, `schedule_requests`, `schedule_legs`, `leg_stops`, `schedule_reservations` (exclusion constraints stop vehicle and Driver overlaps)
-- `trip_completions`, `problem_reports`
+- `trip_completions`, `trip_attendance`, `problem_reports`
 - `audit_events` (append-only)
 
 Full column-level detail is in `docs/ARCHITECTURE.md` and `docs/v2/phase-3-schema.md`.
