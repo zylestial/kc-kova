@@ -31,12 +31,10 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
   return (
     <div className="attendance-tap">
       <b>{tapTimeLabel(tap.at)}</b>
-      {tap.location ? (
+      {tap.location && (
         <a href={mapUrl(tap.location.lat, tap.location.lng)} target="_blank" rel="noreferrer">
           <MapPin size={13} /> {tapPlaceLabel(tap)}
         </a>
-      ) : (
-        <small>{tapPlaceLabel(tap)}</small>
       )}
       {tapFlags(tap, row.schedule.date).map((flag) => (
         <small className="attendance-flag" key={flag}>
