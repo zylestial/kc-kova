@@ -6,6 +6,7 @@ import {
   FilePlus2,
   LayoutDashboard,
   Settings as SettingsIcon,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { Account } from "@/lib/kova-api";
@@ -40,6 +41,7 @@ export function navItems(viewRole: Account["role"]): NavItem[] {
     { href: "/requests", label: "My requests", icon: ClipboardList },
     { href: "/schedules", label: "Schedules", icon: CalendarDays },
     { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
+    { href: "/attendance", label: "Attendance", icon: UserCheck },
     { href: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 }
