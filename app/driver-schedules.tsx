@@ -29,7 +29,7 @@ import { stopsFor } from "@/lib/trip-record";
 import { hasTripEnded, manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
-import { tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
+import { coordinatesLabel, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
 import { getPhoneLocation } from "@/lib/phone-location";
 import TripRecordView from "./trip-record-view";
 
@@ -288,10 +288,21 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <>
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
               {selected.attendance && (
-                <p className="helper">
-                  Started {tapTimeLabel(selected.attendance.start.at)}, {tapPlaceLabel(selected.attendance.start)}.
-                  {selected.attendance.end &&
-                    ` Ended ${tapTimeLabel(selected.attendance.end.at)}, ${tapPlaceLabel(selected.attendance.end)}.`}
+                <p className="helper tap-lines">
+                  {(
+                    [
+                      ["Started", selected.attendance.start],
+                      ["Ended", selected.attendance.end],
+                    ] as const
+                  ).map(
+                    ([label, tap]) =>
+                      tap && (
+                        <span key={label}>
+                          {label} {tapTimeLabel(tap.at)}, {tapPlaceLabel(tap)}.
+                          {tap.location && <small>{coordinatesLabel(tap.location)}</small>}
+                        </span>
+                      ),
+                  )}
                 </p>
               )}
               {!selected.completion && !selected.attendance && (
