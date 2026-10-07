@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -106,6 +106,10 @@ select is((select count(*)::int from trip_completions where schedule_id = pg_tem
 
 -- Completion ----------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
+select throws_ok($$ select submit_completion(pg_temp.id('sp'), 1000, 1042) $$, '22023', null,
+  'A trip without Start and End taps can''t be completed');
+select record_trip_attendance(pg_temp.id('sp'), 'START', 16.103769, 120.436222, 10);
+select record_trip_attendance(pg_temp.id('sp'), 'END', 16.103769, 120.436222, 10);
 select lives_ok($$ select submit_completion(pg_temp.id('sp'), 1000, 1042) $$, 'The Driver completes an ended trip');
 select is((select distance from trip_completions where schedule_id = pg_temp.id('sp')), 42, 'Distance is derived');
 select is((select status from trip_completions where schedule_id = pg_temp.id('sp')), 'SUBMITTED', 'It starts SUBMITTED');
@@ -130,6 +134,8 @@ select ok(
   (select is_admin_override from audit_events
    where table_name = 'problem_reports' and record_id = (select id from problem_reports where schedule_id = pg_temp.id('sp2'))),
   'The Admin problem report is audited with is_admin_override');
+select record_trip_attendance(pg_temp.id('sp2'), 'START');
+select record_trip_attendance(pg_temp.id('sp2'), 'END');
 select lives_ok($$ select submit_completion(pg_temp.id('sp2'), 200, 260, true, true, false) $$,
   'Admin completes a trip not assigned to them, answering the return checks');
 select is((select driver_id from trip_completions where schedule_id = pg_temp.id('sp2')),
