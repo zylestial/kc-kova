@@ -351,6 +351,9 @@ async function main() {
   {
     const scheduleId = await pastTrip({ daysAgo: -3, plate: "UAT-002", destinationId: destB, purposeId: purposePickup });
     const driver2 = await clientFor("driver2");
+    // Completion needs Start/End taps (0042); tapped now, so they show as late.
+    await rpc(driver2, "record_trip_attendance", { p_schedule_id: scheduleId, p_kind: "START" });
+    await rpc(driver2, "record_trip_attendance", { p_schedule_id: scheduleId, p_kind: "END" });
     await rpc(driver2, "submit_completion", {
       p_schedule_id: scheduleId, p_start_odometer: 20500, p_end_odometer: 20550,
       p_full_tank: true, p_fleet_card_used: true, p_gas_receipt_attached: false,
@@ -362,6 +365,8 @@ async function main() {
   {
     const scheduleId = await pastTrip({ daysAgo: -4, plate: "UAT-001", destinationId: destA, purposeId: purposeDelivery });
     const driver1 = await clientFor("driver1");
+    await rpc(driver1, "record_trip_attendance", { p_schedule_id: scheduleId, p_kind: "START" });
+    await rpc(driver1, "record_trip_attendance", { p_schedule_id: scheduleId, p_kind: "END" });
     await rpc(driver1, "submit_completion", {
       p_schedule_id: scheduleId, p_start_odometer: 15000, p_end_odometer: 15042,
       p_full_tank: false, p_fleet_card_used: false, p_gas_receipt_attached: true,

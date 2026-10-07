@@ -15,7 +15,7 @@ import {
   type AttendanceRow,
   type AttendanceStatus,
 } from "@/lib/attendance";
-import { inDateFilter, type DateFilter } from "@/lib/date-range";
+import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import { manilaToday } from "@/lib/timezone";
 import DateRangeFilter from "./date-range-filter";
 import OlderRecordsNotice from "./older-records-notice";
@@ -31,12 +31,10 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
   return (
     <div className="attendance-tap">
       <b>{tapTimeLabel(tap.at)}</b>
-      {tap.location ? (
+      {tap.location && (
         <a href={mapUrl(tap.location.lat, tap.location.lng)} target="_blank" rel="noreferrer">
           <MapPin size={13} /> {tapPlaceLabel(tap)}
         </a>
-      ) : (
-        <small>{tapPlaceLabel(tap)}</small>
       )}
       {tapFlags(tap, row.schedule.date).map((flag) => (
         <small className="attendance-flag" key={flag}>
@@ -57,7 +55,7 @@ export default function AdminAttendance() {
   const { schedules, attendance, accounts } = useKovaData();
   const today = manilaToday();
   const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today), [schedules, attendance, today]);
-  const [dates, setDates] = useState<DateFilter>({ preset: "this-week", from: "", to: "" });
+  const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState("all");
 
@@ -149,7 +147,11 @@ export default function AdminAttendance() {
                       <TapCell row={row} tap={row.attendance?.end} nameOf={nameOf} />
                     </td>
                     <td>
-                      <span className={"status-pill " + statusPill[row.status]}>{attendanceStatusLabel[row.status]}</span>
+                      {row.status === "MISSING" && row.schedule.date === today ? (
+                        <span className="status-pill pending">Not started yet</span>
+                      ) : (
+                        <span className={"status-pill " + statusPill[row.status]}>{attendanceStatusLabel[row.status]}</span>
+                      )}
                     </td>
                   </tr>
                 ))}
