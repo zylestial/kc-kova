@@ -178,17 +178,25 @@ type AttendanceRow = {
   start_lng: number | null;
   start_accuracy_m: number | null;
   start_distance_m: number | null;
+  start_address?: string | null;
   start_recorded_by_account_id: string;
   end_at: string | null;
   end_lat: number | null;
   end_lng: number | null;
   end_accuracy_m: number | null;
   end_distance_m: number | null;
+  end_address?: string | null;
   end_recorded_by_account_id: string | null;
 };
 
-function toAttendanceLocation(lat: number | null, lng: number | null, accuracyM: number | null, distanceM: number | null) {
-  return lat === null || lng === null || distanceM === null ? null : { lat, lng, accuracyM, distanceM };
+function toAttendanceLocation(
+  lat: number | null,
+  lng: number | null,
+  accuracyM: number | null,
+  distanceM: number | null,
+  address: string | null | undefined,
+) {
+  return lat === null || lng === null || distanceM === null ? null : { lat, lng, accuracyM, distanceM, address: address ?? null };
 }
 
 export function toTripAttendance(row: AttendanceRow): TripAttendance {
@@ -200,14 +208,14 @@ export function toTripAttendance(row: AttendanceRow): TripAttendance {
     start: {
       at: row.start_at,
       recordedByAccountId: row.start_recorded_by_account_id,
-      location: toAttendanceLocation(row.start_lat, row.start_lng, row.start_accuracy_m, row.start_distance_m),
+      location: toAttendanceLocation(row.start_lat, row.start_lng, row.start_accuracy_m, row.start_distance_m, row.start_address),
     },
     end:
       row.end_at && row.end_recorded_by_account_id
         ? {
             at: row.end_at,
             recordedByAccountId: row.end_recorded_by_account_id,
-            location: toAttendanceLocation(row.end_lat, row.end_lng, row.end_accuracy_m, row.end_distance_m),
+            location: toAttendanceLocation(row.end_lat, row.end_lng, row.end_accuracy_m, row.end_distance_m, row.end_address),
           }
         : undefined,
   };

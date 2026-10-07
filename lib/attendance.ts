@@ -36,6 +36,11 @@ export function tapPlaceLabel(tap: AttendanceTap): string {
   return tap.location.distanceM > BASE_RADIUS_M ? `${distanceLabel(tap.location.distanceM)} from ANONANG` : "at ANONANG";
 }
 
+/** "near Rizal St, Bolaoen, Pangasinan" for a tap away from base with a known address; null otherwise. */
+export function tapNearLabel(tap: AttendanceTap): string | null {
+  return tap.location?.address && tap.location.distanceM > BASE_RADIUS_M ? `near ${tap.location.address}` : null;
+}
+
 /** "45 m" or "1.2 km". */
 export function distanceLabel(metres: number): string {
   return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(1)} km`;

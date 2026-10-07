@@ -4,7 +4,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(30);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -102,12 +102,14 @@ select throws_ok($$ select record_trip_attendance(pg_temp.id('sp'), 'START', 95,
   'A latitude past 90 is refused');
 
 -- Start and End ----------------------------------------------------------------
-select lives_ok($$ select record_trip_attendance(pg_temp.id('sp'), 'START', 16.103769, 120.436222, 12) $$,
+select lives_ok($$ select record_trip_attendance(pg_temp.id('sp'), 'START', 16.103769, 120.436222, 12, '  Mabato, Anonang, Pangasinan ') $$,
   'The Driver starts a trip at ANONANG');
 select is((select start_distance_m from trip_attendance where schedule_id = pg_temp.id('sp')), 0::double precision,
   'Start is 0 m from base');
 select is((select start_accuracy_m from trip_attendance where schedule_id = pg_temp.id('sp')), 12::double precision,
   'The accuracy is kept');
+select is((select start_address from trip_attendance where schedule_id = pg_temp.id('sp')), 'Mabato, Anonang, Pangasinan',
+  'The address is kept, trimmed');
 select is((select revision_id from trip_attendance where schedule_id = pg_temp.id('sp')),
   (select published_revision_id from schedules where id = pg_temp.id('sp')), 'It pins the approved version');
 select is((select start_lat from record_trip_attendance(pg_temp.id('sp'), 'START', 10, 10)), 16.103769::double precision,
@@ -121,13 +123,15 @@ select is((select end_lat from record_trip_attendance(pg_temp.id('sp'), 'END', 1
 
 -- Admin acting as Driver, without a position -------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-select lives_ok($$ select record_trip_attendance(pg_temp.id('sp2'), 'START') $$, 'Admin starts another Driver''s trip');
+select lives_ok($$ select record_trip_attendance(pg_temp.id('sp2'), 'START', null, null, null, 'Somewhere') $$, 'Admin starts another Driver''s trip');
 select is((select driver_id from trip_attendance where schedule_id = pg_temp.id('sp2')),
   '00000000-0000-0000-0000-000000000011'::uuid, 'The row still belongs to the assigned Driver');
 select is((select start_recorded_by_account_id from trip_attendance where schedule_id = pg_temp.id('sp2')),
   '00000000-0000-0000-0000-00000000000a'::uuid, 'It records that Admin tapped');
 select is((select start_distance_m from trip_attendance where schedule_id = pg_temp.id('sp2')), null,
   'No position means no distance');
+select is((select start_address from trip_attendance where schedule_id = pg_temp.id('sp2')), null,
+  'No position means no address, whatever is sent');
 select ok(
   (select is_admin_override from audit_events
    where action = 'attendance.start' and record_id = (select id from trip_attendance where schedule_id = pg_temp.id('sp2'))),

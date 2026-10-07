@@ -97,7 +97,7 @@ A completion needs the trip's Start and End taps first (below). A completion is 
 | --- | --- | --- |
 | POST | `/api/schedules/:scheduleId/attendance` | Assigned Driver, or Admin acting as Driver |
 
-Body: `{ "kind": "START" | "END", "location": { "lat", "lng", "accuracyM" } | null }`. Start opens on the trip's date; End needs Start. The server sets the time and the distance from ANONANG; a repeat returns the first tap. Response: `{ id, scheduleId, revisionId, driverId, start, end? }`, each tap `{ at, recordedByAccountId, location: { lat, lng, accuracyM, distanceM } | null }`. Errors as for completions.
+Body: `{ "kind": "START" | "END", "location": { "lat", "lng", "accuracyM" } | null }`. Start opens on the trip's date; End needs Start. The server sets the time, the distance from ANONANG and an approximate address (from OpenStreetMap); a repeat returns the first tap. Response: `{ id, scheduleId, revisionId, driverId, start, end? }`, each tap `{ at, recordedByAccountId, location: { lat, lng, accuracyM, distanceM, address } | null }`. Errors as for completions.
 
 The printed form's approval names are fixed:
 

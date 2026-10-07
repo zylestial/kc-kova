@@ -504,3 +504,22 @@ a separate step, not yet done as of this entry.
   location". Now `geolocation=(self)`.
 - The position comes from the phone and can be spoofed; the time is the
   server's.
+
+## Tap addresses (2026-10-07)
+
+- **The owner wanted an address, not only "4.2 km from ANONANG".** Free:
+  OpenStreetMap's Nominatim reverse lookup, no key. Looked up once per tap
+  in the attendance route and stored (`start_address`/`end_address`, 0043),
+  not on every Attendance view, to stay within Nominatim's policy (1
+  request a second, identifying User-Agent, OpenStreetMap credit, shown in
+  the Attendance footer). The User-Agent names the site, never a person.
+- **Approximate.** Rural Pangasinan often comes back as sitio, barangay and
+  province without the town (ANONANG itself is "Mabato, Anonang,
+  Pangasinan"). Shown only for taps away from base, as "near …".
+- **Third party:** each tap's coordinates go to OpenStreetMap's servers.
+- **A slow or failed lookup never blocks a tap**: 4-second timeout, then the
+  tap is saved without an address.
+- **Gotcha: an interrupted `supabase db reset` leaves the local database
+  half-built** (tables exist but auth doesn't work: every RPC answers "Not
+  authorized"). `supabase migration up` doesn't fix it; only a full reset
+  does.

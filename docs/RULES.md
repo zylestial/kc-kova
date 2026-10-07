@@ -76,6 +76,10 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   the phone; the database works out the distance from ANONANG
   (16.103769, 120.436222). A tap more than 150 m away, without a position,
   or on a later day than the trip is flagged on screen, never refused.
+- A tap with a position also gets an approximate address (0043), looked up
+  once by the API route from OpenStreetMap (Nominatim), never taken from
+  the browser. A failed or slow lookup (over 4 seconds) saves the tap
+  without one; a tap without a position never has one.
 - Only Admin and the Driver themself can read a Driver's attendance.
 
 ## Booking options

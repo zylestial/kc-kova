@@ -283,6 +283,7 @@ describe("toTripAttendance", () => {
     start_lng: 120.436222,
     start_accuracy_m: 12,
     start_distance_m: 0,
+    start_address: "Mabato, Anonang, Pangasinan",
     start_recorded_by_account_id: "d1",
     end_at: null,
     end_lat: null,
@@ -301,7 +302,7 @@ describe("toTripAttendance", () => {
       start: {
         at: "2026-10-07T00:05:00Z",
         recordedByAccountId: "d1",
-        location: { lat: 16.103769, lng: 120.436222, accuracyM: 12, distanceM: 0 },
+        location: { lat: 16.103769, lng: 120.436222, accuracyM: 12, distanceM: 0, address: "Mabato, Anonang, Pangasinan" },
       },
       end: undefined,
     });
