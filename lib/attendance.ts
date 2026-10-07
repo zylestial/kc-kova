@@ -60,11 +60,6 @@ export function tapPlaceLabel(tap: AttendanceTap): string {
   return `${distanceLabel(location.distanceM)} from ANONANG${margin}`;
 }
 
-/** "near Rizal St, Bolaoen, Pangasinan" for a tap flagged away from base with a known address; null otherwise. */
-export function tapNearLabel(tap: AttendanceTap): string | null {
-  return tap.location?.address && !couldBeAtBase(tap.location) ? `near ${tap.location.address}` : null;
-}
-
 /** The position exactly as the phone reported it, e.g. "16.106913, 120.436222" (6 decimals, about 0.1 m). */
 export function coordinatesLabel(location: { lat: number; lng: number }): string {
   return `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`;

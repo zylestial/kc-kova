@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAttendanceRows, coordinatesLabel, distanceLabel, tapFlags, tapNearLabel, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
+import { buildAttendanceRows, coordinatesLabel, distanceLabel, tapFlags, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
 import type { AttendanceTap, Schedule, ScheduleRevision, TripAttendance } from "@/lib/kova-api";
 
 const revision = (id: string, driverName = "Dan"): ScheduleRevision => ({
@@ -129,26 +129,6 @@ describe("tapTimeLabel and tapPlaceLabel", () => {
     expect(tapPlaceLabel({ ...atBase, location: { ...atBase.location!, distanceM: 1234 } })).toBe("1.2 km from ANONANG (±10 m)");
     expect(tapPlaceLabel({ ...atBase, location: { ...atBase.location!, distanceM: 1234, accuracyM: null } })).toBe("1.2 km from ANONANG");
     expect(tapPlaceLabel({ ...atBase, location: null })).toBe("no location");
-  });
-});
-
-describe("tapNearLabel", () => {
-  const away = { ...atBase, location: { ...atBase.location!, distanceM: 4200, address: "Bolaoen, Bugallon, Pangasinan" } };
-
-  it("names the address of a tap away from base", () => {
-    expect(tapNearLabel(away)).toBe("near Bolaoen, Bugallon, Pangasinan");
-  });
-
-  it("says nothing at base, without an address or without a position", () => {
-    expect(tapNearLabel({ ...away, location: { ...away.location, distanceM: 40 } })).toBeNull();
-    expect(tapNearLabel({ ...away, location: { ...away.location, address: null } })).toBeNull();
-    expect(tapNearLabel({ ...away, location: null })).toBeNull();
-  });
-});
-
-describe("tapNearLabel with a rough reading", () => {
-  it("names no address for a tap that could still be at base", () => {
-    expect(tapNearLabel({ ...atBase, location: { ...atBase.location!, distanceM: 350, accuracyM: 250, address: "Bolaoen, Pangasinan" } })).toBeNull();
   });
 });
 
