@@ -15,11 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  recordAttendance,
   reportProblem,
   submitCompletion,
   type ProblemReport,
   type Schedule,
   type ScheduleRevision,
+  type TripAttendance,
   type TripCompletion,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
@@ -27,6 +29,8 @@ import { stopsFor } from "@/lib/trip-record";
 import { hasTripEnded, manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
+import { tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
+import { getPhoneLocation } from "@/lib/phone-location";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (date: string) =>
@@ -36,8 +40,12 @@ type Trip = {
   schedule: Schedule;
   revision: ScheduleRevision;
   completion?: TripCompletion;
+  /** The Start/End taps, once the Driver has started. */
+  attendance?: TripAttendance;
   problems: ProblemReport[];
   ended: boolean;
+  /** The trip's date has come, so Start trip is open. */
+  startable: boolean;
   /** When Complete trip unlocks, e.g. "3:58 PM", or "Sep 26, 3:58 PM" on a later day. */
   availableAt: string;
 };
@@ -50,7 +58,14 @@ function availableAtLabel(date: string, timeIn: string): string {
   return date === manilaToday() ? time : `${dateLabel(date)}, ${time}`;
 }
 
-function buildTrips(schedules: Schedule[], completions: TripCompletion[], problems: ProblemReport[], driverId: string | null): Trip[] {
+function buildTrips(
+  schedules: Schedule[],
+  completions: TripCompletion[],
+  attendance: TripAttendance[],
+  problems: ProblemReport[],
+  driverId: string | null,
+): Trip[] {
+  const today = manilaToday();
   return schedules
     .flatMap((schedule) => {
       if (schedule.status !== "ACTIVE") return [];
@@ -67,8 +82,10 @@ function buildTrips(schedules: Schedule[], completions: TripCompletion[], proble
           schedule,
           revision,
           completion,
+          attendance: attendance.find((item) => item.scheduleId === schedule.id),
           problems: problems.filter((item) => item.scheduleId === schedule.id),
           ended: hasTripEnded(schedule.date, lastIn),
+          startable: schedule.date <= today,
           availableAt: availableAtLabel(schedule.date, lastIn),
         },
       ];
@@ -79,12 +96,16 @@ function buildTrips(schedules: Schedule[], completions: TripCompletion[], proble
 
 /**
  * The Driver's published schedules. Each opens a read-only Trip Record with
+ * Start trip and End trip (tapped at ANONANG; their attendance), then
  * Complete trip (one odometer pair, once the trip has ended) and Report a
  * problem. The database enforces who and when; this only shapes the screen.
  */
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
-  const { schedules, completions, problems, requests, vehicles } = useKovaData();
-  const trips = useMemo(() => buildTrips(schedules, completions, problems, driverId), [schedules, completions, problems, driverId]);
+  const { schedules, completions, attendance, problems, requests, vehicles } = useKovaData();
+  const trips = useMemo(
+    () => buildTrips(schedules, completions, attendance, problems, driverId),
+    [schedules, completions, attendance, problems, driverId],
+  );
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
@@ -147,8 +168,36 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     }
   }
 
+  // Start trip / End trip: one fresh position from the phone, then the tap.
+  // A phone that won't share its position still records the time.
+  async function tap(kind: "START" | "END") {
+    if (!selected) return;
+    setBusy(true);
+    setError("");
+    try {
+      const location = await getPhoneLocation();
+      await recordAttendance(selected.schedule.id, { kind, location });
+      setNotice(
+        `${kind === "START" ? "Trip started" : "Trip ended"}${location ? "" : " without your location. Allow location for this site next time"}.`,
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
+  }
+
   const statusOf = (trip: Trip) =>
-    trip.completion ? [completionLabel[trip.completion.status], "scheduled"] : trip.ended ? ["Ready to complete", "pending"] : ["Upcoming", "info"];
+    trip.completion
+      ? [completionLabel[trip.completion.status], "scheduled"]
+      : trip.attendance?.end
+        ? trip.ended
+          ? ["Ready to complete", "pending"]
+          : ["Back at base", "info"]
+        : trip.attendance
+          ? ["On the road", "info"]
+          : trip.startable
+            ? ["Ready to start", "pending"]
+            : ["Upcoming", "info"];
 
   return (
     <>
@@ -158,7 +207,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           <h1>
             My Schedule<span className="title-dot">.</span>
           </h1>
-          <p>Approved trips assigned to you. Complete each one after it ends.</p>
+          <p>Approved trips assigned to you. Tap Start trip at ANONANG before you leave and End trip when you&apos;re back, then complete it.</p>
         </div>
       </div>
       {notice && (
@@ -238,6 +287,20 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {selected && mode === "view" && (
             <>
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
+              {selected.attendance && (
+                <p className="helper">
+                  Started {tapTimeLabel(selected.attendance.start.at)}, {tapPlaceLabel(selected.attendance.start)}.
+                  {selected.attendance.end &&
+                    ` Ended ${tapTimeLabel(selected.attendance.end.at)}, ${tapPlaceLabel(selected.attendance.end)}.`}
+                </p>
+              )}
+              {!selected.completion && !selected.attendance && (
+                <p className="helper">
+                  {selected.startable
+                    ? "Tap Start trip at ANONANG before you leave. Your phone will ask to share your location; this is your attendance for the day."
+                    : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
+                </p>
+              )}
               {selected.completion && (
                 <p className="helper">
                   Submitted: {selected.completion.startOdometer} → {selected.completion.endOdometer} (
@@ -249,14 +312,24 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   Problem reported: {item.note}
                 </p>
               ))}
-              {!selected.completion && !selected.ended && (
+              {!selected.completion && selected.attendance?.end && !selected.ended && (
                 <p className="helper">Complete trip is available after {selected.availableAt}.</p>
               )}
               <DialogFooter>
-                <Button variant="outline" onClick={() => setMode("problem")}>
+                <Button variant="outline" disabled={busy} onClick={() => setMode("problem")}>
                   Report a problem
                 </Button>
-                {!selected.completion && (
+                {!selected.completion && !selected.attendance && (
+                  <Button className="primary" disabled={busy || !selected.startable} onClick={() => tap("START")}>
+                    {busy ? "Getting location…" : "Start trip"}
+                  </Button>
+                )}
+                {!selected.completion && selected.attendance && !selected.attendance.end && (
+                  <Button className="primary" disabled={busy} onClick={() => tap("END")}>
+                    {busy ? "Getting location…" : "End trip"}
+                  </Button>
+                )}
+                {!selected.completion && selected.attendance?.end && (
                   <Button className="primary" disabled={!selected.ended} onClick={() => {
                       setMode("complete");
                       setCompleteStep("odometer");
