@@ -523,3 +523,16 @@ a separate step, not yet done as of this entry.
   half-built** (tables exist but auth doesn't work: every RPC answers "Not
   authorized"). `supabase migration up` doesn't fix it; only a full reset
   does.
+
+## Rough location readings (2026-10-07)
+
+- **A tap at ANONANG read 350 m away**, which is another barangay. Usually
+  the phone's first reading (Wi-Fi or cell tower) indoors, or iPhone
+  Precise Location off. Rather than widening the 150 m radius for everyone,
+  the phone now listens up to 10 s for its best fix (stops at ±50 m), and a
+  tap counts as at base if `distance - min(accuracy, 250) <= 150`, so at
+  most 400 m with a vague reading. The accuracy shows as "(±… m)".
+  Owner's choice over simply raising the radius.
+- If taps at the compound keep landing in the same spot off base, check the
+  saved ANONANG point itself (migration 0042 and `lib/attendance.ts`), not
+  the phones.
