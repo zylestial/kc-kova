@@ -202,6 +202,20 @@ to its requester, and cleared by a trigger once the request's date changes.
 `split_request` (migration 0039) moves stops a vehicle can't fit off a request
 into a new request for the same requester and day.
 
+### `trip_attendance` (migration 0042, v2.6)
+
+One row per schedule: the Driver's Start and End taps at ANONANG, their
+attendance for the day. `start_at`/`end_at` are server time; `*_lat`,
+`*_lng`, `*_accuracy_m` come from the phone and are null when it wouldn't
+share a position; `*_distance_m` is worked out in the database by
+`distance_from_base_m()` (haversine from ANONANG). `driver_id` is the
+approved version's Driver; `*_recorded_by_account_id` is whoever tapped (an
+Admin acting as Driver). Written only by `record_trip_attendance`;
+`authenticated` gets `SELECT` only, filtered like `trip_completions` (the
+Driver's own rows, Admin all). `submit_completion` requires an ended row.
+Flags (away from base, no location, late) are derived in `lib/attendance.ts`,
+not stored.
+
 ### `notifications` (migration 0035, v2.2)
 
 One row per (recipient, event): `account_id`, `type`, `message`,
@@ -252,6 +266,7 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Assigned Driver (approved trip that has ended) |
 | PATCH | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Admin (until Done) |
 | POST | `/api/schedules/:scheduleId/completion/done` | `app/api/schedules/[scheduleId]/completion/done/route.ts` | Admin |
+| POST | `/api/schedules/:scheduleId/attendance` | `app/api/schedules/[scheduleId]/attendance/route.ts` | Assigned Driver, Admin (as Driver); `{ kind: "START" \| "END", location }` |
 | POST | `/api/schedules/:scheduleId/problems` | `app/api/schedules/[scheduleId]/problems/route.ts` | Assigned Driver |
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
