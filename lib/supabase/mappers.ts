@@ -8,6 +8,7 @@ import type {
   Notification,
   NotificationType,
   ProblemReport,
+  TripAttendance,
   TripCompletion,
   Vehicle,
 } from "@/lib/kova-api";
@@ -164,6 +165,51 @@ export function toTripCompletion(row: CompletionRow): TripCompletion {
     fullTank: row.full_tank ?? null,
     fleetCardUsed: row.fleet_card_used ?? null,
     gasReceiptAttached: row.gas_receipt_attached ?? null,
+  };
+}
+
+type AttendanceRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  driver_id: string;
+  start_at: string;
+  start_lat: number | null;
+  start_lng: number | null;
+  start_accuracy_m: number | null;
+  start_distance_m: number | null;
+  start_recorded_by_account_id: string;
+  end_at: string | null;
+  end_lat: number | null;
+  end_lng: number | null;
+  end_accuracy_m: number | null;
+  end_distance_m: number | null;
+  end_recorded_by_account_id: string | null;
+};
+
+function toAttendanceLocation(lat: number | null, lng: number | null, accuracyM: number | null, distanceM: number | null) {
+  return lat === null || lng === null || distanceM === null ? null : { lat, lng, accuracyM, distanceM };
+}
+
+export function toTripAttendance(row: AttendanceRow): TripAttendance {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    driverId: row.driver_id,
+    start: {
+      at: row.start_at,
+      recordedByAccountId: row.start_recorded_by_account_id,
+      location: toAttendanceLocation(row.start_lat, row.start_lng, row.start_accuracy_m, row.start_distance_m),
+    },
+    end:
+      row.end_at && row.end_recorded_by_account_id
+        ? {
+            at: row.end_at,
+            recordedByAccountId: row.end_recorded_by_account_id,
+            location: toAttendanceLocation(row.end_lat, row.end_lng, row.end_accuracy_m, row.end_distance_m),
+          }
+        : undefined,
   };
 }
 

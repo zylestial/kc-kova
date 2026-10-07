@@ -480,3 +480,27 @@ a separate step, not yet done as of this entry.
 - **"Trips today" opens the Day view unfiltered.** The tile counts only
   published trips, while the Day view also shows that day's drafts; there
   is no single status filter that matches it.
+
+## Trip attendance (2026-10-07)
+
+- **Only Start and End are tracked, not the route.** Every trip starts and
+  ends at ANONANG, so the owner wants those two taps as the Driver's
+  attendance. Free: the browser's one-shot geolocation, no map API (Admin
+  links open Google Maps). No background tracking, so a locked phone is no
+  issue.
+- **ANONANG is 16.103769, 120.436222; at base means within 150 m.** Both are
+  in migration 0042 (`distance_from_base_m`) and `lib/attendance.ts`
+  (`BASE_RADIUS_M`); change them together.
+- **Flag, never block** (owner's call): away from base, no location (phone
+  denied it) and a tap on a later day than the trip are saved and flagged.
+  Start is refused only before the trip's date.
+- **Required before Complete trip** (owner's call): `submit_completion`
+  needs an ended attendance row. One Start/End per schedule; no mid-day
+  returns.
+- **Admin acting as Driver may tap**, like completions; the row stays the
+  Driver's and records who tapped, so Attendance shows "Tapped by".
+- **Gotcha: `Permissions-Policy` had `geolocation=()`** (next.config.ts),
+  which silently blocks location everywhere: every tap saved as "no
+  location". Now `geolocation=(self)`.
+- The position comes from the phone and can be spoofed; the time is the
+  server's.

@@ -7,6 +7,7 @@ import {
   toCancellationRequest,
   toNotification,
   toProblemReport,
+  toTripAttendance,
   toTripCompletion,
   scheduleSelect,
   toBookingOptions,
@@ -42,6 +43,7 @@ export const GET = authed(async ({ request, supabase }) => {
     schedulesRes,
     cancellationsRes,
     completionsRes,
+    attendanceRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -66,6 +68,10 @@ export const GET = authed(async ({ request, supabase }) => {
     supabase
       .from("trip_completions")
       .select("*, schedules!trip_completions_schedule_id_fkey!inner(schedule_date)")
+      .gte("schedules.schedule_date", since),
+    supabase
+      .from("trip_attendance")
+      .select("*, schedules!trip_attendance_schedule_id_fkey!inner(schedule_date)")
       .gte("schedules.schedule_date", since),
     supabase
       .from("problem_reports")
@@ -98,6 +104,7 @@ export const GET = authed(async ({ request, supabase }) => {
     schedulesRes,
     cancellationsRes,
     completionsRes,
+    attendanceRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -163,6 +170,8 @@ export const GET = authed(async ({ request, supabase }) => {
     cancellations: [...(cancellationsRes.data ?? []), ...oldCancellations].map(toCancellationRequest),
     // A Driver gets their own; Admin all (0017 policies).
     completions: [...(completionsRes.data ?? []), ...oldCompletions].map(toTripCompletion),
+    // Same visibility as completions (0042 policy).
+    attendance: (attendanceRes.data ?? []).map(toTripAttendance),
     problems: [...(problemsRes.data ?? []), ...oldProblems].map(toProblemReport),
     notifications: (notificationsRes.data ?? []).map(toNotification),
   });

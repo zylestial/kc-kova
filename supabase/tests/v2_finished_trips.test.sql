@@ -74,6 +74,8 @@ insert into ids values ('sf', pg_temp.publish('V2', pg_temp.manila_today() + 10,
 -- Setup: Dan completes the past trip and files two problems; Dee's future
 -- trip (sf) is the follow-up candidate.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
+select record_trip_attendance(pg_temp.id('sp'), 'START');
+select record_trip_attendance(pg_temp.id('sp'), 'END');
 select submit_completion(pg_temp.id('sp'), 1000, 1042);
 insert into ids select 'p1', id from report_problem(pg_temp.id('sp'), 'Flat tyre');
 insert into ids select 'p2', id from report_problem(pg_temp.id('sp'), 'Broken mirror');

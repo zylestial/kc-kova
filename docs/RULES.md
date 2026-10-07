@@ -52,7 +52,7 @@ state transitions. The completion rules:
   start ≥ 0, end ≥ start, pinned to the approved version, with a server-set
   `submitted_at`. Repeating a submit returns the existing completion.
 - The trip must be over: the approved version's last planned Time In
-  (Asia/Manila) has passed. Problem reports have no such limit, can be filed
+  (Asia/Manila) has passed, and the Driver has tapped Start and End (below). Problem reports have no such limit, can be filed
   more than once, and never block anything.
 - A submitted completion locks the trip: no revision, approval or
   cancellation afterwards.
@@ -63,6 +63,20 @@ state transitions. The completion rules:
 - Handling a problem report needs a note and may name a follow-up schedule,
   which must be a different, active schedule. A `DONE` trip can still have
   problem reports handled.
+
+The attendance rules (`record_trip_attendance`, migration 0042):
+
+- One Start and one End tap per schedule, by the approved version's Driver
+  or an Admin acting as Driver (audited as an override; the row stays the
+  Driver's and records who tapped). The schedule must be `ACTIVE` and not yet
+  submitted.
+- Start opens on the trip's date (Asia/Manila), never before; End needs
+  Start. Repeating a tap returns the first one unchanged.
+- The time is always the server's. The position is optional and comes from
+  the phone; the database works out the distance from ANONANG
+  (16.103769, 120.436222). A tap more than 150 m away, without a position,
+  or on a later day than the trip is flagged on screen, never refused.
+- Only Admin and the Driver themself can read a Driver's attendance.
 
 ## Booking options
 

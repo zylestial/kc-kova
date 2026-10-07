@@ -99,6 +99,21 @@ export type TripCompletion = {
 };
 /** Optional final-return checks a Driver may answer alongside odometers. */
 export type ReturnChecks = { fullTank?: boolean | null; fleetCardUsed?: boolean | null; gasReceiptAttached?: boolean | null };
+/** Where the phone was at a Start/End tap, and how far that is from ANONANG. */
+export type AttendanceLocation = { lat: number; lng: number; accuracyM: number | null; distanceM: number };
+/** One Start or End tap: server time, who tapped, and the position if the phone shared it. */
+export type AttendanceTap = { at: string; recordedByAccountId: string; location: AttendanceLocation | null };
+/** A Driver's Start and End taps for a whole schedule, their attendance that day (0042). */
+export type TripAttendance = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  driverId: string;
+  start: AttendanceTap;
+  end?: AttendanceTap;
+};
+/** What a Start/End tap sends: the phone's position, or null when it wouldn't share it. */
+export type AttendanceInput = { kind: "START" | "END"; location: { lat: number; lng: number; accuracyM: number | null } | null };
 /** A Driver's note that a trip couldn't go as planned (0017, 0029). */
 export type ProblemReport = {
   id: string;
@@ -217,6 +232,7 @@ export type BootstrapData = {
   schedules: Schedule[];
   cancellations: CancellationRequest[];
   completions: TripCompletion[];
+  attendance: TripAttendance[];
   problems: ProblemReport[];
   notifications: Notification[];
 };
@@ -232,6 +248,7 @@ const emptyData: BootstrapData = {
   schedules: [],
   cancellations: [],
   completions: [],
+  attendance: [],
   problems: [],
   notifications: [],
 };
@@ -363,6 +380,7 @@ export const approveSchedule = (id: string, rowVersion: number) => refreshAfter(
 export const returnSchedule = (id: string, rowVersion: number, comment: string) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/return`, { method: "POST", body: JSON.stringify({ rowVersion, comment }) }));
 export const discardScheduleDraft =(id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/discard`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const submitCompletion = (id: string, startOdometer: number, endOdometer: number, checks?: ReturnChecks) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer, ...checks }) }));
+export const recordAttendance = (id: string, input: AttendanceInput) => refreshAfter(request<TripAttendance>(`/api/schedules/${encodeURIComponent(id)}/attendance`, { method: "POST", body: JSON.stringify(input) }));
 export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));

@@ -250,3 +250,5 @@ tbody tr:hover{background:#f5f7fd}
 /* Phone Back button: replaces the logo in the top bar on every screen but the Dashboard. */
 .topbar-back{display:none}
 @media(max-width:1023px){.topbar.inner .topbar-back{display:inline-flex;gap:6px;padding:0 10px!important;font-weight:600;color:var(--foreground)}.topbar.inner .kova-brand{display:none}}
+/* Admin Attendance: one Start or End tap per cell, its place and flags below the time. */
+.attendance-tap{display:flex;flex-direction:column;gap:2px}.attendance-tap a{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--primary)}.attendance-tap small{font-size:12px;color:var(--muted-foreground)}.attendance-tap small.attendance-flag{color:var(--warning-fg);font-weight:600}

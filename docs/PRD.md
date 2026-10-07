@@ -19,8 +19,8 @@ A person has exactly one role; there is no multi-role account.
 | --- | --- |
 | **Requester** | Ask for transport (a date and one or more stops, each with a purpose). Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
 | **Scheduler** | Plan a day: take requests from the day's pool, pick a vehicle (its assigned Driver comes with it), build the route as a Trip Record, and submit it for approval. Send back requests that won't fit, or split a request across vehicles. The only role that creates schedules. |
-| **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers, handle problem reports, mark Done), and manage Accounts, Vehicles and request choices. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
-| **Driver** | See the approved trips assigned to them ("My Schedule"). After a trip ends, submit its odometer readings and final-return checks. Report a problem on a trip at any time. |
+| **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers, handle problem reports, mark Done), check Drivers' attendance, and manage Accounts, Vehicles and request choices. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
+| **Driver** | See the approved trips assigned to them ("My Schedule"). Tap Start trip when leaving ANONANG and End trip on returning (their attendance). After a trip ends, submit its odometer readings and final-return checks. Report a problem on a trip at any time. |
 
 ## Core workflows
 
@@ -42,7 +42,12 @@ A person has exactly one role; there is no multi-role account.
    publishes it to the Requesters and the Driver, or returns it with a
    comment saying what to change. A published schedule can be revised through
    the same steps, and an Admin can cancel it with a reason.
-4. **Drive and record.** Once the trip's last planned time has passed, the
+4. **Drive and record.** The Driver taps **Start trip** at ANONANG before
+   leaving and **End trip** on returning. Each tap records the time and,
+   when the phone shares it, where the Driver was; a tap away from ANONANG
+   or without a location is kept but flagged. The two taps are the Driver's
+   attendance for the day, and an Admin sees them on the Attendance screen.
+   Once both taps are in and the trip's last planned time has passed, the
    assigned Driver submits one odometer pair for the whole schedule and may
    answer the final-return checks (full tank, fleet card used, gas receipt
    attached). A Driver can report a problem on a trip at any time, even
@@ -116,6 +121,12 @@ in `supabase/tests/` already check automatically.
 - A Driver sees only approved trips on their own vehicle. (tested)
 - A Driver can't submit a trip before its last planned Time In, and submits
   one odometer pair with the end no lower than the start. (tested)
+- A Driver taps Start trip (from the trip's date) and End trip (after
+  Start); both are needed before submitting. A tap more than 150 m from
+  ANONANG, without a location or on a later day is flagged, not refused.
+  (tested)
+- An Admin sees every Driver's Start and End taps, with their flags, on the
+  Attendance screen.
 - A Driver can report a problem on a trip at any time.
 - An Admin can correct a submitted trip's odometers and mark it Done; a Done
   trip can't be changed by anyone. (tested)
