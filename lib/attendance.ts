@@ -4,6 +4,22 @@ import { dateInBusinessTimezone } from "@/lib/timezone";
 /** How far from ANONANG a tap may be and still count as at base, in metres. */
 export const BASE_RADIUS_M = 150;
 
+/**
+ * The most of a phone's own error margin (its reported accuracy) a tap gets
+ * the benefit of. A rough first reading indoors is often off by a few hundred
+ * metres; past this, the reading is too vague to excuse.
+ */
+export const MAX_ACCURACY_ALLOWANCE_M = 250;
+
+/**
+ * Whether a position could be within BASE_RADIUS_M of ANONANG, allowing for
+ * the phone's error margin (up to MAX_ACCURACY_ALLOWANCE_M): 350 m away at
+ * ±250 m could be at base, 350 m at ±20 m couldn't.
+ */
+export function couldBeAtBase(location: NonNullable<AttendanceTap["location"]>): boolean {
+  return location.distanceM - Math.min(location.accuracyM ?? 0, MAX_ACCURACY_ALLOWANCE_M) <= BASE_RADIUS_M;
+}
+
 /** Why a tap needs an Admin's eye; an empty list means it was at base, on the day. */
 export type TapFlag = "off-base" | "no-location" | "late";
 
@@ -14,13 +30,14 @@ export const tapFlagLabel: Record<TapFlag, string> = {
 };
 
 /**
- * Flags for one Start/End tap. Away from base is a recorded distance over
- * BASE_RADIUS_M; late is a tap on a later Asia/Manila day than the trip.
+ * Flags for one Start/End tap. Away from base is a position that couldn't be
+ * within BASE_RADIUS_M even allowing for the phone's error margin; late is a
+ * tap on a later Asia/Manila day than the trip.
  */
 export function tapFlags(tap: AttendanceTap, scheduleDate: string): TapFlag[] {
   const flags: TapFlag[] = [];
   if (!tap.location) flags.push("no-location");
-  else if (tap.location.distanceM > BASE_RADIUS_M) flags.push("off-base");
+  else if (!couldBeAtBase(tap.location)) flags.push("off-base");
   if (dateInBusinessTimezone(tap.at) > scheduleDate) flags.push("late");
   return flags;
 }
@@ -30,15 +47,22 @@ export function tapTimeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" });
 }
 
-/** Where a tap was, e.g. "at ANONANG", "1.2 km from ANONANG" or "no location". */
+/**
+ * Where a tap was, e.g. "at ANONANG", "1.2 km from ANONANG (±20 m)" or "no
+ * location". Past BASE_RADIUS_M the phone's error margin is shown, so a rough
+ * reading is easy to tell from a Driver who really was elsewhere.
+ */
 export function tapPlaceLabel(tap: AttendanceTap): string {
-  if (!tap.location) return "no location";
-  return tap.location.distanceM > BASE_RADIUS_M ? `${distanceLabel(tap.location.distanceM)} from ANONANG` : "at ANONANG";
+  const location = tap.location;
+  if (!location) return "no location";
+  if (location.distanceM <= BASE_RADIUS_M) return "at ANONANG";
+  const margin = location.accuracyM === null ? "" : ` (±${distanceLabel(location.accuracyM)})`;
+  return `${distanceLabel(location.distanceM)} from ANONANG${margin}`;
 }
 
-/** "near Rizal St, Bolaoen, Pangasinan" for a tap away from base with a known address; null otherwise. */
+/** "near Rizal St, Bolaoen, Pangasinan" for a tap flagged away from base with a known address; null otherwise. */
 export function tapNearLabel(tap: AttendanceTap): string | null {
-  return tap.location?.address && tap.location.distanceM > BASE_RADIUS_M ? `near ${tap.location.address}` : null;
+  return tap.location?.address && !couldBeAtBase(tap.location) ? `near ${tap.location.address}` : null;
 }
 
 /** "45 m" or "1.2 km". */

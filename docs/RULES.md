@@ -74,8 +74,11 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   Start. Repeating a tap returns the first one unchanged.
 - The time is always the server's. The position is optional and comes from
   the phone; the database works out the distance from ANONANG
-  (16.103769, 120.436222). A tap more than 150 m away, without a position,
-  or on a later day than the trip is flagged on screen, never refused.
+  (16.103769, 120.436222). A tap that couldn't be within 150 m (its
+  distance minus the phone's reported accuracy, counting at most 250 m of
+  accuracy), without a position, or on a later day than the trip is flagged
+  on screen, never refused. The phone listens for up to 10 seconds and
+  sends its most accurate reading (stopping early at ±50 m).
 - A tap with a position also gets an approximate address (0043), looked up
   once by the API route from OpenStreetMap (Nominatim), never taken from
   the browser. A failed or slow lookup (over 4 seconds) saves the tap
