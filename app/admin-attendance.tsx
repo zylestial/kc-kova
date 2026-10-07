@@ -149,7 +149,11 @@ export default function AdminAttendance() {
                       <TapCell row={row} tap={row.attendance?.end} nameOf={nameOf} />
                     </td>
                     <td>
-                      <span className={"status-pill " + statusPill[row.status]}>{attendanceStatusLabel[row.status]}</span>
+                      {row.status === "MISSING" && row.schedule.date === today ? (
+                        <span className="status-pill pending">Not started yet</span>
+                      ) : (
+                        <span className={"status-pill " + statusPill[row.status]}>{attendanceStatusLabel[row.status]}</span>
+                      )}
                     </td>
                   </tr>
                 ))}
