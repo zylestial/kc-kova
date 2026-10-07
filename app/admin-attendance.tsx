@@ -7,10 +7,10 @@ import { useKovaData } from "@/lib/use-kova-data";
 import {
   attendanceStatusLabel,
   buildAttendanceRows,
+  coordinatesLabel,
   mapUrl,
   tapFlagLabel,
   tapFlags,
-  tapNearLabel,
   tapPlaceLabel,
   tapTimeLabel,
   type AttendanceRow,
@@ -37,7 +37,7 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
           <MapPin size={13} /> {tapPlaceLabel(tap)}
         </a>
       )}
-      {tapNearLabel(tap) && <small>{tapNearLabel(tap)}</small>}
+      {tap.location && <small className="attendance-coordinates">{coordinatesLabel(tap.location)}</small>}
       {tapFlags(tap, row.schedule.date).map((flag) => (
         <small className="attendance-flag" key={flag}>
           {tapFlagLabel[flag]}
@@ -170,13 +170,7 @@ export default function AdminAttendance() {
           </div>
         )}
         <div className="panel-foot">
-          <span>
-            Addresses are approximate, from{" "}
-            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-              © OpenStreetMap contributors
-            </a>
-            .
-          </span>
+          <span>Coordinates are exactly as the phone reported them; ± is the phone&apos;s own accuracy.</span>
         </div>
       </section>
     </>
