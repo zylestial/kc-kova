@@ -49,9 +49,18 @@ describe("tapFlags", () => {
     expect(tapFlags(atBase, "2026-10-07")).toEqual([]);
   });
 
-  it("flags a tap more than 150 m from ANONANG", () => {
-    expect(tapFlags({ ...atBase, location: { ...atBase.location!, distanceM: 151 } }, "2026-10-07")).toEqual(["off-base"]);
-    expect(tapFlags({ ...atBase, location: { ...atBase.location!, distanceM: 150 } }, "2026-10-07")).toEqual([]);
+  it("flags a tap more than 150 m from ANONANG when the phone is sure of it", () => {
+    const at = (distanceM: number, accuracyM: number | null) => ({ ...atBase, location: { ...atBase.location!, distanceM, accuracyM } });
+    expect(tapFlags(at(151, null), "2026-10-07")).toEqual(["off-base"]);
+    expect(tapFlags(at(150, null), "2026-10-07")).toEqual([]);
+    expect(tapFlags(at(350, 20), "2026-10-07")).toEqual(["off-base"]);
+  });
+
+  it("gives a rough reading the benefit of its error margin, up to 250 m", () => {
+    const at = (distanceM: number, accuracyM: number) => ({ ...atBase, location: { ...atBase.location!, distanceM, accuracyM } });
+    expect(tapFlags(at(350, 250), "2026-10-07")).toEqual([]);
+    expect(tapFlags(at(400, 2000), "2026-10-07")).toEqual([]);
+    expect(tapFlags(at(401, 2000), "2026-10-07")).toEqual(["off-base"]);
   });
 
   it("flags a tap with no position", () => {
@@ -117,7 +126,8 @@ describe("tapTimeLabel and tapPlaceLabel", () => {
 
   it("says where the tap was", () => {
     expect(tapPlaceLabel(atBase)).toBe("at ANONANG");
-    expect(tapPlaceLabel({ ...atBase, location: { ...atBase.location!, distanceM: 1234 } })).toBe("1.2 km from ANONANG");
+    expect(tapPlaceLabel({ ...atBase, location: { ...atBase.location!, distanceM: 1234 } })).toBe("1.2 km from ANONANG (±10 m)");
+    expect(tapPlaceLabel({ ...atBase, location: { ...atBase.location!, distanceM: 1234, accuracyM: null } })).toBe("1.2 km from ANONANG");
     expect(tapPlaceLabel({ ...atBase, location: null })).toBe("no location");
   });
 });
@@ -133,5 +143,11 @@ describe("tapNearLabel", () => {
     expect(tapNearLabel({ ...away, location: { ...away.location, distanceM: 40 } })).toBeNull();
     expect(tapNearLabel({ ...away, location: { ...away.location, address: null } })).toBeNull();
     expect(tapNearLabel({ ...away, location: null })).toBeNull();
+  });
+});
+
+describe("tapNearLabel with a rough reading", () => {
+  it("names no address for a tap that could still be at base", () => {
+    expect(tapNearLabel({ ...atBase, location: { ...atBase.location!, distanceM: 350, accuracyM: 250, address: "Bolaoen, Pangasinan" } })).toBeNull();
   });
 });
