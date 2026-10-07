@@ -316,6 +316,11 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   Problem reported: {item.note}
                 </p>
               ))}
+              {busy && (
+                <p className="helper" role="status">
+                  Finding your location. This can take up to 10 seconds; stay where you are.
+                </p>
+              )}
               {!selected.completion && selected.attendance?.end && !selected.ended && (
                 <p className="helper">Complete trip is available after {selected.availableAt}.</p>
               )}
