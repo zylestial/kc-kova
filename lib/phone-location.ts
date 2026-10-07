@@ -19,13 +19,13 @@ export function getPhoneLocation(maxWaitMs = 10000): Promise<AttendanceInput["lo
     if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
     let best: GeolocationPosition | null = null;
     let done = false;
-    let watchId: number | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Set once watchPosition returns; a reading may arrive before that.
+    const watch: { id?: number } = {};
 
     function finish() {
       if (done) return;
       done = true;
-      if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+      if (watch.id !== undefined) navigator.geolocation.clearWatch(watch.id);
       clearTimeout(timer);
       resolve(
         best && {
@@ -36,8 +36,8 @@ export function getPhoneLocation(maxWaitMs = 10000): Promise<AttendanceInput["lo
       );
     }
 
-    timer = setTimeout(finish, maxWaitMs);
-    watchId = navigator.geolocation.watchPosition(
+    const timer = setTimeout(finish, maxWaitMs);
+    watch.id = navigator.geolocation.watchPosition(
       (position) => {
         if (!best || position.coords.accuracy < best.coords.accuracy) best = position;
         if (best.coords.accuracy <= GOOD_ACCURACY_M) finish();
@@ -48,6 +48,6 @@ export function getPhoneLocation(maxWaitMs = 10000): Promise<AttendanceInput["lo
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: maxWaitMs },
     );
-    if (done && watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+    if (done) navigator.geolocation.clearWatch(watch.id);
   });
 }
