@@ -208,7 +208,10 @@ One row per schedule: the Driver's Start and End taps at ANONANG, their
 attendance for the day. `start_at`/`end_at` are server time; `*_lat`,
 `*_lng`, `*_accuracy_m` come from the phone and are null when it wouldn't
 share a position; `*_distance_m` is worked out in the database by
-`distance_from_base_m()` (haversine from ANONANG). `driver_id` is the
+`distance_from_base_m()` (haversine from ANONANG); `*_address` (0043) is an
+approximate address the attendance route looks up from OpenStreetMap's
+Nominatim (`lib/reverse-geocode.ts`) and passes to the RPC, null without a
+position or when the lookup fails. `driver_id` is the
 approved version's Driver; `*_recorded_by_account_id` is whoever tapped (an
 Admin acting as Driver). Written only by `record_trip_attendance`;
 `authenticated` gets `SELECT` only, filtered like `trip_completions` (the
