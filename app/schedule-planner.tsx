@@ -212,7 +212,13 @@ export default function SchedulePlanner({
   const clashes = plate && driver ? conflictsWith(tripTime, plate, driver.id, commitments) : [];
   const problems = tripProblems({ plate, requestIds, legs, stops: poolStops, otherStopDestinationIds });
   if (plate && !driver) problems.save.unshift("This vehicle has no active Driver assigned.");
-  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: poolStops, otherStopDestinationIds });
+  // The server refuses to save over another schedule's reserved time, so a
+  // clash blocks Save as well as Submit, and shows on the checklist.
+  const clash = clashes.length
+    ? `${plate} or its Driver is already booked for part of this time. Change the times or pick another vehicle.`
+    : "";
+  if (clash) problems.save.unshift(clash);
+  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: poolStops, otherStopDestinationIds, clash });
   const warnings = legWarnings(legs, poolStops, otherStopDestinationIds);
   const ready = problems.save.length === 0 && problems.submit.length === 0;
 
