@@ -342,8 +342,11 @@ export function tripProblems(input: {
       save.push(`${label}: this stop has no request on it. Remove it.`);
     }
     // Times aren't required to save a draft — a Scheduler can pin down the
-    // route first and fill them in later — but are needed before Submit.
-    if (!leg.plannedTimeOut && !leg.plannedTimeIn) {
+    // route first and fill them in later — but are needed before Submit. A
+    // Time Out with no Time In counts as no times yet: new legs get one by
+    // default (addLeg, setLegTimeIn, reflowFinalLegTimeOut), and it isn't
+    // saved (toScheduleInput).
+    if (!leg.plannedTimeIn) {
       submit.push(`${label}: enter planned Time Out and Time In.`);
       previousIn = "";
       return;
@@ -385,8 +388,9 @@ export type ChecklistItem = { label: string; done: boolean; detail?: string };
 /**
  * What the Scheduler still has to do, as a checklist that fills in as the
  * form does. It is derived from tripProblems, so it can never disagree with
- * the rules that enable Save draft (the first four items) and Submit (all
- * five). Problems on a leg show on that leg; an item's detail covers only what no leg can show.
+ * the rules that enable Save draft (the first three items, and any times
+ * entered being in order) and Submit (all five). Problems on a leg show on
+ * that leg; an item's detail covers only what no leg can show.
  */
 export function tripChecklist(input: {
   plate: string;
@@ -509,7 +513,8 @@ export function toScheduleInput(date: string, plate: string, requestIds: string[
     requestIds,
     legs: legs.map((leg) => ({
       destinationId: leg.isFinal ? undefined : leg.destinationId || undefined,
-      plannedTimeOut: leg.plannedTimeOut,
+      // A leg's times are saved both or neither (0033); a Time Out alone is a default.
+      plannedTimeOut: leg.plannedTimeIn ? leg.plannedTimeOut : "",
       plannedTimeIn: leg.plannedTimeIn,
       contactName: leg.contactName.trim(),
       contactNumber: leg.contactNumber.trim(),

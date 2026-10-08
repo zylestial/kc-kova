@@ -148,7 +148,8 @@ describe("new Trip Record defaults", () => {
   it("still requires a Time In, so a new Trip Record isn't submittable", () => {
     const problems = tripProblems({ plate: "V1", requestIds: ["a"], legs: initialLegs(), stops: [] });
     expect(problems.save).toContain("Leg 1: choose a destination.");
-    expect(problems.save).toContain("Leg 1: enter planned Time Out and Time In.");
+    expect(problems.save).not.toContain("Leg 1: enter planned Time Out and Time In.");
+    expect(problems.submit).toContain("Leg 1: enter planned Time Out and Time In.");
   });
 });
 
@@ -363,8 +364,25 @@ describe("tripProblems", () => {
     expect(problems.submit).toContain("Leg 1: enter planned Time Out and Time In.");
   });
 
-  it("blocks a half-entered time at save, not just at submit", () => {
+  it("treats a Time Out with no Time In as no times yet", () => {
     const legs = [leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "08:00" })];
+    const problems = tripProblems({ ...base, legs });
+    expect(problems.save).toEqual([]);
+    expect(problems.submit).toContain("Leg 1: enter planned Time Out and Time In.");
+  });
+
+  it("saves after a Time In is copied into the return leg's Time Out", () => {
+    const legs = setLegTimeIn(
+      [leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeOut: "08:00" }), finalLeg()],
+      0,
+      "09:00",
+    );
+    expect(legs[1].plannedTimeOut).toBe("09:00");
+    expect(tripProblems({ ...base, legs }).save).toEqual([]);
+  });
+
+  it("blocks a Time In with no Time Out at save, not just at submit", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"], plannedTimeIn: "09:00" })];
     expect(tripProblems({ ...base, legs }).save).toContain("Leg 1: enter planned Time Out and Time In.");
   });
 
@@ -508,6 +526,11 @@ describe("toScheduleInput", () => {
       { destinationId: undefined, plannedTimeOut: "09:30", plannedTimeIn: "10:30", contactName: "", contactNumber: "", stops: [], isFinal: true },
     ]);
   });
+
+  it("sends a Time Out with no Time In as no times, since they're saved both or neither", () => {
+    const input = toScheduleInput("2026-10-05", "V1", ["juan"], [{ ...finalLeg(), plannedTimeOut: "09:30" }]);
+    expect(input.legs[0]).toMatchObject({ plannedTimeOut: "", plannedTimeIn: "" });
+  });
 });
 
 describe("tripChecklist", () => {
@@ -541,18 +564,20 @@ describe("tripChecklist", () => {
     expect(item.detail).toMatch(/Admin assigns one in Settings/);
   });
 
-  it("agrees with tripProblems: the first four items are Save draft, all five are Submit", () => {
+  it("agrees with tripProblems: the first three items and in-order times are Save draft, all five are Submit", () => {
     const cases = [
       complete,
       [complete[0], complete[1]],
       [{ ...complete[0], destinationId: "" }, complete[1], complete[2]],
       [complete[0], { ...complete[1], stops: [] }, complete[2]],
       [{ ...complete[0], plannedTimeOut: "10:00", plannedTimeIn: "09:00" }, complete[1], complete[2]],
+      [complete[0], complete[1], { ...complete[2], plannedTimeIn: "" }],
     ];
     for (const legs of cases) {
       const problems = tripProblems({ ...base, legs });
       const items = tripChecklist({ ...base, legs });
-      expect(items.slice(0, 4).every((item) => item.done)).toBe(problems.save.length === 0);
+      const timesInOrder = !problems.save.some((problem) => /Time (In|Out)/.test(problem));
+      expect(items.slice(0, 3).every((item) => item.done) && timesInOrder).toBe(problems.save.length === 0);
       expect(items.every((item) => item.done)).toBe(problems.save.length === 0 && problems.submit.length === 0);
     }
   });
