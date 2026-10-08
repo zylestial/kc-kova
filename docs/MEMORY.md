@@ -542,3 +542,20 @@ a separate step, not yet done as of this entry.
   route still looks it up and stores it (0043), so it can come back
   without a migration; stop the lookup if it stays unused, since it sends
   each position to OpenStreetMap.
+
+## Planner feedback (2026-10-08)
+
+- **Gotcha: nothing placed after the form shows above a fixed
+  `.booking-bottom` bar.** The Planner's "Draft saved" and save errors sat
+  below the form, under the bar on desktop and off-screen on phones, so a
+  save looked like it did nothing. They now render inside the bar
+  (`.planner-bar-notice`). Check other screens with a bottom bar for the
+  same pattern before adding a notice below the form.
+- **Create schedule opens on the first day with requests waiting**, not
+  today. The Dashboard tile counts every waiting request from today on, so
+  a request weeks out showed "none" on all 14 days of the strip. Waiting
+  days outside the strip are listed under it ("Also waiting").
+- **Times and Save draft**: a leg with both times blank can be saved; a leg
+  with only one of them can't. Filling Leg 1's Time In copies it to the
+  return leg's Time Out (`reflowFinalLegTimeOut`), which creates exactly
+  that half-filled leg. Still open (see `docs/TASKS.md`).
