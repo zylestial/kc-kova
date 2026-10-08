@@ -322,6 +322,31 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {notice}
         </div>
       )}
+      {/* A Driver with trips gets one card per group, so the groups stand apart. */}
+      {!showDriver && trips.length > 0 ? (
+        <div className="trip-sections">
+          {sections.map(
+            ({ title, list }, index) =>
+              (list.length > 0 || title === "Today") && (
+                <section className="schedule-panel" key={title}>
+                  <div className="panel-toolbar">
+                    <div>
+                      <CalendarDays size={20} />
+                      <h2>{title}</h2>
+                      <span className="count">{list.length}</span>
+                    </div>
+                  </div>
+                  {index === 0 && (
+                    <div className="admin-trip-filters sort-only">
+                      <SortSelect columns={columns} sort={sort} onSort={setSort} />
+                    </div>
+                  )}
+                  {list.length ? tripTable(list) : <p className="helper trip-sections-empty">No trips today.</p>}
+                </section>
+              ),
+          )}
+        </div>
+      ) : (
       <section className="schedule-panel">
         <div className="panel-toolbar">
           <div>
@@ -330,11 +355,6 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <span className="count">{showDriver ? visible.length : trips.length}</span>
           </div>
         </div>
-        {!showDriver && trips.length > 0 && (
-          <div className="admin-trip-filters sort-only">
-            <SortSelect columns={columns} sort={sort} onSort={setSort} />
-          </div>
-        )}
         {showDriver && trips.length > 0 && (
           <div className="admin-trip-filters">
             <DateRangeFilter value={dates} onChange={setDates} />
@@ -403,18 +423,6 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               <p>{trips.length ? "Try another filter." : "Approved schedules appear here."}</p>
             </div>
           )
-        ) : trips.length ? (
-          sections.map(
-            ({ title, list }) =>
-              (list.length > 0 || title === "Today") && (
-                <div className="trip-section" key={title}>
-                  <h3>
-                    {title} <span className="count">{list.length}</span>
-                  </h3>
-                  {list.length ? tripTable(list) : <p className="helper">No trips today.</p>}
-                </div>
-              ),
-          )
         ) : (
           <div className="empty">
             <div className="empty-icon">
@@ -425,6 +433,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           </div>
         )}
       </section>
+      )}
 
       <Dialog open={!!selected} onOpenChange={(open) => { if (!open) close(); }}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
