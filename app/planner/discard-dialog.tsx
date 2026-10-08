@@ -32,7 +32,7 @@ export default function DiscardDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Discard this draft?</AlertDialogTitle>
           <AlertDialogDescription>
-            Its reserved time is released and its requests go back to Not yet scheduled, where they can be edited
+            Any time it holds is released, and its requests go back to Not yet scheduled, where they can be edited
             and planned again.
             {current?.publishedRevisionId && " The approved schedule stays in force."}
           </AlertDialogDescription>
