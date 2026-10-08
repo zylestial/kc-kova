@@ -259,5 +259,5 @@ tbody tr:hover{background:#f5f7fd}
 .th-sort{display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;color:inherit;text-transform:inherit;cursor:pointer}.th-sort svg{opacity:.45}.th-sort.active{color:var(--primary)}.th-sort.active svg{opacity:1}.th-sort:focus-visible{outline:2px solid var(--ring);outline-offset:3px;border-radius:2px}
 .sort-select{display:none!important}@media(max-width:700px){.sort-select{display:flex!important}}
 .sort-only{display:none!important}@media(max-width:700px){.sort-only{display:grid!important}}
-/* My Schedule (Driver): Today / This week / This month / Other trips. */
-.trip-section+.trip-section{border-top:1px solid var(--border)}.trip-section>h3{display:flex;align-items:center;gap:10px;margin:0;padding:20px 24px 4px;font-size:16px;font-weight:650}.trip-section>.helper{margin:6px 24px 22px}@media(max-width:700px){.trip-section>h3{padding:18px 16px 0}.trip-section>.helper{margin:6px 16px 18px}}
+/* My Schedule (Driver): one card per group (Today / This week / This month / Other trips). */
+.trip-sections{display:flex;flex-direction:column;gap:24px}.helper.trip-sections-empty{margin:18px 25px 22px}@media(max-width:700px){.trip-sections{gap:18px}.helper.trip-sections-empty{margin:14px 16px 18px}}
