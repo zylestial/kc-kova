@@ -10,7 +10,7 @@ const leg = z
     contactName: trimmedText,
     contactNumber: trimmedText,
     stops: ids.nullish().transform((stops) => stops ?? []),
-    isFinal: z.unknown().transform((value) => value === true),
+    isFinal: z.unknown().optional().transform((value) => value === true),
   })
   .transform(({ destinationId, ...rest }) => ({
     ...rest,
