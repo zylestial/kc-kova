@@ -379,8 +379,9 @@ export default function SchedulePlanner({
         </span>
       </div>
       {step > 1 && !editing && (
+        // Not "Back": on phones the top bar has its own Back, which leaves the screen.
         <Button variant="ghost" onClick={() => setStep(1)} className="booking-back">
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> Change day
         </Button>
       )}
       <div className="booking-heading">
