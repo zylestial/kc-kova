@@ -571,3 +571,26 @@ a separate step, not yet done as of this entry.
   Untimed legs were possible since 0033 but rare until the change above.
   Fixed. Production had no such draft legs when checked on 2026-10-08, so
   no one was affected.
+
+## Scheduler follow-ups (2026-10-08)
+
+- **A clash blocks Save draft, not just Submit.** The server's reservation
+  check (0033) refuses to save a draft over another schedule's time, so the
+  Planner adds the clash to its save problems and to the checklist's
+  vehicle item. It used to show "Ready to submit" beside the red clash
+  text.
+- **Discard has three meanings** (`DiscardKind` in
+  `app/planner/discard-dialog.tsx`): unsaved changes to an approved
+  schedule (nothing on the server), a saved revision (the approved version
+  and its requests stay; `sync_schedule_inclusions` releases only requests
+  the revision added), and a new draft (everything released).
+- **"REQUESTOR" stays on the printed form** (`finished-trip-print.tsx`),
+  which copies the company's official paper form; screens say
+  "Requester".
+- **Phone filters fold** with `.filters-toggle` + `.filters-collapsible`
+  (Schedules only so far; see `docs/TASKS.md` for the other screens).
+- **Gotcha: `next build` while `next dev` runs in the same folder** can
+  leave the dev server unable to compile new routes ("Jest worker
+  encountered 2 child process exceptions"); restart it. To test a build
+  without touching someone's dev server, `next start -p <other port>` and
+  point Playwright at it with a config outside the repo.
