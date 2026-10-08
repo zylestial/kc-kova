@@ -66,6 +66,7 @@ export const scheduleViews: ScheduleView[] = ["day", "week", "all"];
  * an Admin approves or returns a submitted one; anything else is read-only.
  */
 export default function Schedules({
+  viewerId,
   canEdit,
   canReview,
   onCreate,
@@ -76,6 +77,8 @@ export default function Schedules({
   initialView,
   initialStatus,
 }: {
+  /** The signed-in account, so a Scheduler's own draft can say "you". */
+  viewerId: string;
   canEdit?: boolean;
   /** Admin: approve or return a schedule that has been submitted. */
   canReview?: boolean;
@@ -147,6 +150,17 @@ export default function Schedules({
   // Driver hasn't submitted (the server enforces that part).
   const cancellable = (schedule: Schedule) => canReview && schedule.status === "ACTIVE";
   const reviewable = (schedule: Schedule) => canReview && scheduleState(schedule) === "SUBMITTED";
+
+  // What the status means for whoever is looking. A draft only holds time
+  // once every leg has times (0033).
+  function meaning(schedule: Schedule, legs: { plannedTimeOut: string; plannedTimeIn: string }[]) {
+    const state = scheduleState(schedule);
+    const mine = canEdit && schedule.createdByAccountId === viewerId;
+    if (state === "DRAFT")
+      return `${mine ? "You're" : "A Scheduler is"} still planning this. ${tripWindow(legs) ? "Its time is reserved." : "No time is reserved until every leg has times."}`;
+    if (state === "RETURNED" && mine) return "An Admin sent this back for changes. Fix it and submit it again.";
+    return scheduleStateMeaning[state];
+  }
 
   // The approved route still lists a request that has since been cancelled.
   const needsUpdate = (schedule: Schedule) =>
@@ -410,7 +424,7 @@ export default function Schedules({
                   </div>
                 ))}
               </div>
-              <p className="helper">{scheduleStateMeaning[scheduleState(selected)]}</p>
+              <p className="helper">{meaning(selected, selectedRevision.legs)}</p>
               {selectedRevision.status === "RETURNED" && selectedRevision.decisionComment && (
                 <p className="notice">
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}
