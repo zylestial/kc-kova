@@ -76,7 +76,9 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
 - **Schedules has Day, Week and All dates views.** All dates lists every
   matching schedule with its date on each card; a status link with no view
   opens it, so the list shows everything the tile counted. Picking a date
-  switches back to Day.
+  switches back to Day. Week cards show the plate only. On phones the
+  filters fold behind a "Filters" button (with a count of those set), and
+  an empty day in the week is one line.
 - Screens no longer have a "← Home" back button; the sidebar replaces it.
   The Planner keeps "← Schedules" when editing an existing schedule.
   Below 1024px the top bar shows **← Back** (in place of the logo) on every
@@ -194,7 +196,10 @@ dialogs. Those parts only show what they're given and call back; they hold no
 state of their own. A new schedule opens on the first day with requests
 waiting (today if none), and the day picker lists waiting days outside its
 14-day strip. "Draft saved" and save errors show in the bottom bar, above the
-buttons.
+buttons; on phones the bar is one row (an icon-only Discard, "Submit"). The
+only step numbers are the top stepper's. With nothing else held that day, the
+commitments panel is one line under the pool. A clash with another
+schedule's time blocks Save and Submit and shows on the checklist.
 
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.
