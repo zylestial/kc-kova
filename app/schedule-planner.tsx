@@ -469,8 +469,15 @@ export default function SchedulePlanner({
         ) : (
           <div className="planner-actions">
             {editing && (
-              <Button variant="outline" className="danger-outline" disabled={busy} onClick={() => setConfirm("discard")}>
-                <Trash2 size={16} /> Discard draft
+              // Icon only on phones (planner-wide), so the bar keeps to one row.
+              <Button
+                variant="outline"
+                className="danger-outline planner-discard"
+                aria-label="Discard draft"
+                disabled={busy}
+                onClick={() => setConfirm("discard")}
+              >
+                <Trash2 size={16} /> <span className="planner-wide">Discard draft</span>
               </Button>
             )}
             <Button variant="outline" disabled={busy || problems.save.length > 0} onClick={save}>
@@ -478,13 +485,17 @@ export default function SchedulePlanner({
             </Button>
             <Button
               className="booking-continue"
+              aria-label="Submit for approval"
               disabled={busy || problems.save.length > 0 || problems.submit.length > 0}
               onClick={() => {
                 setError("");
                 setConfirm("submit");
               }}
             >
-              <Send size={16} /> Submit for approval
+              <Send size={16} />
+              <span>
+                Submit<span className="planner-wide"> for approval</span>
+              </span>
             </Button>
           </div>
         )}
