@@ -42,20 +42,25 @@ export function SortableHead<K extends string>({
   );
 }
 
-/** The same choice as SortableHead as a "Sort by" picker, shown only on phones (.sort-select). */
+/**
+ * The same choice as SortableHead as a "Sort by" picker. Shown only on
+ * phones (.sort-select), unless `always`: for a list with no table headings.
+ */
 export function SortSelect<K extends string>({
   columns,
   sort,
   onSort,
+  always = false,
 }: {
   columns: SortColumn<K>[];
   sort: Sort<K>;
   onSort: (sort: Sort<K>) => void;
+  always?: boolean;
 }) {
   const sortable = columns.filter((column): column is Required<SortColumn<K>> => !!column.key);
   const label = (text: string) => text.charAt(0) + text.slice(1).toLowerCase();
   return (
-    <label className="field sort-select">
+    <label className={"field" + (always ? "" : " sort-select")}>
       <span>Sort by</span>
       <Select
         value={sort ? `${sort.key}:${sort.dir}` : "default"}
