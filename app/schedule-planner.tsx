@@ -404,7 +404,7 @@ export default function SchedulePlanner({
               <b>Returned by Admin:</b> {returnedComment}
             </div>
           )}
-          <div className="planner-columns">
+          <div className={"planner-columns" + (commitments.length ? "" : " planner-columns-single")}>
             <RequestPool date={date} pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
 
             <CommitmentsPanel commitments={commitments} clashes={clashes} />
