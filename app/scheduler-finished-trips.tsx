@@ -14,10 +14,24 @@ import { buildScheduledFinishedTrips } from "@/lib/trip-finish";
 import { stopsFor } from "@/lib/trip-record";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import { hasOpenProblem } from "@/lib/finished-trips";
+import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
+import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+type SortKey = "date" | "plate" | "driver" | "route" | "status";
+const columns: SortColumn<SortKey>[] = [
+  { label: "DATE", key: "date" },
+  { label: "PLATE NUMBER", key: "plate" },
+  { label: "DRIVER", key: "driver" },
+  { label: "ROUTE", key: "route" },
+  { label: "STATUS", key: "status" },
+  { label: "" },
+];
+const routeOf = (trip: { revision: { legs: { destinationName: string }[] } }) =>
+  trip.revision.legs.map((leg) => leg.destinationName).join(" → ");
 
 /**
  * Finished trips for a Scheduler, read-only. A Scheduler can't read trip
@@ -31,6 +45,14 @@ export default function SchedulerFinishedTrips() {
     [schedules, completions, requests, problems],
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sort, setSort] = useState<Sort<SortKey>>(null);
+  const visible = sortRows(trips, sort, {
+    date: (trip) => trip.schedule.date,
+    plate: (trip) => trip.revision.plate,
+    driver: (trip) => trip.revision.driverName,
+    route: routeOf,
+    status: (trip) => completionLabel[trip.state],
+  });
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
@@ -54,23 +76,22 @@ export default function SchedulerFinishedTrips() {
             <span className="count">{trips.length}</span>
           </div>
         </div>
+        {trips.length > 0 && (
+          <div className="admin-trip-filters sort-only">
+            <SortSelect columns={columns} sort={sort} onSort={setSort} />
+          </div>
+        )}
         {trips.length ? (
           <div className="schedule-table admin-trip-table">
             <table>
-              <thead>
-                <tr>
-                  {["DATE", "PLATE NUMBER", "DRIVER", "ROUTE", "STATUS", ""].map((title, i) => (
-                    <th key={i}>{title}</th>
-                  ))}
-                </tr>
-              </thead>
+              <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
-                {trips.map((trip) => (
+                {visible.map((trip) => (
                   <tr key={trip.schedule.id} onClick={() => setSelectedId(trip.schedule.id)}>
                     <td>{dateLabel(trip.schedule.date)}</td>
                     <td>{trip.revision.plate}</td>
                     <td>{trip.revision.driverName}</td>
-                    <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
+                    <td>{routeOf(trip)}</td>
                     <td>
                       <span className={"badge " + (trip.state === "DONE" ? "complete" : "")}>{completionLabel[trip.state]}</span>
                       {hasOpenProblem(trip) && <small>Open problem</small>}
