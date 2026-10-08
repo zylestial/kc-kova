@@ -542,3 +542,32 @@ a separate step, not yet done as of this entry.
   route still looks it up and stores it (0043), so it can come back
   without a migration; stop the lookup if it stays unused, since it sends
   each position to OpenStreetMap.
+
+## Planner feedback (2026-10-08)
+
+- **Gotcha: nothing placed after the form shows above a fixed
+  `.booking-bottom` bar.** The Planner's "Draft saved" and save errors sat
+  below the form, under the bar on desktop and off-screen on phones, so a
+  save looked like it did nothing. They now render inside the bar
+  (`.planner-bar-notice`). Check other screens with a bottom bar for the
+  same pattern before adding a notice below the form.
+- **Create schedule opens on the first day with requests waiting**, not
+  today. The Dashboard tile counts every waiting request from today on, so
+  a request weeks out showed "none" on all 14 days of the strip. Waiting
+  days outside the strip are listed under it ("Also waiting").
+- **A Time Out with no Time In counts as no times yet.** The Planner fills
+  in Time Outs by itself (08:00 on Leg 1, the previous leg's Time In via
+  `addLeg`, `setLegTimeIn` and `reflowFinalLegTimeOut`), and the database
+  stores a leg's times both or neither (0033). The half-filled legs that
+  produced blocked Save draft with no visible reason. Now `tripProblems`
+  treats such a leg like an untimed one (a Submit problem, not a Save one),
+  and `toScheduleInput` sends it with no times, so the lone Time Out isn't
+  kept; the leg says so in a grey note. A Time In with no Time Out still
+  blocks Save. An untimed draft reserves no time (0033 reserves only when
+  every leg is timed).
+- **Gotcha: a draft leg with no times broke loading the app.** `hhmm()` in
+  `lib/supabase/mappers.ts` called `.slice` on the null times, so
+  `/api/bootstrap` answered 500 for everyone who could see that schedule.
+  Untimed legs were possible since 0033 but rare until the change above.
+  Fixed; if production ever had such a draft, its users couldn't load KOVA
+  until it was submitted, discarded or given times.

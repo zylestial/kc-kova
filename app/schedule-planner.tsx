@@ -14,6 +14,7 @@ import {
   splitRequest,
   submitSchedule,
   type Schedule,
+  type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { addDays, manilaToday } from "@/lib/timezone";
@@ -62,6 +63,17 @@ import DiscardDialog from "./planner/discard-dialog";
 import RemoveLegDialog from "./planner/remove-leg-dialog";
 import { dateLabel, fullDate } from "./planner/format";
 
+/** Days from `today` on with requests still waiting to be scheduled, earliest first. */
+function waitingDays(requests: TransportRequest[], today: string) {
+  return [
+    ...new Set(
+      requests
+        .filter((request) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED" && request.date >= today)
+        .map((request) => request.date),
+    ),
+  ].sort();
+}
+
 /**
  * Create schedule (and continue a draft): choose a day, pick requests from
  * the pool, assign a vehicle (its Driver follows), then build the Trip
@@ -98,8 +110,10 @@ export default function SchedulePlanner({
   }, [scheduleId]);
 
   const [step, setStep] = useState(opened ? 2 : 1);
-  const [anchor, setAnchor] = useState(opened?.schedule.date ?? today);
-  const [date, setDate] = useState(opened?.schedule.date ?? today);
+  // A new schedule opens on the first day with requests waiting, which may
+  // be weeks out, rather than on an empty today.
+  const [anchor, setAnchor] = useState(() => opened?.schedule.date ?? waitingDays(requests, today)[0] ?? today);
+  const [date, setDate] = useState(anchor);
   // A request cancelled since this version was published (an Admin confirmed
   // its cancellation) is dropped, with its stops, so the new version can be
   // saved. Its route and times are left for the Scheduler to adjust.
@@ -369,7 +383,7 @@ export default function SchedulePlanner({
       </div>
 
       {step === 1 && (
-        <DayPicker months={months} days={days} date={date} anchor={anchor} openOn={openOn} pickDate={pickDate} setAnchor={setAnchor} />
+        <DayPicker months={months} days={days} date={date} anchor={anchor} openOn={openOn} pickDate={pickDate} setAnchor={setAnchor} otherWaitingDays={waitingDays(requests, today).filter((day) => !days.includes(day))} />
       )}
 
       {step === 2 && (
@@ -423,18 +437,18 @@ export default function SchedulePlanner({
         </>
       )}
 
-      {notice && (
-        <div className="notice success" role="status">
-          {notice}
-        </div>
-      )}
-      {error && !confirm && !sendingBack && (
-        <div className="notice" role="alert">
-          {error}
-        </div>
-      )}
-
       <div className="booking-bottom">
+        {/* In the bar, not below the form, which the bar would cover. */}
+        {notice && (
+          <div className="notice success planner-bar-notice" role="status">
+            {notice}
+          </div>
+        )}
+        {error && !confirm && !sendingBack && (
+          <div className="notice error planner-bar-notice" role="alert">
+            {error}
+          </div>
+        )}
         <div>
           <span>{fullDate(date)}</span>
           {step === 2 && (

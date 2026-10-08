@@ -14,7 +14,12 @@ type Props = {
   openOn: (day: string) => TransportRequest[];
   pickDate: (day: string) => void;
   setAnchor: (day: string) => void;
+  /** Days outside the strip with requests waiting, earliest first. */
+  otherWaitingDays: string[];
 };
+
+// More than this and the rest are only counted.
+const MAX_OTHER_DAYS = 5;
 
 export default function DayPicker({
   months,
@@ -24,7 +29,12 @@ export default function DayPicker({
   openOn,
   pickDate,
   setAnchor,
+  otherWaitingDays,
 }: Props) {
+  const jumpTo = (day: string) => {
+    setAnchor(day);
+    pickDate(day);
+  };
   return (
     <>
       <div className="request-month" aria-live="polite">
@@ -59,6 +69,21 @@ export default function DayPicker({
           <ChevronRight size={18} />
         </Button>
       </div>
+      {otherWaitingDays.length > 0 && (
+        <div className="date-waiting-elsewhere">
+          <span>Also waiting:</span>
+          {otherWaitingDays.slice(0, MAX_OTHER_DAYS).map((day) => (
+            <Button key={day} variant="outline" size="sm" onClick={() => jumpTo(day)}>
+              {dateLabel(day, { weekday: "short", month: "short", day: "numeric" })} · {openOn(day).length}
+            </Button>
+          ))}
+          {otherWaitingDays.length > MAX_OTHER_DAYS && (
+            <span>
+              and {otherWaitingDays.length - MAX_OTHER_DAYS} more {otherWaitingDays.length - MAX_OTHER_DAYS === 1 ? "day" : "days"}
+            </span>
+          )}
+        </div>
+      )}
       <div className="date-other">
         <label>
           Jump to date{" "}
@@ -67,8 +92,7 @@ export default function DayPicker({
             value={date}
             onChange={(event) => {
               if (!event.target.value) return;
-              setAnchor(event.target.value);
-              pickDate(event.target.value);
+              jumpTo(event.target.value);
             }}
           />
         </label>
