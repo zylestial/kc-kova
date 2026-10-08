@@ -279,8 +279,9 @@ type ScheduleLegRow = {
   origin: string;
   destination_id: string | null;
   destination_name: string;
-  planned_time_out: string;
-  planned_time_in: string;
+  /** Both null on a draft leg whose times aren't set yet (0033). */
+  planned_time_out: string | null;
+  planned_time_in: string | null;
   contact_name: string;
   contact_number: string;
   is_final: boolean;
@@ -316,7 +317,7 @@ type ScheduleRow = {
 };
 
 // Postgres time(0) comes back as "08:15:00"; the app works in "08:15".
-const hhmm = (value: string) => value.slice(0, 5);
+const hhmm = (value: string | null) => value?.slice(0, 5) ?? "";
 
 export function toSchedule(row: ScheduleRow): Schedule {
   return {
