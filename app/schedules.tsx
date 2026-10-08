@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useState } from "react";
-import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, ListFilter, User } from "lucide-react";
+import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,7 @@ import {
 import CancellationRequests from "./cancellation-requests";
 import { scheduleStateMeaning } from "@/lib/status-text";
 import { compareSchedules, finishState } from "@/lib/trip-finish";
+import FilterFold from "./filter-fold";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import { SortSelect, type SortColumn } from "./sortable-head";
@@ -103,10 +104,6 @@ export default function Schedules({
   const [status, setStatus] = useState<"all" | ScheduleState>(initialStatus ?? "all");
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [sort, setSort] = useState<Sort<ScheduleSortKey>>(null);
-  // Phones fold the filters behind a button (.filters-collapsible), so the
-  // schedules show without scrolling past six fields first.
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const activeFilters = [vehicle, driver, requester, status].filter((value) => value !== "all").length + (sort ? 1 : 0);
   const [returning, setReturning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [comment, setComment] = useState("");
@@ -292,17 +289,7 @@ export default function Schedules({
           </div>
         </div>
         <OlderRecordsNotice />
-        <Button
-          variant="outline"
-          className="filters-toggle"
-          aria-expanded={filtersOpen}
-          aria-controls="schedules-filters"
-          onClick={() => setFiltersOpen(!filtersOpen)}
-        >
-          <ListFilter size={16} /> {filtersOpen ? "Hide filters" : "Filters"}
-          {activeFilters > 0 && <span className="count">{activeFilters}</span>}
-        </Button>
-        <div id="schedules-filters" className={"admin-trip-filters filters-collapsible" + (filtersOpen ? " open" : "")}>
+        <FilterFold active={[vehicle, driver, requester, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
           <label className="field">
             <span>Date</span>
             {/* Picking a date leaves All dates for that day. */}
@@ -381,7 +368,7 @@ export default function Schedules({
             </Select>
           </label>
           <SortSelect columns={sortColumns} sort={sort} onSort={setSort} always />
-        </div>
+        </FilterFold>
         {view === "week" ? (
           <div className="week-grid">
             {days.map((day) => {

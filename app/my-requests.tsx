@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import OlderRecordsNotice from "./older-records-notice";
 import DateRangeFilter from "./date-range-filter";
+import FilterFold from "./filter-fold";
 import {
   currentAccount,
   cancelRequest,
@@ -205,7 +206,7 @@ export default function MyRequests({
         </div>
         <OlderRecordsNotice />
         {requests.length > 0 && (
-          <div className="admin-trip-filters">
+          <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [progress, type].filter((value) => value !== "all").length}>
             <DateRangeFilter value={dates} onChange={setDates} />
             <label className="field">
               <span>Progress</span>
@@ -236,7 +237,7 @@ export default function MyRequests({
                 </SelectContent>
               </Select>
             </label>
-          </div>
+          </FilterFold>
         )}
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
