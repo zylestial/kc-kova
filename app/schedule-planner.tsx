@@ -77,8 +77,9 @@ function waitingDays(requests: TransportRequest[], today: string) {
 /**
  * Create schedule (and continue a draft): choose a day, pick requests from
  * the pool, assign a vehicle (its Driver follows), then build the Trip
- * Record leg by leg. Saving a draft reserves the time and locks the
- * requests; every rule is rechecked by save_schedule_draft.
+ * Record leg by leg. Saving a draft locks the requests, and reserves the
+ * time once every leg has times; every rule is rechecked by
+ * save_schedule_draft.
  */
 export default function SchedulePlanner({
   scheduleId,
@@ -288,7 +289,11 @@ export default function SchedulePlanner({
     run(async () => {
       await saveDraft();
       setSavedSignature(tripSignature(plate, requestIds, legs));
-      setNotice("Draft saved. Its time is reserved and its requests are locked until you submit or discard it.");
+      setNotice(
+        tripTime
+          ? "Draft saved. Its time is reserved and its requests are locked until you submit or discard it."
+          : "Draft saved. Its requests are locked until you submit or discard it. No time is reserved until every leg has times.",
+      );
     });
   const submit = () =>
     run(async () => {
@@ -371,7 +376,7 @@ export default function SchedulePlanner({
           <p>
             {step === 1
               ? "Each day shows how many requests are still waiting to be scheduled."
-              : "Choose the requests to plan, pick a vehicle, then build the route. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft reserves the time."}
+              : "Pick a vehicle, then build the route from the requests in the pool. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft locks its requests, and reserves the time once every leg has times."}
           </p>
         </div>
         {step > 1 && (
@@ -410,7 +415,6 @@ export default function SchedulePlanner({
           <section className="editor-panel">
             <div className="section-heading">
               <div>
-                <span className="planner-step">Step 3</span>
                 <h2>Trip Record</h2>
                 <p>
                   The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
