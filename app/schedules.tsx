@@ -38,6 +38,8 @@ import { scheduleStateMeaning } from "@/lib/status-text";
 import { compareSchedules, finishState } from "@/lib/trip-finish";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
+import { SortSelect, type SortColumn } from "./sortable-head";
+import { sortRows, type Sort } from "@/lib/table-sort";
 
 const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
   new Date(value + "T12:00:00").toLocaleDateString("en-US", options);
@@ -45,6 +47,16 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
 const weekStart = (value: string) => addDays(value, -((new Date(value + "T12:00:00").getDay() + 6) % 7));
 
 export type ScheduleView = "day" | "week" | "all";
+
+// Cards, not a table: one Sort by picker on every screen size. The Week
+// view keeps its days and sorts within each.
+type ScheduleSortKey = "date" | "vehicle" | "driver" | "status";
+const sortColumns: SortColumn<ScheduleSortKey>[] = [
+  { label: "DATE", key: "date" },
+  { label: "VEHICLE", key: "vehicle" },
+  { label: "DRIVER", key: "driver" },
+  { label: "STATUS", key: "status" },
+];
 export const scheduleViews: ScheduleView[] = ["day", "week", "all"];
 
 /**
@@ -87,6 +99,7 @@ export default function Schedules({
   const [requester, setRequester] = useState("all");
   const [status, setStatus] = useState<"all" | ScheduleState>(initialStatus ?? "all");
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
+  const [sort, setSort] = useState<Sort<ScheduleSortKey>>(null);
   const [returning, setReturning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [comment, setComment] = useState("");
@@ -119,6 +132,12 @@ export default function Schedules({
     })
     .map((schedule) => ({ schedule, revision: currentRevision(schedule), time: tripWindow(currentRevision(schedule)?.legs ?? []) }))
     .sort((a, b) => compareSchedules(a.schedule, b.schedule));
+  const sorted = sortRows(visible, sort, {
+    date: (item) => item.schedule.date + " " + (item.time?.start ?? ""),
+    vehicle: (item) => item.revision?.plate ?? "",
+    driver: (item) => item.revision?.driverName ?? "",
+    status: (item) => scheduleStateLabel[scheduleState(item.schedule)],
+  });
 
   const selected = schedules.find((schedule) => schedule.id === selectedId);
   const selectedRevision = selected && currentRevision(selected);
@@ -332,11 +351,12 @@ export default function Schedules({
               </SelectContent>
             </Select>
           </label>
+          <SortSelect columns={sortColumns} sort={sort} onSort={setSort} always />
         </div>
         {view === "week" ? (
           <div className="week-grid">
             {days.map((day) => {
-              const dayItems = visible.filter((item) => item.schedule.date === day);
+              const dayItems = sorted.filter((item) => item.schedule.date === day);
               return (
                 <div key={day} className={"week-day " + (day === manilaToday() ? "today" : "")}>
                   <button className="week-day-label" onClick={() => { setDate(day); setView("day"); }}>
@@ -349,7 +369,7 @@ export default function Schedules({
             })}
           </div>
         ) : visible.length ? (
-          <div className="day-list">{visible.map(card)}</div>
+          <div className="day-list">{sorted.map(card)}</div>
         ) : (
           <div className="empty">
             <div className="empty-icon">
