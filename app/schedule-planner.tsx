@@ -59,7 +59,7 @@ import LegCard from "./planner/leg-card";
 import TripChecklist from "./planner/trip-checklist";
 import SubmitDialog from "./planner/submit-dialog";
 import SendBackDialog from "./planner/send-back-dialog";
-import DiscardDialog from "./planner/discard-dialog";
+import DiscardDialog, { discardLabel, type DiscardKind } from "./planner/discard-dialog";
 import RemoveLegDialog from "./planner/remove-leg-dialog";
 import { dateLabel, fullDate } from "./planner/format";
 
@@ -149,6 +149,8 @@ export default function SchedulePlanner({
   const [leftoverReason, setLeftoverReason] = useState("");
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
+  const discardKind: DiscardKind =
+    editing?.rowVersion === null ? "changes" : current?.publishedRevisionId ? "revision" : "draft";
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
 
   // Every ACTIVE request for the day, served or not, used to work out what
@@ -337,7 +339,12 @@ export default function SchedulePlanner({
         return;
       }
       await discardScheduleDraft(editing.id, editing.rowVersion);
-      onDone("Draft discarded. Its requests are back to Not yet scheduled.", date);
+      onDone(
+        discardKind === "revision"
+          ? "Revision discarded. The approved schedule stays in force."
+          : "Draft discarded. Its requests are back to Not yet scheduled.",
+        date,
+      );
     });
 
   const reviewLegs = legs.map((leg, index) => ({
@@ -473,11 +480,11 @@ export default function SchedulePlanner({
               <Button
                 variant="outline"
                 className="danger-outline planner-discard"
-                aria-label="Discard draft"
+                aria-label={discardLabel[discardKind]}
                 disabled={busy}
                 onClick={() => setConfirm("discard")}
               >
-                <Trash2 size={16} /> <span className="planner-wide">Discard draft</span>
+                <Trash2 size={16} /> <span className="planner-wide">{discardLabel[discardKind]}</span>
               </Button>
             )}
             <Button variant="outline" disabled={busy || problems.save.length > 0} onClick={save}>
@@ -505,7 +512,7 @@ export default function SchedulePlanner({
 
       <SendBackDialog sendingBack={sendingBack} setSendingBack={setSendingBack} sendBackReason={sendBackReason} setSendBackReason={setSendBackReason} busy={busy} pool={pool} date={date} error={error} setError={setError} sendBack={sendBack} />
 
-      <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} current={current} discard={discard} />
+      <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} kind={discardKind} discard={discard} />
       <RemoveLegDialog removingLeg={removingLeg} setRemovingLeg={setRemovingLeg} legs={legs} applyLegs={applyLegs} />
     </div>
   );
