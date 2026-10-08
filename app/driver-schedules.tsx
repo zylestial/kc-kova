@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { anyDate, inDateFilter, presetRange, type DateFilter } from "@/lib/date-range";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import DateRangeFilter from "./date-range-filter";
+import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import {
   Dialog,
@@ -356,7 +357,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           </div>
         </div>
         {showDriver && trips.length > 0 && (
-          <div className="admin-trip-filters">
+          <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
             <DateRangeFilter value={dates} onChange={setDates} />
             {showDriver && (
               <label className="field">
@@ -409,7 +410,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               </Select>
             </label>
             <SortSelect columns={columns} sort={sort} onSort={setSort} />
-          </div>
+          </FilterFold>
         )}
         {showDriver ? (
           visible.length ? (
