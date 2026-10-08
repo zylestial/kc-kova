@@ -18,13 +18,30 @@ import {
 } from "@/lib/attendance";
 import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import { manilaToday } from "@/lib/timezone";
+import { sortRows, type Sort } from "@/lib/table-sort";
 import DateRangeFilter from "./date-range-filter";
+import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import OlderRecordsNotice from "./older-records-notice";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 const statusPill: Record<AttendanceStatus, string> = { COMPLETE: "scheduled", STARTED: "pending", MISSING: "rejected" };
+const statusOrder: AttendanceStatus[] = ["MISSING", "STARTED", "COMPLETE"];
+
+/** A tap's Manila time of day as "HH:MM", so sorting by Start or End finds the earliest and latest taps. */
+const tapTimeLabel24 = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hour12: false });
+
+type AttendanceSortKey = "date" | "driver" | "plate" | "start" | "end" | "status";
+const columns: SortColumn<AttendanceSortKey>[] = [
+  { label: "DATE", key: "date" },
+  { label: "DRIVER", key: "driver" },
+  { label: "PLATE NUMBER", key: "plate" },
+  { label: "START", key: "start" },
+  { label: "END", key: "end" },
+  { label: "STATUS", key: "status" },
+];
 
 /** One Start or End tap: its time, where it was (linked to a map), its flags and who tapped if not the Driver. */
 function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap; nameOf: (id: string) => string }) {
@@ -60,13 +77,26 @@ export default function AdminAttendance() {
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState<Sort<AttendanceSortKey>>(null);
 
   const drivers = [...new Set(rows.map((row) => row.revision.driverName))].sort();
-  const visible = rows.filter(
-    (row) =>
-      inDateFilter(row.schedule.date, dates, today) &&
-      (driver === "all" || row.revision.driverName === driver) &&
-      (status === "all" || (status === "flagged" ? row.flags.length > 0 : row.status === status)),
+  const visible = sortRows(
+    rows.filter(
+      (row) =>
+        inDateFilter(row.schedule.date, dates, today) &&
+        (driver === "all" || row.revision.driverName === driver) &&
+        (status === "all" || (status === "flagged" ? row.flags.length > 0 : row.status === status)),
+    ),
+    sort,
+    {
+      date: (row) => row.schedule.date,
+      driver: (row) => row.revision.driverName,
+      plate: (row) => row.revision.plate,
+      // A tap's time of day; rows without one go to the end when ascending.
+      start: (row) => (row.attendance ? tapTimeLabel24(row.attendance.start.at) : "99:99"),
+      end: (row) => (row.attendance?.end ? tapTimeLabel24(row.attendance.end.at) : "99:99"),
+      status: (row) => statusOrder.indexOf(row.status),
+    },
   );
   const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone else";
 
@@ -125,17 +155,12 @@ export default function AdminAttendance() {
               </SelectContent>
             </Select>
           </label>
+          <SortSelect columns={columns} sort={sort} onSort={setSort} />
         </div>
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
             <table>
-              <thead>
-                <tr>
-                  {["DATE", "DRIVER", "PLATE NUMBER", "START", "END", "STATUS"].map((title) => (
-                    <th key={title}>{title}</th>
-                  ))}
-                </tr>
-              </thead>
+              <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
                 {visible.map((row) => (
                   <tr key={row.schedule.id}>

@@ -204,3 +204,14 @@ built on `useSyncExternalStore`), which re-renders them whenever the cache is
 replaced; derive lists from it with `useMemo` rather than copying them into
 state. A screen that must hold a snapshot (the Planner's schedule being
 edited) reads `getSchedules()`/`getRequests()` once instead.
+
+## Sorting tables (2026-10-08)
+
+Every trip table (My Schedule, Attendance, the three Finished Trips screens)
+has sortable column headings (`app/sortable-head.tsx`, `lib/table-sort.ts`):
+click once for ascending, again for descending, a third time for the screen's
+own default order. Phones hide table headings (stacked tables), so the filter
+row there gets a "Sort by" picker with the same choices. Schedules shows
+cards, not a table, so its Sort by picker shows on every screen size; the
+Week view keeps its days and sorts within each. Sorts are not remembered
+between visits.

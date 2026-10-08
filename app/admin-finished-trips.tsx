@@ -34,6 +34,8 @@ import { completionLabel, completionMeaning } from "@/lib/status-text";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import DateRangeFilter from "./date-range-filter";
+import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
+import { sortRows, type Sort } from "@/lib/table-sort";
 import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import { manilaToday } from "@/lib/timezone";
 
@@ -43,6 +45,17 @@ const dateLabel = (date: string) =>
 type Mode = "view" | "correct" | "done" | "handle";
 
 const notSubmitted = "Not submitted yet";
+
+type SortKey = "date" | "plate" | "driver" | "route" | "distance" | "status";
+const columns: SortColumn<SortKey>[] = [
+  { label: "DATE", key: "date" },
+  { label: "PLATE NUMBER", key: "plate" },
+  { label: "DRIVER", key: "driver" },
+  { label: "ROUTE", key: "route" },
+  { label: "DISTANCE", key: "distance" },
+  { label: "STATUS", key: "status" },
+  { label: "" },
+];
 
 /**
  * Admin Finished Trips: every submitted completion, plus unsubmitted trips
@@ -73,6 +86,7 @@ export default function AdminFinishedTrips({
   const [vehicle, setVehicle] = useState("all");
   const [status, setStatus] = useState(initialStatus ?? "all");
   const [problems, setProblems] = useState(initialProblems ?? "all");
+  const [sort, setSort] = useState<Sort<SortKey>>(null);
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<Mode>("view");
   const [start, setStart] = useState("");
@@ -90,13 +104,25 @@ export default function AdminFinishedTrips({
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
   const vehicles = [...new Set(trips.map((trip) => trip.revision.plate))].sort();
   const today = manilaToday();
-  const visible = trips.filter(
-    (trip) =>
-      inDateFilter(trip.schedule.date, dates, today) &&
-      (driver === "all" || trip.revision.driverName === driver) &&
-      (vehicle === "all" || trip.revision.plate === vehicle) &&
-      (status === "all" || status === (trip.completion?.status ?? "UNSUBMITTED")) &&
-      (problems === "all" || (problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
+  const visible = sortRows(
+    trips.filter(
+      (trip) =>
+        inDateFilter(trip.schedule.date, dates, today) &&
+        (driver === "all" || trip.revision.driverName === driver) &&
+        (vehicle === "all" || trip.revision.plate === vehicle) &&
+        (status === "all" || status === (trip.completion?.status ?? "UNSUBMITTED")) &&
+        (problems === "all" || (problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
+    ),
+    sort,
+    {
+      date: (trip) => trip.schedule.date,
+      plate: (trip) => trip.revision.plate,
+      driver: (trip) => trip.revision.driverName,
+      route: (trip) => trip.revision.legs.map((leg) => leg.destinationName).join(" → "),
+      // Unsubmitted trips have no distance yet; they sort before any submitted one.
+      distance: (trip) => trip.completion?.distance ?? -1,
+      status: (trip) => (trip.completion ? completionLabel[trip.completion.status] : notSubmitted),
+    },
   );
 
   // "Mark all clean trips done" only ever touches what the filters show.
@@ -277,17 +303,12 @@ export default function AdminFinishedTrips({
               </SelectContent>
             </Select>
           </label>
+          <SortSelect columns={columns} sort={sort} onSort={setSort} />
         </div>
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
             <table>
-              <thead>
-                <tr>
-                  {["DATE", "PLATE NUMBER", "DRIVER", "ROUTE", "DISTANCE", "STATUS", ""].map((title, i) => (
-                    <th key={i}>{title}</th>
-                  ))}
-                </tr>
-              </thead>
+              <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
                 {visible.map((trip) => (
                   <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>

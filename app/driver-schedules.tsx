@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
+import { sortRows, type Sort } from "@/lib/table-sort";
+import DateRangeFilter from "./date-range-filter";
+import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import {
   Dialog,
   DialogContent,
@@ -94,6 +99,30 @@ function buildTrips(
     .sort((a, b) => Number(!!a.completion) - Number(!!b.completion) || a.schedule.date.localeCompare(b.schedule.date));
 }
 
+/** Where a trip stands for its Driver, in the order a trip moves through them. */
+const tripStatuses = ["UPCOMING", "READY_TO_START", "ON_THE_ROAD", "BACK_AT_BASE", "READY_TO_COMPLETE", "SUBMITTED"] as const;
+type TripStatus = (typeof tripStatuses)[number];
+
+const tripStatusPill: Record<TripStatus, [label: string, pill: string]> = {
+  UPCOMING: ["Upcoming", "info"],
+  READY_TO_START: ["Ready to start", "pending"],
+  ON_THE_ROAD: ["On the road", "info"],
+  BACK_AT_BASE: ["Back at base", "info"],
+  READY_TO_COMPLETE: ["Ready to complete", "pending"],
+  SUBMITTED: [completionLabel.SUBMITTED, "scheduled"],
+};
+
+function tripStatus(trip: Trip): TripStatus {
+  if (trip.completion) return "SUBMITTED";
+  if (trip.attendance?.end) return trip.ended ? "READY_TO_COMPLETE" : "BACK_AT_BASE";
+  if (trip.attendance) return "ON_THE_ROAD";
+  return trip.startable ? "READY_TO_START" : "UPCOMING";
+}
+
+const routeLabel = (trip: Trip) => trip.revision.legs.map((leg) => leg.destinationName).join(" → ");
+
+type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
+
 /**
  * The Driver's published schedules. Each opens a read-only Trip Record with
  * Start trip and End trip (tapped at ANONANG; their attendance), then
@@ -108,6 +137,11 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   );
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
+  const [dates, setDates] = useState<DateFilter>(anyDate);
+  const [vehicle, setVehicle] = useState("all");
+  const [driver, setDriver] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState<Sort<TripSortKey>>(null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
   const [start, setStart] = useState("");
@@ -186,18 +220,35 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setBusy(false);
   }
 
-  const statusOf = (trip: Trip) =>
-    trip.completion
-      ? [completionLabel[trip.completion.status], "scheduled"]
-      : trip.attendance?.end
-        ? trip.ended
-          ? ["Ready to complete", "pending"]
-          : ["Back at base", "info"]
-        : trip.attendance
-          ? ["On the road", "info"]
-          : trip.startable
-            ? ["Ready to start", "pending"]
-            : ["Upcoming", "info"];
+  const today = manilaToday();
+  const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
+  const plates = [...new Set(trips.map((trip) => trip.revision.plate))].sort();
+  const showDriver = driverId === null;
+  const columns: SortColumn<TripSortKey>[] = [
+    { label: "DATE", key: "date" },
+    ...(showDriver ? [{ label: "DRIVER", key: "driver" as const }] : []),
+    { label: "VEHICLE", key: "vehicle" },
+    { label: "ROUTE", key: "route" },
+    { label: "STATUS", key: "status" },
+    { label: "" },
+  ];
+  const visible = sortRows(
+    trips.filter(
+      (trip) =>
+        inDateFilter(trip.schedule.date, dates, today) &&
+        (vehicle === "all" || trip.revision.plate === vehicle) &&
+        (driver === "all" || trip.revision.driverName === driver) &&
+        (status === "all" || tripStatus(trip) === status),
+    ),
+    sort,
+    {
+      date: (trip) => trip.schedule.date,
+      driver: (trip) => trip.revision.driverName,
+      vehicle: (trip) => trip.revision.plate,
+      route: (trip) => routeLabel(trip),
+      status: (trip) => tripStatuses.indexOf(tripStatus(trip)),
+    },
+  );
 
   return (
     <>
@@ -220,27 +271,78 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           <div>
             <CalendarDays size={20} />
             <h2>Your trips</h2>
-            <span className="count">{trips.length}</span>
+            <span className="count">{visible.length}</span>
           </div>
         </div>
-        {trips.length ? (
+        {trips.length > 0 && (
+          <div className="admin-trip-filters">
+            <DateRangeFilter value={dates} onChange={setDates} />
+            {showDriver && (
+              <label className="field">
+                <span>Driver</span>
+                <Select value={driver} onValueChange={setDriver}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Drivers</SelectItem>
+                    {drivers.map((name) => (
+                      <SelectItem value={name} key={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            )}
+            <label className="field">
+              <span>Vehicle</span>
+              <Select value={vehicle} onValueChange={setVehicle}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Vehicles</SelectItem>
+                  {plates.map((plate) => (
+                    <SelectItem value={plate} key={plate}>
+                      {vehicleName(plate)} · {plate}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="field">
+              <span>Status</span>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {tripStatuses.map((value) => (
+                    <SelectItem value={value} key={value}>
+                      {tripStatusPill[value][0]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <SortSelect columns={columns} sort={sort} onSort={setSort} />
+          </div>
+        )}
+        {visible.length ? (
           <div className="schedule-table admin-trip-table">
             <table>
-              <thead>
-                <tr>
-                  {["DATE", "VEHICLE", "ROUTE", "STATUS", ""].map((title) => (
-                    <th key={title}>{title}</th>
-                  ))}
-                </tr>
-              </thead>
+              <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
-                {trips.map((trip) => {
-                  const [label, pill] = statusOf(trip);
+                {visible.map((trip) => {
+                  const [label, pill] = tripStatusPill[tripStatus(trip)];
                   return (
                     <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
                       <td>{dateLabel(trip.schedule.date)}</td>
+                      {showDriver && <td>{trip.revision.driverName}</td>}
                       <td className="trip-vehicle">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
-                      <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
+                      <td>{routeLabel(trip)}</td>
                       <td>
                         <span className={"status-pill " + pill}>{label}</span>
                         {trip.problems.length > 0 && <small>Problem reported</small>}
@@ -268,8 +370,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <div className="empty-icon">
               <CalendarDays size={30} />
             </div>
-            <h3>No trips assigned</h3>
-            <p>Approved schedules with you as Driver will appear here.</p>
+            <h3>{trips.length ? "No matching trips" : "No trips assigned"}</h3>
+            <p>{trips.length ? "Try another filter." : "Approved schedules with you as Driver will appear here."}</p>
           </div>
         )}
       </section>

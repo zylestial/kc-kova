@@ -255,3 +255,7 @@ tbody tr:hover{background:#f5f7fd}
 .attendance-tap small.attendance-coordinates{font-variant-numeric:tabular-nums;user-select:all}
 /* My Schedule: each Start/End tap on its own line, its coordinates below. */
 .tap-lines{display:flex;flex-direction:column;gap:10px}.tap-lines small{display:block;margin-top:2px;font-size:13px;font-variant-numeric:tabular-nums;user-select:all}
+/* Sortable table headings (app/sortable-head.tsx); phones sort with the Sort by picker instead. */
+.th-sort{display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;color:inherit;text-transform:inherit;cursor:pointer}.th-sort svg{opacity:.45}.th-sort.active{color:var(--primary)}.th-sort.active svg{opacity:1}.th-sort:focus-visible{outline:2px solid var(--ring);outline-offset:3px;border-radius:2px}
+.sort-select{display:none!important}@media(max-width:700px){.sort-select{display:flex!important}}
+.sort-only{display:none!important}@media(max-width:700px){.sort-only{display:grid!important}}
