@@ -158,7 +158,9 @@ export default function LegCard({
             aria-label={`Leg ${index + 1} planned Time Out`}
             onChange={(event) => changeLeg(index, { plannedTimeOut: event.target.value })}
           />
-          <small className="field-hint">Not required to save a draft — needed before you submit.</small>
+          {leg.plannedTimeOut && !leg.plannedTimeIn && (
+            <small className="field-note">Not saved until there&apos;s a Time In. Times can wait until you submit.</small>
+          )}
         </label>
         <label className="field">
           <span>Planned Time In</span>
