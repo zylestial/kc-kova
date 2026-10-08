@@ -59,7 +59,7 @@ import LegCard from "./planner/leg-card";
 import TripChecklist from "./planner/trip-checklist";
 import SubmitDialog from "./planner/submit-dialog";
 import SendBackDialog from "./planner/send-back-dialog";
-import DiscardDialog from "./planner/discard-dialog";
+import DiscardDialog, { discardLabel, type DiscardKind } from "./planner/discard-dialog";
 import RemoveLegDialog from "./planner/remove-leg-dialog";
 import { dateLabel, fullDate } from "./planner/format";
 
@@ -77,8 +77,9 @@ function waitingDays(requests: TransportRequest[], today: string) {
 /**
  * Create schedule (and continue a draft): choose a day, pick requests from
  * the pool, assign a vehicle (its Driver follows), then build the Trip
- * Record leg by leg. Saving a draft reserves the time and locks the
- * requests; every rule is rechecked by save_schedule_draft.
+ * Record leg by leg. Saving a draft locks the requests, and reserves the
+ * time once every leg has times; every rule is rechecked by
+ * save_schedule_draft.
  */
 export default function SchedulePlanner({
   scheduleId,
@@ -148,6 +149,8 @@ export default function SchedulePlanner({
   const [leftoverReason, setLeftoverReason] = useState("");
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
+  const discardKind: DiscardKind =
+    editing?.rowVersion === null ? "changes" : current?.publishedRevisionId ? "revision" : "draft";
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
 
   // Every ACTIVE request for the day, served or not, used to work out what
@@ -209,7 +212,13 @@ export default function SchedulePlanner({
   const clashes = plate && driver ? conflictsWith(tripTime, plate, driver.id, commitments) : [];
   const problems = tripProblems({ plate, requestIds, legs, stops: poolStops, otherStopDestinationIds });
   if (plate && !driver) problems.save.unshift("This vehicle has no active Driver assigned.");
-  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: poolStops, otherStopDestinationIds });
+  // The server refuses to save over another schedule's reserved time, so a
+  // clash blocks Save as well as Submit, and shows on the checklist.
+  const clash = clashes.length
+    ? `${plate} or its Driver is already booked for part of this time. Change the times or pick another vehicle.`
+    : "";
+  if (clash) problems.save.unshift(clash);
+  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: poolStops, otherStopDestinationIds, clash });
   const warnings = legWarnings(legs, poolStops, otherStopDestinationIds);
   const ready = problems.save.length === 0 && problems.submit.length === 0;
 
@@ -288,7 +297,11 @@ export default function SchedulePlanner({
     run(async () => {
       await saveDraft();
       setSavedSignature(tripSignature(plate, requestIds, legs));
-      setNotice("Draft saved. Its time is reserved and its requests are locked until you submit or discard it.");
+      setNotice(
+        tripTime
+          ? "Draft saved. Its time is reserved and its requests are locked until you submit or discard it."
+          : "Draft saved. Its requests are locked until you submit or discard it. No time is reserved until every leg has times.",
+      );
     });
   const submit = () =>
     run(async () => {
@@ -332,7 +345,12 @@ export default function SchedulePlanner({
         return;
       }
       await discardScheduleDraft(editing.id, editing.rowVersion);
-      onDone("Draft discarded. Its requests are back to Not yet scheduled.", date);
+      onDone(
+        discardKind === "revision"
+          ? "Revision discarded. The approved schedule stays in force."
+          : "Draft discarded. Its requests are back to Not yet scheduled.",
+        date,
+      );
     });
 
   const reviewLegs = legs.map((leg, index) => ({
@@ -371,7 +389,7 @@ export default function SchedulePlanner({
           <p>
             {step === 1
               ? "Each day shows how many requests are still waiting to be scheduled."
-              : "Choose the requests to plan, pick a vehicle, then build the route. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft reserves the time."}
+              : "Pick a vehicle, then build the route from the requests in the pool. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft locks its requests, and reserves the time once every leg has times."}
           </p>
         </div>
         {step > 1 && (
@@ -399,7 +417,7 @@ export default function SchedulePlanner({
               <b>Returned by Admin:</b> {returnedComment}
             </div>
           )}
-          <div className="planner-columns">
+          <div className={"planner-columns" + (commitments.length ? "" : " planner-columns-single")}>
             <RequestPool date={date} pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
 
             <CommitmentsPanel commitments={commitments} clashes={clashes} />
@@ -410,7 +428,6 @@ export default function SchedulePlanner({
           <section className="editor-panel">
             <div className="section-heading">
               <div>
-                <span className="planner-step">Step 3</span>
                 <h2>Trip Record</h2>
                 <p>
                   The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
@@ -465,8 +482,15 @@ export default function SchedulePlanner({
         ) : (
           <div className="planner-actions">
             {editing && (
-              <Button variant="outline" className="danger-outline" disabled={busy} onClick={() => setConfirm("discard")}>
-                <Trash2 size={16} /> Discard draft
+              // Icon only on phones (planner-wide), so the bar keeps to one row.
+              <Button
+                variant="outline"
+                className="danger-outline planner-discard"
+                aria-label={discardLabel[discardKind]}
+                disabled={busy}
+                onClick={() => setConfirm("discard")}
+              >
+                <Trash2 size={16} /> <span className="planner-wide">{discardLabel[discardKind]}</span>
               </Button>
             )}
             <Button variant="outline" disabled={busy || problems.save.length > 0} onClick={save}>
@@ -474,13 +498,17 @@ export default function SchedulePlanner({
             </Button>
             <Button
               className="booking-continue"
+              aria-label="Submit for approval"
               disabled={busy || problems.save.length > 0 || problems.submit.length > 0}
               onClick={() => {
                 setError("");
                 setConfirm("submit");
               }}
             >
-              <Send size={16} /> Submit for approval
+              <Send size={16} />
+              <span>
+                Submit<span className="planner-wide"> for approval</span>
+              </span>
             </Button>
           </div>
         )}
@@ -490,7 +518,7 @@ export default function SchedulePlanner({
 
       <SendBackDialog sendingBack={sendingBack} setSendingBack={setSendingBack} sendBackReason={sendBackReason} setSendBackReason={setSendBackReason} busy={busy} pool={pool} date={date} error={error} setError={setError} sendBack={sendBack} />
 
-      <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} current={current} discard={discard} />
+      <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} kind={discardKind} discard={discard} />
       <RemoveLegDialog removingLeg={removingLeg} setRemovingLeg={setRemovingLeg} legs={legs} applyLegs={applyLegs} />
     </div>
   );

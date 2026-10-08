@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useState } from "react";
-import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, User } from "lucide-react";
+import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, ListFilter, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +66,7 @@ export const scheduleViews: ScheduleView[] = ["day", "week", "all"];
  * an Admin approves or returns a submitted one; anything else is read-only.
  */
 export default function Schedules({
+  viewerId,
   canEdit,
   canReview,
   onCreate,
@@ -76,6 +77,8 @@ export default function Schedules({
   initialView,
   initialStatus,
 }: {
+  /** The signed-in account, so a Scheduler's own draft can say "you". */
+  viewerId: string;
   canEdit?: boolean;
   /** Admin: approve or return a schedule that has been submitted. */
   canReview?: boolean;
@@ -100,6 +103,10 @@ export default function Schedules({
   const [status, setStatus] = useState<"all" | ScheduleState>(initialStatus ?? "all");
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [sort, setSort] = useState<Sort<ScheduleSortKey>>(null);
+  // Phones fold the filters behind a button (.filters-collapsible), so the
+  // schedules show without scrolling past six fields first.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = [vehicle, driver, requester, status].filter((value) => value !== "all").length + (sort ? 1 : 0);
   const [returning, setReturning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [comment, setComment] = useState("");
@@ -148,6 +155,17 @@ export default function Schedules({
   const cancellable = (schedule: Schedule) => canReview && schedule.status === "ACTIVE";
   const reviewable = (schedule: Schedule) => canReview && scheduleState(schedule) === "SUBMITTED";
 
+  // What the status means for whoever is looking. A draft only holds time
+  // once every leg has times (0033).
+  function meaning(schedule: Schedule, legs: { plannedTimeOut: string; plannedTimeIn: string }[]) {
+    const state = scheduleState(schedule);
+    const mine = canEdit && schedule.createdByAccountId === viewerId;
+    if (state === "DRAFT")
+      return `${mine ? "You're" : "A Scheduler is"} still planning this. ${tripWindow(legs) ? "Its time is reserved." : "No time is reserved until every leg has times."}`;
+    if (state === "RETURNED" && mine) return "An Admin sent this back for changes. Fix it and submit it again.";
+    return scheduleStateMeaning[state];
+  }
+
   // The approved route still lists a request that has since been cancelled.
   const needsUpdate = (schedule: Schedule) =>
     schedule.status === "ACTIVE" &&
@@ -194,7 +212,8 @@ export default function Schedules({
       </span>
       <span className="schedule-card-vehicle">
         <Car size={13} />
-        {revision ? `${vehicleName(revision.plate)} · ${revision.plate}` : "—"}
+        {/* The week view's narrow columns get the plate alone. */}
+        {revision ? (view === "week" ? revision.plate : `${vehicleName(revision.plate)} · ${revision.plate}`) : "—"}
         <User size={13} />
         {revision?.driverName ?? "—"}
       </span>
@@ -273,7 +292,17 @@ export default function Schedules({
           </div>
         </div>
         <OlderRecordsNotice />
-        <div className="admin-trip-filters">
+        <Button
+          variant="outline"
+          className="filters-toggle"
+          aria-expanded={filtersOpen}
+          aria-controls="schedules-filters"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+        >
+          <ListFilter size={16} /> {filtersOpen ? "Hide filters" : "Filters"}
+          {activeFilters > 0 && <span className="count">{activeFilters}</span>}
+        </Button>
+        <div id="schedules-filters" className={"admin-trip-filters filters-collapsible" + (filtersOpen ? " open" : "")}>
           <label className="field">
             <span>Date</span>
             {/* Picking a date leaves All dates for that day. */}
@@ -410,7 +439,7 @@ export default function Schedules({
                   </div>
                 ))}
               </div>
-              <p className="helper">{scheduleStateMeaning[scheduleState(selected)]}</p>
+              <p className="helper">{meaning(selected, selectedRevision.legs)}</p>
               {selectedRevision.status === "RETURNED" && selectedRevision.decisionComment && (
                 <p className="notice">
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}

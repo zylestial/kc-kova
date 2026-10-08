@@ -23,7 +23,6 @@ export default function VehiclePanel({
 }: Props) {
   return (
     <section className="editor-panel">
-      <span className="planner-step">Step 2</span>
       <h2>Vehicle and Driver</h2>
       <div className="fields planner-vehicle">
         <label className="field">

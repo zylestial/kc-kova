@@ -12,7 +12,7 @@ type ViewLeg = {
 };
 
 /**
- * Read-only Trip Record: one row per leg, with every requestor and purpose
+ * Read-only Trip Record: one row per leg, with every requester and purpose
  * served at that stop. A shared stop lists each request on its own line.
  */
 export default function TripRecordView({ legs, stopsById }: { legs: ViewLeg[]; stopsById: Map<string, StopInfo> }) {
@@ -21,7 +21,7 @@ export default function TripRecordView({ legs, stopsById }: { legs: ViewLeg[]; s
       <table>
         <thead>
           <tr>
-            {["LEG", "REQUESTOR", "PURPOSE / ACTIVITY", "ORIGIN", "TIME OUT", "DESTINATION", "TIME IN", "CONTACT"].map((title) => (
+            {["LEG", "REQUESTER", "PURPOSE / ACTIVITY", "ORIGIN", "TIME OUT", "DESTINATION", "TIME IN", "CONTACT"].map((title) => (
               <th key={title}>{title}</th>
             ))}
           </tr>

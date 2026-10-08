@@ -564,6 +564,11 @@ describe("tripChecklist", () => {
     expect(item.detail).toMatch(/Admin assigns one in Settings/);
   });
 
+  it("leaves the vehicle undone while it clashes with another schedule", () => {
+    const item = tripChecklist({ ...base, legs: complete, clash: "V1 is already booked then." })[1];
+    expect(item).toMatchObject({ done: false, detail: "V1 is already booked then." });
+  });
+
   it("agrees with tripProblems: the first three items and in-order times are Save draft, all five are Submit", () => {
     const cases = [
       complete,
