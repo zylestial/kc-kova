@@ -555,7 +555,19 @@ a separate step, not yet done as of this entry.
   today. The Dashboard tile counts every waiting request from today on, so
   a request weeks out showed "none" on all 14 days of the strip. Waiting
   days outside the strip are listed under it ("Also waiting").
-- **Times and Save draft**: a leg with both times blank can be saved; a leg
-  with only one of them can't. Filling Leg 1's Time In copies it to the
-  return leg's Time Out (`reflowFinalLegTimeOut`), which creates exactly
-  that half-filled leg. Still open (see `docs/TASKS.md`).
+- **A Time Out with no Time In counts as no times yet.** The Planner fills
+  in Time Outs by itself (08:00 on Leg 1, the previous leg's Time In via
+  `addLeg`, `setLegTimeIn` and `reflowFinalLegTimeOut`), and the database
+  stores a leg's times both or neither (0033). The half-filled legs that
+  produced blocked Save draft with no visible reason. Now `tripProblems`
+  treats such a leg like an untimed one (a Submit problem, not a Save one),
+  and `toScheduleInput` sends it with no times, so the lone Time Out isn't
+  kept; the leg says so in a grey note. A Time In with no Time Out still
+  blocks Save. An untimed draft reserves no time (0033 reserves only when
+  every leg is timed).
+- **Gotcha: a draft leg with no times broke loading the app.** `hhmm()` in
+  `lib/supabase/mappers.ts` called `.slice` on the null times, so
+  `/api/bootstrap` answered 500 for everyone who could see that schedule.
+  Untimed legs were possible since 0033 but rare until the change above.
+  Fixed; if production ever had such a draft, its users couldn't load KOVA
+  until it was submitted, discarded or given times.
