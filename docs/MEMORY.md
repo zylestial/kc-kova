@@ -569,5 +569,5 @@ a separate step, not yet done as of this entry.
   `lib/supabase/mappers.ts` called `.slice` on the null times, so
   `/api/bootstrap` answered 500 for everyone who could see that schedule.
   Untimed legs were possible since 0033 but rare until the change above.
-  Fixed; if production ever had such a draft, its users couldn't load KOVA
-  until it was submitted, discarded or given times.
+  Fixed. Production had no such draft legs when checked on 2026-10-08, so
+  no one was affected.
