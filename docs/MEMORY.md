@@ -587,8 +587,9 @@ a separate step, not yet done as of this entry.
 - **"REQUESTOR" stays on the printed form** (`finished-trip-print.tsx`),
   which copies the company's official paper form; screens say
   "Requester".
-- **Phone filters fold** with `.filters-toggle` + `.filters-collapsible`
-  (Schedules only so far; see `docs/TASKS.md` for the other screens).
+- **Phone filters fold** through `FilterFold` (`app/filter-fold.tsx`), on
+  every filter row with more than a Sort by picker. A sort-only row stays
+  as it is: one field isn't worth a button.
 - **Gotcha: `next build` while `next dev` runs in the same folder** can
   leave the dev server unable to compile new routes ("Jest worker
   encountered 2 child process exceptions"); restart it. To test a build
