@@ -423,18 +423,18 @@ export default function SchedulePlanner({
         </>
       )}
 
-      {notice && (
-        <div className="notice success" role="status">
-          {notice}
-        </div>
-      )}
-      {error && !confirm && !sendingBack && (
-        <div className="notice" role="alert">
-          {error}
-        </div>
-      )}
-
       <div className="booking-bottom">
+        {/* In the bar, not below the form, which the bar would cover. */}
+        {notice && (
+          <div className="notice success planner-bar-notice" role="status">
+            {notice}
+          </div>
+        )}
+        {error && !confirm && !sendingBack && (
+          <div className="notice error planner-bar-notice" role="alert">
+            {error}
+          </div>
+        )}
         <div>
           <span>{fullDate(date)}</span>
           {step === 2 && (
