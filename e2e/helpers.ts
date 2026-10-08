@@ -95,6 +95,22 @@ export async function publishTrip(admin: Page, owner: Page, min: number, max: nu
   throw new Error("Could not book UAT-001 for a test trip: " + failure);
 }
 
+/**
+ * A random day `min`..`max` days out with no schedule and no request at all,
+ * as `page` (a Scheduler or Admin, who see every one) sees them. Earlier
+ * local runs leave trips and requests behind, so a test that plans "the
+ * first vehicle at 08:00" or counts a day's requests needs an empty day.
+ */
+export async function freeDate(page: Page, min: number, max: number): Promise<string> {
+  const { schedules, requests } = await (await page.request.get("/api/bootstrap")).json();
+  const busy = new Set([...(schedules as Schedule[]), ...(requests as Request[])].map((item) => item.date));
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const date = randomDate(min, max);
+    if (!busy.has(date)) return date;
+  }
+  throw new Error(`No free day ${min}..${max} days out; reset the local database.`);
+}
+
 /** The page's account's view of one request, as /api/bootstrap returns it. */
 export async function requestAs(page: Page, id: string): Promise<Request | undefined> {
   const { requests } = await (await page.request.get("/api/bootstrap")).json();
