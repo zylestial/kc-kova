@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
+import { anyDate, inDateFilter, presetRange, type DateFilter } from "@/lib/date-range";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import DateRangeFilter from "./date-range-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -250,6 +250,62 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     },
   );
 
+  const tripTable = (list: Trip[]) => (
+    <div className="schedule-table admin-trip-table">
+      <table>
+        <SortableHead columns={columns} sort={sort} onSort={setSort} />
+        <tbody>
+          {list.map((trip) => {
+            const [label, pill] = tripStatusPill[tripStatus(trip)];
+            return (
+              <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
+                <td>{dateLabel(trip.schedule.date)}</td>
+                {showDriver && <td>{trip.revision.driverName}</td>}
+                <td className="trip-vehicle">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
+                <td>{routeLabel(trip)}</td>
+                <td>
+                  <span className={"status-pill " + pill}>{label}</span>
+                  {trip.problems.length > 0 && <small>Problem reported</small>}
+                </td>
+                <td>
+                  <Button
+                    variant="ghost"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedId(trip.schedule.id);
+                      setNotice("");
+                    }}
+                  >
+                    Open
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // A Driver's own trips, by when they are; anything outside this month
+  // (an unfinished trip from before, or one booked further ahead) is under
+  // Other trips, so nothing is hidden.
+  const week = presetRange("this-week", today);
+  const month = presetRange("this-month", today);
+  const inRange = (date: string, range: { from: string; to: string }) => date >= range.from && date <= range.to;
+  const sections = [
+    { title: "Today", list: visible.filter((trip) => trip.schedule.date === today) },
+    { title: "This week", list: visible.filter((trip) => trip.schedule.date !== today && inRange(trip.schedule.date, week)) },
+    {
+      title: "This month",
+      list: visible.filter((trip) => !inRange(trip.schedule.date, week) && inRange(trip.schedule.date, month)),
+    },
+    {
+      title: "Other trips",
+      list: visible.filter((trip) => !inRange(trip.schedule.date, week) && !inRange(trip.schedule.date, month)),
+    },
+  ];
+
   return (
     <>
       <div className="page-heading">
@@ -271,10 +327,15 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           <div>
             <CalendarDays size={20} />
             <h2>Your trips</h2>
-            <span className="count">{visible.length}</span>
+            <span className="count">{showDriver ? visible.length : trips.length}</span>
           </div>
         </div>
-        {trips.length > 0 && (
+        {!showDriver && trips.length > 0 && (
+          <div className="admin-trip-filters sort-only">
+            <SortSelect columns={columns} sort={sort} onSort={setSort} />
+          </div>
+        )}
+        {showDriver && trips.length > 0 && (
           <div className="admin-trip-filters">
             <DateRangeFilter value={dates} onChange={setDates} />
             {showDriver && (
@@ -330,48 +391,37 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <SortSelect columns={columns} sort={sort} onSort={setSort} />
           </div>
         )}
-        {visible.length ? (
-          <div className="schedule-table admin-trip-table">
-            <table>
-              <SortableHead columns={columns} sort={sort} onSort={setSort} />
-              <tbody>
-                {visible.map((trip) => {
-                  const [label, pill] = tripStatusPill[tripStatus(trip)];
-                  return (
-                    <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
-                      <td>{dateLabel(trip.schedule.date)}</td>
-                      {showDriver && <td>{trip.revision.driverName}</td>}
-                      <td className="trip-vehicle">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
-                      <td>{routeLabel(trip)}</td>
-                      <td>
-                        <span className={"status-pill " + pill}>{label}</span>
-                        {trip.problems.length > 0 && <small>Problem reported</small>}
-                      </td>
-                      <td>
-                        <Button
-                          variant="ghost"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedId(trip.schedule.id);
-                            setNotice("");
-                          }}
-                        >
-                          Open
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {showDriver ? (
+          visible.length ? (
+            tripTable(visible)
+          ) : (
+            <div className="empty">
+              <div className="empty-icon">
+                <CalendarDays size={30} />
+              </div>
+              <h3>{trips.length ? "No matching trips" : "No trips yet"}</h3>
+              <p>{trips.length ? "Try another filter." : "Approved schedules appear here."}</p>
+            </div>
+          )
+        ) : trips.length ? (
+          sections.map(
+            ({ title, list }) =>
+              (list.length > 0 || title === "Today") && (
+                <div className="trip-section" key={title}>
+                  <h3>
+                    {title} <span className="count">{list.length}</span>
+                  </h3>
+                  {list.length ? tripTable(list) : <p className="helper">No trips today.</p>}
+                </div>
+              ),
+          )
         ) : (
           <div className="empty">
             <div className="empty-icon">
               <CalendarDays size={30} />
             </div>
-            <h3>{trips.length ? "No matching trips" : "No trips assigned"}</h3>
-            <p>{trips.length ? "Try another filter." : "Approved schedules with you as Driver will appear here."}</p>
+            <h3>No trips assigned</h3>
+            <p>Approved schedules with you as Driver will appear here.</p>
           </div>
         )}
       </section>

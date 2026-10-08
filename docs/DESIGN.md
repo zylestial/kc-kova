@@ -180,7 +180,7 @@ router/URL segments are used for in-app navigation.
 | `my-requests` | `app/my-requests.tsx` | Requester, Admin |
 | `create-schedule` | `app/schedule-planner.tsx` | Scheduler |
 | `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
-| `my-schedule` | `app/driver-schedules.tsx` (Start trip / End trip, each tap's distance, margin and coordinates; then Complete trip) | Driver |
+| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips grouped Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; Start trip / End trip, each tap's distance, margin and coordinates; then Complete trip) | Driver |
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip; away from base, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
 | `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin) | Driver, Admin |
 | `settings` | `app/settings.tsx` | Admin (accounts, vehicles, booking options) |
