@@ -399,6 +399,8 @@ export function tripChecklist(input: {
   legs: LegDraft[];
   stops: StopInfo[];
   otherStopDestinationIds?: Set<string>;
+  /** Why the vehicle or its Driver is already booked for this trip's time, if they are. */
+  clash?: string;
 }): ChecklistItem[] {
   const { save, submit } = tripProblems(input);
   const about = (problems: string[], pattern: RegExp) => problems.filter((problem) => pattern.test(problem));
@@ -411,8 +413,11 @@ export function tripChecklist(input: {
     { label: "Serve at least one request", done: input.requestIds.length > 0 },
     {
       label: "Choose a vehicle that has a Driver",
-      done: !!input.plate && input.hasDriver,
-      detail: input.plate && !input.hasDriver ? "This vehicle has no active Driver. An Admin assigns one in Settings." : undefined,
+      done: !!input.plate && input.hasDriver && !input.clash,
+      detail:
+        input.plate && !input.hasDriver
+          ? "This vehicle has no active Driver. An Admin assigns one in Settings."
+          : input.clash || undefined,
     },
     { label: "Choose a destination for every leg", done: input.legs.length > 0 && !destinations.length },
     { label: "Enter Time Out and Time In for every leg", done: input.legs.length > 0 && !times.length },
