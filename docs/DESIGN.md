@@ -98,6 +98,10 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   no odometer or distance.
 - Fixed bottom bars (`.booking-bottom`) start after the sidebar on wide
   screens.
+- **Filter rows fold on phones.** Below 700px a filter row (`FilterFold`,
+  `app/filter-fold.tsx`) sits behind a "Filters" button showing how many
+  filters are set, so the records come first. Wider screens always show
+  the row. A row holding only Sort by doesn't fold.
 
 Each role has its own accent, set on `<html data-role>` by `AccountProvider`
 (the viewed role during Admin "View as"). It colors the sidebar, the
