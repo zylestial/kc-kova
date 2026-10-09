@@ -21,6 +21,7 @@ test("a request becomes an approved schedule", async ({ browser }) => {
   await scheduler.getByRole("option").first().click();
   await scheduler.getByLabel("Leg 1 planned Time Out").fill("08:00");
   await scheduler.getByLabel("Leg 1 planned Time In").fill("09:00");
+  await scheduler.getByRole("button", { name: "Add return leg to ANONANG" }).click();
   await scheduler.getByLabel("Leg 2 planned Time In").fill("10:00");
   await scheduler.getByRole("button", { name: /submit for approval/i }).first().click();
   await scheduler.getByRole("dialog").getByRole("button", { name: "Submit for approval" }).click();
