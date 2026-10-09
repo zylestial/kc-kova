@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(39);
+select plan(40);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -56,7 +56,7 @@ insert into ids select 'past2', id from create_request(pg_temp.manila_today() - 
 reset role;
 insert into ids select k || '_rd', (select id from request_destinations where request_id = v and active) from ids;
 
-create function pg_temp.publish(p_plate text, p_date date, p_request text) returns uuid language plpgsql as $$
+create function pg_temp.publish(p_plate text, p_date date, p_request text, p_final_in text default '10:30') returns uuid language plpgsql as $$
 declare
   v_revision schedule_revisions;
 begin
@@ -65,7 +65,7 @@ begin
     jsonb_build_array(
       jsonb_build_object('destinationId', 'd1', 'plannedTimeOut', '08:00', 'plannedTimeIn', '09:00',
         'stops', jsonb_build_array(pg_temp.id(p_request || '_rd'))),
-      jsonb_build_object('isFinal', true, 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:30')));
+      jsonb_build_object('isFinal', true, 'plannedTimeOut', '09:30', 'plannedTimeIn', p_final_in)));
   perform submit_schedule(v_revision.schedule_id, pg_temp.rv(v_revision.schedule_id));
   perform pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
   perform approve_schedule(v_revision.schedule_id, pg_temp.rv(v_revision.schedule_id));
@@ -95,7 +95,20 @@ select throws_ok($$ select submit_completion(pg_temp.id('sp'), null, 100) $$, '2
 select throws_ok($$ select report_problem(pg_temp.id('sp'), '   ') $$, '22023', null, 'A blank problem note is refused');
 select throws_ok($$ select submit_completion(gen_random_uuid(), 100, 150) $$, 'P0002', null, 'Unknown schedule is not found');
 select pg_temp.act_as('00000000-0000-0000-0000-000000000010');
-select throws_ok($$ select submit_completion(pg_temp.id('sf'), 100, 150) $$, '22023', null, 'A trip that hasn''t ended can''t be completed');
+select throws_ok($$ select submit_completion(pg_temp.id('sf'), 100, 150) $$, '22023', null, 'A trip without End trip can''t be completed');
+
+-- Back at ANONANG early (0047): End trip is enough; the last planned Time In
+-- (23:59 today) needn't have passed.
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+insert into ids select 'today', id from create_request(pg_temp.manila_today(), 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+reset role;
+insert into ids select 'today_rd', id from request_destinations where request_id = pg_temp.id('today') and active;
+insert into ids values ('st', pg_temp.publish('V1', pg_temp.manila_today(), 'today', '23:59'));
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
+select record_trip_attendance(pg_temp.id('st'), 'START');
+select record_trip_attendance(pg_temp.id('st'), 'END');
+select lives_ok($$ select submit_completion(pg_temp.id('st'), 500, 520) $$, 'A trip ended at ANONANG can be completed before its planned end');
+select pg_temp.act_as('00000000-0000-0000-0000-000000000010');
 
 -- Problem reports -----------------------------------------------------------
 select lives_ok($$ select report_problem(pg_temp.id('sf'), '  Road closed  ') $$, 'The Driver reports a problem before the trip ends');
@@ -158,7 +171,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok(format($$ select save_schedule_draft(%L, null, null, null, null, null) $$, pg_temp.id('sp')), '22023', null,
   'A completed trip can''t be revised');
 reset role;
-select is((select count(*)::int from audit_events where action in ('completion.submit', 'problem.report')), 5,
+select is((select count(*)::int from audit_events where action in ('completion.submit', 'problem.report')), 6,
   'Completion and problem reports, Driver and Admin override alike, are in audit history');
 select is((select count(*)::int from problem_reports where status = 'OPEN'), 3, 'All three reports exist, still OPEN');
 
