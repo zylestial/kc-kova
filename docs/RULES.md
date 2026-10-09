@@ -109,7 +109,11 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   final TIME IN = End trip. Planned times stay on the Trip Record only.
 - Same position rules as Start/End, measured from the destination's saved
   location when it has one (Request choices); without one, or for a typed-in
-  "other" destination, the tap is kept as "location not checked". Flagged,
+  "other" destination, the tap is kept and flagged "No location set for …"
+  (counted as "not checked" on Attendance, with its own filter). The Admin
+  screens check each tap against the destination's location as it is now
+  (`placeResolver`; a typed-in leg matches its choice by name), so setting a
+  location later checks earlier taps too. Flagged,
   never refused. Whether the Driver was on time is not judged.
 - My Schedule shows one button at a time: the next tap in route order. A
   Driver who forgot one taps the next as usual; the missed one shows as
