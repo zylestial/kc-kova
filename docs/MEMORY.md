@@ -647,3 +647,13 @@ a separate step, not yet done as of this entry.
   Trip Record table. Positions are still recorded for the Admin. A missed
   tap is passed by tapping the next one (shown "skipped"), never by a
   choice of buttons. Keep this screen low on text and clicks.
+- **One trip per vehicle per day** (owner's call, same day, 0048): a
+  vehicle on any active schedule for a day (even a draft with no times) is
+  refused for any other schedule that day; cancel/discard frees it. A
+  trigger on `schedule_revisions` with a per-vehicle-day advisory lock, so
+  two Schedulers saving at once can't both win. Test fixtures that booked
+  one van twice a day (v2_cancellation, v2_send_back, concurrency.sh) now use
+  a van per schedule.
+- **Gotcha: `supabase/tests/concurrency.sh` leaves its fixtures** (Race Vans
+  C1–C6-<run>, `*-<run>` accounts, requests, schedules) in the local
+  database; they then show up in the Planner. Only a reset clears them.
