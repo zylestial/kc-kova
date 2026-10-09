@@ -28,6 +28,8 @@ export type BookingOption = {
   status: "Active" | "Inactive";
   /** Destinations only: a non-request stop (e.g. fuel, an errand) the Planner may add on its own. */
   isOtherStop?: boolean;
+  /** Destinations only: where it is, to check a Driver's Arrived/Leaving taps there (0044). */
+  location?: { lat: number; lng: number } | null;
 };
 export type RequestProgress =
   | "NOT_YET_SCHEDULED"

@@ -19,6 +19,15 @@ describe("toBookingOptions", () => {
     });
   });
 
+  it("adds a destination's position when it has one", () => {
+    const options = toBookingOptions([
+      { group: "destinations", id: "d1", name: "Warehouse", status: "Active", is_other_stop: false, lat: 16.1, lng: 120.4 },
+      { group: "destinations", id: "d2", name: "Office", status: "Active", is_other_stop: false, lat: null, lng: null },
+    ]);
+    expect(options.destinations[0].location).toEqual({ lat: 16.1, lng: 120.4 });
+    expect(options.destinations[1].location).toBeUndefined();
+  });
+
   it("returns empty groups for no rows", () => {
     expect(toBookingOptions([])).toEqual({ projects: [], destinations: [], purposes: [] });
   });
