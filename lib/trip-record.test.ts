@@ -6,6 +6,7 @@ import {
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
+  changeLegDestination,
   commitmentsOn,
   conflictsWith,
   finalLeg,
@@ -228,6 +229,25 @@ describe("pickLegDestination", () => {
   it("sets a fixed (fuel/errand) destination directly, with no stops", () => {
     const legs = pickLegDestination([leg({}), finalLeg()], 0, "shell", stops, new Set(["shell"]));
     expect(legs[0]).toMatchObject({ destinationId: "shell", stops: [] });
+  });
+});
+
+describe("changeLegDestination", () => {
+  it("moves a request-linked leg to another destination, putting its stops back in the pool", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), finalLeg()];
+    const next = changeLegDestination(legs, 0, "d2", stops, new Set());
+    expect(next[0]).toMatchObject({ destinationId: "d2", stops: ["maria-po"] });
+    expect(poolDestinationChoices(stops, next).map((choice) => choice.id)).toEqual(["d1"]);
+  });
+
+  it("can change a leg to a fuel/errand stop", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), finalLeg()];
+    expect(changeLegDestination(legs, 0, "shell", stops, new Set(["shell"]))[0]).toMatchObject({ destinationId: "shell", stops: [] });
+  });
+
+  it("changes nothing when the same destination is picked", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] }), finalLeg()];
+    expect(changeLegDestination(legs, 0, "d1", stops, new Set())).toBe(legs);
   });
 });
 

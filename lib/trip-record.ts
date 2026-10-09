@@ -258,6 +258,28 @@ export function pickLegDestination(
   return legs.map((leg, position) => (position === index ? { ...leg, destinationId, destinationOther, stops: stopIds } : leg));
 }
 
+/**
+ * Changes any non-final leg's destination, even one already serving
+ * requests: its current stops go back to the pool, then the new destination
+ * is picked as for a blank leg (pickLegDestination). Picking the same
+ * destination changes nothing.
+ */
+export function changeLegDestination(
+  legs: LegDraft[],
+  index: number,
+  key: string,
+  poolStops: StopInfo[],
+  fixedDestinationIds: Set<string>,
+): LegDraft[] {
+  if (legGroupKey(legs[index]) === key) return legs;
+  const cleared = legs.map((leg, position) =>
+    position === index ? { ...leg, destinationId: "", destinationOther: "", stops: [] } : leg,
+  );
+  const next = pickLegDestination(cleared, index, key, poolStops, fixedDestinationIds);
+  // A destination with nothing left to place keeps the leg as it was.
+  return next === cleared ? legs : next;
+}
+
 /** True for a leg the Scheduler added by hand rather than one the pool built, e.g. a fuel stop. */
 export const isOtherStopLeg = (leg: LegDraft, otherStopDestinationIds: Set<string>) =>
   !leg.isFinal && !!leg.destinationId && otherStopDestinationIds.has(leg.destinationId);
