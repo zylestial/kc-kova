@@ -46,7 +46,7 @@ export function legTimes(legs: ScheduleLeg[], attendance: TripAttendance | undef
  * The stop taps a Driver may make now, as stopKey()s: the next one after the
  * latest tap in route order, and the one after it, so a forgotten Arrived
  * can be passed by tapping Leaving (and a forgotten Leaving by the next
- * Arrived). Nothing before Start trip or after End trip.
+ * Arrived), in that order. Nothing before Start trip or after End trip.
  */
 export function openStopTaps(times: LegTimes[]): Set<string> {
   const sequence = times.flatMap((item) => [item.out, item.in]);
