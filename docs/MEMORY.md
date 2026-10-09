@@ -595,3 +595,42 @@ a separate step, not yet done as of this entry.
   encountered 2 child process exceptions"); restart it. To test a build
   without touching someone's dev server, `next start -p <other port>` and
   point Playwright at it with a config outside the repo.
+
+## Stop times (2026-10-09)
+
+- **What the owner asked for:** check that the Driver really went to each
+  stop, and use those taps as the times written on the printed form.
+  Decided with the owner: the form prints actual times only (planned times
+  stay on the Trip Record); a time nobody recorded prints blank, never the
+  planned one; the Driver is never blocked, but an Admin can't mark Done
+  until every time is there (filled in from a logbook or a call if needed);
+  on-time vs late is **not** judged or flagged; Admin-only, Requesters
+  aren't told.
+- **Taps, not tracking.** Same one-shot phone location as Start/End
+  (2026-10-07), no background GPS. A phone's position can be faked; this
+  shows where the phone said it was, not proof.
+- **Form time mapping** (`lib/stop-times.ts`, `trip_times_missing`): leg 1
+  OUT = Start trip, leg N IN = Arrived at leg N, leg N+1 OUT = Leaving leg
+  N, final IN = End trip. The final leg takes no stop taps. Change the TS
+  and SQL together.
+- **The Driver can pass a forgotten tap:** My Schedule offers the next tap
+  in route order (solid) and the one after it (outlined).
+- **An Admin's entry never replaces the tap**: it's a separate row that
+  prints instead, so the tap stays as evidence; clearing it brings the tap
+  back.
+- **Gotcha: never add a nullable column to `booking_options`.** The first
+  try put `lat`/`lng` there, and every new request failed with "Project /
+  Site is not an active option": `resolve_request_project` checks `if
+  v_option is not null`, and in Postgres a row is `IS NOT NULL` only when
+  **every** column is non-null. Locations live in `destination_locations`
+  instead. The same trap applies to any table fetched into a row variable
+  and tested with `is not null`.
+- **Older trips under review** (before the bootstrap window) now load their
+  Start/End taps, stop taps and Admin entries too, so they show and print
+  their times. Start/End taps for those trips weren't loaded before.
+- **Testing locally:** `node scripts/seed-stop-times-demo.mjs` (once a day)
+  gives driver3 a full trip yesterday, one with a missing Leaving two days
+  ago, and an unstarted one today. Running pgTAP files by hand against a
+  seeded local database: the `v2_completion` and `v2_finished_trips` audit
+  counts fail there because they count every matching audit event in the
+  database; they pass on CI's fresh database.
