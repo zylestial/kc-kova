@@ -7,16 +7,21 @@ test("a driver records a finished trip and an admin marks it done", async ({ bro
   const admin = await pageFor(browser, "admin1");
   const { request, schedule } = await publishTrip(admin, admin, -80, -3);
 
-  // driver1 taps Start and End at ANONANG, then records the odometers.
+  // driver1 taps Start at ANONANG, Arrived and Leaving at the stop, End back
+  // at ANONANG (the form's actual times), then records the odometers.
   const driver = await pageFor(browser, "driver1");
   await driver.context().grantPermissions(["geolocation"]);
   await driver.context().setGeolocation({ latitude: 16.103769, longitude: 120.436222, accuracy: 10 });
   await driver.goto(`/my-schedule?open=${schedule.id}`);
   const record = driver.getByRole("dialog");
   await record.getByRole("button", { name: "Start trip" }).click();
-  await expect(record.getByText(/^Started .+, at ANONANG\./)).toBeVisible();
+  await expect(record.getByText("at ANONANG")).toHaveCount(1);
+  await record.getByRole("button", { name: "Arrived" }).click();
+  await expect(record.getByRole("button", { name: "Arrived" })).toBeHidden();
+  await record.getByRole("button", { name: "Leaving" }).click();
+  await expect(record.getByRole("button", { name: "Leaving" })).toBeHidden();
   await record.getByRole("button", { name: "End trip" }).click();
-  await expect(record.getByText(/Ended .+, at ANONANG\./)).toBeVisible();
+  await expect(record.getByText("at ANONANG")).toHaveCount(2);
   await record.getByRole("button", { name: "Complete trip" }).click();
   await record.getByLabel(/Starting odometer/).fill("1000");
   await record.getByLabel(/Ending odometer/).fill("1042");
