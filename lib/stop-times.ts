@@ -1,4 +1,4 @@
-import type { AttendanceTap, ScheduleLeg, StopTap, StopTapLocation, TripAttendance } from "@/lib/kova-api";
+import type { AttendanceTap, ScheduleLeg, StopTap, StopTapLocation, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
 import { BASE_RADIUS_M, MAX_ACCURACY_ALLOWANCE_M, distanceLabel } from "@/lib/attendance";
 
 /**
@@ -13,10 +13,15 @@ export type TimeSource =
   | { kind: "START" | "END" }
   | { kind: StopTap["kind"]; legId: string; place: string };
 
-/** One form time: where it comes from, and the tap once it's made. */
+/**
+ * One form time: which cell it is (an Admin's entry is stored against it),
+ * where it comes from, the tap once it's made, and an Admin's entry if any.
+ */
 export type FormTime = {
+  cell: { legId: string; field: TripTimeCorrection["field"] };
   source: TimeSource;
   tap: (Omit<AttendanceTap, "location"> & { location: StopTapLocation | null }) | null;
+  correction: TripTimeCorrection | null;
 };
 
 export type LegTimes = { leg: ScheduleLeg; out: FormTime; in: FormTime };
@@ -25,22 +30,55 @@ export type LegTimes = { leg: ScheduleLeg; out: FormTime; in: FormTime };
 export const stopKey = (source: { kind: string; legId?: string }) => `${source.kind}:${source.legId ?? ""}`;
 
 /**
- * The TIME OUT and TIME IN of each leg, from Start/End trip and the stop
- * taps. A time is null until its tap is made.
+ * The TIME OUT and TIME IN of each leg, from Start/End trip, the stop taps
+ * and any Admin entries (which print in place of the tap).
  */
-export function legTimes(legs: ScheduleLeg[], attendance: TripAttendance | undefined, taps: StopTap[]): LegTimes[] {
+export function legTimes(
+  legs: ScheduleLeg[],
+  attendance: TripAttendance | undefined,
+  taps: StopTap[],
+  corrections: TripTimeCorrection[] = [],
+): LegTimes[] {
   const tapFor = (kind: StopTap["kind"], legId: string) => taps.find((tap) => tap.kind === kind && tap.legId === legId) ?? null;
+  const correctionFor = (legId: string, field: TripTimeCorrection["field"]) =>
+    corrections.find((item) => item.legId === legId && item.field === field) ?? null;
   return legs.map((leg, index) => {
     const previous = legs[index - 1];
+    const outCell = { legId: leg.id, field: "OUT" as const };
+    const inCell = { legId: leg.id, field: "IN" as const };
     const out: FormTime = previous
-      ? { source: { kind: "LEAVE", legId: previous.id, place: previous.destinationName }, tap: tapFor("LEAVE", previous.id) }
-      : { source: { kind: "START" }, tap: attendance?.start ?? null };
+      ? {
+          cell: outCell,
+          source: { kind: "LEAVE", legId: previous.id, place: previous.destinationName },
+          tap: tapFor("LEAVE", previous.id),
+          correction: correctionFor(leg.id, "OUT"),
+        }
+      : { cell: outCell, source: { kind: "START" }, tap: attendance?.start ?? null, correction: correctionFor(leg.id, "OUT") };
     const timeIn: FormTime = leg.isFinal
-      ? { source: { kind: "END" }, tap: attendance?.end ?? null }
-      : { source: { kind: "ARRIVE", legId: leg.id, place: leg.destinationName }, tap: tapFor("ARRIVE", leg.id) };
+      ? { cell: inCell, source: { kind: "END" }, tap: attendance?.end ?? null, correction: correctionFor(leg.id, "IN") }
+      : {
+          cell: inCell,
+          source: { kind: "ARRIVE", legId: leg.id, place: leg.destinationName },
+          tap: tapFor("ARRIVE", leg.id),
+          correction: correctionFor(leg.id, "IN"),
+        };
     return { leg, out, in: timeIn };
   });
 }
+
+/** A tap's Manila time as "HH:MM", 24-hour, as the form is written. */
+export const manilaHhmm = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** What prints for a form time: the Admin's entry, else the tap, else null (missing). */
+export function formTimeValue(time: FormTime): string | null {
+  if (time.correction) return time.correction.time;
+  return time.tap ? manilaHhmm(time.tap.at) : null;
+}
+
+/** How many TIME OUT / TIME IN cells are still empty (same rule as trip_times_missing, 0046). */
+export const missingTimes = (times: LegTimes[]) =>
+  times.reduce((count, item) => count + Number(!formTimeValue(item.out)) + Number(!formTimeValue(item.in)), 0);
 
 /**
  * The stop taps a Driver may make now, as stopKey()s: the next one after the

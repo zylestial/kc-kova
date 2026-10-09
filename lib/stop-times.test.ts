@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ScheduleLeg, StopTap, TripAttendance } from "@/lib/kova-api";
-import { atStop, legTimes, openStopTaps, stopPlaceLabel } from "@/lib/stop-times";
+import type { ScheduleLeg, StopTap, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
+import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, openStopTaps, stopPlaceLabel } from "@/lib/stop-times";
 
 const leg = (id: string, legNo: number, destinationName: string, isFinal = false): ScheduleLeg => ({
   id,
@@ -80,5 +80,39 @@ describe("atStop and stopPlaceLabel", () => {
   it("names the place", () => {
     expect(stopPlaceLabel({ lat: 0, lng: 0, accuracyM: 5, distanceM: 40, address: null }, "City Hall")).toBe("at City Hall");
     expect(stopPlaceLabel({ lat: 0, lng: 0, accuracyM: 20, distanceM: 1200, address: null }, "City Hall")).toBe("1.2 km from City Hall (±20 m)");
+  });
+});
+
+describe("formTimeValue and missingTimes", () => {
+  const correction = (legId: string, field: "OUT" | "IN", time: string): TripTimeCorrection => ({
+    id: `${legId}-${field}`,
+    scheduleId: "s1",
+    revisionId: "r1",
+    legId,
+    field,
+    time,
+    correctedByAccountId: "a1",
+    correctedAt: "2026-10-09T03:00:00Z",
+  });
+
+  it("writes a tap as Manila 24-hour time", () => {
+    expect(manilaHhmm("2026-10-09T05:07:00Z")).toBe("13:07");
+    expect(manilaHhmm("2026-10-08T16:30:00Z")).toBe("00:30");
+  });
+
+  it("counts every empty cell, and an Admin's entry fills one", () => {
+    const startedAt0802 = { ...started, start: { ...tapAt, at: "2026-10-09T00:02:00Z" } };
+    expect(missingTimes(legTimes(legs, startedAt0802, []))).toBe(5);
+    const times = legTimes(legs, startedAt0802, [], [correction("l2", "OUT", "09:40")]);
+    expect(missingTimes(times)).toBe(4);
+    expect(formTimeValue(times[1].out)).toBe("09:40");
+    expect(formTimeValue(times[0].out)).toBe("08:02");
+  });
+
+  it("prints an Admin's entry in place of the tap, and stores it against the leg's own cell", () => {
+    const times = legTimes(legs, started, [stop("LEAVE", "l1")], [correction("l2", "OUT", "09:15")]);
+    expect(times[1].out.cell).toEqual({ legId: "l2", field: "OUT" });
+    expect(times[1].out.tap?.at).toBe(tapAt.at);
+    expect(formTimeValue(times[1].out)).toBe("09:15");
   });
 });
