@@ -71,10 +71,15 @@ $$;
 insert into ids values ('sp', pg_temp.publish('V1', pg_temp.manila_today() - 1, 'past'));
 insert into ids values ('sf', pg_temp.publish('V2', pg_temp.manila_today() + 10, 'future'));
 
--- Setup: Dan completes the past trip and files two problems; Dee's future
--- trip (sf) is the follow-up candidate.
+-- Setup: Dan completes the past trip, tapping every stop time (Done needs
+-- them all, 0046), and files two problems; Dee's future trip (sf) is the
+-- follow-up candidate.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select record_trip_attendance(pg_temp.id('sp'), 'START');
+select record_stop_tap(pg_temp.id('sp'), l.id, kind)
+from schedule_legs l join schedules s on s.published_revision_id = l.revision_id,
+  unnest(array['ARRIVE', 'LEAVE']) as kind
+where s.id = pg_temp.id('sp') and l.leg_no = 1;
 select record_trip_attendance(pg_temp.id('sp'), 'END');
 select submit_completion(pg_temp.id('sp'), 1000, 1042);
 insert into ids select 'p1', id from report_problem(pg_temp.id('sp'), 'Flat tyre');
