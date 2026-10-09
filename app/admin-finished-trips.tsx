@@ -25,6 +25,7 @@ import {
   handleProblem,
   markCompletionDone,
   markCompletionsDone,
+  setTripTime,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
@@ -33,6 +34,8 @@ import FinishedTripPrint from "./finished-trip-print";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
+import StopTimesTable from "./stop-times-table";
+import { formTimeValue, legTimes, missingTimes, type FormTime } from "@/lib/stop-times";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -43,7 +46,7 @@ import { manilaToday } from "@/lib/timezone";
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-type Mode = "view" | "correct" | "done" | "handle";
+type Mode = "view" | "correct" | "done" | "handle" | "time";
 
 const notSubmitted = "Not submitted yet";
 
@@ -80,7 +83,7 @@ export default function AdminFinishedTrips({
   /** One of `finishedProblemFilters`, e.g. from a Dashboard tile. */
   initialProblems?: string;
 } = {}) {
-  const { schedules, completions, problems: problemReports, requests } = useKovaData();
+  const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, timeCorrections, accounts } = useKovaData();
   const trips = useMemo(() => buildAdminTrips(schedules, completions, problemReports), [schedules, completions, problemReports]);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
@@ -100,7 +103,20 @@ export default function AdminFinishedTrips({
   const [notice, setNotice] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkError, setBulkError] = useState("");
+  /** The Time Out / Time In being filled in or changed, and its "HH:MM". */
+  const [editTime, setEditTime] = useState<FormTime | null>(null);
+  const [timeValue, setTimeValue] = useState("");
   useAutoClear(notice, setNotice);
+
+  const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone";
+  /** Each leg's printed Time Out / Time In for a trip, from taps and Admin entries. */
+  const timesFor = (trip: { schedule: { id: string }; revision: { legs: Parameters<typeof legTimes>[0] } }) =>
+    legTimes(
+      trip.revision.legs,
+      attendance.find((item) => item.scheduleId === trip.schedule.id),
+      stopTaps.filter((item) => item.scheduleId === trip.schedule.id),
+      timeCorrections.filter((item) => item.scheduleId === trip.schedule.id),
+    );
 
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
   const vehicles = [...new Set(trips.map((trip) => trip.revision.plate))].sort();
@@ -126,10 +142,13 @@ export default function AdminFinishedTrips({
     },
   );
 
-  // "Mark all clean trips done" only ever touches what the filters show.
-  const clean = cleanTrips(visible);
+  // "Mark all clean trips done" only ever touches what the filters show, and
+  // skips trips still missing a Time Out or Time In (Done would refuse them).
+  const clean = cleanTrips(visible).filter((trip) => missingTimes(timesFor(trip)) === 0);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
+  const selectedTimes = selected ? timesFor(selected) : [];
+  const selectedMissing = missingTimes(selectedTimes);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const isDone = selected?.completion?.status === "DONE";
   // Any other published, active schedule can follow up on a problem.
@@ -149,7 +168,16 @@ export default function AdminFinishedTrips({
     setProblemId(null);
     setHandlingNote("");
     setFollowUp("none");
+    setEditTime(null);
+    setTimeValue("");
     setError("");
+  }
+
+  function openTimeEditor(time: FormTime) {
+    setEditTime(time);
+    setTimeValue(formTimeValue(time) ?? "");
+    setError("");
+    setMode("time");
   }
 
   async function markCleanDone() {
@@ -196,6 +224,9 @@ export default function AdminFinishedTrips({
     const label = dateLabel(selected.schedule.date);
     if (mode === "correct") return run(() => correctCompletion(id, startNumber, endNumber), `Odometers corrected for ${label}.`);
     if (mode === "done") return run(() => markCompletionDone(id), `Trip on ${label} marked as done.`);
+    if (mode === "time" && editTime) {
+      return run(() => setTripTime(id, { ...editTime.cell, time: timeValue }), `${timeLabel(editTime)} saved for ${label}.`);
+    }
     if (mode === "handle" && problemId) {
       return run(
         () => handleProblem(problemId, handlingNote.trim(), followUp === "none" ? undefined : followUp),
@@ -205,7 +236,18 @@ export default function AdminFinishedTrips({
   }
 
   const disabled =
-    busy || (mode === "correct" && !!odometerError) || (mode === "handle" && !handlingNote.trim());
+    busy ||
+    (mode === "correct" && !!odometerError) ||
+    (mode === "handle" && !handlingNote.trim()) ||
+    (mode === "time" && !/^\d{2}:\d{2}$/.test(timeValue));
+
+  /** e.g. "Leg 2 Time Out (leaving Site Alpha)". */
+  function timeLabel(time: FormTime) {
+    const legNo = selectedTimes.find((item) => item.leg.id === time.cell.legId)?.leg.legNo;
+    const what = { START: "Start trip", END: "End trip", ARRIVE: "arriving", LEAVE: "leaving" }[time.source.kind];
+    const where = "place" in time.source ? ` ${time.source.place}` : "";
+    return `Leg ${legNo} ${time.cell.field === "OUT" ? "Time Out" : "Time In"} (${what}${where})`;
+  }
 
   return (
     <>
@@ -233,7 +275,7 @@ export default function AdminFinishedTrips({
           <Button
             className="primary"
             disabled={!clean.length}
-            title="Submitted trips with no open problem, among those shown below"
+            title="Submitted trips with no open problem and no missing time, among those shown below"
             onClick={() => {
               setBulkError("");
               setBulkOpen(true);
@@ -323,6 +365,11 @@ export default function AdminFinishedTrips({
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
                       {hasOpenProblem(trip) && <small>Open problem</small>}
+                      {trip.completion?.status === "SUBMITTED" && missingTimes(timesFor(trip)) > 0 && (
+                        <small>
+                          {missingTimes(timesFor(trip))} {missingTimes(timesFor(trip)) === 1 ? "time" : "times"} missing
+                        </small>
+                      )}
                     </td>
                     <td>
                       <Button
@@ -359,8 +406,8 @@ export default function AdminFinishedTrips({
               Mark {clean.length} {clean.length === 1 ? "trip" : "trips"} as done?
             </DialogTitle>
             <DialogDescription>
-              These trips are submitted and have no open problem. Marking them done locks them for everyone, and odometers
-              can&apos;t be corrected afterwards. Check the distances first.
+              These trips are submitted, have no open problem and have every Time Out and Time In. Marking them done locks
+              them for everyone, and odometers and times can&apos;t be corrected afterwards. Check the distances first.
             </DialogDescription>
           </DialogHeader>
           <div className="schedule-table">
@@ -410,7 +457,9 @@ export default function AdminFinishedTrips({
                   ? "Mark as done"
                   : mode === "handle"
                     ? "Mark problem as handled"
-                    : "Finished trip"}
+                    : mode === "time"
+                      ? "Time Out / Time In"
+                      : "Finished trip"}
             </DialogTitle>
             <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} — ${selected.revision.driverName}`}
@@ -426,6 +475,19 @@ export default function AdminFinishedTrips({
                     {completionLabel[selected.completion.status]}
                   </p>
                   <p className="helper">{completionMeaning[selected.completion.status]}</p>
+                  <h3 className="stop-times-heading">Actual times</h3>
+                  <StopTimesTable
+                    times={selectedTimes}
+                    driverId={selected.revision.driverId}
+                    nameOf={nameOf}
+                    onEdit={isDone ? undefined : openTimeEditor}
+                  />
+                  {!isDone && selectedMissing > 0 && (
+                    <p className="helper" role="status">
+                      {selectedMissing} {selectedMissing === 1 ? "time is" : "times are"} missing. Fill them in from the
+                      Driver&apos;s logbook or a call before marking this trip done; they print on the form.
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="helper">
@@ -467,7 +529,12 @@ export default function AdminFinishedTrips({
                   >
                     Correct odometers
                   </Button>
-                  <Button className="primary" disabled={isDone} onClick={() => setMode("done")}>
+                  <Button
+                    className="primary"
+                    disabled={isDone || selectedMissing > 0}
+                    title={selectedMissing > 0 ? "Fill in every Time Out and Time In first" : undefined}
+                    onClick={() => setMode("done")}
+                  >
                     Mark as done
                   </Button>
                 </DialogFooter>
@@ -489,8 +556,36 @@ export default function AdminFinishedTrips({
           )}
           {selected && mode === "done" && (
             <p className="helper">
-              Marking this trip as done locks it for everyone. Odometers can&apos;t be corrected afterwards.
+              Marking this trip as done locks it for everyone. Odometers and times can&apos;t be corrected afterwards.
             </p>
+          )}
+          {selected && mode === "time" && editTime && (
+            <>
+              <p className="helper">
+                {timeLabel(editTime)}.{" "}
+                {editTime.tap
+                  ? "The Driver's tap stays on record; your time prints on the form instead."
+                  : "The Driver didn't tap this one. Enter the time it happened; it prints on the form."}
+              </p>
+              <label className="field">
+                <span>Time *</span>
+                <Input type="time" value={timeValue} onChange={(event) => setTimeValue(event.target.value)} />
+              </label>
+              {editTime.correction && (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    run(
+                      () => setTripTime(selected.schedule.id, { ...editTime.cell, time: null }),
+                      `${timeLabel(editTime)} cleared for ${dateLabel(selected.schedule.date)}.`,
+                    )
+                  }
+                >
+                  {editTime.tap ? "Use the Driver's tap instead" : "Clear this time"}
+                </Button>
+              )}
+            </>
           )}
           {selected && mode === "handle" && (
             <>
@@ -530,7 +625,15 @@ export default function AdminFinishedTrips({
                 Back
               </Button>
               <Button className="primary" disabled={disabled} onClick={submit}>
-                {busy ? "Working…" : mode === "correct" ? "Save correction" : mode === "done" ? "Mark as done" : "Mark handled"}
+                {busy
+                  ? "Working…"
+                  : mode === "correct"
+                    ? "Save correction"
+                    : mode === "done"
+                      ? "Mark as done"
+                      : mode === "time"
+                        ? "Save time"
+                        : "Mark handled"}
               </Button>
             </DialogFooter>
           )}
