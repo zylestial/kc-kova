@@ -13,17 +13,21 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000c', 'maria@test.local'),
   ('00000000-0000-0000-0000-00000000000d', 'sched@test.local'),
   ('00000000-0000-0000-0000-00000000000e', 'driver1@test.local'),
-  ('00000000-0000-0000-0000-000000000010', 'driver2@test.local');
+  ('00000000-0000-0000-0000-000000000010', 'driver2@test.local'),
+  ('00000000-0000-0000-0000-000000000011', 'driver3@test.local');
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-00000000000a', 'admin', 'Ada Admin', 'Admin'),
   ('00000000-0000-0000-0000-00000000000b', 'juan', 'Juan', 'Requester'),
   ('00000000-0000-0000-0000-00000000000c', 'maria', 'Maria', 'Requester'),
   ('00000000-0000-0000-0000-00000000000d', 'sched', 'Sam Scheduler', 'Scheduler'),
   ('00000000-0000-0000-0000-00000000000e', 'driver1', 'Dan Driver', 'Driver'),
-  ('00000000-0000-0000-0000-000000000010', 'driver2', 'Dee Driver', 'Driver');
+  ('00000000-0000-0000-0000-000000000010', 'driver2', 'Dee Driver', 'Driver'),
+  ('00000000-0000-0000-0000-000000000011', 'driver3', 'Dot Driver', 'Driver');
 insert into vehicles (plate, name, assigned_driver_id) values
   ('V1', 'Van 1', '00000000-0000-0000-0000-00000000000e'),
-  ('V2', 'Van 2', '00000000-0000-0000-0000-000000000010');
+  ('V2', 'Van 2', '00000000-0000-0000-0000-000000000010'),
+  -- s2 gets its own van, since a vehicle takes only one schedule a day (0048).
+  ('V3', 'Van 3', '00000000-0000-0000-0000-000000000011');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'd1', 'City Hall', 'Active'),
   ('destinations', 'd2', 'Port Office', 'Active'),
@@ -94,7 +98,7 @@ grant execute on function pg_temp.pending(text) to authenticated;
 insert into ids values
   ('s1', pg_temp.publish('V1', array['juan', 'maria'], pg_temp.legs('d1', array['juan_rd', 'maria_rd'], '08:00', '09:00', '09:30', '10:30')));
 insert into ids values
-  ('s2', pg_temp.publish('V2', array['port'], pg_temp.legs('d2', array['port_rd'], '10:00', '11:00', '11:30', '12:30')));
+  ('s2', pg_temp.publish('V3', array['port'], pg_temp.legs('d2', array['port_rd'], '10:00', '11:00', '11:30', '12:30')));
 insert into ids values
   ('s3', pg_temp.publish('V2', array['x1', 'x2', 'x3'], pg_temp.legs('d1', array['x1_rd', 'x2_rd', 'x3_rd'], '13:00', '14:00', '14:30', '15:30')));
 
