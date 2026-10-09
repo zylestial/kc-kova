@@ -38,9 +38,8 @@ import { manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
 import { getPhoneLocation } from "@/lib/phone-location";
-import { legTimes, openStopTaps, stopKey } from "@/lib/stop-times";
-import StopTimesTable from "./stop-times-table";
-import TripRecordView from "./trip-record-view";
+import { legTimes, tripSteps, type TimeSource } from "@/lib/stop-times";
+import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -124,13 +123,12 @@ type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
  * problem. The database enforces who and when; this only shapes the screen.
  */
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
-  const { schedules, completions, attendance, stopTaps, problems, requests, vehicles, accounts } = useKovaData();
+  const { schedules, completions, attendance, stopTaps, problems, requests, vehicles } = useKovaData();
   const trips = useMemo(
     () => buildTrips(schedules, completions, attendance, stopTaps, problems, driverId),
     [schedules, completions, attendance, stopTaps, problems, driverId],
   );
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
-  const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone else";
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [vehicle, setVehicle] = useState("all");
@@ -146,8 +144,10 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [gasReceiptAttached, setGasReceiptAttached] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  /** The Arrived/Leaving tap being saved, so its button says so. */
+  /** The step being saved (stepKey), so its button says so. */
   const [busyStop, setBusyStop] = useState<string | null>(null);
+  /** The last tap had no position: the phone's location is off or blocked. */
+  const [locationOff, setLocationOff] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
@@ -167,6 +167,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setGasReceiptAttached(false);
     setNote("");
     setError("");
+    setLocationOff(false);
   }
 
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
@@ -199,37 +200,22 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     }
   }
 
-  // Start trip / End trip: one fresh position from the phone, then the tap.
-  // A phone that won't share its position still records the time.
-  async function tap(kind: "START" | "END") {
+  // One step of the trip: a fresh position from the phone, then the tap
+  // (Start/End trip, or Arrived/Leaving at a stop). A phone that won't share
+  // its position still records the time; the Driver is asked to turn it on.
+  async function tapStep(source: TimeSource) {
     if (!selected) return;
     setBusy(true);
+    setBusyStop(stepKey(source));
     setError("");
     try {
       const location = await getPhoneLocation();
-      await recordAttendance(selected.schedule.id, { kind, location });
-      setNotice(
-        `${kind === "START" ? "Trip started" : "Trip ended"}${location ? "" : " without your location. Allow location for this site next time"}.`,
-      );
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
-    }
-    setBusy(false);
-  }
-
-  // Arrived / Leaving at a stop: the same, for the form's times in between.
-  async function tapStop(legId: string, kind: "ARRIVE" | "LEAVE") {
-    if (!selected) return;
-    setBusy(true);
-    setBusyStop(stopKey({ kind, legId }));
-    setError("");
-    try {
-      const location = await getPhoneLocation();
-      await recordStopTap(selected.schedule.id, { legId, kind, location });
-      const place = selected.revision.legs.find((leg) => leg.id === legId)?.destinationName ?? "the stop";
-      setNotice(
-        `${kind === "ARRIVE" ? "Arrived at" : "Leaving"} ${place}${location ? "" : " recorded without your location. Allow location for this site next time"}.`,
-      );
+      if (!("legId" in source)) {
+        await recordAttendance(selected.schedule.id, { kind: source.kind, location });
+      } else {
+        await recordStopTap(selected.schedule.id, { legId: source.legId, kind: source.kind, location });
+      }
+      setLocationOff(!location);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
     }
@@ -456,7 +442,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {mode === "complete" ? "Complete this trip" : mode === "problem" ? "Report a problem" : "Trip Record"}
+              {mode === "complete" ? "Complete this trip" : mode === "problem" ? "Report a problem" : "Your trip"}
             </DialogTitle>
             <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
@@ -464,34 +450,30 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           </DialogHeader>
           {selected && mode === "view" && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
-              {selected.attendance && (() => {
-                const times = legTimes(selected.revision.legs, selected.attendance, selected.stopTaps);
-                return (
-                  <>
-                    <h3 className="stop-times-heading">Actual times</h3>
-                    {!selected.attendance.end && (
-                      <p className="helper">
-                        Tap Arrived when you reach each stop and Leaving as you set off again. These are the times printed on the trip form.
-                      </p>
-                    )}
-                    <StopTimesTable
-                      times={times}
-                      driverId={selected.revision.driverId}
-                      nameOf={nameOf}
-                      open={selected.completion ? undefined : openStopTaps(times)}
-                      onTap={tapStop}
-                      busyKey={busyStop}
-                    />
-                  </>
-                );
-              })()}
-              {!selected.completion && !selected.attendance && (
-                <p className="helper">
-                  {selected.startable
-                    ? "Tap Start trip at ANONANG before you leave. Your phone will ask to share your location; this is your attendance for the day."
-                    : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
+              <DriverTripSteps
+                steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps))}
+                legs={selected.revision.legs}
+                stopsById={stopsById}
+                onTap={tapStep}
+                busyKey={busyStop}
+                notYet={selected.startable ? undefined : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
+              />
+              {locationOff && (
+                <p className="notice" role="alert">
+                  Your location is off. Turn it on for this site, then keep going.
                 </p>
+              )}
+              {!selected.completion && selected.attendance?.end && (
+                <Button
+                  className="primary trip-step-button"
+                  onClick={() => {
+                    setMode("complete");
+                    setCompleteStep("odometer");
+                    if (!start && lastReading !== null) setStart(String(lastReading));
+                  }}
+                >
+                  Complete trip
+                </Button>
               )}
               {selected.completion && (
                 <p className="helper">
@@ -504,35 +486,10 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   Problem reported: {item.note}
                 </p>
               ))}
-              {busy && (
-                <p className="helper" role="status">
-                  Finding your location. This can take up to 10 seconds; stay where you are.
-                </p>
-              )}
               <DialogFooter>
                 <Button variant="outline" disabled={busy} onClick={() => setMode("problem")}>
                   Report a problem
                 </Button>
-                {!selected.completion && !selected.attendance && (
-                  <Button className="primary" disabled={busy || !selected.startable} onClick={() => tap("START")}>
-                    {busy ? "Getting location…" : "Start trip"}
-                  </Button>
-                )}
-                {!selected.completion && selected.attendance && !selected.attendance.end && (
-                  <Button className="primary" disabled={busy} onClick={() => tap("END")}>
-                    {busy ? "Getting location…" : "End trip"}
-                  </Button>
-                )}
-                {!selected.completion && selected.attendance?.end && (
-                  <Button className="primary" onClick={() => {
-                      setMode("complete");
-                      setCompleteStep("odometer");
-                      if (!start && lastReading !== null) setStart(String(lastReading));
-                    }}
-                  >
-                    Complete trip
-                  </Button>
-                )}
               </DialogFooter>
             </>
           )}
