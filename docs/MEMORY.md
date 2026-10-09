@@ -657,3 +657,9 @@ a separate step, not yet done as of this entry.
 - **Gotcha: `supabase/tests/concurrency.sh` leaves its fixtures** (Race Vans
   C1–C6-<run>, `*-<run>` accounts, requests, schedules) in the local
   database; they then show up in the Planner. Only a reset clears them.
+- **Typed "Other" destinations and purposes become choices** (owner's call,
+  2026-10-09, 0049): picked "add automatically" over "Admin approves first",
+  for Purposes too. Matching ignores case and spaces, so "WILCON calasiao"
+  reuses "Wilcon Calasiao"; typos still get through, and an Admin fixes them
+  in Request choices. Requests already typed in were left as typed; only the
+  names were added as choices.
