@@ -31,25 +31,25 @@ type BookingOptionRow = {
   name: string;
   status: "Active" | "Inactive";
   is_other_stop: boolean;
-  lat?: number | null;
-  lng?: number | null;
 };
 
-/** A destination's saved position (0044); absent when it has none. */
-function optionLocation(row: { lat?: number | null; lng?: number | null }): BookingOption["location"] {
-  return row.lat == null || row.lng == null ? undefined : { lat: row.lat, lng: row.lng };
-}
+/** A destination's saved position (destination_locations, 0044). */
+export type DestinationLocationRow = { destination_id: string; lat: number; lng: number };
 
-export function toBookingOptions(rows: BookingOptionRow[]): BookingOptions {
+export function toBookingOptions(rows: BookingOptionRow[], locations: DestinationLocationRow[] = []): BookingOptions {
   const options: BookingOptions = { projects: [], destinations: [], purposes: [] };
+  const locationOf = new Map(locations.map((row) => [row.destination_id, row]));
   for (const row of rows) {
-    options[row.group].push({ id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop, location: optionLocation(row) });
+    options[row.group].push(toBookingOption(row, row.group === "destinations" ? locationOf.get(row.id) : undefined));
   }
   return options;
 }
 
-export function toBookingOption(row: Omit<BookingOptionRow, "group">): BookingOption {
-  return { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop, location: optionLocation(row) };
+/** One option; a destination's position is added when it has one. */
+export function toBookingOption(row: Omit<BookingOptionRow, "group">, location?: DestinationLocationRow | null): BookingOption {
+  const option: BookingOption = { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop };
+  if (location) option.location = { lat: location.lat, lng: location.lng };
+  return option;
 }
 
 type RequestDestinationRow = {

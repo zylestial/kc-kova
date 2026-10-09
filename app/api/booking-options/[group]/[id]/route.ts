@@ -22,13 +22,20 @@ export const PUT = authed<{ group: string; id: string }>(async ({ request, supab
   // booking_options_admin_write RLS policy enforces the Admin check server-side too.
   const { data, error } = await supabase
     .from("booking_options")
-    .upsert(
-      { group, id, name, status, is_other_stop: isOtherStop, lat: location?.lat ?? null, lng: location?.lng ?? null },
-      { onConflict: "group,id" },
-    )
+    .upsert({ group, id, name, status, is_other_stop: isOtherStop }, { onConflict: "group,id" })
     .select("*")
     .single();
   if (error || !data) return NextResponse.json({ message: "Could not save the option." }, { status: 422 });
 
-  return NextResponse.json(toBookingOption(data));
+  // A destination's position lives in destination_locations (0044); none clears it.
+  if (group === "destinations") {
+    const { error: locationError } = location
+      ? await supabase
+          .from("destination_locations")
+          .upsert({ destination_id: id, lat: location.lat, lng: location.lng }, { onConflict: "destination_group,destination_id" })
+      : await supabase.from("destination_locations").delete().eq("destination_id", id);
+    if (locationError) return NextResponse.json({ message: "Saved, but the location could not be saved. Try again." }, { status: 422 });
+  }
+
+  return NextResponse.json(toBookingOption(data, location && { destination_id: id, ...location }));
 });

@@ -39,6 +39,7 @@ export const GET = authed(async ({ request, supabase }) => {
     accountsRes,
     vehiclesRes,
     optionsRes,
+    locationsRes,
     requestsRes,
     progressRes,
     schedulesRes,
@@ -55,6 +56,7 @@ export const GET = authed(async ({ request, supabase }) => {
     supabase.from("accounts").select("*"),
     supabase.from("vehicles").select("*"),
     supabase.from("booking_options").select("*"),
+    supabase.from("destination_locations").select("destination_id, lat, lng"),
     supabase.from("requests").select(requestSelect).eq("request_destinations.active", true).gte("requested_date", since),
     supabase.from("request_progress").select("*").gte("requested_date", since),
     supabase
@@ -105,6 +107,7 @@ export const GET = authed(async ({ request, supabase }) => {
     accountsRes,
     vehiclesRes,
     optionsRes,
+    locationsRes,
     requestsRes,
     progressRes,
     schedulesRes,
@@ -168,7 +171,7 @@ export const GET = authed(async ({ request, supabase }) => {
     since,
     accounts: (accountsRes.data ?? []).map(toAccount),
     vehicles: (vehiclesRes.data ?? []).map(toVehicle),
-    options: toBookingOptions(optionsRes.data ?? []),
+    options: toBookingOptions(optionsRes.data ?? [], locationsRes.data ?? []),
     requests: [...(requestsRes.data ?? []), ...(oldRequestsRes.data ?? [])].map((row) =>
       toTransportRequest(row, progressById.get(row.id)),
     ),
