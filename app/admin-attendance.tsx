@@ -20,6 +20,7 @@ import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import { manilaToday } from "@/lib/timezone";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import DateRangeFilter from "./date-range-filter";
+import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import OlderRecordsNotice from "./older-records-notice";
 
@@ -120,7 +121,7 @@ export default function AdminAttendance() {
           </div>
         </div>
         <OlderRecordsNotice />
-        <div className="admin-trip-filters">
+        <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
           <DateRangeFilter value={dates} onChange={setDates} />
           <label className="field">
             <span>Driver</span>
@@ -156,7 +157,7 @@ export default function AdminAttendance() {
             </Select>
           </label>
           <SortSelect columns={columns} sort={sort} onSort={setSort} />
-        </div>
+        </FilterFold>
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
             <table>

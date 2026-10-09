@@ -41,5 +41,5 @@ export const updateVehicleBody = z.object({ plate: required, name: required, sta
 export const bookingOptionBody = z.object({
   name: required,
   status: statusOrActive,
-  isOtherStop: z.unknown().transform((value) => value === true),
+  isOtherStop: z.unknown().optional().transform((value) => value === true),
 });

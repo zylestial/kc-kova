@@ -14,6 +14,7 @@ import {
   splitRequest,
   submitSchedule,
   type Schedule,
+  type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { addDays, manilaToday } from "@/lib/timezone";
@@ -58,15 +59,27 @@ import LegCard from "./planner/leg-card";
 import TripChecklist from "./planner/trip-checklist";
 import SubmitDialog from "./planner/submit-dialog";
 import SendBackDialog from "./planner/send-back-dialog";
-import DiscardDialog from "./planner/discard-dialog";
+import DiscardDialog, { discardLabel, type DiscardKind } from "./planner/discard-dialog";
 import RemoveLegDialog from "./planner/remove-leg-dialog";
 import { dateLabel, fullDate } from "./planner/format";
+
+/** Days from `today` on with requests still waiting to be scheduled, earliest first. */
+function waitingDays(requests: TransportRequest[], today: string) {
+  return [
+    ...new Set(
+      requests
+        .filter((request) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED" && request.date >= today)
+        .map((request) => request.date),
+    ),
+  ].sort();
+}
 
 /**
  * Create schedule (and continue a draft): choose a day, pick requests from
  * the pool, assign a vehicle (its Driver follows), then build the Trip
- * Record leg by leg. Saving a draft reserves the time and locks the
- * requests; every rule is rechecked by save_schedule_draft.
+ * Record leg by leg. Saving a draft locks the requests, and reserves the
+ * time once every leg has times; every rule is rechecked by
+ * save_schedule_draft.
  */
 export default function SchedulePlanner({
   scheduleId,
@@ -98,8 +111,10 @@ export default function SchedulePlanner({
   }, [scheduleId]);
 
   const [step, setStep] = useState(opened ? 2 : 1);
-  const [anchor, setAnchor] = useState(opened?.schedule.date ?? today);
-  const [date, setDate] = useState(opened?.schedule.date ?? today);
+  // A new schedule opens on the first day with requests waiting, which may
+  // be weeks out, rather than on an empty today.
+  const [anchor, setAnchor] = useState(() => opened?.schedule.date ?? waitingDays(requests, today)[0] ?? today);
+  const [date, setDate] = useState(anchor);
   // A request cancelled since this version was published (an Admin confirmed
   // its cancellation) is dropped, with its stops, so the new version can be
   // saved. Its route and times are left for the Scheduler to adjust.
@@ -134,6 +149,8 @@ export default function SchedulePlanner({
   const [leftoverReason, setLeftoverReason] = useState("");
 
   const current: Schedule | undefined = editing ? schedules.find((item) => item.id === editing.id) : undefined;
+  const discardKind: DiscardKind =
+    editing?.rowVersion === null ? "changes" : current?.publishedRevisionId ? "revision" : "draft";
   const returnedComment = current && openRevision(current)?.status === "RETURNED" ? openRevision(current)?.decisionComment : "";
 
   // Every ACTIVE request for the day, served or not, used to work out what
@@ -195,7 +212,13 @@ export default function SchedulePlanner({
   const clashes = plate && driver ? conflictsWith(tripTime, plate, driver.id, commitments) : [];
   const problems = tripProblems({ plate, requestIds, legs, stops: poolStops, otherStopDestinationIds });
   if (plate && !driver) problems.save.unshift("This vehicle has no active Driver assigned.");
-  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: poolStops, otherStopDestinationIds });
+  // The server refuses to save over another schedule's reserved time, so a
+  // clash blocks Save as well as Submit, and shows on the checklist.
+  const clash = clashes.length
+    ? `${plate} or its Driver is already booked for part of this time. Change the times or pick another vehicle.`
+    : "";
+  if (clash) problems.save.unshift(clash);
+  const checklist = tripChecklist({ plate, hasDriver: !!driver, requestIds, legs, stops: poolStops, otherStopDestinationIds, clash });
   const warnings = legWarnings(legs, poolStops, otherStopDestinationIds);
   const ready = problems.save.length === 0 && problems.submit.length === 0;
 
@@ -274,7 +297,11 @@ export default function SchedulePlanner({
     run(async () => {
       await saveDraft();
       setSavedSignature(tripSignature(plate, requestIds, legs));
-      setNotice("Draft saved. Its time is reserved and its requests are locked until you submit or discard it.");
+      setNotice(
+        tripTime
+          ? "Draft saved. Its time is reserved and its requests are locked until you submit or discard it."
+          : "Draft saved. Its requests are locked until you submit or discard it. No time is reserved until every leg has times.",
+      );
     });
   const submit = () =>
     run(async () => {
@@ -318,7 +345,12 @@ export default function SchedulePlanner({
         return;
       }
       await discardScheduleDraft(editing.id, editing.rowVersion);
-      onDone("Draft discarded. Its requests are back to Not yet scheduled.", date);
+      onDone(
+        discardKind === "revision"
+          ? "Revision discarded. The approved schedule stays in force."
+          : "Draft discarded. Its requests are back to Not yet scheduled.",
+        date,
+      );
     });
 
   const reviewLegs = legs.map((leg, index) => ({
@@ -347,8 +379,9 @@ export default function SchedulePlanner({
         </span>
       </div>
       {step > 1 && !editing && (
+        // Not "Back": on phones the top bar has its own Back, which leaves the screen.
         <Button variant="ghost" onClick={() => setStep(1)} className="booking-back">
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> Change day
         </Button>
       )}
       <div className="booking-heading">
@@ -357,7 +390,7 @@ export default function SchedulePlanner({
           <p>
             {step === 1
               ? "Each day shows how many requests are still waiting to be scheduled."
-              : "Choose the requests to plan, pick a vehicle, then build the route. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft reserves the time."}
+              : "Pick a vehicle, then build the route from the requests in the pool. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft locks its requests, and reserves the time once every leg has times."}
           </p>
         </div>
         {step > 1 && (
@@ -369,7 +402,7 @@ export default function SchedulePlanner({
       </div>
 
       {step === 1 && (
-        <DayPicker months={months} days={days} date={date} anchor={anchor} openOn={openOn} pickDate={pickDate} setAnchor={setAnchor} />
+        <DayPicker months={months} days={days} date={date} anchor={anchor} openOn={openOn} pickDate={pickDate} setAnchor={setAnchor} otherWaitingDays={waitingDays(requests, today).filter((day) => !days.includes(day))} />
       )}
 
       {step === 2 && (
@@ -385,7 +418,7 @@ export default function SchedulePlanner({
               <b>Returned by Admin:</b> {returnedComment}
             </div>
           )}
-          <div className="planner-columns">
+          <div className={"planner-columns" + (commitments.length ? "" : " planner-columns-single")}>
             <RequestPool date={date} pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
 
             <CommitmentsPanel commitments={commitments} clashes={clashes} />
@@ -396,7 +429,6 @@ export default function SchedulePlanner({
           <section className="editor-panel">
             <div className="section-heading">
               <div>
-                <span className="planner-step">Step 3</span>
                 <h2>Trip Record</h2>
                 <p>
                   The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
@@ -423,18 +455,18 @@ export default function SchedulePlanner({
         </>
       )}
 
-      {notice && (
-        <div className="notice success" role="status">
-          {notice}
-        </div>
-      )}
-      {error && !confirm && !sendingBack && (
-        <div className="notice" role="alert">
-          {error}
-        </div>
-      )}
-
       <div className="booking-bottom">
+        {/* In the bar, not below the form, which the bar would cover. */}
+        {notice && (
+          <div className="notice success planner-bar-notice" role="status">
+            {notice}
+          </div>
+        )}
+        {error && !confirm && !sendingBack && (
+          <div className="notice error planner-bar-notice" role="alert">
+            {error}
+          </div>
+        )}
         <div>
           <span>{fullDate(date)}</span>
           {step === 2 && (
@@ -451,8 +483,15 @@ export default function SchedulePlanner({
         ) : (
           <div className="planner-actions">
             {editing && (
-              <Button variant="outline" className="danger-outline" disabled={busy} onClick={() => setConfirm("discard")}>
-                <Trash2 size={16} /> Discard draft
+              // Icon only on phones (planner-wide), so the bar keeps to one row.
+              <Button
+                variant="outline"
+                className="danger-outline planner-discard"
+                aria-label={discardLabel[discardKind]}
+                disabled={busy}
+                onClick={() => setConfirm("discard")}
+              >
+                <Trash2 size={16} /> <span className="planner-wide">{discardLabel[discardKind]}</span>
               </Button>
             )}
             <Button variant="outline" disabled={busy || problems.save.length > 0} onClick={save}>
@@ -460,13 +499,17 @@ export default function SchedulePlanner({
             </Button>
             <Button
               className="booking-continue"
+              aria-label="Submit for approval"
               disabled={busy || problems.save.length > 0 || problems.submit.length > 0}
               onClick={() => {
                 setError("");
                 setConfirm("submit");
               }}
             >
-              <Send size={16} /> Submit for approval
+              <Send size={16} />
+              <span>
+                Submit<span className="planner-wide"> for approval</span>
+              </span>
             </Button>
           </div>
         )}
@@ -476,7 +519,7 @@ export default function SchedulePlanner({
 
       <SendBackDialog sendingBack={sendingBack} setSendingBack={setSendingBack} sendBackReason={sendBackReason} setSendBackReason={setSendBackReason} busy={busy} pool={pool} date={date} error={error} setError={setError} sendBack={sendBack} />
 
-      <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} current={current} discard={discard} />
+      <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} kind={discardKind} discard={discard} />
       <RemoveLegDialog removingLeg={removingLeg} setRemovingLeg={setRemovingLeg} legs={legs} applyLegs={applyLegs} />
     </div>
   );

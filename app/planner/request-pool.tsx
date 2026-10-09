@@ -29,11 +29,10 @@ export default function RequestPool({
     <section className="editor-panel">
       <div className="section-heading">
         <div>
-          <span className="planner-step">Step 1</span>
           <h2>Request pool</h2>
           <p>
             Requests for {dateLabel(date, { month: "short", day: "numeric" })}, Urgent first, then grouped by who asked. A
-            destination is ticked off once it&apos;s on the route below — use &quot;Add stop&quot; there, not here.
+            destination is ticked off once a leg below goes there: pick it as a leg&apos;s destination in the Trip Record.
             {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
             {sentBackCount > 0 && ` ${sentBackCount} ${sentBackCount === 1 ? "was sent back to its requester" : "were sent back to their requesters"}.`}
             {" "}If a request won&apos;t fit, send it back so the requester can pick another day.

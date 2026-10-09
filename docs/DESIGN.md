@@ -76,7 +76,9 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
 - **Schedules has Day, Week and All dates views.** All dates lists every
   matching schedule with its date on each card; a status link with no view
   opens it, so the list shows everything the tile counted. Picking a date
-  switches back to Day.
+  switches back to Day. Week cards show the plate only. On phones the
+  filters fold behind a "Filters" button (with a count of those set), and
+  an empty day in the week is one line.
 - Screens no longer have a "← Home" back button; the sidebar replaces it.
   The Planner keeps "← Schedules" when editing an existing schedule.
   Below 1024px the top bar shows **← Back** (in place of the logo) on every
@@ -96,6 +98,10 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   no odometer or distance.
 - Fixed bottom bars (`.booking-bottom`) start after the sidebar on wide
   screens.
+- **Filter rows fold on phones.** Below 700px a filter row (`FilterFold`,
+  `app/filter-fold.tsx`) sits behind a "Filters" button showing how many
+  filters are set, so the records come first. Wider screens always show
+  the row. A row holding only Sort by doesn't fold.
 
 Each role has its own accent, set on `<html data-role>` by `AccountProvider`
 (the viewed role during Admin "View as"). It colors the sidebar, the
@@ -180,7 +186,7 @@ router/URL segments are used for in-app navigation.
 | `my-requests` | `app/my-requests.tsx` | Requester, Admin |
 | `create-schedule` | `app/schedule-planner.tsx` | Scheduler |
 | `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
-| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips grouped Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; Start trip / End trip, each tap's distance, margin and coordinates; then Complete trip) | Driver |
+| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; Start trip / End trip, each tap's distance, margin and coordinates; then Complete trip) | Driver |
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip; away from base, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
 | `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin) | Driver, Admin |
 | `settings` | `app/settings.tsx` | Admin (accounts, vehicles, booking options) |
@@ -191,7 +197,13 @@ discard and send-back logic, and composes its screen from `app/planner/`: day
 picker, request pool, existing commitments, vehicle panel, one `LegCard` per
 leg, the checklist, and the submit, send-back, discard and remove-leg
 dialogs. Those parts only show what they're given and call back; they hold no
-state of their own.
+state of their own. A new schedule opens on the first day with requests
+waiting (today if none), and the day picker lists waiting days outside its
+14-day strip. "Draft saved" and save errors show in the bottom bar, above the
+buttons; on phones the bar is one row (an icon-only Discard, "Submit"). The
+only step numbers are the top stepper's. With nothing else held that day, the
+commitments panel is one line under the pool. A clash with another
+schedule's time blocks Save and Submit and shows on the checklist.
 
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.

@@ -153,6 +153,19 @@ describe("toSchedule", () => {
     expect(revision.legs[1]).toMatchObject({ isFinal: true, destinationId: undefined });
   });
 
+  it("maps a draft leg with no times yet to empty times", () => {
+    const draft = {
+      ...row,
+      schedule_revisions: [
+        {
+          ...row.schedule_revisions[0],
+          schedule_legs: [{ ...row.schedule_revisions[0].schedule_legs[0], planned_time_out: null, planned_time_in: null }],
+        },
+      ],
+    };
+    expect(toSchedule(draft).revisions[0].legs[0]).toMatchObject({ plannedTimeOut: "", plannedTimeIn: "" });
+  });
+
   it("tolerates a schedule with no embedded revisions", () => {
     expect(toSchedule({ ...row, schedule_revisions: undefined }).revisions).toEqual([]);
   });

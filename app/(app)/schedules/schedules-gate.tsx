@@ -9,7 +9,7 @@ import { useAccount } from "../providers";
 
 export default function SchedulesGate() {
   const router = useRouter();
-  const { viewRole } = useAccount();
+  const { account, viewRole } = useAccount();
   const params = useSearchParams();
   const [date] = useState(() => params.get("date") ?? undefined);
   // Read once, then strip from the URL so a refresh doesn't re-show it.
@@ -36,6 +36,7 @@ export default function SchedulesGate() {
     <RequireRole allow={viewRole === "Scheduler" || viewRole === "Admin"}>
       <Schedules
         key={date ?? "today"}
+        viewerId={account.id}
         canEdit={viewRole === "Scheduler"}
         canReview={viewRole === "Admin"}
         notice={notice}

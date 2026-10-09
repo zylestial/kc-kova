@@ -13,7 +13,7 @@ export default function TripChecklist({
   return (
     <div className={"planner-checklist" + (ready ? " ready" : "")}>
       <b>{ready ? "Ready to submit" : "Before you submit"}</b>
-      {!ready && <p>You can save a draft once the first four are done. Submitting needs all five.</p>}
+      {!ready && <p>You can save a draft once the first three are done; times can wait. Submitting needs all five.</p>}
       <ul>
         {checklist.map((item) => (
           <li key={item.label} className={item.done ? "done" : ""}>

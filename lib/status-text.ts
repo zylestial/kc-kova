@@ -30,7 +30,7 @@ export const requestProgressMeaning: Record<RequestProgress, string> = {
 };
 
 export const scheduleStateMeaning: Record<ScheduleState, string> = {
-  DRAFT: "A Scheduler is still planning this. Its time is reserved.",
+  DRAFT: "A Scheduler is still planning this.",
   RETURNED: "An Admin sent this back for changes. The Scheduler needs to fix it and submit it again.",
   SUBMITTED: "Waiting for an Admin to approve it. The Driver can't see it yet.",
   APPROVED: "Approved. The Driver can see it and will make the trip.",
