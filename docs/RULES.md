@@ -51,8 +51,9 @@ state transitions. The completion rules:
 - A completion is **one odometer pair for the whole schedule**: whole numbers,
   start ≥ 0, end ≥ start, pinned to the approved version, with a server-set
   `submitted_at`. Repeating a submit returns the existing completion.
-- The trip must be over: the approved version's last planned Time In
-  (Asia/Manila) has passed, and the Driver has tapped Start and End (below). Problem reports have no such limit, can be filed
+- The trip must be over: the Driver has tapped Start and End (below). Since
+  0047 End trip is enough, so a trip back early can be completed before its
+  last planned Time In. Problem reports have no such limit, can be filed
   more than once, and never block anything.
 - A submitted completion locks the trip: no revision, approval or
   cancellation afterwards.
