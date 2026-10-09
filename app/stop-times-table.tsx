@@ -38,6 +38,9 @@ export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Prop
         {tap.location && <small className="attendance-coordinates">{coordinatesLabel(tap.location)}</small>}
         {!tap.location && <small className="attendance-flag">No location</small>}
         {at === false && <small className="attendance-flag">Away from {place}</small>}
+        {tap.location && tap.location.distanceM === null && (
+          <small className="attendance-flag">No location set for {place}; set it in Request choices to check</small>
+        )}
         {tap.recordedByAccountId !== driverId && <small>Tapped by {nameOf(tap.recordedByAccountId)}</small>}
       </>
     );
