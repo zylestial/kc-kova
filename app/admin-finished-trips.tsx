@@ -640,7 +640,12 @@ export default function AdminFinishedTrips({
         </DialogContent>
       </Dialog>
       {selected?.completion && (
-        <FinishedTripPrint trip={{ ...selected, completion: selected.completion }} stopsById={stopsById} requests={requests} />
+        <FinishedTripPrint
+          trip={{ ...selected, completion: selected.completion }}
+          stopsById={stopsById}
+          requests={requests}
+          times={selectedTimes}
+        />
       )}
     </>
   );

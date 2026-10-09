@@ -5,13 +5,15 @@ import { useKovaData } from "@/lib/use-kova-data";
 import type { FinishedTrip } from "@/lib/finished-trips";
 import { dateInBusinessTimezone } from "@/lib/timezone";
 import { BASE, MAX_LEGS, type StopInfo } from "@/lib/trip-record";
+import { formTimeValue, type LegTimes } from "@/lib/stop-times";
 
 const blank = "________________";
 
 /**
  * The printed Daily Vehicle Trip & Utilization Form for one finished trip.
- * Same layout as the paper form; v2 fills in what it knows (route, planned
- * times, Driver, odometers, submission date) and leaves the rest, such as
+ * Same layout as the paper form; v2 fills in what it knows (route, actual
+ * times from the Driver's taps or an Admin's entries, Driver, odometers,
+ * submission date) and leaves the rest, such as a time nobody recorded,
  * signatures, fuel checks and Finance, blank for handwriting. Rendered into
  * document.body so the print stylesheet can hide the app shell and show
  * only this form.
@@ -20,10 +22,13 @@ export default function FinishedTripPrint({
   trip,
   stopsById,
   requests,
+  times,
 }: {
   trip: FinishedTrip;
   stopsById: Map<string, StopInfo>;
   requests: TransportRequest[];
+  /** Each leg's actual Time Out / Time In (lib/stop-times), in leg order. */
+  times: LegTimes[];
 }) {
   const { schedule, revision, completion } = trip;
   const { vehicles } = useKovaData();
@@ -97,6 +102,7 @@ export default function FinishedTripPrint({
         <tbody>
           {Array.from({ length: MAX_LEGS }, (_, i) => {
             const leg = revision.legs[i];
+            const legTimes = times.find((item) => item.leg.id === leg?.id);
             const served = (leg?.stops ?? []).map((id) => stopsById.get(id)).filter((stop): stop is StopInfo => !!stop);
             return (
               <tr key={i}>
@@ -107,9 +113,9 @@ export default function FinishedTripPrint({
                 <td>{served.map((stop) => stop.purposeName).join(", ")}</td>
                 <td>{i + 1}</td>
                 <td>{leg?.origin || (i === 0 ? BASE : "")}</td>
-                <td>{leg?.plannedTimeOut}</td>
+                <td>{legTimes && formTimeValue(legTimes.out)}</td>
                 <td>{leg?.destinationName || (!leg && i === MAX_LEGS - 1 ? BASE : "")}</td>
-                <td>{leg?.plannedTimeIn}</td>
+                <td>{legTimes && formTimeValue(legTimes.in)}</td>
                 <td>
                   Name: {leg?.contactName || "________________"}
                   <div className="sign-line">Contact: {leg?.contactNumber || "______________"}</div>
