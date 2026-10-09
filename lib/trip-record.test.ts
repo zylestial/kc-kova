@@ -110,7 +110,6 @@ describe("add leg / add final leg", () => {
 describe("legHasContent", () => {
   it("treats the default Time Out alone as empty", () => {
     expect(legHasContent(initialLegs()[0])).toBe(false);
-    expect(legHasContent(initialLegs()[1])).toBe(false);
   });
 
   it("notices anything the Scheduler entered", () => {
@@ -123,16 +122,15 @@ describe("legHasContent", () => {
 });
 
 describe("new Trip Record defaults", () => {
-  it("starts with one destination leg at 08:00 and the return leg", () => {
+  it("starts with one destination leg at 08:00 and no return leg yet", () => {
     const legs = initialLegs();
-    expect(legs.map((item) => item.isFinal)).toEqual([false, true]);
+    expect(legs.map((item) => item.isFinal)).toEqual([false]);
     expect(legs[0].plannedTimeOut).toBe("08:00");
     expect(legs[0].plannedTimeIn).toBe("");
-    expect(legs[1].plannedTimeOut).toBe("");
   });
 
   it("copies a Time In into the next leg's empty Time Out", () => {
-    const legs = setLegTimeIn(initialLegs(), 0, "09:15");
+    const legs = setLegTimeIn([...initialLegs(), finalLeg()], 0, "09:15");
     expect(legs[0].plannedTimeIn).toBe("09:15");
     expect(legs[1].plannedTimeOut).toBe("09:15");
   });
@@ -143,7 +141,7 @@ describe("new Trip Record defaults", () => {
   });
 
   it("doesn't copy a half-typed time", () => {
-    expect(setLegTimeIn(initialLegs(), 0, "09:1")[1].plannedTimeOut).toBe("");
+    expect(setLegTimeIn([...initialLegs(), finalLeg()], 0, "09:1")[1].plannedTimeOut).toBe("");
   });
 
   it("still requires a Time In, so a new Trip Record isn't submittable", () => {
@@ -568,7 +566,7 @@ describe("tripChecklist", () => {
 
   it("leaves everything to do on a brand-new Trip Record", () => {
     const items = tripChecklist({ plate: "", hasDriver: false, requestIds: [], legs: initialLegs(), stops: [] });
-    expect(items.map((item) => item.done)).toEqual([false, false, false, false, true]);
+    expect(items.map((item) => item.done)).toEqual([false, false, false, false, false]);
   });
 
   it("leaves missing times to the leg, with no checklist detail", () => {

@@ -90,8 +90,11 @@ export const finalLeg = (): LegDraft => ({ ...newLeg(), isFinal: true });
 /** The Time Out a new Trip Record starts with; the Scheduler can change it. */
 export const START_TIME = "08:00";
 
-/** A new Trip Record starts with one destination leg and the return leg to ANONANG. */
-export const initialLegs = (): LegDraft[] => [{ ...newLeg(), plannedTimeOut: START_TIME }, finalLeg()];
+/**
+ * A new Trip Record starts with one destination leg only; the Scheduler adds
+ * the return leg to ANONANG when the route is done (Submit asks for it).
+ */
+export const initialLegs = (): LegDraft[] => [{ ...newLeg(), plannedTimeOut: START_TIME }];
 
 export function stopsFor(requests: TransportRequest[]): StopInfo[] {
   return requests.flatMap((request) =>
