@@ -25,7 +25,9 @@ export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, p
     p_accuracy_m: input.location?.accuracyM ?? null,
     p_address: address,
   });
-  if (error) return scheduleErrorResponse(error, input.kind === "ARRIVE" ? "Could not record arriving." : "Could not record leaving.");
+  if (error) {
+    return scheduleErrorResponse(error, input.kind === "ARRIVE" ? "Could not record arriving." : "Could not record leaving.", error.message);
+  }
 
   return NextResponse.json(toStopTap(data));
 });
