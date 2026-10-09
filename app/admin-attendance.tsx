@@ -25,7 +25,7 @@ import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import OlderRecordsNotice from "./older-records-notice";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { atStop, legTimes, type LegTimes } from "@/lib/stop-times";
+import { atStop, legTimes, placeResolver, type LegTimes } from "@/lib/stop-times";
 import StopTimesTable from "./stop-times-table";
 
 /** The Arrived/Leaving taps of a trip (not Start/End): how many were made and how many are flagged. */
@@ -37,6 +37,8 @@ function stopSummary(times: LegTimes[]) {
     tapped: taps.length,
     away: taps.filter((tap) => atStop(tap.location) === false).length,
     noLocation: taps.filter((tap) => !tap.location).length,
+    // Has a position, but the place has no saved location to check it against.
+    unchecked: taps.filter((tap) => tap.location && tap.location.distanceM === null).length,
   };
 }
 
@@ -89,7 +91,8 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
  * a later day is flagged, not refused, so the Admin judges it here.
  */
 export default function AdminAttendance() {
-  const { schedules, attendance, stopTaps, timeCorrections, accounts } = useKovaData();
+  const { schedules, attendance, stopTaps, timeCorrections, accounts, options } = useKovaData();
+  const placeOf = placeResolver(options.destinations);
   const today = manilaToday();
   const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today), [schedules, attendance, today]);
   const [dates, setDates] = useState<DateFilter>(anyDate);
@@ -103,11 +106,13 @@ export default function AdminAttendance() {
       row.attendance ?? undefined,
       stopTaps.filter((item) => item.scheduleId === row.schedule.id),
       timeCorrections.filter((item) => item.scheduleId === row.schedule.id),
+      placeOf,
     );
   const stopFlagged = (row: AttendanceRow) => {
     const summary = stopSummary(timesFor(row));
-    return summary.away + summary.noLocation > 0;
+    return summary.away + summary.noLocation + summary.unchecked > 0;
   };
+  const stopUnchecked = (row: AttendanceRow) => stopSummary(timesFor(row)).unchecked > 0;
 
   const drivers = [...new Set(rows.map((row) => row.revision.driverName))].sort();
   const visible = sortRows(
@@ -115,7 +120,12 @@ export default function AdminAttendance() {
       (row) =>
         inDateFilter(row.schedule.date, dates, today) &&
         (driver === "all" || row.revision.driverName === driver) &&
-        (status === "all" || (status === "flagged" ? row.flags.length > 0 || stopFlagged(row) : row.status === status)),
+        (status === "all" ||
+          (status === "flagged"
+            ? row.flags.length > 0 || stopFlagged(row)
+            : status === "unchecked"
+              ? stopUnchecked(row)
+              : row.status === status)),
     ),
     sort,
     {
@@ -182,6 +192,7 @@ export default function AdminAttendance() {
                   </SelectItem>
                 ))}
                 <SelectItem value="flagged">Flagged</SelectItem>
+                <SelectItem value="unchecked">Stops not checked</SelectItem>
               </SelectContent>
             </Select>
           </label>
@@ -214,6 +225,7 @@ export default function AdminAttendance() {
                             </b>
                             {summary.away > 0 && <small className="attendance-flag">{summary.away} away from the stop</small>}
                             {summary.noLocation > 0 && <small className="attendance-flag">{summary.noLocation} without a location</small>}
+                            {summary.unchecked > 0 && <small className="attendance-flag">{summary.unchecked} not checked (no place location)</small>}
                             {row.attendance && (
                               <Button variant="outline" size="sm" onClick={() => setOpenId(row.schedule.id)}>
                                 View
