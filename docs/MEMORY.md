@@ -640,3 +640,10 @@ a separate step, not yet done as of this entry.
   the proof the trip ended. My Schedule's "Back at base" status went with
   it. Home tiles count a trip as ready to complete when End trip is tapped
   or the planned end has passed (`tripOver`, `lib/home-counts.ts`).
+- **Drivers get cards, not tables** (owner's call, same day): Drivers aren't
+  technical, so My Schedule shows the trip as one card per place (where to
+  go, purpose, contact, est. times) with one big button for the next tap,
+  and nothing else: no requester, distances, coordinates or flags, and no
+  Trip Record table. Positions are still recorded for the Admin. A missed
+  tap is passed by tapping the next one (shown "skipped"), never by a
+  choice of buttons. Keep this screen low on text and clicks.
