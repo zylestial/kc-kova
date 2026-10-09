@@ -151,6 +151,19 @@ export const GET = authed(async ({ request, supabase }) => {
   }
   const oldSchedules = oldSchedulesRes.data ?? [];
 
+  // Their taps and Admin time entries too, so an older trip still under
+  // review shows (and prints) its actual times.
+  const [oldAttendanceRes, oldStopTapsRes, oldCorrectionsRes] = oldScheduleIds.length
+    ? await Promise.all([
+        supabase.from("trip_attendance").select("*").in("schedule_id", oldScheduleIds),
+        supabase.from("stop_taps").select("*").in("schedule_id", oldScheduleIds),
+        supabase.from("trip_time_corrections").select("*").in("schedule_id", oldScheduleIds),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+  if (oldAttendanceRes.error || oldStopTapsRes.error || oldCorrectionsRes.error) {
+    return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
+  }
+
   const loadedRequestIds = new Set((requestsRes.data ?? []).map((row) => row.id as string));
   const oldRequestIds = [
     ...new Set([
@@ -188,11 +201,11 @@ export const GET = authed(async ({ request, supabase }) => {
     // A Driver gets their own; Admin all (0017 policies).
     completions: [...(completionsRes.data ?? []), ...oldCompletions].map(toTripCompletion),
     // Same visibility as completions (0042 policy).
-    attendance: (attendanceRes.data ?? []).map(toTripAttendance),
+    attendance: [...(attendanceRes.data ?? []), ...(oldAttendanceRes.data ?? [])].map(toTripAttendance),
     // Same visibility as attendance (0045 policy).
-    stopTaps: (stopTapsRes.data ?? []).map(toStopTap),
+    stopTaps: [...(stopTapsRes.data ?? []), ...(oldStopTapsRes.data ?? [])].map(toStopTap),
     // Admin all; a Driver those on their own trips (0046 policy).
-    timeCorrections: (correctionsRes.data ?? []).map(toTripTimeCorrection),
+    timeCorrections: [...(correctionsRes.data ?? []), ...(oldCorrectionsRes.data ?? [])].map(toTripTimeCorrection),
     problems: [...(problemsRes.data ?? []), ...oldProblems].map(toProblemReport),
     notifications: (notificationsRes.data ?? []).map(toNotification),
   });
