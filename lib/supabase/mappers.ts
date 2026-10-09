@@ -8,6 +8,7 @@ import type {
   Notification,
   NotificationType,
   ProblemReport,
+  StopTap,
   TripAttendance,
   TripCompletion,
   Vehicle,
@@ -225,6 +226,39 @@ export function toTripAttendance(row: AttendanceRow): TripAttendance {
             location: toAttendanceLocation(row.end_lat, row.end_lng, row.end_accuracy_m, row.end_distance_m, row.end_address),
           }
         : undefined,
+  };
+}
+
+type StopTapRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  leg_id: string;
+  driver_id: string;
+  kind: "ARRIVE" | "LEAVE";
+  at: string;
+  lat: number | null;
+  lng: number | null;
+  accuracy_m: number | null;
+  distance_m: number | null;
+  address: string | null;
+  recorded_by_account_id: string;
+};
+
+export function toStopTap(row: StopTapRow): StopTap {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    legId: row.leg_id,
+    driverId: row.driver_id,
+    kind: row.kind,
+    at: row.at,
+    recordedByAccountId: row.recorded_by_account_id,
+    location:
+      row.lat === null || row.lng === null
+        ? null
+        : { lat: row.lat, lng: row.lng, accuracyM: row.accuracy_m, distanceM: row.distance_m, address: row.address },
   };
 }
 
