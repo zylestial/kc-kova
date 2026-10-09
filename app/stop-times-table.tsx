@@ -28,7 +28,8 @@ type Props = {
 };
 
 /**
- * Each leg's actual TIME OUT and TIME IN, as they'll print on the form:
+ * Each leg's actual TIME OUT and TIME IN, in the form's column order (Leg,
+ * Origin, Time Out, Destination, Time In) and as they'll print on it:
  * Start trip, Arrived/Leaving at each stop, End trip, or an Admin's entry in
  * place of one. A tap shows its time, where it was (linked to a map) and a
  * flag when it wasn't at the place; a tap still to make shows its button for
@@ -115,19 +116,23 @@ export default function StopTimesTable({ times, driverId, nameOf, open, onTap, b
         <thead>
           <tr>
             <th>LEG</th>
-            <th>DESTINATION</th>
+            <th>ORIGIN</th>
             <th>TIME OUT</th>
+            <th>DESTINATION</th>
             <th>TIME IN</th>
           </tr>
         </thead>
         <tbody>
-          {times.map((item) => (
+          {times.map((item, index) => (
             <tr key={item.leg.id}>
               <td>{item.leg.legNo}</td>
               <td>
-                <b>{item.leg.destinationName}</b>
+                <b>{item.leg.origin || times[index - 1]?.leg.destinationName || BASE}</b>
               </td>
               <td>{cell(item.out)}</td>
+              <td>
+                <b>{item.leg.destinationName}</b>
+              </td>
               <td>{cell(item.in)}</td>
             </tr>
           ))}
