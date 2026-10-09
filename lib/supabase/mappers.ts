@@ -8,6 +8,8 @@ import type {
   Notification,
   NotificationType,
   ProblemReport,
+  StopTap,
+  TripTimeCorrection,
   TripAttendance,
   TripCompletion,
   Vehicle,
@@ -32,16 +34,23 @@ type BookingOptionRow = {
   is_other_stop: boolean;
 };
 
-export function toBookingOptions(rows: BookingOptionRow[]): BookingOptions {
+/** A destination's saved position (destination_locations, 0044). */
+export type DestinationLocationRow = { destination_id: string; lat: number; lng: number };
+
+export function toBookingOptions(rows: BookingOptionRow[], locations: DestinationLocationRow[] = []): BookingOptions {
   const options: BookingOptions = { projects: [], destinations: [], purposes: [] };
+  const locationOf = new Map(locations.map((row) => [row.destination_id, row]));
   for (const row of rows) {
-    options[row.group].push({ id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop });
+    options[row.group].push(toBookingOption(row, row.group === "destinations" ? locationOf.get(row.id) : undefined));
   }
   return options;
 }
 
-export function toBookingOption(row: { id: string; name: string; status: "Active" | "Inactive"; is_other_stop: boolean }): BookingOption {
-  return { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop };
+/** One option; a destination's position is added when it has one. */
+export function toBookingOption(row: Omit<BookingOptionRow, "group">, location?: DestinationLocationRow | null): BookingOption {
+  const option: BookingOption = { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop };
+  if (location) option.location = { lat: location.lat, lng: location.lng };
+  return option;
 }
 
 type RequestDestinationRow = {
@@ -221,6 +230,64 @@ export function toTripAttendance(row: AttendanceRow): TripAttendance {
   };
 }
 
+type StopTapRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  leg_id: string;
+  driver_id: string;
+  kind: "ARRIVE" | "LEAVE";
+  at: string;
+  lat: number | null;
+  lng: number | null;
+  accuracy_m: number | null;
+  distance_m: number | null;
+  address: string | null;
+  recorded_by_account_id: string;
+};
+
+export function toStopTap(row: StopTapRow): StopTap {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    legId: row.leg_id,
+    driverId: row.driver_id,
+    kind: row.kind,
+    at: row.at,
+    recordedByAccountId: row.recorded_by_account_id,
+    location:
+      row.lat === null || row.lng === null
+        ? null
+        : { lat: row.lat, lng: row.lng, accuracyM: row.accuracy_m, distanceM: row.distance_m, address: row.address },
+  };
+}
+
+
+type TripTimeCorrectionRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  leg_id: string;
+  field: "OUT" | "IN";
+  /** Postgres time(0), "HH:MM:SS". */
+  time: string;
+  corrected_by_account_id: string;
+  corrected_at: string;
+};
+
+export function toTripTimeCorrection(row: TripTimeCorrectionRow): TripTimeCorrection {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    legId: row.leg_id,
+    field: row.field,
+    time: row.time.slice(0, 5),
+    correctedByAccountId: row.corrected_by_account_id,
+    correctedAt: row.corrected_at,
+  };
+}
 type ProblemRow = {
   id: string;
   schedule_id: string;

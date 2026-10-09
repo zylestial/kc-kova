@@ -19,8 +19,8 @@ A person has exactly one role; there is no multi-role account.
 | --- | --- |
 | **Requester** | Ask for transport (a date and one or more stops, each with a purpose). Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
 | **Scheduler** | Plan a day: take requests from the day's pool, pick a vehicle (its assigned Driver comes with it), build the route as a Trip Record, and submit it for approval. Send back requests that won't fit, or split a request across vehicles. The only role that creates schedules. |
-| **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers, handle problem reports, mark Done), check Drivers' attendance, and manage Accounts, Vehicles and request choices. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
-| **Driver** | See the approved trips assigned to them ("My Schedule"). Tap Start trip when leaving ANONANG and End trip on returning (their attendance). After a trip ends, submit its odometer readings and final-return checks. Report a problem on a trip at any time. |
+| **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers and times, handle problem reports, mark Done), check Drivers' attendance, and manage Accounts, Vehicles and request choices. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
+| **Driver** | See the approved trips assigned to them ("My Schedule"). Tap Start trip when leaving ANONANG and End trip on returning (their attendance), and Arrived and Leaving at each stop in between. After a trip ends, submit its odometer readings and final-return checks. Report a problem on a trip at any time. |
 
 ## Core workflows
 
@@ -36,8 +36,10 @@ A person has exactly one role; there is no multi-role account.
    starting and ending at ANONANG (the home base), with times for each leg.
    Fuel or errand stops can be added without a request. Saving a draft
    reserves the time and locks the requests so nobody else plans them. A
-   request that won't fit can be sent back to its requester (with a reason) to
-   pick another day, or split so part of it goes on another vehicle.
+   request that won't fit is sent back to its requester (with a reason) when
+   the Scheduler submits, so they can
+   pick another day; one only partly on the route is split so the rest can go
+   on another vehicle.
 3. **Approve.** The Scheduler submits the plan. An Admin approves it, which
    publishes it to the Requesters and the Driver, or returns it with a
    comment saying what to change. A published schedule can be revised through
@@ -47,15 +49,20 @@ A person has exactly one role; there is no multi-role account.
    when the phone shares it, where the Driver was; a tap away from ANONANG
    or without a location is kept but flagged. The two taps are the Driver's
    attendance for the day, and an Admin sees them on the Attendance screen.
-   Once both taps are in and the trip's last planned time has passed, the
+   In between, the Driver taps **Arrived** at each stop and **Leaving** as
+   they set off, checked against the stop's saved location the same way.
+   These taps are the actual Time Out and Time In printed on the form.
+   Once End trip is tapped (even before the last planned time), the
    assigned Driver submits one odometer pair for the whole schedule and may
    answer the final-return checks (full tank, fleet card used, gas receipt
    attached). A Driver can report a problem on a trip at any time, even
    before submitting.
 5. **Review and close out.** An Admin reviews submitted trips in Finished
-   Trips: corrects the odometers if needed, handles problem reports (a note,
+   Trips: corrects the odometers if needed, fills in any Time Out or Time In
+   the Driver didn't tap (or corrects one), handles problem reports (a note,
    and optionally the follow-up schedule), and marks the trip **Done**, which
-   locks it for everyone. Trips with no open problem can be marked Done in one
+   locks it for everyone. A trip can't be Done until every time is there.
+   Trips with no open problem and no missing time can be marked Done in one
    step. The Admin can print the official form for any submitted trip.
 6. **Cancel.** A Requester cancels an unplanned request directly. Once a
    schedule holds the request, they ask for a cancellation and an Admin
@@ -119,7 +126,8 @@ in `supabase/tests/` already check automatically.
 
 **Driving and close-out**
 - A Driver sees only approved trips on their own vehicle. (tested)
-- A Driver can't submit a trip before its last planned Time In, and submits
+- A Driver can submit a trip once End trip is tapped, even before its last
+  planned Time In, and submits
   one odometer pair with the end no lower than the start. (tested)
 - A Driver taps Start trip (from the trip's date) and End trip (after
   Start); both are needed before submitting. A tap more than 150 m from
@@ -127,11 +135,18 @@ in `supabase/tests/` already check automatically.
   (tested)
 - An Admin sees every Driver's Start and End taps, with their flags, on the
   Attendance screen.
+- Between Start and End, a Driver taps Arrived and Leaving at each stop; a
+  tap more than 150 m from the stop's saved location or without a location
+  is flagged, not refused. (tested)
+- An Admin can fill in or correct a submitted trip's Time Out / Time In, and
+  can't mark it Done while one is missing. (tested)
 - A Driver can report a problem on a trip at any time.
 - An Admin can correct a submitted trip's odometers and mark it Done; a Done
   trip can't be changed by anyone. (tested)
 - An Admin can print the official form for any submitted trip, with the same
-  fields as the paper Daily Vehicle Trip & Utilization Form.
+  fields as the paper Daily Vehicle Trip & Utilization Form and the actual
+  times from the taps (or the Admin's entries); a time nobody recorded
+  prints blank.
 
 **Accounts and access**
 - Only an Admin can create accounts, set passwords, and change vehicles and

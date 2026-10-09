@@ -64,22 +64,34 @@ SCHED1="$(sql <<<"select gen_random_uuid()")"
 SCHED2="$(sql <<<"select gen_random_uuid()")"
 DRIVER1="$(sql <<<"select gen_random_uuid()")"
 DRIVER2="$(sql <<<"select gen_random_uuid()")"
+# One van (and Driver) per scenario: a vehicle takes only one schedule a day
+# (0048), and every scenario books the same day.
+DRIVER3="$(sql <<<"select gen_random_uuid()")"
+DRIVER4="$(sql <<<"select gen_random_uuid()")"
+DRIVER5="$(sql <<<"select gen_random_uuid()")"
+DRIVER6="$(sql <<<"select gen_random_uuid()")"
 REQ="$(sql <<<"select gen_random_uuid()")"
-P1="C1-$RUN"; P2="C2-$RUN"; DEST="cd-$RUN"; PURP="cp-$RUN"
+P1="C1-$RUN"; P2="C2-$RUN"; P3="C3-$RUN"; P4="C4-$RUN"; P5="C5-$RUN"; P6="C6-$RUN"; DEST="cd-$RUN"; PURP="cp-$RUN"
 
 sql <<EOF >/dev/null
 insert into auth.users (id, email) values
   ('$ADMIN1', 'a1-$RUN@test.local'), ('$ADMIN2', 'a2-$RUN@test.local'),
   ('$SCHED1', 's1-$RUN@test.local'), ('$SCHED2', 's2-$RUN@test.local'),
   ('$DRIVER1', 'd1-$RUN@test.local'), ('$DRIVER2', 'd2-$RUN@test.local'),
+  ('$DRIVER3', 'd3-$RUN@test.local'), ('$DRIVER4', 'd4-$RUN@test.local'),
+  ('$DRIVER5', 'd5-$RUN@test.local'), ('$DRIVER6', 'd6-$RUN@test.local'),
   ('$REQ', 'r-$RUN@test.local');
 insert into accounts (id, username, name, role) values
   ('$ADMIN1', 'a1-$RUN', 'Admin One', 'Admin'), ('$ADMIN2', 'a2-$RUN', 'Admin Two', 'Admin'),
   ('$SCHED1', 's1-$RUN', 'Sched One', 'Scheduler'), ('$SCHED2', 's2-$RUN', 'Sched Two', 'Scheduler'),
   ('$DRIVER1', 'd1-$RUN', 'Driver One', 'Driver'), ('$DRIVER2', 'd2-$RUN', 'Driver Two', 'Driver'),
+  ('$DRIVER3', 'd3-$RUN', 'Driver Three', 'Driver'), ('$DRIVER4', 'd4-$RUN', 'Driver Four', 'Driver'),
+  ('$DRIVER5', 'd5-$RUN', 'Driver Five', 'Driver'), ('$DRIVER6', 'd6-$RUN', 'Driver Six', 'Driver'),
   ('$REQ', 'r-$RUN', 'Requester', 'Requester');
 insert into vehicles (plate, name, assigned_driver_id) values
-  ('$P1', 'Race Van 1', '$DRIVER1'), ('$P2', 'Race Van 2', '$DRIVER2');
+  ('$P1', 'Race Van 1', '$DRIVER1'), ('$P2', 'Race Van 2', '$DRIVER2'),
+  ('$P3', 'Race Van 3', '$DRIVER3'), ('$P4', 'Race Van 4', '$DRIVER4'),
+  ('$P5', 'Race Van 5', '$DRIVER5'), ('$P6', 'Race Van 6', '$DRIVER6');
 insert into booking_options ("group", id, name) values
   ('destinations', '$DEST', 'Race Destination'), ('purposes', '$PURP', 'Race Purpose');
 EOF
@@ -108,20 +120,20 @@ race "include/include: same request into two schedules" \
   "$SCHED1" "$(draft "$P1" "$Q1" "$(legs "$(rd_of "$Q1")" 06:00 07:00 07:10 07:40)")" \
   "$SCHED2" "$(draft "$P2" "$Q1" "$(legs "$(rd_of "$Q1")" 06:00 07:00 07:10 07:40)")"
 
-race "reservation: overlapping times on the same vehicle" \
-  "$SCHED1" "$(draft "$P1" "$Q2" "$(legs "$(rd_of "$Q2")" 12:00 13:00 13:10 13:40)")" \
-  "$SCHED2" "$(draft "$P1" "$Q3" "$(legs "$(rd_of "$Q3")" 12:30 13:30 13:40 14:10)")"
+race "one trip per vehicle per day: two schedules on the same vehicle" \
+  "$SCHED1" "$(draft "$P3" "$Q2" "$(legs "$(rd_of "$Q2")" 12:00 13:00 13:10 13:40)")" \
+  "$SCHED2" "$(draft "$P3" "$Q3" "$(legs "$(rd_of "$Q3")" 12:30 13:30 13:40 14:10)")"
 
 race "edit/include: owner edits while a Scheduler includes" \
   "$REQ" "select update_request('$Q4', 1, $DATE, 'REGULAR', null, null, '$DESTS')" \
-  "$SCHED1" "$(draft "$P2" "$Q4" "$(legs "$(rd_of "$Q4")" 15:00 15:30 15:40 16:00)")"
+  "$SCHED1" "$(draft "$P4" "$Q4" "$(legs "$(rd_of "$Q4")" 15:00 15:30 15:40 16:00)")"
 
 race "include/edit: Scheduler includes while the owner edits" \
-  "$SCHED1" "$(draft "$P2" "$Q5" "$(legs "$(rd_of "$Q5")" 17:00 17:30 17:40 18:00)")" \
+  "$SCHED1" "$(draft "$P5" "$Q5" "$(legs "$(rd_of "$Q5")" 17:00 17:30 17:40 18:00)")" \
   "$REQ" "select update_request('$Q5', 1, $DATE, 'REGULAR', null, null, '$DESTS')"
 
 # Approval race: one submitted schedule, two Admins approve at once.
-session "$SCHED1" 0 "$(draft "$P1" "$Q6" "$(legs "$(rd_of "$Q6")" 19:00 19:30 19:40 20:00)")" >/dev/null
+session "$SCHED1" 0 "$(draft "$P6" "$Q6" "$(legs "$(rd_of "$Q6")" 19:00 19:30 19:40 20:00)")" >/dev/null
 S6="$(sql <<<"select schedule_id from schedule_requests where request_id = '$Q6' and active")"
 session "$SCHED1" 0 "select submit_schedule('$S6', 1)" >/dev/null
 race "approve/approve: two Admins approve the same schedule" \

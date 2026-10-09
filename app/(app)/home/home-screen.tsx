@@ -57,12 +57,12 @@ export default function HomeScreen() {
   // and the viewing-as banner's "Return to Admin" are leave()-guarded.
   const go = (path: string) => router.push(path);
   // Re-renders when the app reloads its data, so the card counts stay current.
-  const { requests, schedules, cancellations, completions, problems } = useKovaData();
-  const counts = homeCounts(account, { requests, schedules, cancellations, completions, problems });
+  const { requests, schedules, cancellations, completions, problems, attendance } = useKovaData();
+  const counts = homeCounts(account, { requests, schedules, cancellations, completions, problems, attendance });
   const stats = homeStats(
     viewRole,
     account.id,
-    { requests, schedules, cancellations, completions, problems },
+    { requests, schedules, cancellations, completions, problems, attendance },
     new Date(),
     viewAs === "Driver" ? null : account.id,
   );

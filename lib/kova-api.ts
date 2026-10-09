@@ -28,6 +28,8 @@ export type BookingOption = {
   status: "Active" | "Inactive";
   /** Destinations only: a non-request stop (e.g. fuel, an errand) the Planner may add on its own. */
   isOtherStop?: boolean;
+  /** Destinations only: where it is, to check a Driver's Arrived/Leaving taps there (0044). */
+  location?: { lat: number; lng: number } | null;
 };
 export type RequestProgress =
   | "NOT_YET_SCHEDULED"
@@ -114,6 +116,39 @@ export type TripAttendance = {
 };
 /** What a Start/End tap sends: the phone's position, or null when it wouldn't share it. */
 export type AttendanceInput = { kind: "START" | "END"; location: { lat: number; lng: number; accuracyM: number | null } | null };
+/** Where the phone was at an Arrived/Leaving tap; distanceM is null when the destination has no saved position. */
+export type StopTapLocation = Omit<AttendanceLocation, "distanceM"> & { distanceM: number | null };
+/**
+ * An Arrived or Leaving tap at one leg's destination (0045). Arrived is that
+ * leg's TIME IN on the printed form; Leaving is the next leg's TIME OUT.
+ */
+export type StopTap = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  legId: string;
+  driverId: string;
+  kind: "ARRIVE" | "LEAVE";
+  at: string;
+  recordedByAccountId: string;
+  location: StopTapLocation | null;
+};
+/** What an Arrived/Leaving tap sends. */
+export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"] };
+/** An Admin's TIME OUT or TIME IN for one leg of a submitted trip (0046); it prints in place of the tap. */
+export type TripTimeCorrection = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  legId: string;
+  field: "OUT" | "IN";
+  /** Manila wall-clock time, "HH:MM". */
+  time: string;
+  correctedByAccountId: string;
+  correctedAt: string;
+};
+/** What filling in a time sends; a null time clears the Admin's entry. */
+export type TripTimeInput = { legId: string; field: TripTimeCorrection["field"]; time: string | null };
 /** A Driver's note that a trip couldn't go as planned (0017, 0029). */
 export type ProblemReport = {
   id: string;
@@ -233,6 +268,8 @@ export type BootstrapData = {
   cancellations: CancellationRequest[];
   completions: TripCompletion[];
   attendance: TripAttendance[];
+  stopTaps: StopTap[];
+  timeCorrections: TripTimeCorrection[];
   problems: ProblemReport[];
   notifications: Notification[];
 };
@@ -249,6 +286,8 @@ const emptyData: BootstrapData = {
   cancellations: [],
   completions: [],
   attendance: [],
+  stopTaps: [],
+  timeCorrections: [],
   problems: [],
   notifications: [],
 };
@@ -381,6 +420,8 @@ export const returnSchedule = (id: string, rowVersion: number, comment: string) 
 export const discardScheduleDraft =(id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/discard`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const submitCompletion = (id: string, startOdometer: number, endOdometer: number, checks?: ReturnChecks) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer, ...checks }) }));
 export const recordAttendance = (id: string, input: AttendanceInput) => refreshAfter(request<TripAttendance>(`/api/schedules/${encodeURIComponent(id)}/attendance`, { method: "POST", body: JSON.stringify(input) }));
+export const recordStopTap = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/stop-taps`, { method: "POST", body: JSON.stringify(input) }));
+export const setTripTime = (id: string, input: TripTimeInput) => refreshAfter(request<TripTimeCorrection | null>(`/api/schedules/${encodeURIComponent(id)}/times`, { method: "PUT", body: JSON.stringify(input) }));
 export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));

@@ -156,6 +156,20 @@ KOVA enforces permissions in two places, and both must independently hold:
 
 PK: `(group, id)`.
 
+### `destination_locations` (migration 0044)
+
+A destination's saved position, set by an Admin on Request choices, to
+check a Driver's Arrived/Leaving taps there. Optional: a destination
+without one still takes taps, unchecked. `(destination_group,
+destination_id)` is the PK and an FK to `booking_options`;
+`destination_group` is always `destinations`. Same RLS as
+`booking_options` (everyone signed in reads, Admin writes).
+
+Its own table on purpose: functions such as `resolve_request_project` test
+a fetched option row with `v_option is not null`, which is true only when
+**every** column is non-null, so a nullable column on `booking_options`
+would make every option look missing.
+
 ### `people`
 
 Unused since v2.5: nothing in v2 read it, so its Settings panel and API
@@ -219,6 +233,30 @@ Driver's own rows, Admin all). `submit_completion` requires an ended row.
 Flags (away from base, no location, late) are derived in `lib/attendance.ts`,
 not stored.
 
+### `stop_taps` (migration 0045)
+
+The Driver's Arrived (`ARRIVE`) and Leaving (`LEAVE`) taps at each
+non-final leg's destination, one row per tap (unique per leg and kind).
+Same columns and rules as a Start/End tap: server `at`, the phone's
+`lat`/`lng`/`accuracy_m`, an `address` from Nominatim, `driver_id` the
+approved version's Driver, `recorded_by_account_id` whoever tapped.
+`distance_m` is from the destination's `destination_locations` row at tap
+time (`distance_m()`), null without one. Written only by `record_stop_tap`;
+`authenticated` gets `SELECT` only (the Driver's own rows, Admin all).
+
+With Start/End these are the actual times on the printed form
+(`lib/stop-times.ts`): leg 1 TIME OUT = Start trip, leg N TIME IN =
+Arrived at leg N, leg N+1 TIME OUT = Leaving leg N, final TIME IN = End trip.
+
+### `trip_time_corrections` (migration 0046)
+
+An Admin's TIME OUT or TIME IN for one leg (`leg_id`, `field` `OUT`/`IN`,
+`time` as Manila wall-clock `time(0)`), unique per cell. It prints in place
+of the tap, which stays as evidence. Written only by `set_trip_time` (Admin,
+submitted and not Done; a null time deletes it). `trip_times_missing()`
+counts cells with neither a tap nor a correction; `mark_completion_done`
+refuses while it's above 0. Readable by Admin and the trip's Driver.
+
 ### `notifications` (migration 0035, v2.2)
 
 One row per (recipient, event): `account_id`, `type`, `message`,
@@ -266,10 +304,12 @@ Summary, with the implementing route file:
 | POST | `/api/requests/:requestId/cancellation` | `app/api/requests/[requestId]/cancellation/route.ts` | Owner, request in a schedule |
 | POST | `/api/cancellations/:cancellationId/confirm` | `app/api/cancellations/[cancellationId]/confirm/route.ts` | Admin |
 | POST | `/api/cancellations/:cancellationId/decline` | `app/api/cancellations/[cancellationId]/decline/route.ts` | Admin (note required) |
-| POST | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Assigned Driver (approved trip that has ended) |
+| POST | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Assigned Driver (approved trip with End trip tapped) |
 | PATCH | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Admin (until Done) |
 | POST | `/api/schedules/:scheduleId/completion/done` | `app/api/schedules/[scheduleId]/completion/done/route.ts` | Admin |
 | POST | `/api/schedules/:scheduleId/attendance` | `app/api/schedules/[scheduleId]/attendance/route.ts` | Assigned Driver, Admin (as Driver); `{ kind: "START" \| "END", location }` |
+| POST | `/api/schedules/:scheduleId/stop-taps` | `app/api/schedules/[scheduleId]/stop-taps/route.ts` | Assigned Driver, Admin (as Driver), between Start and End; `{ legId, kind: "ARRIVE" \| "LEAVE", location }` |
+| PUT | `/api/schedules/:scheduleId/times` | `app/api/schedules/[scheduleId]/times/route.ts` | Admin, submitted trip until Done; `{ legId, field: "OUT" \| "IN", time: "HH:MM" \| null }` |
 | POST | `/api/schedules/:scheduleId/problems` | `app/api/schedules/[scheduleId]/problems/route.ts` | Assigned Driver |
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
@@ -287,9 +327,10 @@ field names and is shared between the frontend and this doc.
 
 `GET /api/bootstrap` is the single hydration call the frontend makes right
 after sign-in. It issues parallel `select *` queries (accounts, vehicles,
-booking_options, and the v2 `requests` with their active
+booking_options with `destination_locations`, and the v2 `requests` with their active
 destinations plus `request_progress`, the `schedules` with their live
-versions, legs and stops, and the completions and problem reports) through the
+versions, legs and stops, the completions and problem reports, and the
+Start/End taps, stop taps and Admin time entries) through the
 **session-scoped client**, so RLS does the role-based filtering for free —
 a Driver's query for `trip_completions` only ever returns their own rows, without
 the route needing to know that rule itself. This is why `bootstrap`'s route
@@ -300,7 +341,8 @@ problem reports load only from `?since=` on (default: the last 90 days,
 `lib/bootstrap-window.ts`; the response echoes it as `since`). Anything older
 that still needs someone is added back regardless: a `SUBMITTED` completion,
 an `OPEN` problem report and a `PENDING` cancellation, with the schedules
-and requests they belong to. `request_progress` carries `requested_date`
+and requests they belong to, and those schedules' Start/End taps, stop taps and
+Admin time entries. `request_progress` carries `requested_date`
 (0041) so Postgres evaluates `request_progress_of()` only for the window.
 `loadOlderRecords()` (`lib/kova-api.ts`) asks for `since=2000-01-01` and
 remembers it for later reloads; the `OlderRecordsNotice` on Finished Trips,

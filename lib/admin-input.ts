@@ -42,4 +42,9 @@ export const bookingOptionBody = z.object({
   name: required,
   status: statusOrActive,
   isOtherStop: z.unknown().optional().transform((value) => value === true),
+  /** Destinations only; missing or null clears it. */
+  location: z
+    .object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
+    .nullable()
+    .default(null),
 });

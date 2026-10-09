@@ -44,15 +44,25 @@ The v1.2 booking and Daily Vehicle Record rules were retired with their code
 and tables (migration 0032). Request and schedule rules (dates, states,
 approval, cancellation, conflicts) are enforced in the RPCs and documented
 per phase in `docs/v2/` — `phase-3-schema.md` has the permission matrix and
-state transitions. The completion rules:
+state transitions.
+
+**One trip per vehicle per day** (migration 0048, owner's call 2026-10-09):
+once a vehicle is on an active schedule for a day (any live version, timed
+or not), no other schedule may use it that day, even at other times. A
+schedule keeps its own vehicle across revisions; cancelling or discarding it
+frees the vehicle. Enforced by a trigger on `schedule_revisions`; the
+Planner also leaves booked vehicles out of its list (`platesBookedOn`).
+
+The completion rules:
 
 - Only the Driver snapshotted on a schedule's **approved** version may submit
   a completion or report a problem, and only while the schedule is `ACTIVE`.
 - A completion is **one odometer pair for the whole schedule**: whole numbers,
   start ≥ 0, end ≥ start, pinned to the approved version, with a server-set
   `submitted_at`. Repeating a submit returns the existing completion.
-- The trip must be over: the approved version's last planned Time In
-  (Asia/Manila) has passed, and the Driver has tapped Start and End (below). Problem reports have no such limit, can be filed
+- The trip must be over: the Driver has tapped Start and End (below). Since
+  0047 End trip is enough, so a trip back early can be completed before its
+  last planned Time In. Problem reports have no such limit, can be filed
   more than once, and never block anything.
 - A submitted completion locks the trip: no revision, approval or
   cancellation afterwards.
@@ -85,6 +95,40 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   without one; a tap without a position never has one.
 - Only Admin and the Driver themself can read a Driver's attendance.
 
+The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
+0044–0046):
+
+- Between Start trip and End trip, the Driver taps Arrived on reaching each
+  non-final leg's destination and Leaving on setting off from it; End trip
+  is the final leg's arrival. One of each per leg, by the same people as
+  Start/End; a repeat returns the first. Refused before Start trip, after
+  End trip, once the trip is submitted, and on a leg not in the approved
+  version.
+- These are the actual times on the printed form: leg 1 TIME OUT = Start
+  trip, leg N TIME IN = Arrived at leg N, leg N+1 TIME OUT = Leaving leg N,
+  final TIME IN = End trip. Planned times stay on the Trip Record only.
+- Same position rules as Start/End, measured from the destination's saved
+  location when it has one (Request choices); without one, or for a typed-in
+  "other" destination, the tap is kept and flagged "No location set for …"
+  (counted as "not checked" on Attendance, with its own filter). The Admin
+  screens check each tap against the destination's location as it is now
+  (`placeResolver`; a typed-in leg matches its choice by name), so setting a
+  location later checks earlier taps too. Flagged,
+  never refused. Whether the Driver was on time is not judged.
+- My Schedule shows one button at a time: the next tap in route order. A
+  Driver who forgot one taps the next as usual; the missed one shows as
+  skipped and the Admin fills it in. "End trip now" (with a second tap to
+  confirm) ends a trip cut short. Drivers never see distances, coordinates
+  or flags; only the Admin does.
+- After the Driver submits, an Admin can fill in a missing time or correct
+  one (`set_trip_time`, to the minute, Manila time). It prints instead of
+  the tap; the tap stays on record. Clearing it brings back the tap (or the
+  blank). Locked once the trip is Done.
+- **A trip can't be marked Done until every TIME OUT and TIME IN is there**,
+  tapped or filled in (`trip_times_missing`). The Driver is never blocked:
+  Complete trip doesn't need the stop taps. "Mark clean trips done" skips
+  trips with a time missing. A time nobody recorded prints blank.
+
 ## Booking options
 
 - Only an Admin may create or edit Projects, Destinations or Purposes.
@@ -92,6 +136,17 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   offered when creating a *new* one (an edit may keep an option the request
   already had).
 - Nothing in this group is ever hard-deleted.
+- A Destination may have a saved location (coordinates or a Google Maps
+  link, pasted on Request choices), used only to check stop taps there.
+  Clearing it deletes the `destination_locations` row; the option stays.
+  Never add a nullable column to `booking_options` itself (see
+  `docs/ARCHITECTURE.md`, `destination_locations`).
+- A Destination or Purpose typed under "Other" on a request becomes a choice
+  when the request is saved (0049, owner's call 2026-10-09): a name matching
+  an Active choice (ignoring case and extra spaces) uses that choice; a new
+  name is added as Active and used. A name matching only an Inactive choice
+  stays typed. Done inside `insert_request_destinations`, since Requesters
+  can't write choices themselves. Project / Site "Other" is unchanged.
 
 ## Cross-cutting
 

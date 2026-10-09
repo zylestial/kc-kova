@@ -1,5 +1,4 @@
 "use client";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Account, Vehicle } from "@/lib/kova-api";
 import { type Commitment } from "@/lib/trip-record";
@@ -9,8 +8,9 @@ type Props = {
   setPlate: (plate: string) => void;
   vehicles: Vehicle[];
   driverFor: (plate: string) => Account | undefined;
-  driver: Account | undefined;
   clashes: Commitment[];
+  /** Vehicles already on another schedule that day (platesBookedOn); not offered. */
+  booked: Set<string>;
 };
 
 export default function VehiclePanel({
@@ -18,12 +18,15 @@ export default function VehiclePanel({
   setPlate,
   vehicles,
   driverFor,
-  driver,
   clashes,
+  booked,
 }: Props) {
+  // A vehicle takes one schedule a day (0048); the one already chosen stays listed.
+  const active = vehicles.filter((vehicle) => vehicle.status === "Active");
+  const offered = active.filter((vehicle) => !booked.has(vehicle.plate) || vehicle.plate === plate);
   return (
     <section className="editor-panel">
-      <h2>Vehicle and Driver</h2>
+      <h2>Vehicle</h2>
       <div className="fields planner-vehicle">
         <label className="field">
           <span>Vehicle *</span>
@@ -32,26 +35,22 @@ export default function VehiclePanel({
               <SelectValue placeholder="Select a vehicle" />
             </SelectTrigger>
             <SelectContent>
-              {vehicles
-                .filter((vehicle) => vehicle.status === "Active")
-                .map((vehicle) => (
-                  <SelectItem key={vehicle.plate} value={vehicle.plate} disabled={!driverFor(vehicle.plate)}>
-                    {vehicle.name} · {vehicle.plate}
-                    {!driverFor(vehicle.plate) && " (no Driver assigned)"}
-                  </SelectItem>
-                ))}
+              {offered.map((vehicle) => (
+                <SelectItem key={vehicle.plate} value={vehicle.plate} disabled={!driverFor(vehicle.plate)}>
+                  {vehicle.name} · {vehicle.plate}
+                  {!driverFor(vehicle.plate) && " (no Driver assigned)"}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </label>
-        <label className="field">
-          <span>Driver (automatic)</span>
-          <Input value={driver?.name ?? ""} placeholder="Follows the vehicle" readOnly />
-        </label>
       </div>
-      {!vehicles.some((vehicle) => vehicle.status === "Active") ? (
+      {!active.length ? (
         <p className="helper">There are no active vehicles. An Admin adds them in Settings, under Vehicles.</p>
+      ) : !offered.length ? (
+        <p className="helper">Every vehicle already has a trip on this day.</p>
       ) : (
-        vehicles.some((vehicle) => vehicle.status === "Active" && !driverFor(vehicle.plate)) && (
+        offered.some((vehicle) => !driverFor(vehicle.plate)) && (
           <p className="helper">
             A vehicle marked &quot;no Driver assigned&quot; can&apos;t be used yet. An Admin assigns a Driver in Settings,
             under Vehicles.

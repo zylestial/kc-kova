@@ -10,14 +10,18 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000005a', 'juan5@test.local'),
   ('00000000-0000-0000-0000-00000000005b', 'maria5@test.local'),
   ('00000000-0000-0000-0000-00000000005d', 'sched5@test.local'),
-  ('00000000-0000-0000-0000-00000000005e', 'driver5@test.local');
+  ('00000000-0000-0000-0000-00000000005e', 'driver5@test.local'),
+  ('00000000-0000-0000-0000-00000000005f', 'driver6@test.local');
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-00000000005a', 'juan5', 'Juan Five', 'Requester'),
   ('00000000-0000-0000-0000-00000000005b', 'maria5', 'Maria Five', 'Requester'),
   ('00000000-0000-0000-0000-00000000005d', 'sched5', 'Sam Five', 'Scheduler'),
-  ('00000000-0000-0000-0000-00000000005e', 'driver5', 'Dee Five', 'Driver');
+  ('00000000-0000-0000-0000-00000000005e', 'driver5', 'Dee Five', 'Driver'),
+  ('00000000-0000-0000-0000-00000000005f', 'driver6', 'Dot Six', 'Driver');
 insert into vehicles (plate, name, assigned_driver_id) values
-  ('V55', 'Van 55', '00000000-0000-0000-0000-00000000005e');
+  ('V55', 'Van 55', '00000000-0000-0000-0000-00000000005e'),
+  -- A second van, since V55 can take only one schedule a day (0048).
+  ('V56', 'Van 56', '00000000-0000-0000-0000-00000000005f');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'd55', 'City Hall 55', 'Active'),
   ('purposes', 'p55', 'Inspection', 'Active');
@@ -96,7 +100,7 @@ select is(
 select pg_temp.act_as('00000000-0000-0000-0000-00000000005d');
 select throws_ok(
   format(
-    $$ select save_schedule_draft(null, null, pg_temp.d(10), 'V55', array[%L::uuid],
+    $$ select save_schedule_draft(null, null, pg_temp.d(10), 'V56', array[%L::uuid],
          jsonb_build_array(
            jsonb_build_object('destinationId', 'd55', 'plannedTimeOut', '11:00', 'plannedTimeIn', '12:00',
              'stops', (select jsonb_agg(id) from request_destinations where request_id = %L::uuid and active)),

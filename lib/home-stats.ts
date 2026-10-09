@@ -1,6 +1,6 @@
 import type { Account } from "@/lib/kova-api";
-import type { HomeData } from "@/lib/home-counts";
-import { hasTripEnded, manilaToday } from "@/lib/timezone";
+import { tripOver, type HomeData } from "@/lib/home-counts";
+import { manilaToday } from "@/lib/timezone";
 import { scheduleState } from "@/lib/trip-record";
 
 export type StatTone = "info" | "success" | "warning" | "error";
@@ -65,7 +65,7 @@ export function homeStats(
         if (!revision || (driverId !== null && revision.driverId !== driverId)) return [];
         if (data.completions.some((item) => item.scheduleId === schedule.id)) return [];
         const lastIn = revision.legs[revision.legs.length - 1]?.plannedTimeIn ?? "";
-        return [{ date: schedule.date, ended: hasTripEnded(schedule.date, lastIn, now) }];
+        return [{ date: schedule.date, ended: tripOver(data, schedule, lastIn, now) }];
       });
     return [
       { label: "Trips today", href: "/my-schedule", value: trips.filter((trip) => !trip.ended && trip.date === today).length, tone: "info" },

@@ -47,7 +47,7 @@ describe("tripSignature", () => {
     expect(tripSignature("V1", ["r1"], a)).not.toBe(tripSignature("V2", ["r1"], a));
     expect(tripSignature("V1", ["r1"], a)).not.toBe(tripSignature("V1", ["r1", "r2"], a));
     expect(tripSignature("V1", ["r1"], a)).not.toBe(
-      tripSignature("V1", ["r1"], [{ ...a[0], plannedTimeIn: "09:00" }, a[1]]),
+      tripSignature("V1", ["r1"], [{ ...a[0], plannedTimeIn: "09:00" }]),
     );
     expect(tripSignature("V1", ["r1"], a)).not.toBe(tripSignature("V1", ["r1"], [...a.slice(0, 1), newLeg(), finalLeg()]));
   });

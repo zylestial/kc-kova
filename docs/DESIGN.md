@@ -136,7 +136,8 @@ trip table with Name/Sign lines, the final return and full-tank block,
 vehicle control, the PM/COO approval block, Finance use and submission
 control. It is printed from a finished trip in Admin Finished Trips
 (`app/finished-trip-print.tsx`), which fills in what v2 knows (route,
-planned times, Driver, odometers, submission date) and leaves signatures,
+actual times from the Driver's taps or an Admin's entries, Driver, odometers,
+submission date) and leaves signatures, unrecorded times,
 fuel checks and Finance fields blank for handwriting. The form is rendered
 into `document.body` as a portal, because `.app-shell{display:none!important}`
 hides the app chrome and dialogs are hidden in print, so `.print-form` is the
@@ -186,19 +187,33 @@ router/URL segments are used for in-app navigation.
 | `my-requests` | `app/my-requests.tsx` | Requester, Admin |
 | `create-schedule` | `app/schedule-planner.tsx` | Scheduler |
 | `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
-| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; Start trip / End trip, each tap's distance, margin and coordinates; then Complete trip) | Driver |
-| `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip; away from base, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
-| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin) | Driver, Admin |
+| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short; no requester, distances or coordinates; then a big Complete trip) | Driver |
+| `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
+| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are) | Driver, Admin |
 | `settings` | `app/settings.tsx` | Admin (accounts, vehicles, booking options) |
-| — | `app/booking-options.tsx` | Admin (projects/destinations/purposes/people) |
+| — | `app/booking-options.tsx` | Admin (projects/destinations/purposes; a destination's Location column and field take pasted coordinates or a Google Maps link) |
 
 The Planner (`app/schedule-planner.tsx`) holds the state and the save, submit,
 discard and send-back logic, and composes its screen from `app/planner/`: day
-picker, request pool, existing commitments, vehicle panel, one `LegCard` per
-leg, the checklist, and the submit, send-back, discard and remove-leg
+picker, existing commitments, vehicle panel (vehicle only; its Driver comes
+with it), one `LegCard` per
+leg, the checklist, and the submit, discard and remove-leg
 dialogs. Those parts only show what they're given and call back; they hold no
-state of their own. A new schedule opens on the first day with requests
-waiting (today if none), and the day picker lists waiting days outside its
+state of their own. Kept short on purpose (owner, 2026-10-09): the explanation
+sits in a closed "How planning works" fold, "Other trips this day" is folded
+(it opens by itself on a clash), the checklist lists only what's still to
+do, and each leg's contact sits behind "+ Add contact". There is no request
+pool panel: waiting destinations are picked from each leg's Destination
+dropdown (Urgent tagged). Sending requests back happens once the legs are
+confirmed: the Submit dialog lists what isn't on the route and, ticked by
+default, sends it
+back to the requesters with an optional reason. A `LegCard`'s fields follow the form: Origin, Time Out,
+Destination (with its contact name and number), then Time In. The
+destination stays a dropdown even once the leg serves requests: picking
+another puts those stops back in the pool (`changeLegDestination`). A new
+schedule opens on the first day with requests
+waiting (today if none) with Leg 1 only; the Scheduler adds the return leg
+to ANONANG when the route is done. The day picker lists waiting days outside its
 14-day strip. "Draft saved" and save errors show in the bottom bar, above the
 buttons; on phones the bar is one row (an icon-only Discard, "Submit"). The
 only step numbers are the top stepper's. With nothing else held that day, the

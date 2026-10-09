@@ -6,6 +6,7 @@ import {
   canAddFinal,
   canAddLeg,
   candidatesForLeg,
+  changeLegDestination,
   commitmentsOn,
   conflictsWith,
   finalLeg,
@@ -17,6 +18,7 @@ import {
   moveLeg,
   newLeg,
   pickLegDestination,
+  platesBookedOn,
   poolDestinationChoices,
   poolOrder,
   reflowFinalLegTimeOut,
@@ -109,7 +111,6 @@ describe("add leg / add final leg", () => {
 describe("legHasContent", () => {
   it("treats the default Time Out alone as empty", () => {
     expect(legHasContent(initialLegs()[0])).toBe(false);
-    expect(legHasContent(initialLegs()[1])).toBe(false);
   });
 
   it("notices anything the Scheduler entered", () => {
@@ -122,16 +123,15 @@ describe("legHasContent", () => {
 });
 
 describe("new Trip Record defaults", () => {
-  it("starts with one destination leg at 08:00 and the return leg", () => {
+  it("starts with one destination leg at 08:00 and no return leg yet", () => {
     const legs = initialLegs();
-    expect(legs.map((item) => item.isFinal)).toEqual([false, true]);
+    expect(legs.map((item) => item.isFinal)).toEqual([false]);
     expect(legs[0].plannedTimeOut).toBe("08:00");
     expect(legs[0].plannedTimeIn).toBe("");
-    expect(legs[1].plannedTimeOut).toBe("");
   });
 
   it("copies a Time In into the next leg's empty Time Out", () => {
-    const legs = setLegTimeIn(initialLegs(), 0, "09:15");
+    const legs = setLegTimeIn([...initialLegs(), finalLeg()], 0, "09:15");
     expect(legs[0].plannedTimeIn).toBe("09:15");
     expect(legs[1].plannedTimeOut).toBe("09:15");
   });
@@ -142,7 +142,7 @@ describe("new Trip Record defaults", () => {
   });
 
   it("doesn't copy a half-typed time", () => {
-    expect(setLegTimeIn(initialLegs(), 0, "09:1")[1].plannedTimeOut).toBe("");
+    expect(setLegTimeIn([...initialLegs(), finalLeg()], 0, "09:1")[1].plannedTimeOut).toBe("");
   });
 
   it("still requires a Time In, so a new Trip Record isn't submittable", () => {
@@ -228,6 +228,25 @@ describe("pickLegDestination", () => {
   it("sets a fixed (fuel/errand) destination directly, with no stops", () => {
     const legs = pickLegDestination([leg({}), finalLeg()], 0, "shell", stops, new Set(["shell"]));
     expect(legs[0]).toMatchObject({ destinationId: "shell", stops: [] });
+  });
+});
+
+describe("changeLegDestination", () => {
+  it("moves a request-linked leg to another destination, putting its stops back in the pool", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), finalLeg()];
+    const next = changeLegDestination(legs, 0, "d2", stops, new Set());
+    expect(next[0]).toMatchObject({ destinationId: "d2", stops: ["maria-po"] });
+    expect(poolDestinationChoices(stops, next).map((choice) => choice.id)).toEqual(["d1"]);
+  });
+
+  it("can change a leg to a fuel/errand stop", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch", "maria-ch"] }), finalLeg()];
+    expect(changeLegDestination(legs, 0, "shell", stops, new Set(["shell"]))[0]).toMatchObject({ destinationId: "shell", stops: [] });
+  });
+
+  it("changes nothing when the same destination is picked", () => {
+    const legs = [leg({ destinationId: "d1", stops: ["juan-ch"] }), finalLeg()];
+    expect(changeLegDestination(legs, 0, "d1", stops, new Set())).toBe(legs);
   });
 });
 
@@ -494,6 +513,14 @@ describe("commitments", () => {
     expect(commitmentsOn("2026-10-05", [schedule({ status: "CANCELLED" })])).toEqual([]);
   });
 
+  it("books a vehicle for the whole day, even on a draft with no times", () => {
+    const untimed = schedule({ id: "s3", revisions: [revision({ plate: "V3", legs: [] })] });
+    const schedules = [schedule({}), untimed, schedule({ id: "s4", status: "CANCELLED", revisions: [revision({ plate: "V4" })] })];
+    expect(platesBookedOn("2026-10-05", schedules)).toEqual(new Set(["V1", "V3"]));
+    expect(platesBookedOn("2026-10-05", schedules, "s1")).toEqual(new Set(["V3"]));
+    expect(platesBookedOn("2026-10-06", schedules)).toEqual(new Set());
+  });
+
   it("finds overlaps on the same vehicle or Driver only", () => {
     const held = commitmentsOn("2026-10-05", [schedule({})]);
     expect(conflictsWith({ start: "10:00", end: "12:00" }, "V1", "other", held)).toHaveLength(1);
@@ -548,7 +575,7 @@ describe("tripChecklist", () => {
 
   it("leaves everything to do on a brand-new Trip Record", () => {
     const items = tripChecklist({ plate: "", hasDriver: false, requestIds: [], legs: initialLegs(), stops: [] });
-    expect(items.map((item) => item.done)).toEqual([false, false, false, false, true]);
+    expect(items.map((item) => item.done)).toEqual([false, false, false, false, false]);
   });
 
   it("leaves missing times to the leg, with no checklist detail", () => {

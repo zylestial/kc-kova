@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toTransportRequest, toTripAttendance, toTripCompletion } from "@/lib/supabase/mappers";
+import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toStopTap, toTransportRequest, toTripAttendance, toTripCompletion, toTripTimeCorrection } from "@/lib/supabase/mappers";
 
 describe("toBookingOptions", () => {
   it("groups rows by their group column", () => {
@@ -17,6 +17,18 @@ describe("toBookingOptions", () => {
       destinations: [{ id: "d1", name: "Warehouse", status: "Active", isOtherStop: false }],
       purposes: [{ id: "u1", name: "Delivery", status: "Inactive", isOtherStop: false }],
     });
+  });
+
+  it("adds a destination's position when it has one", () => {
+    const options = toBookingOptions(
+      [
+        { group: "destinations", id: "d1", name: "Warehouse", status: "Active", is_other_stop: false },
+        { group: "destinations", id: "d2", name: "Office", status: "Active", is_other_stop: false },
+      ],
+      [{ destination_id: "d1", lat: 16.1, lng: 120.4 }],
+    );
+    expect(options.destinations[0].location).toEqual({ lat: 16.1, lng: 120.4 });
+    expect(options.destinations[1].location).toBeUndefined();
   });
 
   it("returns empty groups for no rows", () => {
@@ -324,5 +336,67 @@ describe("toTripAttendance", () => {
   it("maps an End tap the phone gave no position for", () => {
     const attendance = toTripAttendance({ ...row, end_at: "2026-10-07T09:00:00Z", end_recorded_by_account_id: "admin" });
     expect(attendance.end).toEqual({ at: "2026-10-07T09:00:00Z", recordedByAccountId: "admin", location: null });
+  });
+});
+
+describe("toStopTap", () => {
+  const row = {
+    id: "t1",
+    schedule_id: "s1",
+    revision_id: "r1",
+    leg_id: "l1",
+    driver_id: "d1",
+    kind: "ARRIVE" as const,
+    at: "2026-10-09T01:00:00Z",
+    lat: 16.1,
+    lng: 120.4,
+    accuracy_m: 9,
+    distance_m: null,
+    address: null,
+    recorded_by_account_id: "d1",
+  };
+
+  it("keeps a position even when the destination had none to measure from", () => {
+    expect(toStopTap(row)).toEqual({
+      id: "t1",
+      scheduleId: "s1",
+      revisionId: "r1",
+      legId: "l1",
+      driverId: "d1",
+      kind: "ARRIVE",
+      at: "2026-10-09T01:00:00Z",
+      recordedByAccountId: "d1",
+      location: { lat: 16.1, lng: 120.4, accuracyM: 9, distanceM: null, address: null },
+    });
+  });
+
+  it("has no location when the phone shared none", () => {
+    expect(toStopTap({ ...row, lat: null, lng: null }).location).toBeNull();
+  });
+});
+
+describe("toTripTimeCorrection", () => {
+  it("trims the seconds Postgres sends", () => {
+    expect(
+      toTripTimeCorrection({
+        id: "c1",
+        schedule_id: "s1",
+        revision_id: "r1",
+        leg_id: "l1",
+        field: "OUT",
+        time: "09:40:00",
+        corrected_by_account_id: "a1",
+        corrected_at: "2026-10-09T02:00:00Z",
+      }),
+    ).toEqual({
+      id: "c1",
+      scheduleId: "s1",
+      revisionId: "r1",
+      legId: "l1",
+      field: "OUT",
+      time: "09:40",
+      correctedByAccountId: "a1",
+      correctedAt: "2026-10-09T02:00:00Z",
+    });
   });
 });

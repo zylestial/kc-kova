@@ -366,6 +366,18 @@ async function main() {
     const scheduleId = await pastTrip({ daysAgo: -4, plate: "UAT-001", destinationId: destA, purposeId: purposeDelivery });
     const driver1 = await clientFor("driver1");
     await rpc(driver1, "record_trip_attendance", { p_schedule_id: scheduleId, p_kind: "START" });
+    // Done needs every Time Out / Time In (0046): Arrived and Leaving at the one stop.
+    const { data: schedule, error: scheduleError } = await admin.from("schedules").select("published_revision_id").eq("id", scheduleId).single();
+    if (scheduleError) throw new Error(`schedule lookup failed: ${scheduleError.message}`);
+    const { data: legs, error: legsError } = await admin
+      .from("schedule_legs")
+      .select("id")
+      .eq("revision_id", schedule.published_revision_id)
+      .order("leg_no");
+    if (legsError) throw new Error(`schedule_legs lookup failed: ${legsError.message}`);
+    for (const kind of ["ARRIVE", "LEAVE"]) {
+      await rpc(driver1, "record_stop_tap", { p_schedule_id: scheduleId, p_leg_id: legs[0].id, p_kind: kind });
+    }
     await rpc(driver1, "record_trip_attendance", { p_schedule_id: scheduleId, p_kind: "END" });
     await rpc(driver1, "submit_completion", {
       p_schedule_id: scheduleId, p_start_odometer: 15000, p_end_odometer: 15042,

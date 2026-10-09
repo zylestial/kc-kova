@@ -605,3 +605,71 @@ superseded by v2); left in place, since a pushed tag may be in use.
   encountered 2 child process exceptions"); restart it. To test a build
   without touching someone's dev server, `next start -p <other port>` and
   point Playwright at it with a config outside the repo.
+
+## Stop times (2026-10-09)
+
+- **What the owner asked for:** check that the Driver really went to each
+  stop, and use those taps as the times written on the printed form.
+  Decided with the owner: the form prints actual times only (planned times
+  stay on the Trip Record); a time nobody recorded prints blank, never the
+  planned one; the Driver is never blocked, but an Admin can't mark Done
+  until every time is there (filled in from a logbook or a call if needed);
+  on-time vs late is **not** judged or flagged; Admin-only, Requesters
+  aren't told.
+- **Taps, not tracking.** Same one-shot phone location as Start/End
+  (2026-10-07), no background GPS. A phone's position can be faked; this
+  shows where the phone said it was, not proof.
+- **Form time mapping** (`lib/stop-times.ts`, `trip_times_missing`): leg 1
+  OUT = Start trip, leg N IN = Arrived at leg N, leg N+1 OUT = Leaving leg
+  N, final IN = End trip. The final leg takes no stop taps. Change the TS
+  and SQL together.
+- **The Driver can pass a forgotten tap:** My Schedule offers the next tap
+  in route order (solid) and the one after it (outlined).
+- **An Admin's entry never replaces the tap**: it's a separate row that
+  prints instead, so the tap stays as evidence; clearing it brings the tap
+  back.
+- **Gotcha: never add a nullable column to `booking_options`.** The first
+  try put `lat`/`lng` there, and every new request failed with "Project /
+  Site is not an active option": `resolve_request_project` checks `if
+  v_option is not null`, and in Postgres a row is `IS NOT NULL` only when
+  **every** column is non-null. Locations live in `destination_locations`
+  instead. The same trap applies to any table fetched into a row variable
+  and tested with `is not null`.
+- **Older trips under review** (before the bootstrap window) now load their
+  Start/End taps, stop taps and Admin entries too, so they show and print
+  their times. Start/End taps for those trips weren't loaded before.
+- **Testing locally:** `node scripts/seed-stop-times-demo.mjs` (once a day)
+  gives driver3 a full trip yesterday, one with a missing Leaving two days
+  ago, and an unstarted one today. Running pgTAP files by hand against a
+  seeded local database: the `v2_completion` and `v2_finished_trips` audit
+  counts fail there because they count every matching audit event in the
+  database; they pass on CI's fresh database.
+- **Complete trip right after End trip** (owner's call, same day, 0047): a
+  Driver back at ANONANG early shouldn't wait for the last planned Time In.
+  `submit_completion` dropped that check; End trip (required since 0042) is
+  the proof the trip ended. My Schedule's "Back at base" status went with
+  it. Home tiles count a trip as ready to complete when End trip is tapped
+  or the planned end has passed (`tripOver`, `lib/home-counts.ts`).
+- **Drivers get cards, not tables** (owner's call, same day): Drivers aren't
+  technical, so My Schedule shows the trip as one card per place (where to
+  go, purpose, contact, est. times) with one big button for the next tap,
+  and nothing else: no requester, distances, coordinates or flags, and no
+  Trip Record table. Positions are still recorded for the Admin. A missed
+  tap is passed by tapping the next one (shown "skipped"), never by a
+  choice of buttons. Keep this screen low on text and clicks.
+- **One trip per vehicle per day** (owner's call, same day, 0048): a
+  vehicle on any active schedule for a day (even a draft with no times) is
+  refused for any other schedule that day; cancel/discard frees it. A
+  trigger on `schedule_revisions` with a per-vehicle-day advisory lock, so
+  two Schedulers saving at once can't both win. Test fixtures that booked
+  one van twice a day (v2_cancellation, v2_send_back, concurrency.sh) now use
+  a van per schedule.
+- **Gotcha: `supabase/tests/concurrency.sh` leaves its fixtures** (Race Vans
+  C1–C6-<run>, `*-<run>` accounts, requests, schedules) in the local
+  database; they then show up in the Planner. Only a reset clears them.
+- **Typed "Other" destinations and purposes become choices** (owner's call,
+  2026-10-09, 0049): picked "add automatically" over "Admin approves first",
+  for Purposes too. Matching ignores case and spaces, so "WILCON calasiao"
+  reuses "Wilcon Calasiao"; typos still get through, and an Admin fixes them
+  in Request choices. Requests already typed in were left as typed; only the
+  names were added as choices.

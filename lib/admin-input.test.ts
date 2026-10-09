@@ -53,7 +53,9 @@ describe("vehicle bodies", () => {
 
 describe("booking option body", () => {
   it("reads only a true isOtherStop", () => {
-    expect(parseWith(bookingOptionBody, { name: "Shell", isOtherStop: true })).toEqual({ name: "Shell", status: "Active", isOtherStop: true });
+    expect(parseWith(bookingOptionBody, { name: "Shell", isOtherStop: true })).toEqual({ name: "Shell", status: "Active", isOtherStop: true, location: null });
+    expect(parseWith(bookingOptionBody, { name: "Shell", location: { lat: 16.1, lng: 120.4 } })?.location).toEqual({ lat: 16.1, lng: 120.4 });
+    expect(parseWith(bookingOptionBody, { name: "Shell", location: { lat: 91, lng: 120.4 } })).toBeNull();
     expect(parseWith(bookingOptionBody, { name: "Shell", isOtherStop: "yes" })?.isOtherStop).toBe(false);
     expect(parseWith(bookingOptionBody, { name: "Shell" })?.isOtherStop).toBe(false);
     expect(parseWith(bookingOptionBody, { name: " " })).toBeNull();

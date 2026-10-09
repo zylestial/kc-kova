@@ -23,6 +23,24 @@ import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import OlderRecordsNotice from "./older-records-notice";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { atStop, legTimes, placeResolver, type LegTimes } from "@/lib/stop-times";
+import StopTimesTable from "./stop-times-table";
+
+/** The Arrived/Leaving taps of a trip (not Start/End): how many were made and how many are flagged. */
+function stopSummary(times: LegTimes[]) {
+  const stops = times.flatMap((item) => [item.out, item.in]).filter((time) => "legId" in time.source);
+  const taps = stops.flatMap((time) => (time.tap ? [time.tap] : []));
+  return {
+    expected: stops.length,
+    tapped: taps.length,
+    away: taps.filter((tap) => atStop(tap.location) === false).length,
+    noLocation: taps.filter((tap) => !tap.location).length,
+    // Has a position, but the place has no saved location to check it against.
+    unchecked: taps.filter((tap) => tap.location && tap.location.distanceM === null).length,
+  };
+}
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -41,6 +59,7 @@ const columns: SortColumn<AttendanceSortKey>[] = [
   { label: "PLATE NUMBER", key: "plate" },
   { label: "START", key: "start" },
   { label: "END", key: "end" },
+  { label: "STOPS" },
   { label: "STATUS", key: "status" },
 ];
 
@@ -72,13 +91,28 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
  * a later day is flagged, not refused, so the Admin judges it here.
  */
 export default function AdminAttendance() {
-  const { schedules, attendance, accounts } = useKovaData();
+  const { schedules, attendance, stopTaps, timeCorrections, accounts, options } = useKovaData();
+  const placeOf = placeResolver(options.destinations);
   const today = manilaToday();
   const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today), [schedules, attendance, today]);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<Sort<AttendanceSortKey>>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const timesFor = (row: AttendanceRow) =>
+    legTimes(
+      row.revision.legs,
+      row.attendance ?? undefined,
+      stopTaps.filter((item) => item.scheduleId === row.schedule.id),
+      timeCorrections.filter((item) => item.scheduleId === row.schedule.id),
+      placeOf,
+    );
+  const stopFlagged = (row: AttendanceRow) => {
+    const summary = stopSummary(timesFor(row));
+    return summary.away + summary.noLocation + summary.unchecked > 0;
+  };
+  const stopUnchecked = (row: AttendanceRow) => stopSummary(timesFor(row)).unchecked > 0;
 
   const drivers = [...new Set(rows.map((row) => row.revision.driverName))].sort();
   const visible = sortRows(
@@ -86,7 +120,12 @@ export default function AdminAttendance() {
       (row) =>
         inDateFilter(row.schedule.date, dates, today) &&
         (driver === "all" || row.revision.driverName === driver) &&
-        (status === "all" || (status === "flagged" ? row.flags.length > 0 : row.status === status)),
+        (status === "all" ||
+          (status === "flagged"
+            ? row.flags.length > 0 || stopFlagged(row)
+            : status === "unchecked"
+              ? stopUnchecked(row)
+              : row.status === status)),
     ),
     sort,
     {
@@ -109,7 +148,7 @@ export default function AdminAttendance() {
           <h1>
             Attendance<span className="title-dot">.</span>
           </h1>
-          <p>When each Driver started and ended their trip at ANONANG. Taps away from base or without a location are flagged.</p>
+          <p>When each Driver started and ended their trip at ANONANG, and their taps at each stop. Taps away from the place or without a location are flagged.</p>
         </div>
       </div>
       <section className="schedule-panel">
@@ -153,6 +192,7 @@ export default function AdminAttendance() {
                   </SelectItem>
                 ))}
                 <SelectItem value="flagged">Flagged</SelectItem>
+                <SelectItem value="unchecked">Stops not checked</SelectItem>
               </SelectContent>
             </Select>
           </label>
@@ -173,6 +213,27 @@ export default function AdminAttendance() {
                     </td>
                     <td>
                       <TapCell row={row} tap={row.attendance?.end} nameOf={nameOf} />
+                    </td>
+                    <td>
+                      {(() => {
+                        const summary = stopSummary(timesFor(row));
+                        if (!summary.expected) return <>—</>;
+                        return (
+                          <div className="attendance-tap">
+                            <b>
+                              {summary.tapped} of {summary.expected} tapped
+                            </b>
+                            {summary.away > 0 && <small className="attendance-flag">{summary.away} away from the stop</small>}
+                            {summary.noLocation > 0 && <small className="attendance-flag">{summary.noLocation} without a location</small>}
+                            {summary.unchecked > 0 && <small className="attendance-flag">{summary.unchecked} not checked (no place location)</small>}
+                            {row.attendance && (
+                              <Button variant="outline" size="sm" onClick={() => setOpenId(row.schedule.id)}>
+                                View
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td>
                       {row.status === "MISSING" && row.schedule.date === today ? (
@@ -199,6 +260,23 @@ export default function AdminAttendance() {
           <span>Coordinates are exactly as the phone reported them; ± is the phone&apos;s own accuracy.</span>
         </div>
       </section>
+      {(() => {
+        const row = rows.find((item) => item.schedule.id === openId);
+        return (
+          <Dialog open={!!row} onOpenChange={(open) => !open && setOpenId(null)}>
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Stop times</DialogTitle>
+                <DialogDescription className="dialog-context">
+                  {row && `${dateLabel(row.schedule.date)} — ${row.revision.plate} — ${row.revision.driverName}`}
+                </DialogDescription>
+              </DialogHeader>
+              {row && <StopTimesTable times={timesFor(row)} driverId={row.revision.driverId} nameOf={nameOf} />}
+              <p className="helper">Missing times are filled in on Finished Trips once the Driver submits the trip.</p>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </>
   );
 }

@@ -231,7 +231,7 @@ export default function RequestFields({
               <div className="field-other">
                 <Input
                   aria-label={`Destination ${index + 1}`}
-                  placeholder="Type a destination"
+                  placeholder="New destination (added to the list)"
                   value={item.destinationOther}
                   onChange={(event) => setRow(item.key, { destinationOther: event.target.value })}
                   maxLength={120}
@@ -274,7 +274,7 @@ export default function RequestFields({
               <div className="field-other">
                 <Input
                   aria-label={`Purpose for destination ${index + 1}`}
-                  placeholder="Type a purpose"
+                  placeholder="New purpose (added to the list)"
                   value={item.purposeOther}
                   onChange={(event) => setRow(item.key, { purposeOther: event.target.value })}
                   maxLength={120}

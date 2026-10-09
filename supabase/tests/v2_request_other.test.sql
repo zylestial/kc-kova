@@ -1,9 +1,10 @@
 -- v2.2: "Other" destination and purpose on a request stop
--- (0036_request_other_destination_purpose.sql).
+-- (0036_request_other_destination_purpose.sql), and typed names becoming
+-- request choices (0049).
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(17);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -18,7 +19,13 @@ insert into vehicles (plate, name, assigned_driver_id) values
   ('V10', 'Van 10', '00000000-0000-0000-0000-00000000002e');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'd10', 'City Hall 3', 'Active'),
-  ('purposes', 'p10', 'Inspection', 'Active');
+  ('purposes', 'p10', 'Inspection', 'Active'),
+  -- Retired choices: a typed name matching one stays a typed "Other" (0049),
+  -- which is what the Other-stop tests below need.
+  ('destinations', 'wx', 'Warehouse X', 'Inactive'),
+  ('destinations', 'ds', 'Different Site', 'Inactive'),
+  ('purposes', 'dp', 'Deliver parts', 'Inactive'),
+  ('purposes', 'oe', 'Other errand', 'Inactive');
 
 create function pg_temp.act_as(p_uid uuid) returns void language plpgsql as $$
 begin
@@ -125,6 +132,27 @@ select throws_ok(
   ),
   '22023', 'Leg 1: a stop''s destination doesn''t match the leg''s destination',
   'Two Other stops with different free text cannot share one leg');
+
+-- Typed names become choices (0049) ---------------------------------------------
+select pg_temp.act_as('00000000-0000-0000-0000-00000000002a');
+insert into ids select 'w1', id from create_request(pg_temp.d(), 'REGULAR', null, null,
+  '[{"destinationOther":"  Wilcon   Calasiao ","purposeOther":"Pick up tiles"}]');
+reset role;
+select is((select count(*)::int from booking_options where "group" = 'destinations' and name = 'Wilcon Calasiao'), 1,
+  'A new typed destination becomes a choice, tidied');
+select is((select destination_id from request_destinations where request_id = pg_temp.id('w1') and active),
+  (select id from booking_options where "group" = 'destinations' and name = 'Wilcon Calasiao'),
+  'and the request uses that choice');
+select is((select purpose_is_other from request_destinations where request_id = pg_temp.id('w1') and active), false,
+  'A new typed purpose becomes a choice too');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000002a');
+insert into ids select 'w2', id from create_request(pg_temp.d(), 'REGULAR', null, null,
+  '[{"destinationOther":"WILCON calasiao","purposeId":"p10"}]');
+reset role;
+select is((select count(*)::int from booking_options where "group" = 'destinations' and option_name_key(name) = 'wilcon calasiao'), 1,
+  'Typing it again, in other capitals, adds no duplicate');
+select is((select destination_name from request_destinations where request_id = pg_temp.id('w2') and active), 'Wilcon Calasiao',
+  'and uses the existing choice''s name');
 
 select * from finish();
 rollback;

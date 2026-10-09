@@ -90,8 +90,11 @@ export const finalLeg = (): LegDraft => ({ ...newLeg(), isFinal: true });
 /** The Time Out a new Trip Record starts with; the Scheduler can change it. */
 export const START_TIME = "08:00";
 
-/** A new Trip Record starts with one destination leg and the return leg to ANONANG. */
-export const initialLegs = (): LegDraft[] => [{ ...newLeg(), plannedTimeOut: START_TIME }, finalLeg()];
+/**
+ * A new Trip Record starts with one destination leg only; the Scheduler adds
+ * the return leg to ANONANG when the route is done (Submit asks for it).
+ */
+export const initialLegs = (): LegDraft[] => [{ ...newLeg(), plannedTimeOut: START_TIME }];
 
 export function stopsFor(requests: TransportRequest[]): StopInfo[] {
   return requests.flatMap((request) =>
@@ -256,6 +259,28 @@ export function pickLegDestination(
       .filter((_, position) => position !== index);
   }
   return legs.map((leg, position) => (position === index ? { ...leg, destinationId, destinationOther, stops: stopIds } : leg));
+}
+
+/**
+ * Changes any non-final leg's destination, even one already serving
+ * requests: its current stops go back to the pool, then the new destination
+ * is picked as for a blank leg (pickLegDestination). Picking the same
+ * destination changes nothing.
+ */
+export function changeLegDestination(
+  legs: LegDraft[],
+  index: number,
+  key: string,
+  poolStops: StopInfo[],
+  fixedDestinationIds: Set<string>,
+): LegDraft[] {
+  if (legGroupKey(legs[index]) === key) return legs;
+  const cleared = legs.map((leg, position) =>
+    position === index ? { ...leg, destinationId: "", destinationOther: "", stops: [] } : leg,
+  );
+  const next = pickLegDestination(cleared, index, key, poolStops, fixedDestinationIds);
+  // A destination with nothing left to place keeps the leg as it was.
+  return next === cleared ? legs : next;
 }
 
 /** True for a leg the Scheduler added by hand rather than one the pool built, e.g. a fuel stop. */
@@ -478,6 +503,19 @@ export function commitmentsOn(date: string, schedules: Schedule[], excludeSchedu
       }),
     )
     .sort((a, b) => a.start.localeCompare(b.start));
+}
+
+/**
+ * Vehicles already on another active schedule that day, timed or not: a
+ * vehicle takes only one schedule a day (0048), so the Planner doesn't offer
+ * them. Cancelled and discarded schedules free their vehicle.
+ */
+export function platesBookedOn(date: string, schedules: Schedule[], excludeScheduleId?: string): Set<string> {
+  return new Set(
+    schedules
+      .filter((schedule) => schedule.date === date && schedule.status === "ACTIVE" && schedule.id !== excludeScheduleId)
+      .flatMap((schedule) => schedule.revisions.map((revision) => revision.plate)),
+  );
 }
 
 /** Commitments that would collide with a window on the same vehicle or Driver. */

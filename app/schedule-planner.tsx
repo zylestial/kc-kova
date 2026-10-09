@@ -34,6 +34,7 @@ import {
   legsFromRevision,
   currentRevision,
   openRevision,
+  platesBookedOn,
   poolDestinationChoices,
   poolOrder,
   reflowFinalLegTimeOut,
@@ -52,13 +53,11 @@ import {
   type LegDraft,
 } from "@/lib/trip-record";
 import DayPicker from "./planner/day-picker";
-import RequestPool from "./planner/request-pool";
 import CommitmentsPanel from "./planner/commitments-panel";
 import VehiclePanel from "./planner/vehicle-panel";
 import LegCard from "./planner/leg-card";
 import TripChecklist from "./planner/trip-checklist";
 import SubmitDialog from "./planner/submit-dialog";
-import SendBackDialog from "./planner/send-back-dialog";
 import DiscardDialog, { discardLabel, type DiscardKind } from "./planner/discard-dialog";
 import RemoveLegDialog from "./planner/remove-leg-dialog";
 import { dateLabel, fullDate } from "./planner/format";
@@ -141,8 +140,6 @@ export default function SchedulePlanner({
   // The leg waiting for the Scheduler to confirm its removal.
   const [removingLeg, setRemovingLeg] = useState<number | null>(null);
   // Requests waiting for the Scheduler to confirm sending them back.
-  const [sendingBack, setSendingBack] = useState<string[] | null>(null);
-  const [sendBackReason, setSendBackReason] = useState("");
   // On submit, the pool requests left off the route go back to their
   // requesters too, unless the Scheduler is keeping them for another vehicle.
   const [sendLeftovers, setSendLeftovers] = useState(true);
@@ -166,13 +163,7 @@ export default function SchedulePlanner({
   const pool = dayRequests
     .filter((request) => request.progress === "NOT_YET_SCHEDULED" || requestIds.includes(request.id))
     .sort(poolOrder);
-  const sentBackCount = dayRequests.filter((request) => request.progress === "SENT_BACK").length;
-  const heldElsewhere = dayRequests.filter(
-    (request) =>
-      request.progress !== "NOT_YET_SCHEDULED" && request.progress !== "SENT_BACK" && !requestIds.includes(request.id),
-  ).length;
   const poolStops = stopsFor(pool);
-  const servedStopIds = new Set(legs.flatMap((leg) => leg.stops));
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   // Destinations an Admin flagged for a non-request stop, e.g. a fuel or
   // errand leg. The Trip Record's destination pickers never mix the two:
@@ -320,22 +311,10 @@ export default function SchedulePlanner({
           await sendBackRequests(leftovers, leftoverReason);
           sentBack = ` ${leftovers.length === 1 ? "1 other request was" : `${leftovers.length} other requests were`} sent back to ${leftovers.length === 1 ? "its requester" : "their requesters"}.`;
         } catch (caught) {
-          sentBack = ` The other requests couldn't be sent back (${(caught as Error).message}). Send them back from the pool.`;
+          sentBack = ` The other requests couldn't be sent back (${(caught as Error).message}); they're still waiting for this day.`;
         }
       }
       onDone("Schedule submitted. An Admin will review and approve it." + sentBack, date);
-    });
-  const sendBack = () =>
-    run(async () => {
-      if (!sendingBack) return;
-      await sendBackRequests(sendingBack, sendBackReason);
-      setNotice(
-        sendingBack.length === 1
-          ? "Request sent back. The requester is notified and can pick another day."
-          : `${sendingBack.length} requests sent back. Their requesters are notified and can pick another day.`,
-      );
-      setSendingBack(null);
-      setSendBackReason("");
     });
   const discard = () =>
     run(async () => {
@@ -387,11 +366,21 @@ export default function SchedulePlanner({
       <div className="booking-heading">
         <div>
           <h1>{step === 1 ? "Which day are you planning?" : editing ? (editing.rowVersion === null ? "Propose a revision" : "Edit schedule") : "Plan a schedule"}</h1>
-          <p>
-            {step === 1
-              ? "Each day shows how many requests are still waiting to be scheduled."
-              : "Pick a vehicle, then build the route from the requests in the pool. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft locks its requests, and reserves the time once every leg has times."}
-          </p>
+          {step === 1 ? (
+            <p>Each day shows how many requests are still waiting to be scheduled.</p>
+          ) : (
+            <details className="planner-how">
+              <summary>How planning works</summary>
+              <p>
+                Pick a vehicle, then build the route from the requests in the pool. A leg is one drive from one place to
+                the next: the first starts at ANONANG (the base), each next one starts where the last ended, and when the
+                route is done you add the return leg to ANONANG (up to {MAX_LEGS} legs). Picking a destination serves
+                every waiting request for it; Urgent requests come first in the pool. If a request won&apos;t fit, send it
+                back so the requester can pick another day. Saving a draft locks its requests, and reserves the time once
+                every leg has times.
+              </p>
+            </details>
+          )}
         </div>
         {step > 1 && (
           <b>
@@ -418,23 +407,14 @@ export default function SchedulePlanner({
               <b>Returned by Admin:</b> {returnedComment}
             </div>
           )}
-          <div className={"planner-columns" + (commitments.length ? "" : " planner-columns-single")}>
-            <RequestPool date={date} pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
+          <CommitmentsPanel commitments={commitments} clashes={clashes} />
 
-            <CommitmentsPanel commitments={commitments} clashes={clashes} />
-          </div>
-
-          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} driver={driver} clashes={clashes} />
+          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} clashes={clashes} booked={platesBookedOn(date, schedules, editing?.id)} />
 
           <section className="editor-panel">
             <div className="section-heading">
               <div>
                 <h2>Trip Record</h2>
-                <p>
-                  The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
-                  ANONANG (the base), each next one starts where the last ended, and the final leg returns to ANONANG. Up
-                  to {MAX_LEGS} legs.
-                </p>
               </div>
             </div>
             {legs.map((leg, index) => (
@@ -462,7 +442,7 @@ export default function SchedulePlanner({
             {notice}
           </div>
         )}
-        {error && !confirm && !sendingBack && (
+        {error && !confirm && (
           <div className="notice error planner-bar-notice" role="alert">
             {error}
           </div>
@@ -517,7 +497,6 @@ export default function SchedulePlanner({
 
       <SubmitDialog confirm={confirm} setConfirm={setConfirm} busy={busy} date={date} plate={plate} driverName={driver?.name} reviewLegs={reviewLegs} stopsById={stopsById} urgentLeft={urgentLeft} leftoverLabels={leftoverLabels} splits={splits} sendLeftovers={sendLeftovers} setSendLeftovers={setSendLeftovers} leftoverReason={leftoverReason} setLeftoverReason={setLeftoverReason} error={error} submit={submit} />
 
-      <SendBackDialog sendingBack={sendingBack} setSendingBack={setSendingBack} sendBackReason={sendBackReason} setSendBackReason={setSendBackReason} busy={busy} pool={pool} date={date} error={error} setError={setError} sendBack={sendBack} />
 
       <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} kind={discardKind} discard={discard} />
       <RemoveLegDialog removingLeg={removingLeg} setRemovingLeg={setRemovingLeg} legs={legs} applyLegs={applyLegs} />

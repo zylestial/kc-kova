@@ -7,6 +7,8 @@ import {
   toCancellationRequest,
   toNotification,
   toProblemReport,
+  toStopTap,
+  toTripTimeCorrection,
   toTripAttendance,
   toTripCompletion,
   scheduleSelect,
@@ -38,12 +40,15 @@ export const GET = authed(async ({ request, supabase }) => {
     accountsRes,
     vehiclesRes,
     optionsRes,
+    locationsRes,
     requestsRes,
     progressRes,
     schedulesRes,
     cancellationsRes,
     completionsRes,
     attendanceRes,
+    stopTapsRes,
+    correctionsRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -53,6 +58,7 @@ export const GET = authed(async ({ request, supabase }) => {
     supabase.from("accounts").select("*"),
     supabase.from("vehicles").select("*"),
     supabase.from("booking_options").select("*"),
+    supabase.from("destination_locations").select("destination_id, lat, lng"),
     supabase.from("requests").select(requestSelect).eq("request_destinations.active", true).gte("requested_date", since),
     supabase.from("request_progress").select("*").gte("requested_date", since),
     supabase
@@ -72,6 +78,14 @@ export const GET = authed(async ({ request, supabase }) => {
     supabase
       .from("trip_attendance")
       .select("*, schedules!trip_attendance_schedule_id_fkey!inner(schedule_date)")
+      .gte("schedules.schedule_date", since),
+    supabase
+      .from("stop_taps")
+      .select("*, schedules!stop_taps_schedule_id_fkey!inner(schedule_date)")
+      .gte("schedules.schedule_date", since),
+    supabase
+      .from("trip_time_corrections")
+      .select("*, schedules!trip_time_corrections_schedule_id_fkey!inner(schedule_date)")
       .gte("schedules.schedule_date", since),
     supabase
       .from("problem_reports")
@@ -99,12 +113,15 @@ export const GET = authed(async ({ request, supabase }) => {
     accountsRes,
     vehiclesRes,
     optionsRes,
+    locationsRes,
     requestsRes,
     progressRes,
     schedulesRes,
     cancellationsRes,
     completionsRes,
     attendanceRes,
+    stopTapsRes,
+    correctionsRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -134,6 +151,19 @@ export const GET = authed(async ({ request, supabase }) => {
   }
   const oldSchedules = oldSchedulesRes.data ?? [];
 
+  // Their taps and Admin time entries too, so an older trip still under
+  // review shows (and prints) its actual times.
+  const [oldAttendanceRes, oldStopTapsRes, oldCorrectionsRes] = oldScheduleIds.length
+    ? await Promise.all([
+        supabase.from("trip_attendance").select("*").in("schedule_id", oldScheduleIds),
+        supabase.from("stop_taps").select("*").in("schedule_id", oldScheduleIds),
+        supabase.from("trip_time_corrections").select("*").in("schedule_id", oldScheduleIds),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+  if (oldAttendanceRes.error || oldStopTapsRes.error || oldCorrectionsRes.error) {
+    return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
+  }
+
   const loadedRequestIds = new Set((requestsRes.data ?? []).map((row) => row.id as string));
   const oldRequestIds = [
     ...new Set([
@@ -161,7 +191,7 @@ export const GET = authed(async ({ request, supabase }) => {
     since,
     accounts: (accountsRes.data ?? []).map(toAccount),
     vehicles: (vehiclesRes.data ?? []).map(toVehicle),
-    options: toBookingOptions(optionsRes.data ?? []),
+    options: toBookingOptions(optionsRes.data ?? [], locationsRes.data ?? []),
     requests: [...(requestsRes.data ?? []), ...(oldRequestsRes.data ?? [])].map((row) =>
       toTransportRequest(row, progressById.get(row.id)),
     ),
@@ -171,7 +201,11 @@ export const GET = authed(async ({ request, supabase }) => {
     // A Driver gets their own; Admin all (0017 policies).
     completions: [...(completionsRes.data ?? []), ...oldCompletions].map(toTripCompletion),
     // Same visibility as completions (0042 policy).
-    attendance: (attendanceRes.data ?? []).map(toTripAttendance),
+    attendance: [...(attendanceRes.data ?? []), ...(oldAttendanceRes.data ?? [])].map(toTripAttendance),
+    // Same visibility as attendance (0045 policy).
+    stopTaps: [...(stopTapsRes.data ?? []), ...(oldStopTapsRes.data ?? [])].map(toStopTap),
+    // Admin all; a Driver those on their own trips (0046 policy).
+    timeCorrections: [...(correctionsRes.data ?? []), ...(oldCorrectionsRes.data ?? [])].map(toTripTimeCorrection),
     problems: [...(problemsRes.data ?? []), ...oldProblems].map(toProblemReport),
     notifications: (notificationsRes.data ?? []).map(toNotification),
   });
