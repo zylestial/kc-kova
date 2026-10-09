@@ -50,7 +50,7 @@ A person has exactly one role; there is no multi-role account.
    In between, the Driver taps **Arrived** at each stop and **Leaving** as
    they set off, checked against the stop's saved location the same way.
    These taps are the actual Time Out and Time In printed on the form.
-   Once both taps are in and the trip's last planned time has passed, the
+   Once End trip is tapped (even before the last planned time), the
    assigned Driver submits one odometer pair for the whole schedule and may
    answer the final-return checks (full tank, fleet card used, gas receipt
    attached). A Driver can report a problem on a trip at any time, even
@@ -124,7 +124,8 @@ in `supabase/tests/` already check automatically.
 
 **Driving and close-out**
 - A Driver sees only approved trips on their own vehicle. (tested)
-- A Driver can't submit a trip before its last planned Time In, and submits
+- A Driver can submit a trip once End trip is tapped, even before its last
+  planned Time In, and submits
   one odometer pair with the end no lower than the start. (tested)
 - A Driver taps Start trip (from the trip's date) and End trip (after
   Start); both are needed before submitting. A tap more than 150 m from
