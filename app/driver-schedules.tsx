@@ -22,11 +22,13 @@ import {
 } from "@/components/ui/dialog";
 import {
   recordAttendance,
+  recordStopTap,
   reportProblem,
   submitCompletion,
   type ProblemReport,
   type Schedule,
   type ScheduleRevision,
+  type StopTap,
   type TripAttendance,
   type TripCompletion,
 } from "@/lib/kova-api";
@@ -35,8 +37,9 @@ import { stopsFor } from "@/lib/trip-record";
 import { hasTripEnded, manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
-import { coordinatesLabel, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
 import { getPhoneLocation } from "@/lib/phone-location";
+import { legTimes, openStopTaps, stopKey } from "@/lib/stop-times";
+import StopTimesTable from "./stop-times-table";
 import TripRecordView from "./trip-record-view";
 
 const dateLabel = (date: string) =>
@@ -48,6 +51,8 @@ type Trip = {
   completion?: TripCompletion;
   /** The Start/End taps, once the Driver has started. */
   attendance?: TripAttendance;
+  /** Arrived/Leaving taps at the stops in between. */
+  stopTaps: StopTap[];
   problems: ProblemReport[];
   ended: boolean;
   /** The trip's date has come, so Start trip is open. */
@@ -68,6 +73,7 @@ function buildTrips(
   schedules: Schedule[],
   completions: TripCompletion[],
   attendance: TripAttendance[],
+  stopTaps: StopTap[],
   problems: ProblemReport[],
   driverId: string | null,
 ): Trip[] {
@@ -89,6 +95,7 @@ function buildTrips(
           revision,
           completion,
           attendance: attendance.find((item) => item.scheduleId === schedule.id),
+          stopTaps: stopTaps.filter((item) => item.scheduleId === schedule.id),
           problems: problems.filter((item) => item.scheduleId === schedule.id),
           ended: hasTripEnded(schedule.date, lastIn),
           startable: schedule.date <= today,
@@ -131,12 +138,13 @@ type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
  * problem. The database enforces who and when; this only shapes the screen.
  */
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
-  const { schedules, completions, attendance, problems, requests, vehicles } = useKovaData();
+  const { schedules, completions, attendance, stopTaps, problems, requests, vehicles, accounts } = useKovaData();
   const trips = useMemo(
-    () => buildTrips(schedules, completions, attendance, problems, driverId),
-    [schedules, completions, attendance, problems, driverId],
+    () => buildTrips(schedules, completions, attendance, stopTaps, problems, driverId),
+    [schedules, completions, attendance, stopTaps, problems, driverId],
   );
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
+  const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone else";
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [vehicle, setVehicle] = useState("all");
@@ -152,6 +160,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [gasReceiptAttached, setGasReceiptAttached] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  /** The Arrived/Leaving tap being saved, so its button says so. */
+  const [busyStop, setBusyStop] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
@@ -218,6 +228,26 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
     }
+    setBusy(false);
+  }
+
+  // Arrived / Leaving at a stop: the same, for the form's times in between.
+  async function tapStop(legId: string, kind: "ARRIVE" | "LEAVE") {
+    if (!selected) return;
+    setBusy(true);
+    setBusyStop(stopKey({ kind, legId }));
+    setError("");
+    try {
+      const location = await getPhoneLocation();
+      await recordStopTap(selected.schedule.id, { legId, kind, location });
+      const place = selected.revision.legs.find((leg) => leg.id === legId)?.destinationName ?? "the stop";
+      setNotice(
+        `${kind === "ARRIVE" ? "Arrived at" : "Leaving"} ${place}${location ? "" : " recorded without your location. Allow location for this site next time"}.`,
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusyStop(null);
     setBusy(false);
   }
 
@@ -449,24 +479,27 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {selected && mode === "view" && (
             <>
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
-              {selected.attendance && (
-                <p className="helper tap-lines">
-                  {(
-                    [
-                      ["Started", selected.attendance.start],
-                      ["Ended", selected.attendance.end],
-                    ] as const
-                  ).map(
-                    ([label, tap]) =>
-                      tap && (
-                        <span key={label}>
-                          {label} {tapTimeLabel(tap.at)}, {tapPlaceLabel(tap)}.
-                          {tap.location && <small>{coordinatesLabel(tap.location)}</small>}
-                        </span>
-                      ),
-                  )}
-                </p>
-              )}
+              {selected.attendance && (() => {
+                const times = legTimes(selected.revision.legs, selected.attendance, selected.stopTaps);
+                return (
+                  <>
+                    <h3 className="stop-times-heading">Actual times</h3>
+                    {!selected.attendance.end && (
+                      <p className="helper">
+                        Tap Arrived when you reach each stop and Leaving as you set off again. These are the times printed on the trip form.
+                      </p>
+                    )}
+                    <StopTimesTable
+                      times={times}
+                      driverId={selected.revision.driverId}
+                      nameOf={nameOf}
+                      open={selected.completion ? undefined : openStopTaps(times)}
+                      onTap={tapStop}
+                      busyKey={busyStop}
+                    />
+                  </>
+                );
+              })()}
               {!selected.completion && !selected.attendance && (
                 <p className="helper">
                   {selected.startable
