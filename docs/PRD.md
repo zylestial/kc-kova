@@ -36,8 +36,10 @@ A person has exactly one role; there is no multi-role account.
    starting and ending at ANONANG (the home base), with times for each leg.
    Fuel or errand stops can be added without a request. Saving a draft
    reserves the time and locks the requests so nobody else plans them. A
-   request that won't fit can be sent back to its requester (with a reason) to
-   pick another day, or split so part of it goes on another vehicle.
+   request that won't fit is sent back to its requester (with a reason) when
+   the Scheduler submits, so they can
+   pick another day; one only partly on the route is split so the rest can go
+   on another vehicle.
 3. **Approve.** The Scheduler submits the plan. An Admin approves it, which
    publishes it to the Requesters and the Driver, or returns it with a
    comment saying what to change. A published schedule can be revised through
