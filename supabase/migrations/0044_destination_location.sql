@@ -2,13 +2,40 @@
 -- Arrived/Leaving tap there can be checked against it, the way Start/End
 -- taps are checked against ANONANG. Optional: a destination without one
 -- (and every "other" typed-in destination) still takes taps, unchecked.
--- Only destinations have a position; Admin sets it on Request choices.
+-- Admin sets it on Request choices.
+--
+-- Its own table, not lat/lng columns on booking_options: functions such as
+-- resolve_request_project test a fetched option with `v_option is not null`,
+-- which for a row is true only when every column is non-null, so a nullable
+-- column there would make every option look missing.
 
-alter table booking_options
-  add column lat double precision check (lat between -90 and 90),
-  add column lng double precision check (lng between -180 and 180),
-  add constraint booking_options_lat_lng_together check ((lat is null) = (lng is null)),
-  add constraint booking_options_location_destinations_only check (lat is null or "group" = 'destinations');
+create table destination_locations (
+  destination_group text not null default 'destinations' check (destination_group = 'destinations'),
+  destination_id text not null,
+  lat double precision not null check (lat between -90 and 90),
+  lng double precision not null check (lng between -180 and 180),
+  primary key (destination_group, destination_id),
+  foreign key (destination_group, destination_id) references booking_options ("group", id)
+);
+
+create trigger destination_locations_audit
+  after insert or update or delete on destination_locations
+  for each row execute function write_audit_event();
+
+alter table destination_locations enable row level security;
+
+grant select, insert, update, delete on destination_locations to authenticated;
+
+-- Same as booking_options: everyone signed in reads, only Admin writes.
+create policy destination_locations_select on destination_locations for select
+  using ((select auth.role()) = 'authenticated');
+create policy destination_locations_admin_insert on destination_locations for insert
+  with check (is_admin((select auth.uid())));
+create policy destination_locations_admin_update on destination_locations for update
+  using (is_admin((select auth.uid())))
+  with check (is_admin((select auth.uid())));
+create policy destination_locations_admin_delete on destination_locations for delete
+  using (is_admin((select auth.uid())));
 
 -- Metres between two points, by the haversine formula (the same sum as
 -- distance_from_base_m, for any two points). Null when either is missing.
