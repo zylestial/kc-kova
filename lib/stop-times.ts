@@ -145,3 +145,10 @@ export function tripSteps(times: LegTimes[]): TripStep[] {
     state: time.tap ? "done" : index < last ? "skipped" : index === last + 1 ? "next" : "later",
   }));
 }
+
+/** "13:07" as "1:07 PM", to match how taps read; "" stays "". */
+export function hhmmLabel(hhmm: string): string {
+  if (!hhmm) return "";
+  const [hours, minutes] = hhmm.split(":").map(Number);
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours < 12 ? "AM" : "PM"}`;
+}

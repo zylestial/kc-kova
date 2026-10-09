@@ -3,15 +3,9 @@ import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BASE } from "@/lib/trip-record";
 import { coordinatesLabel, mapUrl, tapTimeLabel } from "@/lib/attendance";
-import { atStop, stopKey, stopPlaceLabel, type FormTime, type LegTimes } from "@/lib/stop-times";
+import { atStop, hhmmLabel, stopKey, stopPlaceLabel, type FormTime, type LegTimes } from "@/lib/stop-times";
 
 const tapLabel = { ARRIVE: "Arrived", LEAVE: "Leaving" } as const;
-
-/** "13:07" as "1:07 PM", to match how taps read. */
-function hhmmLabel(hhmm: string): string {
-  const [hours, minutes] = hhmm.split(":").map(Number);
-  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours < 12 ? "AM" : "PM"}`;
-}
 
 type Props = {
   times: LegTimes[];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleLeg, StopTap, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
-import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, openStopTaps, stopPlaceLabel, tripSteps } from "@/lib/stop-times";
+import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, openStopTaps, stopPlaceLabel, tripSteps, hhmmLabel } from "@/lib/stop-times";
 
 const leg = (id: string, legNo: number, destinationName: string, isFinal = false): ScheduleLeg => ({
   id,
@@ -139,5 +139,13 @@ describe("tripSteps", () => {
     expect(states(legTimes(legs, { ...started, end: tapAt }, [stop("ARRIVE", "l1")]))).toEqual([
       "START:done", "ARRIVE:done", "LEAVE:skipped", "ARRIVE:skipped", "LEAVE:skipped", "END:done",
     ]);
+  });
+});
+
+describe("hhmmLabel", () => {
+  it("reads a 24-hour time as 12-hour", () => {
+    expect(hhmmLabel("13:07")).toBe("1:07 PM");
+    expect(hhmmLabel("00:30")).toBe("12:30 AM");
+    expect(hhmmLabel("")).toBe("");
   });
 });
