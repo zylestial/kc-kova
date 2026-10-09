@@ -634,3 +634,9 @@ a separate step, not yet done as of this entry.
   seeded local database: the `v2_completion` and `v2_finished_trips` audit
   counts fail there because they count every matching audit event in the
   database; they pass on CI's fresh database.
+- **Complete trip right after End trip** (owner's call, same day, 0047): a
+  Driver back at ANONANG early shouldn't wait for the last planned Time In.
+  `submit_completion` dropped that check; End trip (required since 0042) is
+  the proof the trip ended. My Schedule's "Back at base" status went with
+  it. Home tiles count a trip as ready to complete when End trip is tapped
+  or the planned end has passed (`tripOver`, `lib/home-counts.ts`).
