@@ -2,10 +2,8 @@
 import { Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TransportRequest } from "@/lib/kova-api";
-import { dateLabel } from "./format";
 
 type Props = {
-  date: string;
   pool: TransportRequest[];
   servedStopIds: Set<string>;
   unplacedIds: string[];
@@ -16,7 +14,6 @@ type Props = {
 };
 
 export default function RequestPool({
-  date,
   pool,
   servedStopIds,
   unplacedIds,
@@ -30,13 +27,12 @@ export default function RequestPool({
       <div className="section-heading">
         <div>
           <h2>Request pool</h2>
-          <p>
-            Requests for {dateLabel(date, { month: "short", day: "numeric" })}, Urgent first, then grouped by who asked. A
-            destination is ticked off once a leg below goes there: pick it as a leg&apos;s destination in the Trip Record.
-            {heldElsewhere > 0 && ` ${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} already in another schedule.`}
-            {sentBackCount > 0 && ` ${sentBackCount} ${sentBackCount === 1 ? "was sent back to its requester" : "were sent back to their requesters"}.`}
-            {" "}If a request won&apos;t fit, send it back so the requester can pick another day.
-          </p>
+          {(heldElsewhere > 0 || sentBackCount > 0) && (
+            <p>
+              {heldElsewhere > 0 && `${heldElsewhere} more ${heldElsewhere === 1 ? "is" : "are"} in another schedule.`}
+              {sentBackCount > 0 && ` ${sentBackCount} sent back.`}
+            </p>
+          )}
         </div>
       </div>
       {pool.length ? (
