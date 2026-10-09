@@ -1,5 +1,4 @@
 "use client";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Account, Vehicle } from "@/lib/kova-api";
 import { type Commitment } from "@/lib/trip-record";
@@ -9,7 +8,6 @@ type Props = {
   setPlate: (plate: string) => void;
   vehicles: Vehicle[];
   driverFor: (plate: string) => Account | undefined;
-  driver: Account | undefined;
   clashes: Commitment[];
 };
 
@@ -18,12 +16,11 @@ export default function VehiclePanel({
   setPlate,
   vehicles,
   driverFor,
-  driver,
   clashes,
 }: Props) {
   return (
     <section className="editor-panel">
-      <h2>Vehicle and Driver</h2>
+      <h2>Vehicle</h2>
       <div className="fields planner-vehicle">
         <label className="field">
           <span>Vehicle *</span>
@@ -42,10 +39,6 @@ export default function VehiclePanel({
                 ))}
             </SelectContent>
           </Select>
-        </label>
-        <label className="field">
-          <span>Driver (automatic)</span>
-          <Input value={driver?.name ?? ""} placeholder="Follows the vehicle" readOnly />
         </label>
       </div>
       {!vehicles.some((vehicle) => vehicle.status === "Active") ? (

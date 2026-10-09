@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Flag, Plus, Save, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Flag, Plus, Save, Send, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   createSchedule,
@@ -52,7 +52,6 @@ import {
   type LegDraft,
 } from "@/lib/trip-record";
 import DayPicker from "./planner/day-picker";
-import RequestPool from "./planner/request-pool";
 import CommitmentsPanel from "./planner/commitments-panel";
 import VehiclePanel from "./planner/vehicle-panel";
 import LegCard from "./planner/leg-card";
@@ -166,13 +165,7 @@ export default function SchedulePlanner({
   const pool = dayRequests
     .filter((request) => request.progress === "NOT_YET_SCHEDULED" || requestIds.includes(request.id))
     .sort(poolOrder);
-  const sentBackCount = dayRequests.filter((request) => request.progress === "SENT_BACK").length;
-  const heldElsewhere = dayRequests.filter(
-    (request) =>
-      request.progress !== "NOT_YET_SCHEDULED" && request.progress !== "SENT_BACK" && !requestIds.includes(request.id),
-  ).length;
   const poolStops = stopsFor(pool);
-  const servedStopIds = new Set(legs.flatMap((leg) => leg.stops));
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   // Destinations an Admin flagged for a non-request stop, e.g. a fuel or
   // errand leg. The Trip Record's destination pickers never mix the two:
@@ -428,13 +421,14 @@ export default function SchedulePlanner({
               <b>Returned by Admin:</b> {returnedComment}
             </div>
           )}
-          <div className={"planner-columns" + (commitments.length ? "" : " planner-columns-single")}>
-            <RequestPool pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
+          {unplacedIds.length > 0 && (
+            <Button variant="ghost" className="planner-send-back" disabled={busy} onClick={() => setSendingBack(unplacedIds)}>
+              <Undo2 size={14} /> Send back requests that won&apos;t fit ({unplacedIds.length})
+            </Button>
+          )}
+          <CommitmentsPanel commitments={commitments} clashes={clashes} />
 
-            <CommitmentsPanel commitments={commitments} clashes={clashes} />
-          </div>
-
-          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} driver={driver} clashes={clashes} />
+          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} clashes={clashes} />
 
           <section className="editor-panel">
             <div className="section-heading">
