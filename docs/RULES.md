@@ -137,6 +137,12 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   Clearing it deletes the `destination_locations` row; the option stays.
   Never add a nullable column to `booking_options` itself (see
   `docs/ARCHITECTURE.md`, `destination_locations`).
+- A Destination or Purpose typed under "Other" on a request becomes a choice
+  when the request is saved (0049, owner's call 2026-10-09): a name matching
+  an Active choice (ignoring case and extra spaces) uses that choice; a new
+  name is added as Active and used. A name matching only an Inactive choice
+  stays typed. Done inside `insert_request_destinations`, since Requesters
+  can't write choices themselves. Project / Site "Other" is unchanged.
 
 ## Cross-cutting
 
