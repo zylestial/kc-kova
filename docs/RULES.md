@@ -102,8 +102,11 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   location when it has one (Request choices); without one, or for a typed-in
   "other" destination, the tap is kept as "location not checked". Flagged,
   never refused. Whether the Driver was on time is not judged.
-- My Schedule offers the next tap in route order and the one after it, so a
-  forgotten Arrived can be passed by tapping Leaving (and so on).
+- My Schedule shows one button at a time: the next tap in route order. A
+  Driver who forgot one taps the next as usual; the missed one shows as
+  skipped and the Admin fills it in. "End trip now" (with a second tap to
+  confirm) ends a trip cut short. Drivers never see distances, coordinates
+  or flags; only the Admin does.
 - After the Driver submits, an Admin can fill in a missing time or correct
   one (`set_trip_time`, to the minute, Manila time). It prints instead of
   the tap; the tap stays on record. Clearing it brings back the tap (or the
