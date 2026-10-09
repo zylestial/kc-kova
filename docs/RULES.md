@@ -44,7 +44,16 @@ The v1.2 booking and Daily Vehicle Record rules were retired with their code
 and tables (migration 0032). Request and schedule rules (dates, states,
 approval, cancellation, conflicts) are enforced in the RPCs and documented
 per phase in `docs/v2/` — `phase-3-schema.md` has the permission matrix and
-state transitions. The completion rules:
+state transitions.
+
+**One trip per vehicle per day** (migration 0048, owner's call 2026-10-09):
+once a vehicle is on an active schedule for a day (any live version, timed
+or not), no other schedule may use it that day, even at other times. A
+schedule keeps its own vehicle across revisions; cancelling or discarding it
+frees the vehicle. Enforced by a trigger on `schedule_revisions`; the
+Planner also leaves booked vehicles out of its list (`platesBookedOn`).
+
+The completion rules:
 
 - Only the Driver snapshotted on a schedule's **approved** version may submit
   a completion or report a problem, and only while the schedule is `ACTIVE`.
