@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleLeg, StopTap, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
-import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, openStopTaps, stopPlaceLabel } from "@/lib/stop-times";
+import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, openStopTaps, stopPlaceLabel, tripSteps } from "@/lib/stop-times";
 
 const leg = (id: string, legNo: number, destinationName: string, isFinal = false): ScheduleLeg => ({
   id,
@@ -114,5 +114,30 @@ describe("formTimeValue and missingTimes", () => {
     expect(times[1].out.cell).toEqual({ legId: "l2", field: "OUT" });
     expect(times[1].out.tap?.at).toBe(tapAt.at);
     expect(formTimeValue(times[1].out)).toBe("09:15");
+  });
+});
+
+describe("tripSteps", () => {
+  const states = (times: ReturnType<typeof legTimes>) => tripSteps(times).map((step) => `${step.time.source.kind}:${step.state}`);
+
+  it("offers Start trip first, then one step at a time", () => {
+    expect(states(legTimes(legs, undefined, []))).toEqual([
+      "START:next", "ARRIVE:later", "LEAVE:later", "ARRIVE:later", "LEAVE:later", "END:later",
+    ]);
+    expect(states(legTimes(legs, started, [stop("ARRIVE", "l1")]))).toEqual([
+      "START:done", "ARRIVE:done", "LEAVE:next", "ARRIVE:later", "LEAVE:later", "END:later",
+    ]);
+  });
+
+  it("marks a passed step as skipped", () => {
+    expect(states(legTimes(legs, started, [stop("LEAVE", "l1")]))).toEqual([
+      "START:done", "ARRIVE:skipped", "LEAVE:done", "ARRIVE:next", "LEAVE:later", "END:later",
+    ]);
+  });
+
+  it("has no next step once End trip is tapped", () => {
+    expect(states(legTimes(legs, { ...started, end: tapAt }, [stop("ARRIVE", "l1")]))).toEqual([
+      "START:done", "ARRIVE:done", "LEAVE:skipped", "ARRIVE:skipped", "LEAVE:skipped", "END:done",
+    ]);
   });
 });

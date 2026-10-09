@@ -120,3 +120,28 @@ export function stopPlaceLabel(location: StopTapLocation | null, place: string):
   const margin = location.accuracyM === null ? "" : ` (±${distanceLabel(location.accuracyM)})`;
   return `${distanceLabel(location.distanceM)} from ${place}${margin}`;
 }
+
+/** One step of a trip as the Driver sees it, in route order. */
+export type TripStep = {
+  time: FormTime;
+  /** done: tapped; next: the one button to press; skipped: passed without a tap; later: still ahead. */
+  state: "done" | "next" | "skipped" | "later";
+};
+
+/**
+ * The trip as a simple list of steps for the Driver: Start trip, then
+ * Arrived / Leaving at each stop, then End trip. Exactly one step is "next"
+ * until End trip is tapped; a step before the latest tap that was never
+ * tapped is "skipped" (an Admin fills its time in).
+ */
+export function tripSteps(times: LegTimes[]): TripStep[] {
+  const sequence = times.flatMap((item) => [item.out, item.in]);
+  let last = -1;
+  sequence.forEach((time, index) => {
+    if (time.tap) last = index;
+  });
+  return sequence.map((time, index) => ({
+    time,
+    state: time.tap ? "done" : index < last ? "skipped" : index === last + 1 ? "next" : "later",
+  }));
+}
