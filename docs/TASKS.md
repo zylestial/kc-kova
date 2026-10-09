@@ -4,9 +4,9 @@ Kept as a living checklist of what's implemented vs. outstanding. Update
 this file whenever a task's status changes. Detail for everything before
 v2.5 is in [`archive/TASKS-history.md`](archive/TASKS-history.md).
 
-## Status: v2.5 (2026-10-02)
+## Status: v2.6 (2026-10-08)
 
-v2 is live. The 2026-10-02 audit's simplification pass (below) is merged.
+v2 is live. The next release is v2.7 (`feat/stop-times`, not merged yet).
 `tsc --noEmit`, `eslint`, `vitest`, `next build`, the pgTAP suite,
 `concurrency.sh` and the Playwright suite (`e2e`) all run in CI on every PR.
 
@@ -18,8 +18,14 @@ v2 is live. The 2026-10-02 audit's simplification pass (below) is merged.
 | v2.0 | 2026-09-25 | Requester / Scheduler / Admin / Driver workflow, schedules with an approved Trip Record, completions, problem reports, cancellations (phases 0–11). |
 | v2.1 | 2026-09-25 | UX pass: dialogs, data freshness, plain-language messages, phone layout (PR #46). |
 | v2.2 | 2026-09-29 | Planner request pool, Admin role override, notifications, route-based navigation, other destination/purpose, return tank confirmation (PRs #49–#56). |
-| v2.3–v2.4 | 2026-10-01 to 10-02 | Problems on unsubmitted trips; Urgent first, send back and split in the pool; Urgent covers today to 6 days ahead (migrations 0038–0040). |
-| v2.5 | 2026-10-02 | Simplification pass (below). |
+| v2.3 | 2026-10-01 | UI pass; problems on unsubmitted trips (PRs #58–#60). |
+| v2.4 | 2026-10-02 | Urgent first, send back and split in the pool; Urgent covers today to 6 days ahead (PRs #62–#63, migrations 0038–0040). |
+| v2.5 | 2026-10-02 | Simplification pass (below) (PRs #65–#77, migration 0041). |
+| v2.6 | 2026-10-08 | Auth hardening, Zod validation, Playwright suite, UI refresh, dashboard tile filters, trip attendance with tap addresses, trip table filters and sorting (PRs #78–#107, migrations 0042–0043). |
+
+Each release ends at its last merge on `master`: v2.2 `d0d5db2`, v2.3
+`7d45c5b`, v2.4 `c0e45cd`, v2.5 `1f3c516`, v2.6 `373a0ce`. Only v2.0 and
+v2.1 have git tags so far (plus the old `v1.2-stable`).
 
 ## Outstanding / follow-ups
 

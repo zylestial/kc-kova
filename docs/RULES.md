@@ -243,6 +243,9 @@ any contributor:
   rebase, or rewrite history on a shared branch without being asked.
 - Confirm before starting a multi-step plan, not just before its
   individual steps.
+- Releases are numbered v2.N. When a release is merged to `master`, add
+  its row to `docs/TASKS.md`'s Releases table (date, what, PRs,
+  migrations) and tag that merge commit `v2.N`.
 
 ### Prohibited approaches
 

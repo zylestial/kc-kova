@@ -167,6 +167,16 @@ re-requested.
 No `v2.2` git tag exists yet (`v2.0` and `v2.1` do). Tagging the release is
 a separate step, not yet done as of this entry.
 
+## Release numbering cleaned up (2026-10-09)
+
+Releases v2.2 to v2.6 shipped without git tags, and v2.3/v2.4 were listed
+as one row, so "what version are we on" had no clear answer. Each release
+now ends at a named `master` merge in `docs/TASKS.md`'s Releases table
+(v2.6 ends at PR #107; `feat/stop-times` will be v2.7). The tags themselves
+are still not created. `package.json` still says `1.0.0` and nothing reads
+it. `v1.2-stable` is a leftover tag on the v1 line (v1.2 itself was
+superseded by v2); left in place, since a pushed tag may be in use.
+
 ## Open questions
 
 - **`docs/PRD.md` acceptance criteria and success metrics are drafts.**
