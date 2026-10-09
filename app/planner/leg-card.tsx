@@ -110,9 +110,6 @@ export default function LegCard({
             aria-label={`Leg ${index + 1} planned Time Out`}
             onChange={(event) => changeLeg(index, { plannedTimeOut: event.target.value })}
           />
-          {leg.plannedTimeOut && !leg.plannedTimeIn && (
-            <small className="field-note">Not saved until there&apos;s a Time In. Times can wait until you submit.</small>
-          )}
         </label>
         {leg.isFinal ? (
           <label className="field">
@@ -163,18 +160,6 @@ export default function LegCard({
             </Select>
           </label>
         )}
-        {!leg.isFinal && (
-          <>
-            <label className="field">
-              <span>Destination contact name</span>
-              <Input value={leg.contactName} onChange={(event) => changeLeg(index, { contactName: event.target.value })} />
-            </label>
-            <label className="field">
-              <span>Contact number</span>
-              <Input value={leg.contactNumber} onChange={(event) => changeLeg(index, { contactNumber: event.target.value })} />
-            </label>
-          </>
-        )}
         <label className="field">
           <span>Planned Time In</span>
           <Input
@@ -185,6 +170,21 @@ export default function LegCard({
           />
         </label>
       </div>
+      {!leg.isFinal && (
+        <details className="leg-contact" open={!!(leg.contactName || leg.contactNumber) || undefined}>
+          <summary>{leg.contactName || leg.contactNumber ? "Contact" : "+ Add contact"}</summary>
+          <div className="fields leg-fields">
+            <label className="field">
+              <span>Destination contact name</span>
+              <Input value={leg.contactName} onChange={(event) => changeLeg(index, { contactName: event.target.value })} />
+            </label>
+            <label className="field">
+              <span>Contact number</span>
+              <Input value={leg.contactNumber} onChange={(event) => changeLeg(index, { contactNumber: event.target.value })} />
+            </label>
+          </div>
+        </details>
+      )}
       {!!warnings[index]?.length && (
         <ul className="leg-warnings" role="alert">
           {warnings[index].map((warning) => (
