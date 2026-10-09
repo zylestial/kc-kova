@@ -7,6 +7,7 @@ import {
   toCancellationRequest,
   toNotification,
   toProblemReport,
+  toStopTap,
   toTripAttendance,
   toTripCompletion,
   scheduleSelect,
@@ -44,6 +45,7 @@ export const GET = authed(async ({ request, supabase }) => {
     cancellationsRes,
     completionsRes,
     attendanceRes,
+    stopTapsRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -72,6 +74,10 @@ export const GET = authed(async ({ request, supabase }) => {
     supabase
       .from("trip_attendance")
       .select("*, schedules!trip_attendance_schedule_id_fkey!inner(schedule_date)")
+      .gte("schedules.schedule_date", since),
+    supabase
+      .from("stop_taps")
+      .select("*, schedules!stop_taps_schedule_id_fkey!inner(schedule_date)")
       .gte("schedules.schedule_date", since),
     supabase
       .from("problem_reports")
@@ -105,6 +111,7 @@ export const GET = authed(async ({ request, supabase }) => {
     cancellationsRes,
     completionsRes,
     attendanceRes,
+    stopTapsRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -172,6 +179,8 @@ export const GET = authed(async ({ request, supabase }) => {
     completions: [...(completionsRes.data ?? []), ...oldCompletions].map(toTripCompletion),
     // Same visibility as completions (0042 policy).
     attendance: (attendanceRes.data ?? []).map(toTripAttendance),
+    // Same visibility as attendance (0045 policy).
+    stopTaps: (stopTapsRes.data ?? []).map(toStopTap),
     problems: [...(problemsRes.data ?? []), ...oldProblems].map(toProblemReport),
     notifications: (notificationsRes.data ?? []).map(toNotification),
   });
