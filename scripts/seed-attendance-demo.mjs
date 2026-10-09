@@ -189,6 +189,26 @@ function tap(prefix, time, place, recordedBy) {
   };
 }
 
+/**
+ * Backdated Arrived/Leaving at the trip's one stop (0045), without a
+ * position: marking a trip Done needs every Time Out and Time In (0046).
+ */
+async function writeStopTaps(trip, driverId, arrivedAt, leftAt) {
+  const { data: legs, error } = await admin.from("schedule_legs").select("id").eq("revision_id", trip.revisionId).order("leg_no");
+  if (error) throw new Error(`schedule_legs lookup failed: ${error.message}`);
+  const row = (kind, time) => ({
+    schedule_id: trip.scheduleId,
+    revision_id: trip.revisionId,
+    leg_id: legs[0].id,
+    driver_id: driverId,
+    kind,
+    at: time,
+    recorded_by_account_id: driverId,
+  });
+  const { error: insertError } = await admin.from("stop_taps").insert([row("ARRIVE", arrivedAt), row("LEAVE", leftAt)]);
+  if (insertError) throw new Error(`stop_taps insert failed: ${insertError.message}`);
+}
+
 async function writeAttendance(trip, driverId, start, end) {
   const { error } = await admin
     .from("trip_attendance")
@@ -254,6 +274,7 @@ async function main() {
     await writeAttendance(trip, driver1, tap("start", at(day(3), "08:02"), near(BASE), ids.admin1), tap("end", at(day(3), "10:44"), near(BASE), ids.admin1));
     const done = await approvedTrip(day(3), "UAT-002", "uat-dest-a");
     await writeAttendance(done, driver2, tap("start", at(day(3), "07:47"), near(BASE, -6, 4), driver2), tap("end", at(day(3), "10:33"), near(BASE), driver2));
+    await writeStopTaps(done, driver2, at(day(3), "08:41"), at(day(3), "09:36"));
     await rpc("driver2", "submit_completion", { p_schedule_id: done.scheduleId, p_start_odometer: 20537, p_end_odometer: 20571 });
     await rpc("admin1", "mark_completion_done", { p_schedule_id: done.scheduleId });
     console.log("3 days ago: tapped by Admin (driver1), clean and Done (driver2)");
