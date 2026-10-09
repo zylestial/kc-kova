@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AttendanceInput, StopTapInput } from "@/lib/kova-api";
+import type { AttendanceInput, StopTapInput, TripTimeInput } from "@/lib/kova-api";
 import { parseWith } from "@/lib/validation";
 
 const location = z.object({
@@ -36,4 +36,22 @@ const stopTapBody = z.object({
  */
 export function parseStopTapInput(body: unknown): StopTapInput | null {
   return parseWith(stopTapBody, body);
+}
+
+const tripTimeBody = z.object({
+  legId: z.uuid(),
+  field: z.enum(["OUT", "IN"]),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable(),
+});
+
+/**
+ * Shape-checks an Admin's Time Out / Time In before it reaches
+ * set_trip_time: the leg, which time, and "HH:MM" (or null to clear).
+ * Returns null when the body isn't usable.
+ */
+export function parseTripTimeInput(body: unknown): TripTimeInput | null {
+  return parseWith(tripTimeBody, body);
 }

@@ -9,6 +9,7 @@ import type {
   NotificationType,
   ProblemReport,
   StopTap,
+  TripTimeCorrection,
   TripAttendance,
   TripCompletion,
   Vehicle,
@@ -262,6 +263,31 @@ export function toStopTap(row: StopTapRow): StopTap {
   };
 }
 
+
+type TripTimeCorrectionRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  leg_id: string;
+  field: "OUT" | "IN";
+  /** Postgres time(0), "HH:MM:SS". */
+  time: string;
+  corrected_by_account_id: string;
+  corrected_at: string;
+};
+
+export function toTripTimeCorrection(row: TripTimeCorrectionRow): TripTimeCorrection {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    legId: row.leg_id,
+    field: row.field,
+    time: row.time.slice(0, 5),
+    correctedByAccountId: row.corrected_by_account_id,
+    correctedAt: row.corrected_at,
+  };
+}
 type ProblemRow = {
   id: string;
   schedule_id: string;

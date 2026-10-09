@@ -135,6 +135,20 @@ export type StopTap = {
 };
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"] };
+/** An Admin's TIME OUT or TIME IN for one leg of a submitted trip (0046); it prints in place of the tap. */
+export type TripTimeCorrection = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  legId: string;
+  field: "OUT" | "IN";
+  /** Manila wall-clock time, "HH:MM". */
+  time: string;
+  correctedByAccountId: string;
+  correctedAt: string;
+};
+/** What filling in a time sends; a null time clears the Admin's entry. */
+export type TripTimeInput = { legId: string; field: TripTimeCorrection["field"]; time: string | null };
 /** A Driver's note that a trip couldn't go as planned (0017, 0029). */
 export type ProblemReport = {
   id: string;
@@ -255,6 +269,7 @@ export type BootstrapData = {
   completions: TripCompletion[];
   attendance: TripAttendance[];
   stopTaps: StopTap[];
+  timeCorrections: TripTimeCorrection[];
   problems: ProblemReport[];
   notifications: Notification[];
 };
@@ -272,6 +287,7 @@ const emptyData: BootstrapData = {
   completions: [],
   attendance: [],
   stopTaps: [],
+  timeCorrections: [],
   problems: [],
   notifications: [],
 };
@@ -405,6 +421,7 @@ export const discardScheduleDraft =(id: string, rowVersion: number) => refreshAf
 export const submitCompletion = (id: string, startOdometer: number, endOdometer: number, checks?: ReturnChecks) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer, ...checks }) }));
 export const recordAttendance = (id: string, input: AttendanceInput) => refreshAfter(request<TripAttendance>(`/api/schedules/${encodeURIComponent(id)}/attendance`, { method: "POST", body: JSON.stringify(input) }));
 export const recordStopTap = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/stop-taps`, { method: "POST", body: JSON.stringify(input) }));
+export const setTripTime = (id: string, input: TripTimeInput) => refreshAfter(request<TripTimeCorrection | null>(`/api/schedules/${encodeURIComponent(id)}/times`, { method: "PUT", body: JSON.stringify(input) }));
 export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));

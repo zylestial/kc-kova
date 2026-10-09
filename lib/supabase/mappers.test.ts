@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toStopTap, toTransportRequest, toTripAttendance, toTripCompletion } from "@/lib/supabase/mappers";
+import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toStopTap, toTransportRequest, toTripAttendance, toTripCompletion, toTripTimeCorrection } from "@/lib/supabase/mappers";
 
 describe("toBookingOptions", () => {
   it("groups rows by their group column", () => {
@@ -372,5 +372,31 @@ describe("toStopTap", () => {
 
   it("has no location when the phone shared none", () => {
     expect(toStopTap({ ...row, lat: null, lng: null }).location).toBeNull();
+  });
+});
+
+describe("toTripTimeCorrection", () => {
+  it("trims the seconds Postgres sends", () => {
+    expect(
+      toTripTimeCorrection({
+        id: "c1",
+        schedule_id: "s1",
+        revision_id: "r1",
+        leg_id: "l1",
+        field: "OUT",
+        time: "09:40:00",
+        corrected_by_account_id: "a1",
+        corrected_at: "2026-10-09T02:00:00Z",
+      }),
+    ).toEqual({
+      id: "c1",
+      scheduleId: "s1",
+      revisionId: "r1",
+      legId: "l1",
+      field: "OUT",
+      time: "09:40",
+      correctedByAccountId: "a1",
+      correctedAt: "2026-10-09T02:00:00Z",
+    });
   });
 });
