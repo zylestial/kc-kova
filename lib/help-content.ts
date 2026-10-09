@@ -26,7 +26,7 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Check the plan", detail: "Open a trip for its stops and planned times." },
     { title: "Start and end at ANONANG", detail: "Tap Start trip before you leave and End trip when back. It is your attendance." },
     { title: "Tap at each stop", detail: "Tap Arrived when you reach a stop and Leaving as you go. These times print on the form." },
-    { title: "Complete the trip", detail: "After the last Time In, log the start/end odometer." },
+    { title: "Complete the trip", detail: "After End trip at ANONANG, log the start/end odometer." },
     { title: "Something went wrong?", detail: "Report a problem — you can do this any time." },
   ],
   Admin: [
