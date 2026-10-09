@@ -18,6 +18,7 @@ import {
   moveLeg,
   newLeg,
   pickLegDestination,
+  platesBookedOn,
   poolDestinationChoices,
   poolOrder,
   reflowFinalLegTimeOut,
@@ -510,6 +511,14 @@ describe("commitments", () => {
 
   it("ignores cancelled schedules", () => {
     expect(commitmentsOn("2026-10-05", [schedule({ status: "CANCELLED" })])).toEqual([]);
+  });
+
+  it("books a vehicle for the whole day, even on a draft with no times", () => {
+    const untimed = schedule({ id: "s3", revisions: [revision({ plate: "V3", legs: [] })] });
+    const schedules = [schedule({}), untimed, schedule({ id: "s4", status: "CANCELLED", revisions: [revision({ plate: "V4" })] })];
+    expect(platesBookedOn("2026-10-05", schedules)).toEqual(new Set(["V1", "V3"]));
+    expect(platesBookedOn("2026-10-05", schedules, "s1")).toEqual(new Set(["V3"]));
+    expect(platesBookedOn("2026-10-06", schedules)).toEqual(new Set());
   });
 
   it("finds overlaps on the same vehicle or Driver only", () => {

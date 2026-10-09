@@ -505,6 +505,19 @@ export function commitmentsOn(date: string, schedules: Schedule[], excludeSchedu
     .sort((a, b) => a.start.localeCompare(b.start));
 }
 
+/**
+ * Vehicles already on another active schedule that day, timed or not: a
+ * vehicle takes only one schedule a day (0048), so the Planner doesn't offer
+ * them. Cancelled and discarded schedules free their vehicle.
+ */
+export function platesBookedOn(date: string, schedules: Schedule[], excludeScheduleId?: string): Set<string> {
+  return new Set(
+    schedules
+      .filter((schedule) => schedule.date === date && schedule.status === "ACTIVE" && schedule.id !== excludeScheduleId)
+      .flatMap((schedule) => schedule.revisions.map((revision) => revision.plate)),
+  );
+}
+
 /** Commitments that would collide with a window on the same vehicle or Driver. */
 export function conflictsWith(
   window: { start: string; end: string } | null,
