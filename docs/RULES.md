@@ -85,6 +85,33 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   without one; a tap without a position never has one.
 - Only Admin and the Driver themself can read a Driver's attendance.
 
+The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
+0044–0046):
+
+- Between Start trip and End trip, the Driver taps Arrived on reaching each
+  non-final leg's destination and Leaving on setting off from it; End trip
+  is the final leg's arrival. One of each per leg, by the same people as
+  Start/End; a repeat returns the first. Refused before Start trip, after
+  End trip, once the trip is submitted, and on a leg not in the approved
+  version.
+- These are the actual times on the printed form: leg 1 TIME OUT = Start
+  trip, leg N TIME IN = Arrived at leg N, leg N+1 TIME OUT = Leaving leg N,
+  final TIME IN = End trip. Planned times stay on the Trip Record only.
+- Same position rules as Start/End, measured from the destination's saved
+  location when it has one (Request choices); without one, or for a typed-in
+  "other" destination, the tap is kept as "location not checked". Flagged,
+  never refused. Whether the Driver was on time is not judged.
+- My Schedule offers the next tap in route order and the one after it, so a
+  forgotten Arrived can be passed by tapping Leaving (and so on).
+- After the Driver submits, an Admin can fill in a missing time or correct
+  one (`set_trip_time`, to the minute, Manila time). It prints instead of
+  the tap; the tap stays on record. Clearing it brings back the tap (or the
+  blank). Locked once the trip is Done.
+- **A trip can't be marked Done until every TIME OUT and TIME IN is there**,
+  tapped or filled in (`trip_times_missing`). The Driver is never blocked:
+  Complete trip doesn't need the stop taps. "Mark clean trips done" skips
+  trips with a time missing. A time nobody recorded prints blank.
+
 ## Booking options
 
 - Only an Admin may create or edit Projects, Destinations or Purposes.
@@ -92,6 +119,11 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   offered when creating a *new* one (an edit may keep an option the request
   already had).
 - Nothing in this group is ever hard-deleted.
+- A Destination may have a saved location (coordinates or a Google Maps
+  link, pasted on Request choices), used only to check stop taps there.
+  Clearing it deletes the `destination_locations` row; the option stays.
+  Never add a nullable column to `booking_options` itself (see
+  `docs/ARCHITECTURE.md`, `destination_locations`).
 
 ## Cross-cutting
 
