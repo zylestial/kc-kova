@@ -34,6 +34,7 @@ import {
   legsFromRevision,
   currentRevision,
   openRevision,
+  platesBookedOn,
   poolDestinationChoices,
   poolOrder,
   reflowFinalLegTimeOut,
@@ -408,7 +409,7 @@ export default function SchedulePlanner({
           )}
           <CommitmentsPanel commitments={commitments} clashes={clashes} />
 
-          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} clashes={clashes} />
+          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} clashes={clashes} booked={platesBookedOn(date, schedules, editing?.id)} />
 
           <section className="editor-panel">
             <div className="section-heading">
