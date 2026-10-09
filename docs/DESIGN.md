@@ -198,7 +198,10 @@ discard and send-back logic, and composes its screen from `app/planner/`: day
 picker, request pool, existing commitments, vehicle panel, one `LegCard` per
 leg, the checklist, and the submit, send-back, discard and remove-leg
 dialogs. Those parts only show what they're given and call back; they hold no
-state of their own. A `LegCard`'s fields follow the form: Origin, Time Out,
+state of their own. Kept short on purpose (owner, 2026-10-09): the explanation
+sits in a closed "How planning works" fold, "Other trips this day" is folded
+(it opens by itself on a clash), the checklist lists only what's still to
+do, and each leg's contact sits behind "+ Add contact". A `LegCard`'s fields follow the form: Origin, Time Out,
 Destination (with its contact name and number), then Time In. The
 destination stays a dropdown even once the leg serves requests: picking
 another puts those stops back in the pool (`changeLegDestination`). A new
