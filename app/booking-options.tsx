@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { saveBookingOption, type BookingOption } from "@/lib/kova-api";
+import { coordinatesLabel, mapUrl } from "@/lib/attendance";
+import { parseCoordinates } from "@/lib/coordinates";
 import { useKovaData } from "@/lib/use-kova-data";
 
 type Group = "projects" | "destinations" | "purposes";
@@ -29,6 +31,8 @@ type Draft = {
   name: string;
   status: "Active" | "Inactive";
   isOtherStop: boolean;
+  /** As typed or pasted: coordinates or a Google Maps link. */
+  location: string;
 };
 const groups: [Group, string, string, string][] = [
   ["projects", "Projects / Sites", "Project / Site", "Add"],
@@ -46,6 +50,7 @@ export default function BookingOptions() {
     name: "",
     status: "Active",
     isOtherStop: false,
+    location: "",
   });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -60,12 +65,14 @@ export default function BookingOptions() {
             name: item.name,
             status: item.status,
             isOtherStop: item.isOtherStop === true,
+            location: item.location ? coordinatesLabel(item.location) : "",
           }
         : {
             id: crypto.randomUUID(),
             name: "",
             status: "Active",
             isOtherStop: false,
+            location: "",
           },
     );
     setError("");
@@ -77,6 +84,11 @@ export default function BookingOptions() {
       setError(stillNeeded(["Name"]));
       return;
     }
+    const location = modal.group === "destinations" ? parseCoordinates(draft.location) : null;
+    if (location === "invalid") {
+      setError("Location isn't readable. In Google Maps, right-click the place and click its coordinates to copy them, then paste here.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -85,6 +97,7 @@ export default function BookingOptions() {
         name: draft.name,
         status: draft.status,
         isOtherStop: modal.group === "destinations" ? draft.isOtherStop : undefined,
+        location: modal.group === "destinations" ? location : undefined,
       });
       setModal(null);
       setNotice("Choice saved.");
@@ -128,6 +141,7 @@ export default function BookingOptions() {
                     <thead>
                       <tr>
                         <th>NAME</th>
+                        {group === "destinations" && <th>LOCATION</th>}
                         <th>STATUS</th>
                         <th />
                       </tr>
@@ -138,6 +152,17 @@ export default function BookingOptions() {
                           <td>
                             <b>{item.name}</b>
                           </td>
+                          {group === "destinations" && (
+                            <td>
+                              {item.location ? (
+                                <a href={mapUrl(item.location.lat, item.location.lng)} target="_blank" rel="noreferrer">
+                                  {coordinatesLabel(item.location)}
+                                </a>
+                              ) : (
+                                <small>Not set</small>
+                              )}
+                            </td>
+                          )}
                           <td>
                             <span
                               className={
@@ -211,6 +236,20 @@ export default function BookingOptions() {
                   </label>
                 </div>
               </div>
+            )}
+            {modal?.group === "destinations" && (
+              <label className="field">
+                <span>Location</span>
+                <Input
+                  value={draft.location}
+                  maxLength={2000}
+                  placeholder="16.103769, 120.436222"
+                  onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+                />
+                <small className="field-hint">
+                  Paste coordinates or a Google Maps link. Drivers&apos; Arrived and Leaving taps here are checked against it; leave blank to skip the check.
+                </small>
+              </label>
             )}
             <label className="field">
               <span>Status</span>
