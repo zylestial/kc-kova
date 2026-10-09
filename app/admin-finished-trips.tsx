@@ -35,7 +35,7 @@ import { completionLabel, completionMeaning } from "@/lib/status-text";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import StopTimesTable from "./stop-times-table";
-import { formTimeValue, legTimes, missingTimes, type FormTime } from "@/lib/stop-times";
+import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -83,7 +83,7 @@ export default function AdminFinishedTrips({
   /** One of `finishedProblemFilters`, e.g. from a Dashboard tile. */
   initialProblems?: string;
 } = {}) {
-  const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, timeCorrections, accounts } = useKovaData();
+  const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, timeCorrections, accounts, options } = useKovaData();
   const trips = useMemo(() => buildAdminTrips(schedules, completions, problemReports), [schedules, completions, problemReports]);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
@@ -116,6 +116,7 @@ export default function AdminFinishedTrips({
       attendance.find((item) => item.scheduleId === trip.schedule.id),
       stopTaps.filter((item) => item.scheduleId === trip.schedule.id),
       timeCorrections.filter((item) => item.scheduleId === trip.schedule.id),
+      placeResolver(options.destinations),
     );
 
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
