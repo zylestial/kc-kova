@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Flag, Plus, Save, Send, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Flag, Plus, Save, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   createSchedule,
@@ -57,7 +57,6 @@ import VehiclePanel from "./planner/vehicle-panel";
 import LegCard from "./planner/leg-card";
 import TripChecklist from "./planner/trip-checklist";
 import SubmitDialog from "./planner/submit-dialog";
-import SendBackDialog from "./planner/send-back-dialog";
 import DiscardDialog, { discardLabel, type DiscardKind } from "./planner/discard-dialog";
 import RemoveLegDialog from "./planner/remove-leg-dialog";
 import { dateLabel, fullDate } from "./planner/format";
@@ -140,8 +139,6 @@ export default function SchedulePlanner({
   // The leg waiting for the Scheduler to confirm its removal.
   const [removingLeg, setRemovingLeg] = useState<number | null>(null);
   // Requests waiting for the Scheduler to confirm sending them back.
-  const [sendingBack, setSendingBack] = useState<string[] | null>(null);
-  const [sendBackReason, setSendBackReason] = useState("");
   // On submit, the pool requests left off the route go back to their
   // requesters too, unless the Scheduler is keeping them for another vehicle.
   const [sendLeftovers, setSendLeftovers] = useState(true);
@@ -313,22 +310,10 @@ export default function SchedulePlanner({
           await sendBackRequests(leftovers, leftoverReason);
           sentBack = ` ${leftovers.length === 1 ? "1 other request was" : `${leftovers.length} other requests were`} sent back to ${leftovers.length === 1 ? "its requester" : "their requesters"}.`;
         } catch (caught) {
-          sentBack = ` The other requests couldn't be sent back (${(caught as Error).message}). Send them back from the pool.`;
+          sentBack = ` The other requests couldn't be sent back (${(caught as Error).message}); they're still waiting for this day.`;
         }
       }
       onDone("Schedule submitted. An Admin will review and approve it." + sentBack, date);
-    });
-  const sendBack = () =>
-    run(async () => {
-      if (!sendingBack) return;
-      await sendBackRequests(sendingBack, sendBackReason);
-      setNotice(
-        sendingBack.length === 1
-          ? "Request sent back. The requester is notified and can pick another day."
-          : `${sendingBack.length} requests sent back. Their requesters are notified and can pick another day.`,
-      );
-      setSendingBack(null);
-      setSendBackReason("");
     });
   const discard = () =>
     run(async () => {
@@ -421,11 +406,6 @@ export default function SchedulePlanner({
               <b>Returned by Admin:</b> {returnedComment}
             </div>
           )}
-          {unplacedIds.length > 0 && (
-            <Button variant="ghost" className="planner-send-back" disabled={busy} onClick={() => setSendingBack(unplacedIds)}>
-              <Undo2 size={14} /> Send back requests that won&apos;t fit ({unplacedIds.length})
-            </Button>
-          )}
           <CommitmentsPanel commitments={commitments} clashes={clashes} />
 
           <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} clashes={clashes} />
@@ -461,7 +441,7 @@ export default function SchedulePlanner({
             {notice}
           </div>
         )}
-        {error && !confirm && !sendingBack && (
+        {error && !confirm && (
           <div className="notice error planner-bar-notice" role="alert">
             {error}
           </div>
@@ -516,7 +496,6 @@ export default function SchedulePlanner({
 
       <SubmitDialog confirm={confirm} setConfirm={setConfirm} busy={busy} date={date} plate={plate} driverName={driver?.name} reviewLegs={reviewLegs} stopsById={stopsById} urgentLeft={urgentLeft} leftoverLabels={leftoverLabels} splits={splits} sendLeftovers={sendLeftovers} setSendLeftovers={setSendLeftovers} leftoverReason={leftoverReason} setLeftoverReason={setLeftoverReason} error={error} submit={submit} />
 
-      <SendBackDialog sendingBack={sendingBack} setSendingBack={setSendingBack} sendBackReason={sendBackReason} setSendBackReason={setSendBackReason} busy={busy} pool={pool} date={date} error={error} setError={setError} sendBack={sendBack} />
 
       <DiscardDialog confirm={confirm} setConfirm={setConfirm} busy={busy} kind={discardKind} discard={discard} />
       <RemoveLegDialog removingLeg={removingLeg} setRemovingLeg={setRemovingLeg} legs={legs} applyLegs={applyLegs} />
