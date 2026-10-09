@@ -387,11 +387,21 @@ export default function SchedulePlanner({
       <div className="booking-heading">
         <div>
           <h1>{step === 1 ? "Which day are you planning?" : editing ? (editing.rowVersion === null ? "Propose a revision" : "Edit schedule") : "Plan a schedule"}</h1>
-          <p>
-            {step === 1
-              ? "Each day shows how many requests are still waiting to be scheduled."
-              : "Pick a vehicle, then build the route from the requests in the pool. A leg is one drive from one place to the next, and the trip starts and ends at ANONANG (the base). Saving a draft locks its requests, and reserves the time once every leg has times."}
-          </p>
+          {step === 1 ? (
+            <p>Each day shows how many requests are still waiting to be scheduled.</p>
+          ) : (
+            <details className="planner-how">
+              <summary>How planning works</summary>
+              <p>
+                Pick a vehicle, then build the route from the requests in the pool. A leg is one drive from one place to
+                the next: the first starts at ANONANG (the base), each next one starts where the last ended, and when the
+                route is done you add the return leg to ANONANG (up to {MAX_LEGS} legs). Picking a destination serves
+                every waiting request for it; Urgent requests come first in the pool. If a request won&apos;t fit, send it
+                back so the requester can pick another day. Saving a draft locks its requests, and reserves the time once
+                every leg has times.
+              </p>
+            </details>
+          )}
         </div>
         {step > 1 && (
           <b>
@@ -419,7 +429,7 @@ export default function SchedulePlanner({
             </div>
           )}
           <div className={"planner-columns" + (commitments.length ? "" : " planner-columns-single")}>
-            <RequestPool date={date} pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
+            <RequestPool pool={pool} servedStopIds={servedStopIds} unplacedIds={unplacedIds} heldElsewhere={heldElsewhere} sentBackCount={sentBackCount} busy={busy} setSendingBack={setSendingBack} />
 
             <CommitmentsPanel commitments={commitments} clashes={clashes} />
           </div>
@@ -430,11 +440,6 @@ export default function SchedulePlanner({
             <div className="section-heading">
               <div>
                 <h2>Trip Record</h2>
-                <p>
-                  The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
-                  ANONANG (the base) and each next one starts where the last ended. When the route is done, add the
-                  return leg to ANONANG. Up to {MAX_LEGS} legs.
-                </p>
               </div>
             </div>
             {legs.map((leg, index) => (
