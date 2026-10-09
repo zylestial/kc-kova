@@ -4,6 +4,7 @@ import type {
   ProblemReport,
   Schedule,
   TransportRequest,
+  TripAttendance,
   TripCompletion,
 } from "@/lib/kova-api";
 import { addDays, hasTripEnded, manilaToday } from "@/lib/timezone";
@@ -17,8 +18,21 @@ export type HomeData = {
   cancellations: CancellationRequest[];
   completions: TripCompletion[];
   problems: ProblemReport[];
+  /** Start/End taps; a trip with End trip tapped is ready to complete before its planned end (0047). */
+  attendance?: TripAttendance[];
 };
 
+
+/**
+ * Whether a Driver's trip is over, so it's ready to complete: End trip was
+ * tapped at ANONANG (0047), or its last planned Time In has passed.
+ */
+export function tripOver(data: HomeData, schedule: Schedule, lastIn: string, now: Date): boolean {
+  return (
+    (data.attendance ?? []).some((item) => item.scheduleId === schedule.id && item.end) ||
+    hasTripEnded(schedule.date, lastIn, now)
+  );
+}
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
 /**
@@ -88,7 +102,7 @@ export function homeCounts(account: Account, data: HomeData, now: Date = new Dat
         if (!revision || revision.driverId !== account.id) return [];
         if (data.completions.some((item) => item.scheduleId === schedule.id)) return [];
         const lastIn = revision.legs[revision.legs.length - 1]?.plannedTimeIn ?? "";
-        return [{ date: schedule.date, ended: hasTripEnded(schedule.date, lastIn, now) }];
+        return [{ date: schedule.date, ended: tripOver(data, schedule, lastIn, now) }];
       })
       .sort((a, b) => a.date.localeCompare(b.date));
     const ready = trips.filter((trip) => trip.ended).length;

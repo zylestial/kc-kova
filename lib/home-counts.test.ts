@@ -95,4 +95,14 @@ describe("homeCounts", () => {
     const data = { ...empty, schedules: [schedule({ revisions: [revision({})] })] };
     expect(homeCounts(account("Driver", "d1"), data, NOW)["my-schedule"]).toBe("Next trip today");
   });
+
+  it("shows a trip ended at ANONANG as ready to complete before its last Time In", () => {
+    const today = schedule({ revisions: [revision({})] });
+    const data = {
+      ...empty,
+      schedules: [today],
+      attendance: [{ scheduleId: today.id, start: { at: "x" }, end: { at: "y" } }],
+    } as unknown as HomeData;
+    expect(homeCounts(account("Driver", "d1"), data, NOW)["my-schedule"]).toBe("1 ready to complete");
+  });
 });
