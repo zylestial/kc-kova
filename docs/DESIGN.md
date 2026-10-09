@@ -198,7 +198,11 @@ discard and send-back logic, and composes its screen from `app/planner/`: day
 picker, request pool, existing commitments, vehicle panel, one `LegCard` per
 leg, the checklist, and the submit, send-back, discard and remove-leg
 dialogs. Those parts only show what they're given and call back; they hold no
-state of their own. A new schedule opens on the first day with requests
+state of their own. A `LegCard`'s fields follow the form: Origin, Time Out,
+Destination (with its contact name and number), then Time In. The
+destination stays a dropdown even once the leg serves requests: picking
+another puts those stops back in the pool (`changeLegDestination`). A new
+schedule opens on the first day with requests
 waiting (today if none), and the day picker lists waiting days outside its
 14-day strip. "Draft saved" and save errors show in the bottom bar, above the
 buttons; on phones the bar is one row (an icon-only Discard, "Submit"). The
