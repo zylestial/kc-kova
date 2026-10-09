@@ -81,28 +81,6 @@ export const missingTimes = (times: LegTimes[]) =>
   times.reduce((count, item) => count + Number(!formTimeValue(item.out)) + Number(!formTimeValue(item.in)), 0);
 
 /**
- * The stop taps a Driver may make now, as stopKey()s: the next one after the
- * latest tap in route order, and the one after it, so a forgotten Arrived
- * can be passed by tapping Leaving (and a forgotten Leaving by the next
- * Arrived), in that order. Nothing before Start trip or after End trip.
- */
-export function openStopTaps(times: LegTimes[]): Set<string> {
-  const sequence = times.flatMap((item) => [item.out, item.in]);
-  if (!sequence[0]?.tap || sequence[sequence.length - 1]?.tap) return new Set();
-  let last = 0;
-  sequence.forEach((time, index) => {
-    if (time.tap) last = index;
-  });
-  return new Set(
-    sequence
-      .slice(last + 1)
-      .filter((time) => time.source.kind === "ARRIVE" || time.source.kind === "LEAVE")
-      .slice(0, 2)
-      .map((time) => stopKey(time.source)),
-  );
-}
-
-/**
  * Whether a stop tap could have been at its destination, with the same
  * allowance for the phone's error margin as taps at ANONANG. Null when it
  * can't be checked: no position, or the destination has none saved.

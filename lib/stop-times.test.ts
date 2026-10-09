@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleLeg, StopTap, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
-import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, openStopTaps, stopPlaceLabel, tripSteps, hhmmLabel } from "@/lib/stop-times";
+import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, stopPlaceLabel, tripSteps, hhmmLabel } from "@/lib/stop-times";
 
 const leg = (id: string, legNo: number, destinationName: string, isFinal = false): ScheduleLeg => ({
   id,
@@ -40,26 +40,6 @@ describe("legTimes", () => {
       [true, false],
       [false, true],
     ]);
-  });
-});
-
-describe("openStopTaps", () => {
-  it("is empty before Start trip and after End trip", () => {
-    expect(openStopTaps(legTimes(legs, undefined, []))).toEqual(new Set());
-    expect(openStopTaps(legTimes(legs, { ...started, end: tapAt }, []))).toEqual(new Set());
-  });
-
-  it("offers the next tap and the one after it", () => {
-    expect(openStopTaps(legTimes(legs, started, []))).toEqual(new Set(["ARRIVE:l1", "LEAVE:l1"]));
-    expect(openStopTaps(legTimes(legs, started, [stop("ARRIVE", "l1")]))).toEqual(new Set(["LEAVE:l1", "ARRIVE:l2"]));
-  });
-
-  it("moves on past a skipped tap", () => {
-    expect(openStopTaps(legTimes(legs, started, [stop("LEAVE", "l1")]))).toEqual(new Set(["ARRIVE:l2", "LEAVE:l2"]));
-  });
-
-  it("offers only what's left before End trip", () => {
-    expect(openStopTaps(legTimes(legs, started, [stop("ARRIVE", "l2")]))).toEqual(new Set(["LEAVE:l2"]));
   });
 });
 
