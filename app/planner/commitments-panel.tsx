@@ -6,6 +6,11 @@ type Props = {
   clashes: Commitment[];
 };
 
+/**
+ * Time already held on the day by other schedules, including drafts. Folded
+ * by default to keep the Planner short; it opens by itself on a clash, so
+ * the Scheduler sees what they're clashing with.
+ */
 export default function CommitmentsPanel({
   commitments,
   clashes,
@@ -13,13 +18,10 @@ export default function CommitmentsPanel({
   // Nothing held: one line under the pool rather than an empty half-row panel.
   if (!commitments.length) return <p className="helper planner-no-commitments">Nothing else is scheduled on this day yet.</p>;
   return (
-    <section className="editor-panel">
-      <div className="section-heading">
-        <div>
-          <h2>Existing commitments</h2>
-          <p>Time already held on this day by other schedules, including drafts.</p>
-        </div>
-      </div>
+    <details className="editor-panel planner-fold" open={clashes.length > 0 || undefined}>
+      <summary>
+        <h2>Other trips this day ({commitments.length})</h2>
+      </summary>
       <ul className="planner-commitments">
         {commitments.map((item, index) => (
           <li key={`${item.scheduleId}-${index}`} className={clashes.includes(item) ? "clash" : ""}>
@@ -33,6 +35,6 @@ export default function CommitmentsPanel({
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }
