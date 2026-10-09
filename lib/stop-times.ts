@@ -1,4 +1,4 @@
-import type { AttendanceTap, ScheduleLeg, StopTap, StopTapLocation, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
+import type { AttendanceTap, BookingOption, ScheduleLeg, StopTap, StopTapLocation, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
 import { BASE_RADIUS_M, MAX_ACCURACY_ALLOWANCE_M, distanceLabel } from "@/lib/attendance";
 
 /**
@@ -26,20 +26,53 @@ export type FormTime = {
 
 export type LegTimes = { leg: ScheduleLeg; out: FormTime; in: FormTime };
 
+export type Place = { lat: number; lng: number };
+
+/** Metres between two points, by the haversine formula (same as distance_m in Postgres, 0044). */
+export function distanceMetres(a: Place, b: Place): number {
+  const rad = (degrees: number) => (degrees * Math.PI) / 180;
+  const h = Math.sin(rad(a.lat - b.lat) / 2) ** 2 + Math.cos(rad(b.lat)) * Math.cos(rad(a.lat)) * Math.sin(rad(a.lng - b.lng) / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(h));
+}
+
+/** A name for matching only: "  Wilcon   Calasiao " -> "wilcon calasiao" (option_name_key, 0049). */
+export const nameKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
+
+/**
+ * Finds a leg's destination's saved location as it is now: through the leg's
+ * destination choice, or, for a leg typed in as "Other" before it became a
+ * choice, through the choice with the same name. Null when there is none.
+ */
+export function placeResolver(destinations: BookingOption[]): (leg: ScheduleLeg) => Place | null {
+  const byId = new Map(destinations.map((item) => [item.id, item.location ?? null]));
+  const byName = new Map(destinations.filter((item) => item.location).map((item) => [nameKey(item.name), item.location!]));
+  return (leg) => (leg.destinationId ? (byId.get(leg.destinationId) ?? null) : (byName.get(nameKey(leg.destinationName)) ?? null));
+}
+
 /** A stop tap's identity, e.g. "ARRIVE:<leg id>". */
 export const stopKey = (source: { kind: string; legId?: string }) => `${source.kind}:${source.legId ?? ""}`;
 
 /**
  * The TIME OUT and TIME IN of each leg, from Start/End trip, the stop taps
- * and any Admin entries (which print in place of the tap).
+ * and any Admin entries (which print in place of the tap). With `placeOf`,
+ * each stop tap's distance is worked out again from its saved position and
+ * the destination's location as it is now, so a location set after the tap
+ * still checks it; without it, the distance saved with the tap is used.
  */
 export function legTimes(
   legs: ScheduleLeg[],
   attendance: TripAttendance | undefined,
   taps: StopTap[],
   corrections: TripTimeCorrection[] = [],
+  placeOf?: (leg: ScheduleLeg) => Place | null,
 ): LegTimes[] {
-  const tapFor = (kind: StopTap["kind"], legId: string) => taps.find((tap) => tap.kind === kind && tap.legId === legId) ?? null;
+  const tapFor = (kind: StopTap["kind"], legId: string) => {
+    const tap = taps.find((item) => item.kind === kind && item.legId === legId) ?? null;
+    const leg = legs.find((item) => item.id === legId);
+    if (!tap || !tap.location || !placeOf || !leg) return tap;
+    const place = placeOf(leg);
+    return { ...tap, location: { ...tap.location, distanceM: place ? distanceMetres(tap.location, place) : null } };
+  };
   const correctionFor = (legId: string, field: TripTimeCorrection["field"]) =>
     corrections.find((item) => item.legId === legId && item.field === field) ?? null;
   return legs.map((leg, index) => {
@@ -90,10 +123,10 @@ export function atStop(location: StopTapLocation | null): boolean | null {
   return location.distanceM - Math.min(location.accuracyM ?? 0, MAX_ACCURACY_ALLOWANCE_M) <= BASE_RADIUS_M;
 }
 
-/** Where a stop tap was, e.g. "at City Hall", "1.2 km from City Hall (±20 m)", "location not checked" or "no location". */
+/** Where a stop tap was, e.g. "at City Hall", "1.2 km from City Hall (±20 m)", "no place location set" or "no location". */
 export function stopPlaceLabel(location: StopTapLocation | null, place: string): string {
   if (!location) return "no location";
-  if (location.distanceM === null) return "location not checked";
+  if (location.distanceM === null) return "no place location set";
   if (location.distanceM <= BASE_RADIUS_M) return `at ${place}`;
   const margin = location.accuracyM === null ? "" : ` (±${distanceLabel(location.accuracyM)})`;
   return `${distanceLabel(location.distanceM)} from ${place}${margin}`;

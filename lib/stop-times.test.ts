@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ScheduleLeg, StopTap, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
-import { atStop, formTimeValue, legTimes, manilaHhmm, missingTimes, stopPlaceLabel, tripSteps, hhmmLabel } from "@/lib/stop-times";
+import type { BookingOption, ScheduleLeg, StopTap, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
+import { atStop, distanceMetres, formTimeValue, placeResolver, legTimes, manilaHhmm, missingTimes, stopPlaceLabel, tripSteps, hhmmLabel } from "@/lib/stop-times";
 
 const leg = (id: string, legNo: number, destinationName: string, isFinal = false): ScheduleLeg => ({
   id,
@@ -54,7 +54,7 @@ describe("atStop and stopPlaceLabel", () => {
     expect(atStop(null)).toBeNull();
     expect(atStop({ lat: 0, lng: 0, accuracyM: 5, distanceM: null, address: null })).toBeNull();
     expect(stopPlaceLabel(null, "Market")).toBe("no location");
-    expect(stopPlaceLabel({ lat: 0, lng: 0, accuracyM: 5, distanceM: null, address: null }, "Market")).toBe("location not checked");
+    expect(stopPlaceLabel({ lat: 0, lng: 0, accuracyM: 5, distanceM: null, address: null }, "Market")).toBe("no place location set");
   });
 
   it("names the place", () => {
@@ -127,5 +127,36 @@ describe("hhmmLabel", () => {
     expect(hhmmLabel("13:07")).toBe("1:07 PM");
     expect(hhmmLabel("00:30")).toBe("12:30 AM");
     expect(hhmmLabel("")).toBe("");
+  });
+});
+
+describe("checking stop taps against the destination as it is now", () => {
+  const alpha = { lat: 16.114569, lng: 120.436222 };
+  const destinations: BookingOption[] = [
+    { id: "d1", name: "City Hall", status: "Active", location: alpha },
+    { id: "d9", name: "Wilcon  Calasiao", status: "Active", location: { lat: 16.0, lng: 120.3 } },
+    { id: "d2", name: "Market", status: "Active" },
+  ];
+  const withId = (patch: Partial<ScheduleLeg>) => ({ ...leg("l1", 1, "City Hall"), destinationId: "d1", ...patch });
+
+  it("works out distance like Postgres does", () => {
+    expect(Math.round(distanceMetres({ lat: 16.103769, lng: 120.436222 }, { lat: 16.113769, lng: 120.436222 }))).toBe(1112);
+  });
+
+  it("finds a leg's place by its choice, or by name for a typed-in leg, and nothing for a choice without one", () => {
+    const placeOf = placeResolver(destinations);
+    expect(placeOf(withId({}))).toEqual(alpha);
+    expect(placeOf({ ...leg("l1", 1, "wilcon calasiao") })).toEqual({ lat: 16.0, lng: 120.3 });
+    expect(placeOf(withId({ destinationId: "d2", destinationName: "Market" }))).toBeNull();
+    expect(placeOf(withId({ destinationId: "gone" }))).toBeNull();
+  });
+
+  it("re-checks a tap made before the place had a location", () => {
+    const tap = { ...stop("ARRIVE", "l1"), location: { ...alpha, accuracyM: 10, distanceM: null, address: null } };
+    const legsWithId = [withId({}), legs[1], legs[2]];
+    expect(legTimes(legsWithId, started, [tap])[0].in.tap?.location?.distanceM).toBeNull();
+    const checked = legTimes(legsWithId, started, [tap], [], placeResolver(destinations))[0].in.tap?.location;
+    expect(checked?.distanceM).toBe(0);
+    expect(atStop(checked ?? null)).toBe(true);
   });
 });
