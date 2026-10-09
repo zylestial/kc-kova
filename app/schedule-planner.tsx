@@ -432,8 +432,8 @@ export default function SchedulePlanner({
                 <h2>Trip Record</h2>
                 <p>
                   The Trip Record is the route sheet the Driver follows. Add legs in travel order: the first starts at
-                  ANONANG (the base), each next one starts where the last ended, and the final leg returns to ANONANG. Up
-                  to {MAX_LEGS} legs.
+                  ANONANG (the base) and each next one starts where the last ended. When the route is done, add the
+                  return leg to ANONANG. Up to {MAX_LEGS} legs.
                 </p>
               </div>
             </div>
