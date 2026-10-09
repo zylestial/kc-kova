@@ -203,7 +203,8 @@ Destination (with its contact name and number), then Time In. The
 destination stays a dropdown even once the leg serves requests: picking
 another puts those stops back in the pool (`changeLegDestination`). A new
 schedule opens on the first day with requests
-waiting (today if none), and the day picker lists waiting days outside its
+waiting (today if none) with Leg 1 only; the Scheduler adds the return leg
+to ANONANG when the route is done. The day picker lists waiting days outside its
 14-day strip. "Draft saved" and save errors show in the bottom bar, above the
 buttons; on phones the bar is one row (an icon-only Discard, "Submit"). The
 only step numbers are the top stepper's. With nothing else held that day, the
