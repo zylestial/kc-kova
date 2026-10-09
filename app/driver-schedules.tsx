@@ -34,7 +34,7 @@ import {
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { stopsFor } from "@/lib/trip-record";
-import { hasTripEnded, manilaToday } from "@/lib/timezone";
+import { manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
 import { getPhoneLocation } from "@/lib/phone-location";
@@ -54,20 +54,9 @@ type Trip = {
   /** Arrived/Leaving taps at the stops in between. */
   stopTaps: StopTap[];
   problems: ProblemReport[];
-  ended: boolean;
   /** The trip's date has come, so Start trip is open. */
   startable: boolean;
-  /** When Complete trip unlocks, e.g. "3:58 PM", or "Sep 26, 3:58 PM" on a later day. */
-  availableAt: string;
 };
-
-function availableAtLabel(date: string, timeIn: string): string {
-  const match = /^(\d{2}):(\d{2})$/.exec(timeIn);
-  if (!match) return "the last planned Time In";
-  const hours = Number(match[1]);
-  const time = `${hours % 12 || 12}:${match[2]} ${hours < 12 ? "AM" : "PM"}`;
-  return date === manilaToday() ? time : `${dateLabel(date)}, ${time}`;
-}
 
 function buildTrips(
   schedules: Schedule[],
@@ -88,7 +77,6 @@ function buildTrips(
       const completion = completions.find((item) => item.scheduleId === schedule.id);
       // Once an Admin marks it Done the trip lives on Finished Trips only.
       if (completion?.status === "DONE") return [];
-      const lastIn = revision.legs[revision.legs.length - 1]?.plannedTimeIn ?? "";
       return [
         {
           schedule,
@@ -97,9 +85,7 @@ function buildTrips(
           attendance: attendance.find((item) => item.scheduleId === schedule.id),
           stopTaps: stopTaps.filter((item) => item.scheduleId === schedule.id),
           problems: problems.filter((item) => item.scheduleId === schedule.id),
-          ended: hasTripEnded(schedule.date, lastIn),
           startable: schedule.date <= today,
-          availableAt: availableAtLabel(schedule.date, lastIn),
         },
       ];
     })
@@ -108,21 +94,21 @@ function buildTrips(
 }
 
 /** Where a trip stands for its Driver, in the order a trip moves through them. */
-const tripStatuses = ["UPCOMING", "READY_TO_START", "ON_THE_ROAD", "BACK_AT_BASE", "READY_TO_COMPLETE", "SUBMITTED"] as const;
+const tripStatuses = ["UPCOMING", "READY_TO_START", "ON_THE_ROAD", "READY_TO_COMPLETE", "SUBMITTED"] as const;
 type TripStatus = (typeof tripStatuses)[number];
 
 const tripStatusPill: Record<TripStatus, [label: string, pill: string]> = {
   UPCOMING: ["Upcoming", "info"],
   READY_TO_START: ["Ready to start", "pending"],
   ON_THE_ROAD: ["On the road", "info"],
-  BACK_AT_BASE: ["Back at base", "info"],
   READY_TO_COMPLETE: ["Ready to complete", "pending"],
   SUBMITTED: [completionLabel.SUBMITTED, "scheduled"],
 };
 
 function tripStatus(trip: Trip): TripStatus {
   if (trip.completion) return "SUBMITTED";
-  if (trip.attendance?.end) return trip.ended ? "READY_TO_COMPLETE" : "BACK_AT_BASE";
+  // End trip at ANONANG is the proof it ended; Complete trip opens then (0047).
+  if (trip.attendance?.end) return "READY_TO_COMPLETE";
   if (trip.attendance) return "ON_THE_ROAD";
   return trip.startable ? "READY_TO_START" : "UPCOMING";
 }
@@ -134,7 +120,7 @@ type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
 /**
  * The Driver's published schedules. Each opens a read-only Trip Record with
  * Start trip and End trip (tapped at ANONANG; their attendance), then
- * Complete trip (one odometer pair, once the trip has ended) and Report a
+ * Complete trip (one odometer pair, once End trip is tapped) and Report a
  * problem. The database enforces who and when; this only shapes the screen.
  */
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
@@ -523,9 +509,6 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   Finding your location. This can take up to 10 seconds; stay where you are.
                 </p>
               )}
-              {!selected.completion && selected.attendance?.end && !selected.ended && (
-                <p className="helper">Complete trip is available after {selected.availableAt}.</p>
-              )}
               <DialogFooter>
                 <Button variant="outline" disabled={busy} onClick={() => setMode("problem")}>
                   Report a problem
@@ -541,7 +524,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   </Button>
                 )}
                 {!selected.completion && selected.attendance?.end && (
-                  <Button className="primary" disabled={!selected.ended} onClick={() => {
+                  <Button className="primary" onClick={() => {
                       setMode("complete");
                       setCompleteStep("odometer");
                       if (!start && lastReading !== null) setStart(String(lastReading));
