@@ -8,6 +8,7 @@ import {
   toNotification,
   toProblemReport,
   toStopTap,
+  toTripTimeCorrection,
   toTripAttendance,
   toTripCompletion,
   scheduleSelect,
@@ -47,6 +48,7 @@ export const GET = authed(async ({ request, supabase }) => {
     completionsRes,
     attendanceRes,
     stopTapsRes,
+    correctionsRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -82,6 +84,10 @@ export const GET = authed(async ({ request, supabase }) => {
       .select("*, schedules!stop_taps_schedule_id_fkey!inner(schedule_date)")
       .gte("schedules.schedule_date", since),
     supabase
+      .from("trip_time_corrections")
+      .select("*, schedules!trip_time_corrections_schedule_id_fkey!inner(schedule_date)")
+      .gte("schedules.schedule_date", since),
+    supabase
       .from("problem_reports")
       .select("*, schedules!problem_reports_schedule_id_fkey!inner(schedule_date)")
       .gte("schedules.schedule_date", since),
@@ -115,6 +121,7 @@ export const GET = authed(async ({ request, supabase }) => {
     completionsRes,
     attendanceRes,
     stopTapsRes,
+    correctionsRes,
     problemsRes,
     notificationsRes,
     oldCancellationsRes,
@@ -184,6 +191,8 @@ export const GET = authed(async ({ request, supabase }) => {
     attendance: (attendanceRes.data ?? []).map(toTripAttendance),
     // Same visibility as attendance (0045 policy).
     stopTaps: (stopTapsRes.data ?? []).map(toStopTap),
+    // Admin all; a Driver those on their own trips (0046 policy).
+    timeCorrections: (correctionsRes.data ?? []).map(toTripTimeCorrection),
     problems: [...(problemsRes.data ?? []), ...oldProblems].map(toProblemReport),
     notifications: (notificationsRes.data ?? []).map(toNotification),
   });
