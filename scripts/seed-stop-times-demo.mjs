@@ -6,7 +6,8 @@
 //
 //   yesterday  every tap made, submitted (one Arrived 900 m off the site)
 //   2 days ago Leaving Site Alpha never tapped, submitted (Admin fills it in)
-//   today      unstarted, to tap Start, Arrived, Leaving and End live
+//   today      unstarted, 1:00-5:00 PM, to tap Start, Arrived, Leaving and
+//              End live and complete it before its planned end
 //
 // Accounts, vehicles and booking options are created skip-if-exists (password
 // test1234), as in seed-attendance-demo.mjs. Past taps are written with the
@@ -134,8 +135,15 @@ async function rpc(username, name, args) {
   return data;
 }
 
-/** An approved ANONANG -> Site Alpha -> Site Beta -> ANONANG trip on `date`; returns its ids and leg ids. */
-async function approvedTrip(date, plate) {
+/**
+ * An approved ANONANG -> Site Alpha -> Site Beta -> ANONANG trip on `date`,
+ * leaving at 08:00, or at 13:00 with `afternoon` (back by 17:00, so a live
+ * trip can be completed before its planned end); returns its ids and leg ids.
+ */
+async function approvedTrip(date, plate, afternoon = false) {
+  const [out1, in1, out2, in2, out3, in3] = afternoon
+    ? ["13:00", "13:30", "14:30", "15:00", "16:00", "17:00"]
+    : ["08:00", "08:30", "09:30", "10:00", "11:00", "11:30"];
   const urgent = date >= TODAY && date < addDays(TODAY, 7);
   const request = await rpc("admin1", "create_request", {
     p_requested_date: date,
@@ -161,9 +169,9 @@ async function approvedTrip(date, plate) {
     p_plate: plate,
     p_request_ids: [request.id],
     p_legs: [
-      { destinationId: "uat-dest-a", plannedTimeOut: "08:00", plannedTimeIn: "08:30", contactName: "", contactNumber: "", stops: [stops[0].id] },
-      { destinationId: "uat-dest-b", plannedTimeOut: "09:30", plannedTimeIn: "10:00", contactName: "", contactNumber: "", stops: [stops[1].id] },
-      { isFinal: true, plannedTimeOut: "11:00", plannedTimeIn: "11:30" },
+      { destinationId: "uat-dest-a", plannedTimeOut: out1, plannedTimeIn: in1, contactName: "", contactNumber: "", stops: [stops[0].id] },
+      { destinationId: "uat-dest-b", plannedTimeOut: out2, plannedTimeIn: in2, contactName: "", contactNumber: "", stops: [stops[1].id] },
+      { isFinal: true, plannedTimeOut: out3, plannedTimeIn: in3 },
     ],
   });
   const submitted = await rpc("sched1", "submit_schedule", { p_schedule_id: draft.schedule_id, p_expected_row_version: draft.row_version });
@@ -260,8 +268,8 @@ async function main() {
     console.log("2 days ago: Leaving Site Alpha missing, submitted");
   }
 
-  await approvedTrip(TODAY, "UAT-003");
-  console.log("today: one unstarted two-stop trip for driver3");
+  await approvedTrip(TODAY, "UAT-003", true);
+  console.log("today: one unstarted two-stop trip for driver3, 1:00-5:00 PM");
   console.log("\nDone. Sign in as driver3 (My Schedule) or admin1 (Attendance, Finished Trips); password: test1234");
 }
 
