@@ -80,7 +80,7 @@ declare
   v_schedule public.schedules;
   v_revision public.schedule_revisions;
   v_leg public.schedule_legs;
-  v_destination public.booking_options;
+  v_destination public.destination_locations;
   v_attendance public.trip_attendance;
   v_row public.stop_taps;
   v_is_override boolean := false;
@@ -141,8 +141,8 @@ begin
     raise exception 'This trip has ended' using errcode = '22023';
   end if;
 
-  select * into v_destination from public.booking_options
-  where "group" = 'destinations' and id = v_leg.destination_id;
+  select * into v_destination from public.destination_locations
+  where destination_id = v_leg.destination_id;
 
   perform set_config('kova.audit_action', 'stop.' || lower(p_kind), true);
   if v_is_override then

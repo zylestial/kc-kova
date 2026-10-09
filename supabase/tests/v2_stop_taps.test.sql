@@ -23,10 +23,11 @@ insert into vehicles (plate, name, assigned_driver_id) values
   ('V1', 'Van 1', '00000000-0000-0000-0000-00000000000e'),
   ('V2', 'Van 2', '00000000-0000-0000-0000-000000000010');
 -- d1 has a position (1 km north of ANONANG); d2 has none.
-insert into booking_options ("group", id, name, status, lat, lng) values
-  ('destinations', 'd1', 'City Hall', 'Active', 16.112769, 120.436222),
-  ('destinations', 'd2', 'Market', 'Active', null, null),
-  ('purposes', 'p1', 'Inspection', 'Active', null, null);
+insert into booking_options ("group", id, name, status) values
+  ('destinations', 'd1', 'City Hall', 'Active'),
+  ('destinations', 'd2', 'Market', 'Active'),
+  ('purposes', 'p1', 'Inspection', 'Active');
+insert into destination_locations (destination_id, lat, lng) values ('d1', 16.112769, 120.436222);
 
 create function pg_temp.act_as(p_uid uuid) returns void language plpgsql as $$
 begin
