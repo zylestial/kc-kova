@@ -55,6 +55,7 @@ describe("booking option body", () => {
   it("reads only a true isOtherStop", () => {
     expect(parseWith(bookingOptionBody, { name: "Shell", isOtherStop: true })).toEqual({ name: "Shell", status: "Active", isOtherStop: true });
     expect(parseWith(bookingOptionBody, { name: "Shell", isOtherStop: "yes" })?.isOtherStop).toBe(false);
+    expect(parseWith(bookingOptionBody, { name: "Shell" })?.isOtherStop).toBe(false);
     expect(parseWith(bookingOptionBody, { name: " " })).toBeNull();
   });
 });
