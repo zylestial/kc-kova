@@ -84,6 +84,8 @@ and never returned by this app's own code.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, data model, API, auth, deployment
 - [docs/DESIGN.md](docs/DESIGN.md) — screens, visual language, UI patterns
 - [docs/RULES.md](docs/RULES.md) — business rules plus engineering/agent conventions
+- [docs/roles/README.md](docs/roles/README.md) — consolidated role guide for Requesters, Schedulers, Admins, and Drivers
+- [docs/roles/admin-guide.md](docs/roles/admin-guide.md) — single combined workflow from Admin setup through Driver completion
 - [docs/TASKS.md](docs/TASKS.md) — what's done vs. outstanding
 - [docs/MEMORY.md](docs/MEMORY.md) — decision log, gotchas, open questions
 - [docs/archive/](docs/archive/) — older decision log and task history, moved out of the two files above
