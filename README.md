@@ -84,11 +84,8 @@ and never returned by this app's own code.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, data model, API, auth, deployment
 - [docs/DESIGN.md](docs/DESIGN.md) — screens, visual language, UI patterns
 - [docs/RULES.md](docs/RULES.md) — business rules plus engineering/agent conventions
-- [docs/roles/README.md](docs/roles/README.md) — quick-start guides for each KOVA role
-- [docs/roles/requester-guide.md](docs/roles/requester-guide.md) — Requester workflow and responsibilities
-- [docs/roles/scheduler-guide.md](docs/roles/scheduler-guide.md) — Scheduler planning and approval workflow
-- [docs/roles/admin-guide.md](docs/roles/admin-guide.md) — Admin operations, approvals, and fleet management
-- [docs/roles/driver-guide.md](docs/roles/driver-guide.md) — Driver attendance, stop taps, and trip completion
+- [docs/roles/README.md](docs/roles/README.md) — consolidated role guide for Requesters, Schedulers, Admins, and Drivers
+- [docs/roles/admin-guide.md](docs/roles/admin-guide.md) — single combined workflow from Admin setup through Driver completion
 - [docs/TASKS.md](docs/TASKS.md) — what's done vs. outstanding
 - [docs/MEMORY.md](docs/MEMORY.md) — decision log, gotchas, open questions
 - [docs/archive/](docs/archive/) — older decision log and task history, moved out of the two files above
