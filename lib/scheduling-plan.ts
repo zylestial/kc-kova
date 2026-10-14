@@ -55,7 +55,7 @@ export type PlanOption = {
 };
 
 /** A leg being worked on: what save_schedule_draft takes, with the times the Scheduler set. */
-type WorkLeg = {
+export type WorkLeg = {
   destinationId?: string;
   stops: string[];
   isFinal: boolean;
@@ -68,22 +68,15 @@ type WorkLeg = {
 /** A fixed-time stop counts as late more than 5 minutes either side of its time. */
 const isLate = (fixed: string, arrive: string) => Math.abs(toMinutes(arrive) - toMinutes(fixed)) > 5;
 
-export function planOptions(stops: TransportRequest[], rows: VehicleRow[], context: PlanContext): PlanOption[] {
-  const urgent = stops.some((stop) => stop.requestType === "URGENT");
-  return rows
-    .map((row) => planOn(stops, row, context))
-    .sort(
-      (a, b) =>
-        Number(!!a.blocked) - Number(!!b.blocked) ||
-        a.late.length - b.late.length ||
-        (urgent ? a.arrive.localeCompare(b.arrive) : a.extra - b.extra),
-    );
-}
-
-/** The best way to add these stops to one vehicle's day. */
-export function planOn(stops: TransportRequest[], row: VehicleRow, context: PlanContext): PlanOption {
+/**
+ * Times a trip's legs from its start (lib/trip-estimate): each leg's place
+ * from its destination's saved location, its stay from the purposes it
+ * serves, a fixed-time stop's time, and the times the Scheduler set
+ * (timeOut / timeIn on the leg). A Daily trip leaves ANONANG; a Company trip
+ * leaves its starting point, which has no saved location.
+ */
+export function legTimer(context: Pick<PlanContext, "requests" | "destinations">, company: boolean) {
   const { requests, destinations } = context;
-  const company = row.kind === "COMPANY";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
   const placeOf = (destinationId?: string): Place | null =>
     destinationId ? (destinations.find((option) => option.id === destinationId)?.location ?? null) : null;
@@ -99,18 +92,38 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
       timeIn: leg.timeIn,
     };
   };
-  const from = company ? null : BASE_PLACE;
-  const timed = (legs: WorkLeg[], start: string) => {
-    const times = estimateTimes(legs.map(estimateLeg), start, from);
+  const timed = <T extends WorkLeg>(legs: T[], start: string) => {
+    const times = estimateTimes(legs.map(estimateLeg), start, company ? null : BASE_PLACE);
     return legs.map((leg, index) => ({ ...leg, ...times[index] }));
   };
-  const lateIn = (legs: ReturnType<typeof timed>) =>
+  /** Requests with a fixed time these timed legs reach more than 5 minutes off. */
+  const lateIn = (legs: Array<WorkLeg & { timeIn: string }>) =>
     legs.flatMap((leg) =>
       leg.stops.flatMap((stopId) => {
         const request = requestOf(stopId);
         return request?.flexibility === "FIXED" && request.fixedTime && isLate(request.fixedTime, leg.timeIn) ? [request.id] : [];
       }),
     );
+  return { timed, lateIn, requestOf };
+}
+
+export function planOptions(stops: TransportRequest[], rows: VehicleRow[], context: PlanContext): PlanOption[] {
+  const urgent = stops.some((stop) => stop.requestType === "URGENT");
+  return rows
+    .map((row) => planOn(stops, row, context))
+    .sort(
+      (a, b) =>
+        Number(!!a.blocked) - Number(!!b.blocked) ||
+        a.late.length - b.late.length ||
+        (urgent ? a.arrive.localeCompare(b.arrive) : a.extra - b.extra),
+    );
+}
+
+/** The best way to add these stops to one vehicle's day. */
+export function planOn(stops: TransportRequest[], row: VehicleRow, context: PlanContext): PlanOption {
+  const { requests } = context;
+  const company = row.kind === "COMPANY";
+  const { timed, lateIn } = legTimer(context, company);
   const stopIds = stops.map((stop) => stop.destinations[0]?.id).filter((id): id is string => !!id);
   const newLeg: WorkLeg = {
     destinationId: stops[0].destinations[0]?.destinationId,
@@ -119,7 +132,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     contactName: stops.map((stop) => stop.contact).filter(Boolean).join(", ").slice(0, 100),
     contactNumber: "",
   };
-  const toInput = (legs: ReturnType<typeof timed>, requestIds: string[]): ScheduleInput => ({
+  const toInput = (legs: Array<WorkLeg & { timeOut: string; timeIn: string }>, requestIds: string[]): ScheduleInput => ({
     date: context.day,
     plate: row.vehicle.plate,
     requestIds,
@@ -215,7 +228,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
   const unpinFrom = (legs: WorkLeg[], from: number) =>
     legs.map((leg, index) => (index < from ? leg : index === 0 ? { ...leg, timeIn: undefined } : { ...leg, timeOut: undefined, timeIn: undefined }));
 
-  let legs: ReturnType<typeof timed>;
+  let legs: Array<WorkLeg & { timeOut: string; timeIn: string }>;
   let label: string;
   const same = base.findIndex((leg) => !leg.isFinal && leg.destinationId && leg.destinationId === newLeg.destinationId);
   if (same >= 0) {
@@ -227,7 +240,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     const positions = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index);
     // Fewest late fixed-time stops, then the earliest end; on a tie the
     // later place, so fewer legs move.
-    let best: { legs: ReturnType<typeof timed>; at: number; late: number } | null = null;
+    let best: { legs: Array<WorkLeg & { timeOut: string; timeIn: string }>; at: number; late: number } | null = null;
     for (const at of positions) {
       const candidate = timed(unpinFrom([...base.slice(0, at), newLeg, ...base.slice(at)], at), start);
       const late = lateIn(candidate).length;
