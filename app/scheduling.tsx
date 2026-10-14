@@ -1,6 +1,6 @@
 "use client";
-import { Fragment, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createCompanyTrip, createSchedule, hydrateKovaData, moveRequestDay, saveScheduleDraft, type TransportRequest } from "@/lib/kova-api";
@@ -21,7 +21,7 @@ import {
   weekStops,
   type TripKind,
 } from "@/lib/scheduling";
-import { dateLabel, fullDate } from "./planner/format";
+import { dateLabel } from "./planner/format";
 import StopCard, { whatText } from "./scheduler/stop-card";
 import StopSheet from "./scheduler/stop-sheet";
 import PlanOptions from "./scheduler/plan-options";
@@ -29,35 +29,28 @@ import VehicleCard from "./scheduler/vehicle-card";
 
 const shortDay = (day: string) => dateLabel(day, { weekday: "short", month: "short", day: "numeric" });
 
-const KINDS: Record<TripKind, { label: string; hint: string }> = {
-  DAILY: { label: "Daily trips", hint: "Vehicles with their own Driver; each trip starts and ends at ANONANG." },
-  COMPANY: {
-    label: "Company trips",
-    hint: "Vehicles that can be requested for company trips, with the Driver each requester picked.",
-  },
-};
+const KINDS: Record<TripKind, string> = { DAILY: "Daily trips", COMPANY: "Company trips" };
 
 /**
- * Scheduling (prototype "KOVA Scheduler"), in three steps: pick the day,
- * pick Daily or Company trips, then plan. The planner lists what's still
- * to plan on the left (Urgent first, grouped by place, plus the week's "any
- * day" stops) and that kind's vehicles on the right.
+ * Scheduling (prototype "KOVA Scheduler"): the day strip, then Daily trips
+ * or Company trips, then that kind's Urgent banners, what's still to plan
+ * (Urgent first, grouped by place, plus the week's "any day" stops) and its
+ * vehicles. Stops are dragged onto a vehicle, or tapped for the options.
  */
 export default function Scheduling({
   initialDate,
   initialKind,
-  onStep,
+  onChange,
 }: {
   initialDate?: string;
   initialKind?: TripKind;
-  /** Keeps the address in step, so a refresh or a link opens the same place. */
-  onStep: (date: string, kind?: TripKind) => void;
+  /** Keeps the address in step, so a refresh or a link opens the same day and kind. */
+  onChange: (date: string, kind: TripKind) => void;
 }) {
   const { requests, schedules, vehicles, accounts, attendance, companyRuns, options } = useKovaData();
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
-  const [kind, setKind] = useState<TripKind | undefined>(initialKind);
-  const [step, setStep] = useState(initialDate && initialKind ? 3 : 1);
+  const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
   const [openPlates, setOpenPlates] = useState<Set<string>>(new Set());
   const [sheetIds, setSheetIds] = useState<string[]>([]);
   // The stops being dragged onto a vehicle.
@@ -70,12 +63,12 @@ export default function Scheduling({
   // On phones the strip scrolls; keep the chosen day in view.
   useEffect(() => {
     strip.current?.querySelector(".sc-day.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [day, step]);
+  }, [day]);
 
   const days = weekDays(day);
   const rows = vehicleRows(vehicles, accounts, schedules, day).filter((row) => row.kind === kind);
-  const stops = kind ? toPlan(requests, day, kind) : [];
-  const week = kind ? weekStops(requests, day, kind) : [];
+  const stops = toPlan(requests, day, kind);
+  const week = weekStops(requests, day, kind);
   const urgent = stops.filter((stop) => stop.requestType === "URGENT");
   const trips = rows.flatMap((row) => row.trips);
   const started = (scheduleId: string) =>
@@ -137,9 +130,15 @@ export default function Scheduling({
     }
   }
 
-  function goTo(next: number, nextDay = day, nextKind = kind) {
-    setStep(next);
-    onStep(nextDay, next === 3 ? nextKind : undefined);
+  function pickDay(next: string) {
+    setDay(next);
+    onChange(next, kind);
+  }
+  function pickKind(next: TripKind) {
+    setKind(next);
+    setSheetIds([]);
+    setError("");
+    onChange(day, next);
   }
   function toggle(plate: string) {
     const next = new Set(openPlates);
@@ -150,239 +149,198 @@ export default function Scheduling({
 
   return (
     <div className="scheduling">
-      <div className="booking-steps">
-        {["Choose day", "Daily or Company", "Plan"].map((label, index) => (
-          <Fragment key={label}>
-            {index > 0 && <i />}
-            <span className={step === index + 1 ? "current" : ""}>
-              {index + 1} <b>{label}</b>
-            </span>
-          </Fragment>
-        ))}
-      </div>
-      {step > 1 && (
-        // Not "Back": on phones the top bar has its own Back, which leaves the screen.
-        <Button variant="ghost" className="booking-back" onClick={() => goTo(step - 1)}>
-          <ArrowLeft size={16} /> {step === 2 ? "Change day" : "Change type"}
-        </Button>
-      )}
       <div className="page-heading">
         <div>
-          <div className="eyebrow">SCHEDULER</div>
           <h1>
-            {step === 1 ? "Which day are you planning?" : step === 2 ? "What are you planning?" : KINDS[kind!].label}
-            <span className="title-dot">.</span>
+            Scheduling<span className="title-dot">.</span>
           </h1>
-          {step > 1 && <p>{fullDate(day)}</p>}
         </div>
       </div>
 
-      {step === 1 && (
-        <>
-          <div className="sc-days" ref={strip}>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Previous week"
-              disabled={days[0] <= today}
-              onClick={() => setDay(addDays(days[0], -7) < today ? today : addDays(days[0], -7))}
+      <div className="sc-days" ref={strip}>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Previous week"
+          disabled={days[0] <= today}
+          onClick={() => pickDay(addDays(days[0], -7) < today ? today : addDays(days[0], -7))}
+        >
+          <ChevronLeft size={18} />
+        </Button>
+        {days.map((item) => {
+          const counts = dayCounts(requests, item, kind);
+          return (
+            <button
+              key={item}
+              type="button"
+              className={"sc-day" + (item === day ? " on" : "")}
+              aria-pressed={item === day}
+              disabled={item < today}
+              onClick={() => pickDay(item)}
             >
-              <ChevronLeft size={18} />
+              <b>{item === today ? `Today · ${dateLabel(item, { month: "short", day: "numeric" })}` : shortDay(item)}</b>
+              <span>
+                {counts.toPlan ? `${counts.toPlan} to plan` : "All planned"}
+                {counts.urgent > 0 && <span className="sc-urgent-count"> · {counts.urgent} urgent</span>}
+              </span>
+            </button>
+          );
+        })}
+        <Button variant="outline" size="icon" aria-label="Next week" onClick={() => pickDay(addDays(days[0], 7))}>
+          <ChevronRight size={18} />
+        </Button>
+        <label className="sc-jump">
+          Jump to date{" "}
+          <Input type="date" min={today} value={day} onChange={(event) => event.target.value >= today && pickDay(event.target.value)} />
+        </label>
+      </div>
+      {otherDays.length > 0 && (
+        <div className="date-waiting-elsewhere">
+          <span>Also waiting:</span>
+          {otherDays.slice(0, 5).map((other) => (
+            <Button key={other} variant="outline" size="sm" onClick={() => pickDay(other)}>
+              {shortDay(other)}
             </Button>
-            {days.map((item) => {
-              const counts = dayCounts(requests, item);
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  className={"sc-day" + (item === day ? " on" : "")}
-                  aria-pressed={item === day}
-                  disabled={item < today}
-                  onClick={() => setDay(item)}
+          ))}
+        </div>
+      )}
+
+      <div className="sc-kinds" role="tablist" aria-label="Trip type">
+        {(Object.keys(KINDS) as TripKind[]).map((value) => {
+          const counts = dayCounts(requests, day, value);
+          return (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={kind === value}
+              className={"sc-kind" + (kind === value ? " on" : "")}
+              onClick={() => pickKind(value)}
+            >
+              <b>{KINDS[value]}</b>
+              <span>
+                {counts.toPlan ? `${counts.toPlan} to plan` : "All planned"}
+                {counts.urgent > 0 && <span className="sc-urgent-count"> · {counts.urgent} urgent</span>}
+                {` · ${tripsOfKind(value)} ${tripsOfKind(value) === 1 ? "trip" : "trips"}`}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {urgent.map((stop) => (
+        <div key={stop.id} className="sc-banner">
+          <span>
+            <b>Urgent {stopNumber(stop)}</b> · {whatText(stop)} · {stop.destinations[0]?.destinationName}
+            {stop.details && ` · ${stop.details}`} · {stop.projectName}
+          </span>
+          <Button className="danger" onClick={() => setSheetIds([stop.id])}>
+            Fit it in
+          </Button>
+        </div>
+      ))}
+      {waitingForAdmin.map((trip) => (
+        <div key={trip.schedule.id} className="sc-banner wait">
+          <span>
+            <b>{vehicleName(trip.revision.plate)}</b>: waiting for Admin
+          </span>
+        </div>
+      ))}
+      <div className="sc-banner info">
+        <span>
+          <b>{shortDay(day)}:</b> {trips.length} {trips.length === 1 ? "trip" : "trips"}
+          {stops.length ? ` · ${stops.length} to plan` : " · all planned"}
+        </span>
+      </div>
+      {notice && (
+        <div className="notice success" role="status">
+          {notice}
+        </div>
+      )}
+      {error && (
+        <div className="notice error" role="alert">
+          {error}
+        </div>
+      )}
+
+      <div className="sc-columns">
+        <section className="sc-panel">
+          <h2>
+            To plan · {day === today ? "today" : shortDay(day)} <span className="count">{stops.length}</span>
+          </h2>
+          <div className="sc-list">
+            {placeGroups(stops).map((group) =>
+              group.length > 1 ? (
+                <div
+                  key={group[0].id}
+                  className="sc-group"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/plain", group.map((stop) => stop.id).join(","));
+                    event.dataTransfer.effectAllowed = "move";
+                    setDragIds(group.map((stop) => stop.id));
+                  }}
+                  onDragEnd={() => setDragIds(null)}
                 >
-                  <b>{item === today ? `Today · ${dateLabel(item, { month: "short", day: "numeric" })}` : shortDay(item)}</b>
-                  <span>
-                    {counts.toPlan ? `${counts.toPlan} to plan` : "All planned"}
-                    {counts.urgent > 0 && <span className="sc-urgent-count"> · {counts.urgent} urgent</span>}
-                  </span>
-                </button>
-              );
-            })}
-            <Button variant="outline" size="icon" aria-label="Next week" onClick={() => setDay(addDays(days[0], 7))}>
-              <ChevronRight size={18} />
-            </Button>
-            <label className="sc-jump">
-              Jump to date{" "}
-              <Input type="date" min={today} value={day} onChange={(event) => event.target.value >= today && setDay(event.target.value)} />
-            </label>
+                  <div className="sc-group-head">
+                    <b>
+                      {group[0].destinations[0]?.destinationName} · {group.length} stops
+                    </b>
+                    <Button size="sm" className="primary" onClick={() => setSheetIds(group.map((stop) => stop.id))}>
+                      Plan together
+                    </Button>
+                  </div>
+                  {group.map((stop) => (
+                    <StopCard key={stop.id} stop={stop} inGroup onOpen={setSheetIds} onDrag={setDragIds} />
+                  ))}
+                </div>
+              ) : (
+                <StopCard key={group[0].id} stop={group[0]} onOpen={setSheetIds} onDrag={setDragIds} />
+              ),
+            )}
+            {!stops.length && <p className="sc-empty">All planned.</p>}
           </div>
-          {otherDays.length > 0 && (
-            <div className="date-waiting-elsewhere">
-              <span>Also waiting:</span>
-              {otherDays.slice(0, 5).map((other) => (
-                <Button key={other} variant="outline" size="sm" onClick={() => setDay(other)}>
-                  {shortDay(other)}
-                </Button>
-              ))}
-            </div>
-          )}
-          <div className="sc-continue">
-            <Button className="primary" onClick={() => goTo(2)}>
-              Continue — {shortDay(day)}
-            </Button>
+          <div className="sc-section">Any day this week ({week.length})</div>
+          <div className="sc-list">
+            {week.map((stop) => (
+              <StopCard key={stop.id} stop={stop} onOpen={setSheetIds} onDrag={setDragIds} />
+            ))}
+            {!week.length && <p className="sc-empty">None.</p>}
           </div>
-        </>
-      )}
+        </section>
 
-      {step === 2 && (
-        <>
-          <div className="request-choice-cards sc-kinds" role="radiogroup" aria-label="Trip type">
-            {(Object.keys(KINDS) as TripKind[]).map((value) => {
-              const counts = dayCounts(requests, day, value);
-              const week = weekStops(requests, day, value).length;
-              const planned = tripsOfKind(value);
-              return (
-                <label key={value} className={kind === value ? "checked" : ""}>
-                  <input type="radio" name="trip-kind" checked={kind === value} onChange={() => setKind(value)} />
-                  <span>
-                    {KINDS[value].label}
-                    <small>{KINDS[value].hint}</small>
-                    <small className="sc-kind-counts">
-                      {counts.toPlan ? `${counts.toPlan} to plan` : "Nothing waiting this day"}
-                      {counts.urgent > 0 && <span className="sc-urgent-count"> · {counts.urgent} urgent</span>}
-                      {week > 0 && ` · ${week} any day this week`}
-                      {` · ${planned} ${planned === 1 ? "trip" : "trips"} planned`}
-                    </small>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-          <div className="sc-continue">
-            <Button className="primary" disabled={!kind} onClick={() => goTo(3)}>
-              Continue{kind ? ` — ${KINDS[kind].label}` : ""}
-            </Button>
-          </div>
-        </>
-      )}
-
-      {step === 3 && kind && (
-        <>
-          {urgent.map((stop) => (
-            <div key={stop.id} className="sc-banner">
-              <span>
-                <b>Urgent {stopNumber(stop)}</b> · {whatText(stop)} · {stop.destinations[0]?.destinationName}
-                {stop.details && ` · ${stop.details}`} · {stop.projectName}
-              </span>
-              <Button className="danger" onClick={() => setSheetIds([stop.id])}>
-                Fit it in
-              </Button>
-            </div>
+        <section className="sc-vehicles" aria-label="Vehicles">
+          <p className="sc-hint">Drag a request onto a vehicle to add it, or tap it to see the options.</p>
+          {rows.map((row) => (
+            <VehicleCard
+              key={row.vehicle.plate}
+              row={row}
+              open={openPlates.has(row.vehicle.plate)}
+              onToggle={() => toggle(row.vehicle.plate)}
+              isToday={day === today}
+              now={now}
+              requests={requests}
+              started={started}
+              drop={
+                dragStops.length && !busy
+                  ? (() => {
+                      const option = planOn(dragStops, row, context);
+                      return { blocked: option.blocked, onDrop: () => add(option, dragStops) };
+                    })()
+                  : undefined
+              }
+            />
           ))}
-          {waitingForAdmin.map((trip) => (
-            <div key={trip.schedule.id} className="sc-banner wait">
-              <span>
-                <b>{vehicleName(trip.revision.plate)}</b>: waiting for Admin
-              </span>
-            </div>
-          ))}
-          <div className="sc-banner info">
-            <span>
-              <b>{shortDay(day)}:</b> {trips.length} {trips.length === 1 ? "trip" : "trips"}
-              {stops.length ? ` · ${stops.length} to plan` : " · all planned"}
-            </span>
-          </div>
-          {notice && (
-            <div className="notice success" role="status">
-              {notice}
-            </div>
+          {!rows.length && (
+            <p className="sc-empty">
+              {kind === "COMPANY" ? "No vehicle can be requested for company trips yet." : "No vehicles for Daily trips."}
+            </p>
           )}
-          {error && (
-            <div className="notice error" role="alert">
-              {error}
-            </div>
-          )}
-
-          <div className="sc-columns">
-            <section className="sc-panel">
-              <h2>
-                To plan · {day === today ? "today" : shortDay(day)} <span className="count">{stops.length}</span>
-              </h2>
-              <div className="sc-list">
-                {placeGroups(stops).map((group) =>
-                  group.length > 1 ? (
-                    <div
-                      key={group[0].id}
-                      className="sc-group"
-                      draggable
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData("text/plain", group.map((stop) => stop.id).join(","));
-                        event.dataTransfer.effectAllowed = "move";
-                        setDragIds(group.map((stop) => stop.id));
-                      }}
-                      onDragEnd={() => setDragIds(null)}
-                    >
-                      <div className="sc-group-head">
-                        <b>
-                          {group[0].destinations[0]?.destinationName} · {group.length} stops
-                        </b>
-                        <Button size="sm" className="primary" onClick={() => setSheetIds(group.map((stop) => stop.id))}>
-                          Plan together
-                        </Button>
-                      </div>
-                      {group.map((stop) => (
-                        <StopCard key={stop.id} stop={stop} inGroup onOpen={setSheetIds} onDrag={setDragIds} />
-                      ))}
-                    </div>
-                  ) : (
-                    <StopCard key={group[0].id} stop={group[0]} onOpen={setSheetIds} onDrag={setDragIds} />
-                  ),
-                )}
-                {!stops.length && <p className="sc-empty">All planned.</p>}
-              </div>
-              <div className="sc-section">Any day this week ({week.length})</div>
-              <div className="sc-list">
-                {week.map((stop) => (
-                  <StopCard key={stop.id} stop={stop} onOpen={setSheetIds} onDrag={setDragIds} />
-                ))}
-                {!week.length && <p className="sc-empty">None.</p>}
-              </div>
-            </section>
-
-            <section className="sc-vehicles" aria-label="Vehicles">
-              <p className="sc-hint">Drag a request onto a vehicle to add it, or tap it to see the options.</p>
-              {rows.map((row) => (
-                <VehicleCard
-                  key={row.vehicle.plate}
-                  row={row}
-                  open={openPlates.has(row.vehicle.plate)}
-                  onToggle={() => toggle(row.vehicle.plate)}
-                  isToday={day === today}
-                  now={now}
-                  requests={requests}
-                  started={started}
-                  drop={
-                    dragStops.length && !busy
-                      ? (() => {
-                          const option = planOn(dragStops, row, context);
-                          return { blocked: option.blocked, onDrop: () => add(option, dragStops) };
-                        })()
-                      : undefined
-                  }
-                />
-              ))}
-              {!rows.length && (
-                <p className="sc-empty">
-                  {kind === "COMPANY" ? "No vehicle can be requested for company trips yet." : "No vehicles for Daily trips."}
-                </p>
-              )}
-            </section>
-          </div>
-        </>
-      )}
+        </section>
+      </div>
 
       <StopSheet stops={sheetStops} onClose={() => setSheetIds([])}>
-        {kind && sheetStops.length > 0 && (
+        {sheetStops.length > 0 && (
           <>
             {error && (
               <div className="notice error" role="alert">
