@@ -262,10 +262,13 @@ declare
   v_supplier_name text := '';
   v_typed public.booking_options;
   v_request_id uuid := p_request_id;
+  v_resend boolean := false;
 begin
   if p_request_id is not null then
     select * into v_kept from public.requests where id = p_request_id;
     select * into v_kept_dest from public.request_destinations where request_id = p_request_id and active limit 1;
+    v_resend := p_group.requested_date is distinct from v_kept.requested_date
+      or p_group.vehicle_plate is distinct from v_kept.vehicle_plate;
   end if;
 
   -- Project / Site: required on every stop (Daily may type Other).
@@ -384,10 +387,11 @@ begin
       contact = left(coalesce(trim(p_stop ->> 'contact'), ''), 100),
       supplier_id = v_supplier_id,
       supplier_name = v_supplier_name,
-      -- A new vehicle makes a sent-back stop a fresh request again (0050).
-      sent_back_at = case when p_group.vehicle_plate is distinct from vehicle_plate then null else sent_back_at end,
-      sent_back_by_account_id = case when p_group.vehicle_plate is distinct from vehicle_plate then null else sent_back_by_account_id end,
-      sent_back_reason = case when p_group.vehicle_plate is distinct from vehicle_plate then '' else sent_back_reason end,
+      -- A new date or vehicle makes a sent-back stop a fresh request again
+      -- (0050); on the right of SET these columns still hold the old values.
+      sent_back_at = case when v_resend then null else sent_back_at end,
+      sent_back_by_account_id = case when v_resend then null else sent_back_by_account_id end,
+      sent_back_reason = case when v_resend then '' else sent_back_reason end,
       row_version = row_version + 1,
       updated_at = now()
     where id = v_request_id;
