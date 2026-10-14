@@ -245,8 +245,52 @@ const FIELD_NAMES: Record<StopField, string> = {
   fixedTime: "Time",
 };
 
+export type TripField = "startingPoint" | "department" | "vehicle" | "driver" | "supervisor" | "head";
+
+/** A Company Trip's own fields that are still empty (all required; 0052's resolve_group_fields). */
+export function tripErrors(draft: RequestDraft): Partial<Record<TripField, string>> {
+  if (draft.form !== "COMPANY") return {};
+  const errors: Partial<Record<TripField, string>> = {};
+  if (!draft.startingPointId) errors.startingPoint = "Pick where the trip starts.";
+  if (!draft.departmentId) errors.department = "Pick the department or site.";
+  if (!draft.vehiclePlate) errors.vehicle = "Pick the vehicle.";
+  if (!draft.driverId) errors.driver = "Pick the Driver.";
+  if (!draft.supervisorId) errors.supervisor = "Pick your Immediate Supervisor.";
+  if (!draft.headId) errors.head = "Pick the PM / CM / Dept. Head.";
+  return errors;
+}
+
+const TRIP_FIELD_NAMES: Record<TripField, string> = {
+  startingPoint: "Starting point",
+  department: "Department / Site",
+  vehicle: "Vehicle",
+  driver: "Driver",
+  supervisor: "Immediate Supervisor",
+  head: "PM / CM / Dept. Head",
+};
+
+/**
+ * Switching between the Daily and Company Trip forms. A Company Trip takes
+ * choices from the lists only, so anything typed under "Other…" is cleared.
+ */
+export function withForm(draft: RequestDraft, form: RequestForm): RequestDraft {
+  if (form === draft.form) return draft;
+  if (form === "DAILY") return { ...draft, form };
+  const clear = <T extends { projectOther: string; projectOtherMode: boolean }>(item: T): T =>
+    item.projectOtherMode ? { ...item, projectOther: "", projectOtherMode: false } : item;
+  return {
+    ...clear(draft),
+    form,
+    stops: draft.stops.map((stop) => ({
+      ...clear(stop),
+      ...(stop.destinationOtherMode ? { destinationOther: "", destinationOtherMode: false } : {}),
+      ...(stop.purposeOtherMode ? { purposeOther: "", purposeOtherMode: false } : {}),
+    })),
+  };
+}
+
 /** Everything the form still needs, e.g. ["Project / Site", "Stop B: Details"]. */
-export function draftMissing(draft: RequestDraft, options: BookingOptions): string[] {
+export function draftMissing(draft: RequestDraft, options: BookingOptions, usedLetters = 0): string[] {
   const missing: string[] = [];
   if (!draft.date) missing.push("Date");
   if (draft.projectMode === "one" && (draft.projectOtherMode ? !draft.projectOther.trim() : !draft.projectId))
@@ -254,10 +298,11 @@ export function draftMissing(draft: RequestDraft, options: BookingOptions): stri
   if (!draft.stops.length) missing.push("at least one destination");
   const many = draft.stops.length > 1;
   draft.stops.forEach((stop, index) => {
-    const prefix = many ? `Stop ${stopLetter(draft, index)}: ` : "";
+    const prefix = many ? `Stop ${stopLetter(draft, index, usedLetters)}: ` : "";
     for (const field of Object.keys(stopErrors(draft, stop, options)) as StopField[])
       missing.push(prefix + FIELD_NAMES[field]);
   });
+  for (const field of Object.keys(tripErrors(draft)) as TripField[]) missing.push(TRIP_FIELD_NAMES[field]);
   return missing;
 }
 

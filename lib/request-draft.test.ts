@@ -11,7 +11,9 @@ import {
   needsDetails,
   stopErrors,
   stopLetter,
+  tripErrors,
   weekLabel,
+  withForm,
   whenText,
   type RequestDraft,
 } from "@/lib/request-draft";
@@ -169,5 +171,37 @@ describe("labels", () => {
   it("sees an untouched form as empty", () => {
     expect(draftHasContent(emptyRequestDraft("DAILY", "2026-10-20"))).toBe(false);
     expect(draftHasContent(filled())).toBe(true);
+  });
+});
+
+describe("Company Trip", () => {
+  const company = (): RequestDraft => ({ ...filled(), form: "COMPANY" });
+
+  it("needs every trip field", () => {
+    expect(tripErrors(filled())).toEqual({});
+    expect(draftMissing(company(), options)).toEqual([
+      "Starting point",
+      "Department / Site",
+      "Vehicle",
+      "Driver",
+      "Immediate Supervisor",
+      "PM / CM / Dept. Head",
+    ]);
+    const done = { ...company(), startingPointId: "s", departmentId: "d", vehiclePlate: "VM", driverId: "j", supervisorId: "u", headId: "h" };
+    expect(draftMissing(done, options)).toEqual([]);
+  });
+
+  it("sends the trip fields and suppliers only on a Company Trip", () => {
+    const stop = { ...filled().stops[0], supplierId: "su" };
+    const draft = { ...company(), vehiclePlate: "VM", siteOfficer: " Liza ", stops: [stop] };
+    expect(draftToInput(draft)).toMatchObject({ vehiclePlate: "VM", siteOfficer: "Liza", stops: [{ supplierId: "su" }] });
+    expect(draftToInput({ ...draft, form: "DAILY" })).toMatchObject({ vehiclePlate: "", siteOfficer: "", stops: [{ supplierId: "" }] });
+  });
+
+  it("clears typed choices when switching to the Company Trip form", () => {
+    const typed = { ...filled().stops[0], destinationOtherMode: true, destinationOther: "New place" };
+    const draft = withForm({ ...filled(), projectOtherMode: true, projectOther: "X", stops: [typed] }, "COMPANY");
+    expect(draft).toMatchObject({ form: "COMPANY", projectOtherMode: false, projectOther: "" });
+    expect(draft.stops[0]).toMatchObject({ destinationOtherMode: false, destinationOther: "", purposeId: "sv" });
   });
 });
