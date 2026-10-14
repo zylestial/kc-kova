@@ -324,3 +324,4 @@ tbody tr:hover{background:#f5f7fd}
 .sc-sheet{overflow-y:auto}.sc-sheet-title{font-size:17px}.sc-detail{border:1px solid var(--border);border-radius:10px;padding:10px;font-size:13px;display:flex;flex-direction:column;gap:2px}.sc-note{background:var(--muted);border-radius:6px;padding:4px 8px;margin:4px 0}
 @media(max-width:980px){.sc-columns{grid-template-columns:minmax(0,1fr)}}@media(max-width:620px){.sc-legs li{grid-template-columns:minmax(0,1fr)}.sc-jump{margin-left:0}}
 .sc-sheet{border-radius:0!important}
+.sc-continue{display:flex;justify-content:flex-end;margin-top:18px}.sc-kinds{max-width:760px}.sc-kinds label{font-weight:600}.sc-kind-counts{color:var(--foreground)!important;font-weight:500;margin-top:6px!important}
