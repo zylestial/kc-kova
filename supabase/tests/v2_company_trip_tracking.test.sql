@@ -4,7 +4,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -74,6 +74,15 @@ select throws_ok($$ select record_trip_attendance(pg_temp.id('trip'), 'START') $
 select throws_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'P0002', 'Trip not found', 'The Driver doesn''t record it');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a2');
 select throws_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'P0002', 'Trip not found', 'Another requester can''t either');
+
+-- Not before its date (0056) ---------------------------------------------------
+reset role;
+update schedules set schedule_date = schedule_date + 1 where id = pg_temp.id('trip');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+select throws_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, '22023',
+  'This trip can''t be started before its date', 'Start trip waits for the trip''s date');
+reset role;
+update schedules set schedule_date = schedule_date - 1 where id = pg_temp.id('trip');
 
 -- In route order ------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
