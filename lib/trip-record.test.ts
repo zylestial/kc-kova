@@ -189,6 +189,16 @@ describe("Urgent requests", () => {
     expect(pool.sort(poolOrder).map((item) => item.id)).toEqual(["z", "a", "b1", "b2"]);
   });
 
+  it("puts fixed times before any time that day, and any day that week last", () => {
+    const pool = [
+      request({ id: "week", ownerName: "Ana", flexibility: "WEEK" }),
+      request({ id: "day", ownerName: "Ana", flexibility: "DAY" }),
+      request({ id: "fixed", ownerName: "Zed", flexibility: "FIXED" }),
+      request({ id: "urgent", ownerName: "Zed", flexibility: "WEEK", requestType: "URGENT" }),
+    ];
+    expect(pool.sort(poolOrder).map((item) => item.id)).toEqual(["urgent", "fixed", "day", "week"]);
+  });
+
   it("lists Urgent requests that still have a stop off the route", () => {
     const urgentStops = stops.map((stop) => (stop.requestId === "maria" ? { ...stop, urgent: true } : stop));
     expect(unplacedUrgentRequestIds(urgentStops, [])).toEqual(["maria"]);
