@@ -191,6 +191,18 @@ export type StopTap = {
   recordedByAccountId: string;
   location: StopTapLocation | null;
 };
+/** A requester's record of their Company trip: Start and End trip, each with the odometer (0055). */
+export type CompanyTripRun = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  startAt: string;
+  startOdometer: number;
+  endAt?: string;
+  endOdometer?: number;
+};
+/** What Start trip / End trip on a Company trip sends. */
+export type CompanyRunInput = { kind: "START" | "END"; odometer: number; location: AttendanceInput["location"] };
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"] };
 /** An Admin's TIME OUT or TIME IN for one leg of a submitted trip (0046); it prints in place of the tap. */
@@ -372,6 +384,7 @@ export type BootstrapData = {
   completions: TripCompletion[];
   attendance: TripAttendance[];
   stopTaps: StopTap[];
+  companyRuns: CompanyTripRun[];
   timeCorrections: TripTimeCorrection[];
   problems: ProblemReport[];
   notifications: Notification[];
@@ -390,6 +403,7 @@ const emptyData: BootstrapData = {
   completions: [],
   attendance: [],
   stopTaps: [],
+  companyRuns: [],
   timeCorrections: [],
   problems: [],
   notifications: [],
@@ -532,6 +546,8 @@ export const returnSchedule = (id: string, rowVersion: number, comment: string) 
 export const discardScheduleDraft =(id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/discard`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const submitCompletion = (id: string, startOdometer: number, endOdometer: number, checks?: ReturnChecks) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer, ...checks }) }));
 export const recordAttendance = (id: string, input: AttendanceInput) => refreshAfter(request<TripAttendance>(`/api/schedules/${encodeURIComponent(id)}/attendance`, { method: "POST", body: JSON.stringify(input) }));
+export const recordCompanyRun = (id: string, input: CompanyRunInput) => refreshAfter(request<CompanyTripRun>(`/api/schedules/${encodeURIComponent(id)}/company-run`, { method: "POST", body: JSON.stringify(input) }));
+export const recordCompanyStop = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/company-stops`, { method: "POST", body: JSON.stringify(input) }));
 export const recordStopTap = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/stop-taps`, { method: "POST", body: JSON.stringify(input) }));
 export const setTripTime = (id: string, input: TripTimeInput) => refreshAfter(request<TripTimeCorrection | null>(`/api/schedules/${encodeURIComponent(id)}/times`, { method: "PUT", body: JSON.stringify(input) }));
 export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAttendanceInput, parseStopTapInput, parseTripTimeInput } from "@/lib/attendance-input";
+import { parseAttendanceInput, parseCompanyRunInput, parseStopTapInput, parseTripTimeInput } from "@/lib/attendance-input";
 
 describe("parseAttendanceInput", () => {
   it("accepts a tap with a position", () => {
@@ -60,5 +60,17 @@ describe("parseTripTimeInput", () => {
     expect(parseTripTimeInput({ legId, field: "OUT", time: "24:00" })).toBeNull();
     expect(parseTripTimeInput({ legId, field: "OUT", time: "09:40 AM" })).toBeNull();
     expect(parseTripTimeInput({ legId, field: "LATER", time: "09:40" })).toBeNull();
+  });
+});
+
+describe("parseCompanyRunInput", () => {
+  it("accepts Start or End trip with a whole-number odometer", () => {
+    expect(parseCompanyRunInput({ kind: "START", odometer: 48215 })).toEqual({ kind: "START", odometer: 48215, location: null });
+  });
+
+  it("rejects a missing, negative or fractional reading", () => {
+    expect(parseCompanyRunInput({ kind: "END" })).toBeNull();
+    expect(parseCompanyRunInput({ kind: "END", odometer: -1 })).toBeNull();
+    expect(parseCompanyRunInput({ kind: "END", odometer: 12.5 })).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import type {
   Schedule,
   TransportRequest,
   CancellationRequest,
+  CompanyTripRun,
   Notification,
   NotificationType,
   ProblemReport,
@@ -352,6 +353,27 @@ export function toStopTap(row: StopTapRow): StopTap {
   };
 }
 
+type CompanyTripRunRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  start_at: string;
+  start_odometer: number;
+  end_at: string | null;
+  end_odometer: number | null;
+};
+
+export function toCompanyTripRun(row: CompanyTripRunRow): CompanyTripRun {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    startAt: row.start_at,
+    startOdometer: row.start_odometer,
+    endAt: row.end_at ?? undefined,
+    endOdometer: row.end_odometer ?? undefined,
+  };
+}
 
 type TripTimeCorrectionRow = {
   id: string;
