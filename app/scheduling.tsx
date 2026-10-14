@@ -26,6 +26,7 @@ import StopCard, { whatText } from "./scheduler/stop-card";
 import StopSheet from "./scheduler/stop-sheet";
 import PlanOptions from "./scheduler/plan-options";
 import VehicleCard from "./scheduler/vehicle-card";
+import TripEditor from "./scheduler/trip-editor";
 
 const shortDay = (day: string) => dateLabel(day, { weekday: "short", month: "short", day: "numeric" });
 
@@ -47,7 +48,7 @@ export default function Scheduling({
   /** Keeps the address in step, so a refresh or a link opens the same day and kind. */
   onChange: (date: string, kind: TripKind) => void;
 }) {
-  const { requests, schedules, vehicles, accounts, attendance, companyRuns, options } = useKovaData();
+  const { requests, schedules, vehicles, accounts, attendance, companyRuns, stopTaps, options } = useKovaData();
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
@@ -129,6 +130,22 @@ export default function Scheduling({
       setBusy(false);
     }
   }
+
+  /** Runs a change to a trip, showing its message when it works and the reason when it doesn't. */
+  async function run(action: () => Promise<string>) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      setNotice(await action());
+    } catch (caught) {
+      setError((caught as Error).message);
+      await hydrateKovaData().catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
   function pickDay(next: string) {
     setDay(next);
@@ -310,7 +327,9 @@ export default function Scheduling({
         </section>
 
         <section className="sc-vehicles" aria-label="Vehicles">
-          <p className="sc-hint">Drag a request onto a vehicle to add it, or tap it to see the options.</p>
+          <p className="sc-hint">
+            Drag a request onto a vehicle to add it, or tap it to see the options. Drag a leg by ⠿ onto another leg to reorder.
+          </p>
           {rows.map((row) => (
             <VehicleCard
               key={row.vehicle.plate}
@@ -319,8 +338,26 @@ export default function Scheduling({
               onToggle={() => toggle(row.vehicle.plate)}
               isToday={day === today}
               now={now}
-              requests={requests}
               started={started}
+              renderTrip={(trip, state) => (
+                <TripEditor
+                  trip={trip}
+                  state={state}
+                  kind={kind}
+                  day={day}
+                  context={context}
+                  waiting={[...stops, ...week]}
+                  fuel={fuel}
+                  busy={busy}
+                  run={run}
+                  doneLeg={(legId, isLast) =>
+                    stopTaps.some((tap) => tap.legId === legId && tap.kind === "ARRIVE") ||
+                    (isLast &&
+                      (attendance.some((item) => item.scheduleId === trip.schedule.id && item.end) ||
+                        companyRuns.some((item) => item.scheduleId === trip.schedule.id && item.endAt)))
+                  }
+                />
+              )}
               drop={
                 dragStops.length && !busy
                   ? (() => {
