@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(23);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -12,20 +12,27 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000cd', 'schedc@test.local'),
   ('00000000-0000-0000-0000-0000000000c1', 'driverc1@test.local'),
   ('00000000-0000-0000-0000-0000000000c2', 'driverc2@test.local'),
-  ('00000000-0000-0000-0000-0000000000c3', 'driverc3@test.local');
+  ('00000000-0000-0000-0000-0000000000c3', 'driverc3@test.local'),
+  ('00000000-0000-0000-0000-0000000000c4', 'driverc4@test.local'),
+  ('00000000-0000-0000-0000-0000000000c5', 'driverc5@test.local');
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-0000000000ca', 'juanc', 'Juan C', 'Requester'),
   ('00000000-0000-0000-0000-0000000000cb', 'adminc', 'Ada C', 'Admin'),
   ('00000000-0000-0000-0000-0000000000cd', 'schedc', 'Sam C', 'Scheduler'),
   ('00000000-0000-0000-0000-0000000000c1', 'driverc1', 'Dee One', 'Driver'),
   ('00000000-0000-0000-0000-0000000000c2', 'driverc2', 'Dee Two', 'Driver'),
-  ('00000000-0000-0000-0000-0000000000c3', 'driverc3', 'Dee Three', 'Driver');
+  ('00000000-0000-0000-0000-0000000000c3', 'driverc3', 'Dee Three', 'Driver'),
+  ('00000000-0000-0000-0000-0000000000c4', 'driverc4', 'Dee Truck', 'Driver'),
+  ('00000000-0000-0000-0000-0000000000c5', 'driverc5', 'Dee Five', 'Driver');
 insert into vehicles (plate, name, status, assigned_driver_id) values
   ('VA', 'Van A', 'Active', '00000000-0000-0000-0000-0000000000c1'),
   ('VB', 'Van B', 'Active', '00000000-0000-0000-0000-0000000000c2'),
   ('VC', 'Van C', 'Active', '00000000-0000-0000-0000-0000000000c3'),
   ('VN', 'Van N', 'Active', null),
   ('VI', 'Van I', 'Inactive', null);
+insert into vehicles (plate, name, vehicle_type, requestable, assigned_driver_id) values
+  ('VT', 'Truck T', 'Truck', true, '00000000-0000-0000-0000-0000000000c4'),
+  ('VR', 'Van R', 'Van', false, '00000000-0000-0000-0000-0000000000c5');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'dc', 'City Hall C', 'Active'),
   ('purposes', 'pc', 'Inspection', 'Active');
@@ -135,6 +142,35 @@ select lives_ok(
        array(select id from request_destinations where request_id = pg_temp.id('r3') and destination_id = 'dc2' and active)) $$,
   'The Scheduler splits a stop off');
 select is(pg_temp.plate('r3b'), 'VB', 'The split-off request keeps the chosen vehicle');
+
+-- Only vehicles that can be requested are offered (0051) -------------------
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
+select throws_ok(
+  $$ select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VR') $$,
+  '22023', 'This vehicle can''t be requested for company trips',
+  'A vehicle with requests turned off cannot be chosen');
+insert into ids select 'r5', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VA');
+reset role;
+update vehicles set requestable = false where plate = 'VA';
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
+select lives_ok($$ select pg_temp.edit('r5', 'VA') $$, 'Editing a request keeps a vehicle whose requests were turned off since');
+reset role;
+update vehicles set requestable = true where plate = 'VA';
+
+-- Drivers may ask for transport, unless they drive a Truck ------------------
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select lives_ok(
+  $$ insert into ids select 'drv', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VB') $$,
+  'A van Driver creates a request');
+select lives_ok($$ select pg_temp.edit('drv', 'VA') $$, 'The Driver edits their own request');
+select lives_ok($$ select cancel_request(pg_temp.id('drv')) $$, 'The Driver cancels their own request');
+select is((select status from requests where id = pg_temp.id('drv')), 'CANCELLED', 'and it is cancelled');
+
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c4');
+select throws_ok(
+  $$ select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VB') $$,
+  '42501', 'Not authorized to create requests',
+  'A truck Driver cannot create a request');
 
 select * from finish();
 rollback;
