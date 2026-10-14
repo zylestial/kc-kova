@@ -1,13 +1,21 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { createCompanyTrip, createSchedule, hydrateKovaData, moveRequestDay, saveScheduleDraft, type TransportRequest } from "@/lib/kova-api";
+import {
+  createCompanyTrip,
+  createSchedule,
+  getRequests,
+  getSchedules,
+  hydrateKovaData,
+  moveRequestDay,
+  saveScheduleDraft,
+  type TransportRequest,
+} from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
-import { addDays, manilaToday } from "@/lib/timezone";
+import { manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
   dayCounts,
@@ -52,7 +60,8 @@ export default function Scheduling({
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
-  const [openPlates, setOpenPlates] = useState<Set<string>>(new Set());
+  // Vehicles with a trip start open, free ones folded; these were flipped by a click.
+  const [flipped, setFlipped] = useState<Set<string>>(new Set());
   const [sheetIds, setSheetIds] = useState<string[]>([]);
   // The stops being dragged onto a vehicle.
   const [dragIds, setDragIds] = useState<string[] | null>(null);
@@ -115,7 +124,6 @@ export default function Scheduling({
       if (option.trip) await saveScheduleDraft(option.trip.schedule.id, option.rowVersion, option.input);
       else if (kind === "COMPANY") await createCompanyTrip(option.input);
       else await createSchedule(option.input);
-      setOpenPlates(new Set([...openPlates, option.row.vehicle.plate]));
       setSheetIds([]);
       setNotice(
         `Added to ${name}.` +
@@ -158,11 +166,46 @@ export default function Scheduling({
     onChange(day, next);
   }
   function toggle(plate: string) {
-    const next = new Set(openPlates);
+    const next = new Set(flipped);
     if (next.has(plate)) next.delete(plate);
     else next.add(plate);
-    setOpenPlates(next);
+    setFlipped(next);
   }
+
+  /**
+   * Plan for me: every stop still to plan this day goes on the best vehicle
+   * that can take it (planOptions), Urgent and fixed times first, stops at
+   * the same place together. Each is saved as a draft, so the Scheduler
+   * checks the trips, changes what they like and submits.
+   */
+  const planForMe = () =>
+    run(async () => {
+      let placed = 0;
+      const missed: string[] = [];
+      for (const group of placeGroups(toPlan(getRequests(), day, kind))) {
+        const fresh = getRequests();
+        const waiting = group.flatMap((stop) => fresh.filter((item) => item.id === stop.id && item.progress === "NOT_YET_SCHEDULED"));
+        if (!waiting.length) continue;
+        const rowsNow = vehicleRows(vehicles, accounts, getSchedules(), day).filter((row) => row.kind === kind);
+        const best = planOptions(waiting, rowsNow, { ...context, requests: fresh }).find((option) => !option.blocked);
+        if (!best) {
+          missed.push(...waiting.map((stop) => stopNumber(stop) || stop.ownerName));
+          continue;
+        }
+        try {
+          if (best.trip) await saveScheduleDraft(best.trip.schedule.id, best.rowVersion, best.input);
+          else if (kind === "COMPANY") await createCompanyTrip(best.input);
+          else await createSchedule(best.input);
+          placed += waiting.length;
+        } catch {
+          missed.push(...waiting.map((stop) => stopNumber(stop) || stop.ownerName));
+        }
+      }
+      return (
+        `Planned ${placed} ${placed === 1 ? "stop" : "stops"} as drafts. Check the trips, then submit each one.` +
+        (missed.length ? ` Couldn't fit ${missed.join(", ")}; drag ${missed.length === 1 ? "it" : "them"} onto a vehicle or send back.` : "")
+      );
+    });
 
   return (
     <div className="scheduling">
@@ -175,15 +218,6 @@ export default function Scheduling({
       </div>
 
       <div className="sc-days" ref={strip}>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Previous week"
-          disabled={days[0] <= today}
-          onClick={() => pickDay(addDays(days[0], -7) < today ? today : addDays(days[0], -7))}
-        >
-          <ChevronLeft size={18} />
-        </Button>
         {days.map((item) => {
           const counts = dayCounts(requests, item, kind);
           return (
@@ -203,13 +237,6 @@ export default function Scheduling({
             </button>
           );
         })}
-        <Button variant="outline" size="icon" aria-label="Next week" onClick={() => pickDay(addDays(days[0], 7))}>
-          <ChevronRight size={18} />
-        </Button>
-        <label className="sc-jump">
-          Jump to date{" "}
-          <Input type="date" min={today} value={day} onChange={(event) => event.target.value >= today && pickDay(event.target.value)} />
-        </label>
       </div>
       {otherDays.length > 0 && (
         <div className="date-waiting-elsewhere">
@@ -263,12 +290,6 @@ export default function Scheduling({
           </span>
         </div>
       ))}
-      <div className="sc-banner info">
-        <span>
-          <b>{shortDay(day)}:</b> {trips.length} {trips.length === 1 ? "trip" : "trips"}
-          {stops.length ? ` · ${stops.length} to plan` : " · all planned"}
-        </span>
-      </div>
       {notice && (
         <div className="notice success" role="status">
           {notice}
@@ -284,6 +305,9 @@ export default function Scheduling({
         <section className="sc-panel">
           <h2>
             To plan · {day === today ? "today" : shortDay(day)} <span className="count">{stops.length}</span>
+            <Button size="sm" className="primary sc-plan-me" disabled={busy || !stops.length} onClick={planForMe}>
+              <Sparkles size={14} /> {busy ? "Planning…" : "Plan for me"}
+            </Button>
           </h2>
           <div className="sc-list">
             {placeGroups(stops).map((group) =>
@@ -334,10 +358,8 @@ export default function Scheduling({
             <VehicleCard
               key={row.vehicle.plate}
               row={row}
-              open={openPlates.has(row.vehicle.plate)}
+              open={(row.trips.length > 0) !== flipped.has(row.vehicle.plate)}
               onToggle={() => toggle(row.vehicle.plate)}
-              isToday={day === today}
-              now={now}
               started={started}
               renderTrip={(trip, state) => (
                 <TripEditor
