@@ -122,6 +122,28 @@ describe("joining a trip", () => {
     expect(option.rowVersion).toBe(3);
   });
 
+  it("doesn't make an any-time stop wait with a fixed-time stop there", () => {
+    const fixed = stop("f", "wilcon", { flexibility: "FIXED", fixedTime: "13:00" });
+    const atOne = trip([leg(1, "wilcon", "08:00", "13:00", ["rd-f"]), leg(2, undefined, "13:30", "14:00", [], true)], ["f"]);
+    const again = stop("c", "wilcon");
+    const option = planOn([again], row([atOne]), context([fixed, again]));
+    expect(option.input.legs.map((item) => [item.destinationId, item.stops])).toEqual([
+      ["wilcon", ["rd-c"]],
+      ["wilcon", ["rd-f"]],
+      [undefined, []],
+    ]);
+    expect(option.arrive).toBe("08:30");
+  });
+
+  it("shares a fixed-time leg the vehicle reaches about on time", () => {
+    const fixed = stop("f", "wilcon", { flexibility: "FIXED", fixedTime: "08:45" });
+    const soon = trip([leg(1, "wilcon", "08:00", "08:45", ["rd-f"]), leg(2, undefined, "09:15", "09:45", [], true)], ["f"]);
+    const again = stop("c", "wilcon");
+    const option = planOn([again], row([soon]), context([fixed, again]));
+    expect(option.label).toBe("Combine with the wilcon stop");
+    expect(option.input.legs[0].stops).toEqual(["rd-f", "rd-c"]);
+  });
+
   it("goes where the trip ends soonest, before the leg back to ANONANG", () => {
     const option = planOn([b], row([existing]), context([a, b]));
     expect(option.input.legs.map((item) => item.destinationId)).toEqual(["wilcon", "bir", undefined]);

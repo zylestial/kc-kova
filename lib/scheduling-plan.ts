@@ -4,6 +4,7 @@ import { MAX_LEGS, openRevision } from "@/lib/trip-record";
 import { isLocked, tripState, type Trip, type VehicleRow } from "@/lib/scheduling";
 import {
   BASE_PLACE,
+  driveMinutes,
   estimateTimes,
   startTime,
   stayFor,
@@ -68,6 +69,9 @@ export type WorkLeg = {
 /** After this a trip runs past the Driver's day (prototype WORK_END). */
 export const DAY_END = "18:00";
 
+/** A stop that can go any time doesn't share a fixed-time leg the vehicle would wait longer than this for. */
+const MAX_WAIT = 30;
+
 /** A fixed-time stop counts as late more than 5 minutes either side of its time. */
 const isLate = (fixed: string, arrive: string) => Math.abs(toMinutes(arrive) - toMinutes(fixed)) > 5;
 
@@ -99,6 +103,11 @@ export function legTimer(context: Pick<PlanContext, "requests" | "destinations">
     const times = estimateTimes(legs.map(estimateLeg), start, company ? null : BASE_PLACE);
     return legs.map((leg, index) => ({ ...leg, ...times[index] }));
   };
+  /** Minutes the vehicle waits at a timed leg before its time: arriving later than the drive takes. */
+  const waitAt = (legs: Array<WorkLeg & { timeOut: string; timeIn: string }>, index: number) => {
+    const from = index === 0 ? (company ? null : BASE_PLACE) : estimateLeg(legs[index - 1]).place;
+    return toMinutes(legs[index].timeIn) - toMinutes(legs[index].timeOut) - driveMinutes(from, estimateLeg(legs[index]).place);
+  };
   /** Requests with a fixed time these timed legs reach more than 5 minutes off. */
   const lateIn = (legs: Array<WorkLeg & { timeIn: string }>) =>
     legs.flatMap((leg) =>
@@ -107,7 +116,7 @@ export function legTimer(context: Pick<PlanContext, "requests" | "destinations">
         return request?.flexibility === "FIXED" && request.fixedTime && isLate(request.fixedTime, leg.timeIn) ? [request.id] : [];
       }),
     );
-  return { timed, lateIn, requestOf };
+  return { timed, lateIn, waitAt, requestOf };
 }
 
 /** Best first: vehicles that can take it, fewest late stops, ending by 6 PM, then the soonest (Urgent) or the fewest added minutes. */
@@ -128,7 +137,7 @@ export function planOptions(stops: TransportRequest[], rows: VehicleRow[], conte
 export function planOn(stops: TransportRequest[], row: VehicleRow, context: PlanContext): PlanOption {
   const { requests } = context;
   const company = row.kind === "COMPANY";
-  const { timed, lateIn } = legTimer(context, company);
+  const { timed, lateIn, waitAt, requestOf } = legTimer(context, company);
   const stopIds = stops.map((stop) => stop.destinations[0]?.id).filter((id): id is string => !!id);
   const newLeg: WorkLeg = {
     destinationId: stops[0].destinations[0]?.destinationId,
@@ -233,28 +242,38 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
   const unpinFrom = (legs: WorkLeg[], from: number) =>
     legs.map((leg, index) => (index < from ? leg : index === 0 ? { ...leg, timeIn: undefined } : { ...leg, timeOut: undefined, timeIn: undefined }));
 
-  let legs: Array<WorkLeg & { timeOut: string; timeIn: string }>;
-  let label: string;
+  const last = base.findIndex((leg) => leg.isFinal);
+  const positions = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index);
+  // As its own leg: fewest late fixed-time stops, then the earliest end; on
+  // a tie the later place, so fewer legs move.
+  let best: { legs: Array<WorkLeg & { timeOut: string; timeIn: string }>; at: number; late: number } | null = null;
+  for (const at of positions) {
+    const candidate = timed(unpinFrom([...base.slice(0, at), newLeg, ...base.slice(at)], at), start);
+    const late = lateIn(candidate).length;
+    const ends = toMinutes(candidate.at(-1)!.timeIn);
+    if (!best || late < best.late || (late === best.late && ends <= toMinutes(best.legs.at(-1)!.timeIn)))
+      best = { legs: candidate, at, late };
+  }
+  let legs = best!.legs;
+  let label = best!.at === 0 ? (company ? "First stop" : "First stop after ANONANG") : `After ${joinable.revision.legs[best!.at - 1].destinationName}`;
+  // Sharing a leg the trip already has at that place is better, unless it
+  // makes more stops late, or mixes fixed-time and any-time stops on a leg
+  // the vehicle would wait at: then the any-time stop goes in its own leg.
   const same = base.findIndex((leg) => !leg.isFinal && leg.destinationId && leg.destinationId === newLeg.destinationId);
   if (same >= 0) {
-    const merged = base.map((leg, index) => (index === same ? { ...leg, stops: [...leg.stops, ...stopIds] } : leg));
-    legs = timed(unpinFrom(merged, same), start);
-    label = `Combine with the ${joinable.revision.legs[same].destinationName} stop`;
-  } else {
-    const last = base.findIndex((leg) => leg.isFinal);
-    const positions = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index);
-    // Fewest late fixed-time stops, then the earliest end; on a tie the
-    // later place, so fewer legs move.
-    let best: { legs: Array<WorkLeg & { timeOut: string; timeIn: string }>; at: number; late: number } | null = null;
-    for (const at of positions) {
-      const candidate = timed(unpinFrom([...base.slice(0, at), newLeg, ...base.slice(at)], at), start);
-      const late = lateIn(candidate).length;
-      const ends = toMinutes(candidate.at(-1)!.timeIn);
-      if (!best || late < best.late || (late === best.late && ends <= toMinutes(best.legs.at(-1)!.timeIn)))
-        best = { legs: candidate, at, late };
+    const merged = timed(
+      unpinFrom(
+        base.map((leg, index) => (index === same ? { ...leg, stops: [...leg.stops, ...stopIds] } : leg)),
+        same,
+      ),
+      start,
+    );
+    const fixed = merged[same].stops.filter((id) => requestOf(id)?.flexibility === "FIXED");
+    const mixed = fixed.length > 0 && fixed.length < merged[same].stops.length;
+    if (lateIn(merged).length <= best!.late && !(mixed && waitAt(merged, same) > MAX_WAIT)) {
+      legs = merged;
+      label = `Combine with the ${joinable.revision.legs[same].destinationName} stop`;
     }
-    legs = best!.legs;
-    label = best!.at === 0 ? (company ? "First stop" : "First stop after ANONANG") : `After ${joinable.revision.legs[best!.at - 1].destinationName}`;
   }
   const index = legs.findIndex((leg) => stopIds.some((id) => leg.stops.includes(id)));
   const end = legs.at(-1)!.timeIn;
