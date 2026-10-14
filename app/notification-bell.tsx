@@ -13,6 +13,7 @@ function notificationTarget(notification: Notification): string | undefined {
     case "REQUEST_RETURNED":
     case "REQUEST_SENT_BACK":
     case "REQUEST_SPLIT":
+    case "REQUEST_MOVED":
     case "REQUEST_CANCELLED":
     case "CANCELLATION_DECLINED":
       return relatedRequestId ? `/requests?open=${encodeURIComponent(relatedRequestId)}` : "/requests";

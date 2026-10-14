@@ -124,6 +124,8 @@ export type TransportRequest = {
   progress: RequestProgress;
   /** Set when a Scheduler sent it back unplaced; cleared once its date changes. */
   sentBack?: { at: string; reason: string };
+  /** Set when a Scheduler moved this "any day that week" stop to another day of its week (0053). */
+  movedAt?: string;
   cancellationPending: boolean;
 };
 /** A Requester's ask to cancel a request a schedule holds; an Admin decides. */
@@ -225,6 +227,7 @@ export type NotificationType =
   | "REQUEST_RETURNED"
   | "REQUEST_SENT_BACK"
   | "REQUEST_SPLIT"
+  | "REQUEST_MOVED"
   | "REQUEST_CANCELLED"
   | "CANCELLATION_DECLINED"
   | "CANCELLATION_REQUESTED"
@@ -510,6 +513,7 @@ export const updateRequestGroup = (id: string, rowVersion: number, input: Reques
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));
+export const moveRequestDay = (id: string, date: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/move`, { method: "POST", body: JSON.stringify({ date }) }));
 export const splitRequest = (id: string, destinationIds: string[]) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/split`, { method: "POST", body: JSON.stringify({ destinationIds }) }));
 export const requestCancellation =(id: string, reason: string) => refreshAfter(request<CancellationRequest>(`/api/requests/${encodeURIComponent(id)}/cancellation`, { method: "POST", body: JSON.stringify({ reason }) }));
 export const confirmCancellation = (id: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/confirm`, { method: "POST" }));
