@@ -1,6 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
-import { createRequestGroup, hydrateKovaData, updateRequestGroup, type TransportRequest } from "@/lib/kova-api";
+import {
+  createRequestGroup,
+  hydrateKovaData,
+  updateRequestGroup,
+  type RequestForm as FormType,
+  type RequestGroup,
+  type TransportRequest,
+} from "@/lib/kova-api";
+import { canRequestCompany, canRequestDaily } from "@/lib/request-access";
 import { useKovaData } from "@/lib/use-kova-data";
 import { manilaToday } from "@/lib/timezone";
 import { useUnsavedChanges } from "@/lib/unsaved-changes";
@@ -15,7 +23,7 @@ export const stopEditable = (request: TransportRequest) =>
   (request.progress === "NOT_YET_SCHEDULED" || request.progress === "SENT_BACK");
 
 /** The choices a saved request uses, so an edit can keep them after they're made Inactive. */
-function keptChoices(stops: TransportRequest[]): KeptChoices {
+function keptChoices(group: RequestGroup, stops: TransportRequest[]): KeptChoices {
   const pick = (pairs: Array<[string | undefined, string]>) =>
     pairs.filter(([id]) => !!id).map(([id, name]) => ({ id: id!, name }));
   return {
@@ -29,6 +37,13 @@ function keptChoices(stops: TransportRequest[]): KeptChoices {
       ),
     ),
     urgent_reasons: pick(stops.map((stop) => [stop.urgentReason?.id, stop.urgentReason?.name ?? ""])),
+    suppliers: pick(stops.map((stop) => [stop.supplier?.id, stop.supplier?.name ?? ""])),
+    starting_points: pick([[group.startingPoint?.id, group.startingPoint?.name ?? ""]]),
+    departments: pick([[group.department?.id, group.department?.name ?? ""]]),
+    supervisors: pick([[group.supervisor?.id, group.supervisor?.name ?? ""]]),
+    heads: pick([[group.head?.id, group.head?.name ?? ""]]),
+    vehicle: group.vehiclePlate ? { id: group.vehiclePlate, name: group.vehiclePlate } : undefined,
+    driver: group.driver,
   };
 }
 
@@ -42,8 +57,13 @@ const stopNumbers = (stops: TransportRequest[]) =>
 export default function RequestScreen({ groupId, onDone }: { groupId?: string; onDone: (notice: string) => void }) {
   const { account } = useAccount();
   const isAdmin = account?.role === "Admin";
-  const { options, requests, since } = useKovaData();
-  const [created] = useState(() => emptyRequestDraft("DAILY", manilaToday()));
+  const { options, requests, since, vehicles, accounts } = useKovaData();
+  // The Daily form first when the account may use both; an edit keeps its form.
+  const allowed: FormType[] = [
+    ...(canRequestDaily(account) ? (["DAILY"] as const) : []),
+    ...(canRequestCompany(account) ? (["COMPANY"] as const) : []),
+  ];
+  const [created] = useState(() => emptyRequestDraft(allowed[0] ?? "DAILY", manilaToday()));
   // An edit starts from the request as it was when opened: its row version is
   // what the save is checked against, so a newer change isn't overwritten.
   const [openedVersion, setOpenedVersion] = useState<number | null>(null);
@@ -84,10 +104,10 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
         setSent(true);
         onDone(`Request #${saved[0]?.group?.number ?? group?.number} updated.`);
       } else {
-        const saved = await createRequestGroup("DAILY", draftToInput(current));
+        const saved = await createRequestGroup(current.form, draftToInput(current));
         setSent(true);
         onDone(
-          `Request #${saved[0]?.group?.number} sent: ${stopNumbers(saved)}. Each stop is Not yet scheduled; you'll be notified as each one is planned.`,
+          `${current.form === "COMPANY" ? "Company trip" : "Request"} #${saved[0]?.group?.number} sent: ${stopNumbers(saved)}. Each stop is Not yet scheduled; you'll be notified as each one is planned.`,
         );
       }
     } catch (caught) {
@@ -113,17 +133,16 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
           </h1>
           <p>
             Requesting as {account?.name}
-            {account?.position ? ` · ${account.position}` : ""}. A Scheduler assigns the vehicle, Driver and times.
+            {account?.position ? ` · ${account.position}` : ""}.{" "}
+            {current?.form === "COMPANY"
+              ? "You pick the vehicle and its Driver; a Scheduler sets the times."
+              : "A Scheduler assigns the vehicle, Driver and times."}
           </p>
         </div>
       </div>
       {groupId && !group ? (
         <div className="notice" role="status">
           {since ? "This request isn't in your list any more." : "Loading the request…"}
-        </div>
-      ) : groupId && group?.form !== "DAILY" ? (
-        <div className="notice" role="status">
-          Company Trips can&apos;t be edited here yet.
         </div>
       ) : (
         current && (
@@ -141,7 +160,11 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
               options={options}
               isAdmin={isAdmin}
               requestedBy={account?.name ?? ""}
-              kept={groupId ? keptChoices(stops) : undefined}
+              position={account?.position ?? ""}
+              forms={group ? [group.form] : allowed}
+              vehicles={vehicles}
+              accounts={accounts}
+              kept={group ? keptChoices(group, stops) : undefined}
               usedLetters={stops.length}
               dateLocked={lockedCount > 0}
               number={group?.number}
@@ -152,7 +175,7 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
               onCancel={() => {
                 setError("");
                 if (groupId) onDone("");
-                else setDraft(emptyRequestDraft("DAILY", current.date));
+                else setDraft(emptyRequestDraft(current.form, current.date));
               }}
               onSubmit={submit}
             />

@@ -3,16 +3,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import RequestScreen from "../../../request-screen";
 import { RequireRole } from "../../require-role";
 import { useAccount } from "../../providers";
-import { canRequestDaily, canRequestTransport } from "@/lib/request-access";
+import { canRequestTransport } from "@/lib/request-access";
 
-/** /requests/new for a new Daily request; /requests/new?edit=<group id> to edit one. */
+/** /requests/new for a new Daily request or Company Trip; /requests/new?edit=<group id> to edit one. */
 export default function NewRequestGate() {
   const router = useRouter();
   const params = useSearchParams();
   const { account } = useAccount();
   const groupId = params.get("edit") ?? undefined;
   return (
-    <RequireRole allow={groupId ? canRequestTransport(account) : canRequestDaily(account)}>
+    <RequireRole allow={canRequestTransport(account)}>
       <RequestScreen
         key={groupId ?? "new"}
         groupId={groupId}
