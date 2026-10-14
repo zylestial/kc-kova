@@ -20,7 +20,13 @@ export const weekDays = (date: string) => Array.from({ length: 6 }, (_, index) =
 /** "52-A" for a stop of a request group, "" for an older request. */
 export const stopNumber = (request: TransportRequest) => (request.group ? `${request.group.number}-${request.stopLetter}` : "");
 
+export type TripKind = "DAILY" | "COMPANY";
+
+/** Daily Vehicle Trip or Company Trip; requests made before groups are Daily. */
+export const kindOf = (request: TransportRequest): TripKind => request.group?.form ?? "DAILY";
+
 const waiting = (request: TransportRequest) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED";
+const ofKind = (request: TransportRequest, kind?: TripKind) => !kind || kindOf(request) === kind;
 
 /** How high a stop sits in "To plan": Urgent, then a fixed time, then any time that day. */
 export const stopRank = (request: TransportRequest) =>
@@ -29,19 +35,23 @@ export const stopRank = (request: TransportRequest) =>
 const byRank = (a: TransportRequest, b: TransportRequest) =>
   stopRank(b) - stopRank(a) || (a.fixedTime ?? "").localeCompare(b.fixedTime ?? "") || a.createdAt.localeCompare(b.createdAt);
 
-/** Stops for this day still waiting, other than "any day that week" ones. */
-export const toPlan = (requests: TransportRequest[], day: string) =>
-  requests.filter((request) => waiting(request) && request.date === day && request.flexibility !== "WEEK").sort(byRank);
+/** Stops for this day still waiting, other than "any day that week" ones; of one kind when given. */
+export const toPlan = (requests: TransportRequest[], day: string, kind?: TripKind) =>
+  requests
+    .filter((request) => waiting(request) && ofKind(request, kind) && request.date === day && request.flexibility !== "WEEK")
+    .sort(byRank);
 
 /** "Any day that week" stops still waiting, for the week this day is in. */
-export const weekStops = (requests: TransportRequest[], day: string) =>
+export const weekStops = (requests: TransportRequest[], day: string, kind?: TripKind) =>
   requests
-    .filter((request) => waiting(request) && request.flexibility === "WEEK" && mondayOf(request.date) === mondayOf(day))
+    .filter(
+      (request) => waiting(request) && ofKind(request, kind) && request.flexibility === "WEEK" && mondayOf(request.date) === mondayOf(day),
+    )
     .sort((a, b) => a.date.localeCompare(b.date) || byRank(a, b));
 
 /** What the day strip shows under each day. */
-export function dayCounts(requests: TransportRequest[], day: string) {
-  const stops = toPlan(requests, day);
+export function dayCounts(requests: TransportRequest[], day: string, kind?: TripKind) {
+  const stops = toPlan(requests, day, kind);
   return { toPlan: stops.length, urgent: stops.filter((stop) => stop.requestType === "URGENT").length };
 }
 

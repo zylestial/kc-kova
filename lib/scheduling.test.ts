@@ -60,6 +60,9 @@ describe("what's to plan", () => {
     expect(weekStops(requests, "2026-10-14").map((item) => item.id)).toEqual(["d"]);
     expect(weekStops(requests, "2026-10-20")).toEqual([]);
     expect(dayCounts(requests, "2026-10-14")).toEqual({ toPlan: 3, urgent: 1 });
+    const company = stop("x", { group: group({ form: "COMPANY", vehiclePlate: "NBC-4821" }) });
+    expect(toPlan([...requests, company], "2026-10-14", "COMPANY").map((item) => item.id)).toEqual(["x"]);
+    expect(dayCounts([...requests, company], "2026-10-14", "DAILY")).toEqual({ toPlan: 3, urgent: 1 });
   });
 
   it("groups stops at the same place, but a Company stop only with its own vehicle's", () => {
