@@ -15,8 +15,8 @@ export default function SchedulingGate() {
       <Scheduling
         initialDate={params.get("date") ?? undefined}
         initialKind={type === "DAILY" || type === "COMPANY" ? type : undefined}
-        onStep={(date, kind) =>
-          router.replace(`/scheduling?date=${encodeURIComponent(date)}${kind ? `&type=${kind}` : ""}`, { scroll: false })
+        onChange={(date, kind) =>
+          router.replace(`/scheduling?date=${encodeURIComponent(date)}&type=${kind}`, { scroll: false })
         }
       />
     </RequireRole>
