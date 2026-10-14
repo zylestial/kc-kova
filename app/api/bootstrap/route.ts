@@ -15,10 +15,11 @@ import {
   toBookingOptions,
   toSchedule,
   toTransportRequest,
+  REQUEST_SELECT,
   toVehicle,
 } from "@/lib/supabase/mappers";
 
-const requestSelect = "*, request_destinations(*)";
+const requestSelect = REQUEST_SELECT;
 
 // Row Level Security already scopes accounts to what the signed-in role may
 // see (see supabase/migrations/0001_init.sql), so a plain select here returns

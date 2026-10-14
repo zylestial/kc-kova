@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authed, readJson } from "@/lib/api-route";
-import { toTransportRequest } from "@/lib/supabase/mappers";
+import { REQUEST_SELECT, toTransportRequest } from "@/lib/supabase/mappers";
 import { cancellationErrorResponse } from "@/lib/supabase/cancellations";
 import { parseWith } from "@/lib/validation";
 
@@ -18,7 +18,7 @@ export const POST = authed<{ requestId: string }>(async ({ request, supabase, pa
 
   const { data: row } = await supabase
     .from("requests")
-    .select("*, request_destinations(*)")
+    .select(REQUEST_SELECT)
     .eq("id", data.id)
     .eq("request_destinations.active", true)
     .single();

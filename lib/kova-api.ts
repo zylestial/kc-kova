@@ -62,8 +62,50 @@ export type RequestDestination = {
   purposeName: string;
   purposeIsOther: boolean;
 };
-/** A v2 transport request: a date, the vehicle its requester chose, and destinations; no time. */
+export type RequestForm = "DAILY" | "COMPANY";
+/** How flexible a stop is: any time that day, a fixed time, or any day that week (0052). */
+export type StopFlexibility = "DAY" | "FIXED" | "WEEK";
+/**
+ * A request as the requester sent it: its form, date and, for a Company
+ * Trip, the trip's fields (0052). Each stop is its own TransportRequest.
+ */
+export type RequestGroup = {
+  id: string;
+  number: number;
+  ownerAccountId: string;
+  ownerName: string;
+  form: RequestForm;
+  date: string;
+  startingPoint?: { id: string; name: string };
+  department?: { id: string; name: string };
+  vehiclePlate?: string;
+  driver?: { id: string; name: string };
+  supervisor?: { id: string; name: string };
+  head?: { id: string; name: string };
+  siteOfficer: string;
+  siteCompany: string;
+  rowVersion: number;
+  createdAt: string;
+};
+/**
+ * A v2 transport request: one stop of a RequestGroup (52-A), or a request
+ * made before groups (no group, possibly several destinations).
+ */
 export type TransportRequest = {
+  /** Missing on requests made before groups (0052). */
+  group?: RequestGroup;
+  /** A, B, ... within its group; "" before groups. */
+  stopLetter: string;
+  /** Set on an Urgent stop; its name also shows as the destination's purpose. */
+  urgentReason?: { id?: string; name: string };
+  /** What exactly, e.g. "40 bags cement, PO 2231". */
+  details: string;
+  flexibility: StopFlexibility;
+  /** "HH:MM" for a fixed-time stop. */
+  fixedTime?: string;
+  contact: string;
+  /** Company Trip only. */
+  supplier?: { id: string; name: string };
   id: string;
   ownerAccountId: string;
   ownerName: string;
@@ -198,6 +240,35 @@ export type Notification = {
   relatedScheduleId?: string;
   createdAt: string;
   readAt?: string;
+};
+/** One stop as the request forms send it (0052); "id" when editing an existing stop. */
+export type RequestStopInput = {
+  id?: string;
+  projectId: string;
+  projectOther: string;
+  destinationId: string;
+  destinationOther: string;
+  purposeId: string;
+  purposeOther: string;
+  urgentReasonId: string;
+  details: string;
+  flexibility: StopFlexibility;
+  fixedTime: string;
+  contact: string;
+  supplierId: string;
+};
+/** What the Daily and Company Trip forms send (0052). The Company Trip fields are blank on a Daily request. */
+export type RequestGroupInput = {
+  date: string;
+  stops: RequestStopInput[];
+  startingPointId: string;
+  departmentId: string;
+  vehiclePlate: string;
+  driverId: string;
+  supervisorId: string;
+  headId: string;
+  siteOfficer: string;
+  siteCompany: string;
 };
 /** What the New request form and the Edit modal send. The server sets the type from the date. */
 export type RequestInput = {
@@ -431,6 +502,11 @@ export const changeAccountPassword = (accountId: string, password: string) => re
 export const saveVehicle = (vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
 export const saveBookingOption = (group: OptionGroup, option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
+/** Returns the group's stops, A first. */
+export const createRequestGroup = (form: RequestForm, input: RequestGroupInput) =>
+  refreshAfter(request<TransportRequest[]>("/api/request-groups", { method: "POST", body: JSON.stringify({ ...input, form }) }));
+export const updateRequestGroup = (id: string, rowVersion: number, input: RequestGroupInput) =>
+  refreshAfter(request<TransportRequest[]>(`/api/request-groups/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));

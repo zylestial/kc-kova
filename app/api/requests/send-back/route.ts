@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authed, readJson } from "@/lib/api-route";
-import { toTransportRequest } from "@/lib/supabase/mappers";
+import { REQUEST_SELECT, toTransportRequest } from "@/lib/supabase/mappers";
 import { cancellationErrorResponse } from "@/lib/supabase/cancellations";
 import { parseWith, trimmedText } from "@/lib/validation";
 
@@ -23,7 +23,7 @@ export const POST = authed(async ({ request, supabase }) => {
 
   const { data: rows } = await supabase
     .from("requests")
-    .select("*, request_destinations(*)")
+    .select(REQUEST_SELECT)
     .in("id", requestIds)
     .eq("request_destinations.active", true);
   return NextResponse.json((rows ?? []).map((row) => toTransportRequest(row)));

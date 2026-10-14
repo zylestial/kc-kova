@@ -13,6 +13,9 @@ import type {
   TripAttendance,
   TripCompletion,
   OptionGroup,
+  RequestForm,
+  RequestGroup,
+  StopFlexibility,
   Vehicle,
 } from "@/lib/kova-api";
 import { emptyOptions } from "@/lib/kova-api";
@@ -89,14 +92,86 @@ type RequestRow = {
   updated_at: string;
   sent_back_at: string | null;
   sent_back_reason: string;
+  // 0052; older rows have no group and the defaults.
+  group_id?: string | null;
+  stop_letter?: string;
+  urgent_reason_id?: string | null;
+  urgent_reason_name?: string;
+  details?: string;
+  flexibility?: StopFlexibility;
+  fixed_time?: string | null;
+  contact?: string;
+  supplier_id?: string | null;
+  supplier_name?: string;
   // Embedded by the bootstrap select; absent on a bare RPC result.
   request_destinations?: RequestDestinationRow[];
+  request_groups?: RequestGroupRow | null;
 };
+
+export type RequestGroupRow = {
+  id: string;
+  number: number;
+  owner_account_id: string;
+  owner_name: string;
+  form_type: RequestForm;
+  requested_date: string;
+  starting_point_id: string | null;
+  starting_point_name: string;
+  department_id: string | null;
+  department_name: string;
+  vehicle_plate: string | null;
+  driver_id: string | null;
+  driver_name: string;
+  supervisor_id: string | null;
+  supervisor_name: string;
+  head_id: string | null;
+  head_name: string;
+  site_officer: string;
+  site_company: string;
+  row_version: number;
+  created_at: string;
+};
+
+/** An id + name snapshot pair, or undefined when there's no id. */
+const choice = (id: string | null | undefined, name: string | undefined) => (id ? { id, name: name ?? "" } : undefined);
+
+export function toRequestGroup(row: RequestGroupRow): RequestGroup {
+  return {
+    id: row.id,
+    number: row.number,
+    ownerAccountId: row.owner_account_id,
+    ownerName: row.owner_name,
+    form: row.form_type,
+    date: row.requested_date,
+    startingPoint: choice(row.starting_point_id, row.starting_point_name),
+    department: choice(row.department_id, row.department_name),
+    vehiclePlate: row.vehicle_plate ?? undefined,
+    driver: choice(row.driver_id, row.driver_name),
+    supervisor: choice(row.supervisor_id, row.supervisor_name),
+    head: choice(row.head_id, row.head_name),
+    siteOfficer: row.site_officer,
+    siteCompany: row.site_company,
+    rowVersion: row.row_version,
+    createdAt: row.created_at,
+  };
+}
+
+/** The select every request read uses, so a stop comes with its group (toTransportRequest). */
+export const REQUEST_SELECT = "*, request_destinations(*), request_groups(*)";
 
 type RequestProgressRow = { progress: RequestProgress | null; cancellation_pending: boolean | null };
 
 export function toTransportRequest(row: RequestRow, progressRow?: RequestProgressRow): TransportRequest {
   return {
+    group: row.request_groups ? toRequestGroup(row.request_groups) : undefined,
+    stopLetter: row.stop_letter ?? "",
+    urgentReason: row.urgent_reason_name ? { id: row.urgent_reason_id ?? undefined, name: row.urgent_reason_name } : undefined,
+    details: row.details ?? "",
+    flexibility: row.flexibility ?? "DAY",
+    // Postgres returns "08:30:00".
+    fixedTime: row.fixed_time ? row.fixed_time.slice(0, 5) : undefined,
+    contact: row.contact ?? "",
+    supplier: choice(row.supplier_id, row.supplier_name),
     id: row.id,
     ownerAccountId: row.owner_account_id,
     ownerName: row.owner_name,

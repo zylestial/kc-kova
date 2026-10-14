@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authed, readJson } from "@/lib/api-route";
-import { toTransportRequest } from "@/lib/supabase/mappers";
+import { REQUEST_SELECT, toTransportRequest } from "@/lib/supabase/mappers";
 import { parseRequestInput } from "@/lib/request-input";
 import { parseWith, rowVersionBody } from "@/lib/validation";
 import { requestDateError, requestTypeFor } from "@/lib/timezone";
@@ -50,7 +50,7 @@ export const PUT = authed<{ requestId: string }>(async ({ request, supabase, acc
 
   const { data: row } = await supabase
     .from("requests")
-    .select("*, request_destinations(*)")
+    .select(REQUEST_SELECT)
     .eq("id", requestId)
     .eq("request_destinations.active", true)
     .single();

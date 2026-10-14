@@ -112,6 +112,54 @@ describe("toTransportRequest", () => {
     expect(toTransportRequest({ ...row, vehicle_plate: null }).vehiclePlate).toBeUndefined();
   });
 
+  it("maps a stop of a request group, and defaults an older request's stop fields", () => {
+    const stop = toTransportRequest({
+      ...row,
+      group_id: "g1",
+      stop_letter: "B",
+      urgent_reason_id: "ur1",
+      urgent_reason_name: "Critical materials delivery",
+      details: "40 bags cement",
+      flexibility: "FIXED",
+      fixed_time: "08:30:00",
+      contact: "Liza",
+      supplier_id: null,
+      supplier_name: "",
+      request_groups: {
+        id: "g1",
+        number: 52,
+        owner_account_id: "a1",
+        owner_name: "Rhea Santos",
+        form_type: "COMPANY",
+        requested_date: "2026-10-15",
+        starting_point_id: "sp1",
+        starting_point_name: "Main Office",
+        department_id: null,
+        department_name: "",
+        vehicle_plate: "NBC 4821",
+        driver_id: "d1",
+        driver_name: "Jun Reyes",
+        supervisor_id: null,
+        supervisor_name: "",
+        head_id: null,
+        head_name: "",
+        site_officer: "",
+        site_company: "",
+        row_version: 1,
+        created_at: "2026-10-14T00:00:00Z",
+      },
+    });
+    expect(stop).toMatchObject({
+      stopLetter: "B",
+      urgentReason: { id: "ur1", name: "Critical materials delivery" },
+      flexibility: "FIXED",
+      fixedTime: "08:30",
+      supplier: undefined,
+      group: { number: 52, form: "COMPANY", startingPoint: { id: "sp1", name: "Main Office" }, department: undefined, driver: { id: "d1", name: "Jun Reyes" } },
+    });
+    expect(toTransportRequest(row)).toMatchObject({ group: undefined, stopLetter: "", details: "", flexibility: "DAY", fixedTime: undefined });
+  });
+
   it("maps a send-back, and defaults its progress to SENT_BACK", () => {
     const sent = toTransportRequest({ ...row, sent_back_at: "2026-10-01T03:00:00Z", sent_back_reason: "All vehicles full" });
     expect(sent.sentBack).toEqual({ at: "2026-10-01T03:00:00Z", reason: "All vehicles full" });
