@@ -9,6 +9,7 @@ import {
   getRequests,
   getSchedules,
   hydrateKovaData,
+  moveRequestDay,
   saveScheduleDraft,
   sendBackRequests,
   splitRequest,
@@ -29,6 +30,7 @@ import {
   conflictsWith,
   finalLeg,
   initialLegs,
+  isDailyRequest,
   keepStops,
   legOrigins,
   legsFromRevision,
@@ -54,6 +56,7 @@ import {
 } from "@/lib/trip-record";
 import DayPicker from "./planner/day-picker";
 import CommitmentsPanel from "./planner/commitments-panel";
+import PoolPanel from "./planner/pool-panel";
 import VehiclePanel from "./planner/vehicle-panel";
 import LegCard from "./planner/leg-card";
 import TripChecklist from "./planner/trip-checklist";
@@ -67,7 +70,10 @@ function waitingDays(requests: TransportRequest[], today: string) {
   return [
     ...new Set(
       requests
-        .filter((request) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED" && request.date >= today)
+        .filter(
+          (request) =>
+            request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED" && request.date >= today && isDailyRequest(request),
+        )
         .map((request) => request.date),
     ),
   ].sort();
@@ -153,7 +159,8 @@ export default function SchedulePlanner({
   // Every ACTIVE request for the day, served or not, used to work out what
   // this schedule currently serves (a request is "in" once one of its stops
   // is on a leg — there is no separate manual selection any more).
-  const dayRequests = requests.filter((request) => request.date === date && request.status === "ACTIVE");
+  // Company Trips are planned on their own planner, never here.
+  const dayRequests = requests.filter((request) => request.date === date && request.status === "ACTIVE" && isDailyRequest(request));
   const requestIds = servedRequestIds(legs, stopsFor(dayRequests));
   // What was last saved (or opened), to tell whether there is unsaved work.
   const [savedSignature, setSavedSignature] = useState(() => tripSignature(plate, requestIds, legs));
@@ -216,7 +223,10 @@ export default function SchedulePlanner({
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
   const months = [...new Set([days[0], days.at(-1)!].map((day) => dateLabel(day, { month: "long", year: "numeric" })))];
   const openOn = (day: string) =>
-    requests.filter((request) => request.date === day && request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED");
+    requests.filter(
+      (request) =>
+        request.date === day && request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED" && isDailyRequest(request),
+    );
   // Urgent requests in the pool still off the route, so they aren't missed.
   const urgentLeft = unplacedUrgentRequestIds(poolStops, legs).length;
   // Pool requests with no stop on this route can go back to their requester
@@ -316,6 +326,12 @@ export default function SchedulePlanner({
       }
       onDone("Schedule submitted. An Admin will review and approve it." + sentBack, date);
     });
+  const move = (request: TransportRequest, day: string) =>
+    run(async () => {
+      await moveRequestDay(request.id, day);
+      const number = request.group ? `${request.group.number}-${request.stopLetter}` : "The stop";
+      setNotice(`${number} moved to ${dateLabel(day, { weekday: "short", month: "short", day: "numeric" })}. ${request.ownerName} was told.`);
+    });
   const discard = () =>
     run(async () => {
       if (!editing) return;
@@ -409,7 +425,10 @@ export default function SchedulePlanner({
           )}
           <CommitmentsPanel commitments={commitments} clashes={clashes} />
 
-          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles} driverFor={driverFor} clashes={clashes} booked={platesBookedOn(date, schedules, editing?.id)} />
+          <PoolPanel pool={pool} placedIds={requestIds} today={today} busy={busy} onMove={move} />
+
+          {/* Vehicles that can be requested for company trips are for the Company Trip planner only. */}
+          <VehiclePanel plate={plate} setPlate={setPlate} vehicles={vehicles.filter((vehicle) => !vehicle.companyTrips || vehicle.plate === plate)} driverFor={driverFor} clashes={clashes} booked={platesBookedOn(date, schedules, editing?.id)} />
 
           <section className="editor-panel">
             <div className="section-heading">
