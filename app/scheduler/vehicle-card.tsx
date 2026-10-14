@@ -32,6 +32,7 @@ export default function VehicleCard({
   now,
   requests,
   started,
+  drop,
 }: {
   row: VehicleRow;
   open: boolean;
@@ -41,6 +42,11 @@ export default function VehicleCard({
   now: string;
   requests: TransportRequest[];
   started: (scheduleId: string) => boolean;
+  /** While a stop is dragged: whether it can go on this vehicle, and what dropping does. */
+  drop?: {
+    blocked: string;
+    onDrop: () => void;
+  };
 }) {
   const { vehicle, kind, driver, trips } = row;
   const stateOf = (trip: Trip) => tripState(trip.schedule, started(trip.schedule.id));
@@ -63,7 +69,20 @@ export default function VehicleCard({
   };
 
   return (
-    <div className="sc-vehicle">
+    <div
+      className={"sc-vehicle" + (drop ? (drop.blocked ? " drop-no" : " drop-ok") : "")}
+      title={drop?.blocked || undefined}
+      onDragOver={(event) => {
+        if (!drop) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = drop.blocked ? "none" : "move";
+      }}
+      onDrop={(event) => {
+        if (!drop) return;
+        event.preventDefault();
+        drop.onDrop();
+      }}
+    >
       <button type="button" className="sc-vehicle-head" aria-expanded={open} onClick={onToggle}>
         {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <b>{vehicle.name}</b>
