@@ -3,7 +3,10 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { createCompanyTrip, createSchedule, hydrateKovaData, moveRequestDay, saveScheduleDraft, type TransportRequest } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
+import { useAutoClear } from "@/lib/use-auto-clear";
+import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
@@ -21,6 +24,7 @@ import {
 import { dateLabel, fullDate } from "./planner/format";
 import StopCard, { whatText } from "./scheduler/stop-card";
 import StopSheet from "./scheduler/stop-sheet";
+import PlanOptions from "./scheduler/plan-options";
 import VehicleCard from "./scheduler/vehicle-card";
 
 const shortDay = (day: string) => dateLabel(day, { weekday: "short", month: "short", day: "numeric" });
@@ -49,13 +53,19 @@ export default function Scheduling({
   /** Keeps the address in step, so a refresh or a link opens the same place. */
   onStep: (date: string, kind?: TripKind) => void;
 }) {
-  const { requests, schedules, vehicles, accounts, attendance, companyRuns } = useKovaData();
+  const { requests, schedules, vehicles, accounts, attendance, companyRuns, options } = useKovaData();
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind | undefined>(initialKind);
   const [step, setStep] = useState(initialDate && initialKind ? 3 : 1);
   const [openPlates, setOpenPlates] = useState<Set<string>>(new Set());
   const [sheetIds, setSheetIds] = useState<string[]>([]);
+  // The stops being dragged onto a vehicle.
+  const [dragIds, setDragIds] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  useAutoClear(notice, setNotice);
   const strip = useRef<HTMLDivElement>(null);
   // On phones the strip scrolls; keep the chosen day in view.
   useEffect(() => {
@@ -84,7 +94,48 @@ export default function Scheduling({
   ]
     .filter((other) => !days.includes(other))
     .sort();
-  const sheetStops = sheetIds.flatMap((id) => requests.filter((request) => request.id === id));
+  const stopsOf = (ids: string[]) => ids.flatMap((id) => requests.filter((request) => request.id === id));
+  const sheetStops = stopsOf(sheetIds);
+  const dragStops = dragIds ? stopsOf(dragIds) : [];
+  const now = manilaHhmm(new Date().toISOString());
+  const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started };
+
+  /**
+   * Saves the stops onto a vehicle as the option says: a new trip, or the
+   * trip it joins (draft changes for an approved one). An "any day that
+   * week" stop asked for another day moves to this day first, and its
+   * requester is told (0053).
+   */
+  async function add(option: PlanOption, stops: TransportRequest[]) {
+    const name = option.row.vehicle.name;
+    if (option.blocked) {
+      setError(`Can't add to ${name}: ${option.blocked}.`);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const moved = stops.filter((stop) => stop.date !== day);
+      for (const stop of moved) await moveRequestDay(stop.id, day);
+      if (option.trip) await saveScheduleDraft(option.trip.schedule.id, option.rowVersion, option.input);
+      else if (kind === "COMPANY") await createCompanyTrip(option.input);
+      else await createSchedule(option.input);
+      setOpenPlates(new Set([...openPlates, option.row.vehicle.plate]));
+      setSheetIds([]);
+      setNotice(
+        `Added to ${name}.` +
+          (moved.length ? " Requester notified of the new day." : "") +
+          (option.needsAdmin ? " Saved in draft changes, not sent yet." : "") +
+          (option.late.length ? ` ${option.late.length === 1 ? "1 stop" : `${option.late.length} stops`} will be late; change the times.` : ""),
+      );
+    } catch (caught) {
+      setError((caught as Error).message);
+      await hydrateKovaData().catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function goTo(next: number, nextDay = day, nextKind = kind) {
     setStep(next);
@@ -241,6 +292,16 @@ export default function Scheduling({
               {stops.length ? ` · ${stops.length} to plan` : " · all planned"}
             </span>
           </div>
+          {notice && (
+            <div className="notice success" role="status">
+              {notice}
+            </div>
+          )}
+          {error && (
+            <div className="notice error" role="alert">
+              {error}
+            </div>
+          )}
 
           <div className="sc-columns">
             <section className="sc-panel">
@@ -250,7 +311,17 @@ export default function Scheduling({
               <div className="sc-list">
                 {placeGroups(stops).map((group) =>
                   group.length > 1 ? (
-                    <div key={group[0].id} className="sc-group">
+                    <div
+                      key={group[0].id}
+                      className="sc-group"
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("text/plain", group.map((stop) => stop.id).join(","));
+                        event.dataTransfer.effectAllowed = "move";
+                        setDragIds(group.map((stop) => stop.id));
+                      }}
+                      onDragEnd={() => setDragIds(null)}
+                    >
                       <div className="sc-group-head">
                         <b>
                           {group[0].destinations[0]?.destinationName} · {group.length} stops
@@ -260,11 +331,11 @@ export default function Scheduling({
                         </Button>
                       </div>
                       {group.map((stop) => (
-                        <StopCard key={stop.id} stop={stop} inGroup onOpen={setSheetIds} />
+                        <StopCard key={stop.id} stop={stop} inGroup onOpen={setSheetIds} onDrag={setDragIds} />
                       ))}
                     </div>
                   ) : (
-                    <StopCard key={group[0].id} stop={group[0]} onOpen={setSheetIds} />
+                    <StopCard key={group[0].id} stop={group[0]} onOpen={setSheetIds} onDrag={setDragIds} />
                   ),
                 )}
                 {!stops.length && <p className="sc-empty">All planned.</p>}
@@ -272,13 +343,14 @@ export default function Scheduling({
               <div className="sc-section">Any day this week ({week.length})</div>
               <div className="sc-list">
                 {week.map((stop) => (
-                  <StopCard key={stop.id} stop={stop} onOpen={setSheetIds} />
+                  <StopCard key={stop.id} stop={stop} onOpen={setSheetIds} onDrag={setDragIds} />
                 ))}
                 {!week.length && <p className="sc-empty">None.</p>}
               </div>
             </section>
 
             <section className="sc-vehicles" aria-label="Vehicles">
+              <p className="sc-hint">Drag a request onto a vehicle to add it, or tap it to see the options.</p>
               {rows.map((row) => (
                 <VehicleCard
                   key={row.vehicle.plate}
@@ -286,9 +358,17 @@ export default function Scheduling({
                   open={openPlates.has(row.vehicle.plate)}
                   onToggle={() => toggle(row.vehicle.plate)}
                   isToday={day === today}
-                  now={manilaHhmm(new Date().toISOString())}
+                  now={now}
                   requests={requests}
                   started={started}
+                  drop={
+                    dragStops.length && !busy
+                      ? (() => {
+                          const option = planOn(dragStops, row, context);
+                          return { blocked: option.blocked, onDrop: () => add(option, dragStops) };
+                        })()
+                      : undefined
+                  }
                 />
               ))}
               {!rows.length && (
@@ -301,7 +381,18 @@ export default function Scheduling({
         </>
       )}
 
-      <StopSheet stops={sheetStops} onClose={() => setSheetIds([])} />
+      <StopSheet stops={sheetStops} onClose={() => setSheetIds([])}>
+        {kind && sheetStops.length > 0 && (
+          <>
+            {error && (
+              <div className="notice error" role="alert">
+                {error}
+              </div>
+            )}
+            <PlanOptions options={planOptions(sheetStops, rows, context)} stops={sheetStops} busy={busy} onAdd={(option) => add(option, sheetStops)} />
+          </>
+        )}
+      </StopSheet>
     </div>
   );
 }
