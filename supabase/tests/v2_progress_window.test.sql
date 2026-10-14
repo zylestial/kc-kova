@@ -8,10 +8,6 @@ select plan(3);
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000008a', 'juan8@test.local');
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-00000000008a', 'juan8', 'Juan Eight', 'Requester');
-insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000008b', 'driver8@test.local');
-insert into accounts (id, username, name, role) values
-  ('00000000-0000-0000-0000-00000000008b', 'driver8', 'Dan 8', 'Driver');
-insert into vehicles (plate, name, assigned_driver_id) values ('V88', 'Van 88', '00000000-0000-0000-0000-00000000008b');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'd88', 'City Hall 88', 'Active'),
   ('purposes', 'p88', 'Inspection', 'Active');
@@ -22,7 +18,7 @@ set local role authenticated;
 create temp table made (id uuid, days int);
 grant all on made to authenticated;
 insert into made select (create_request((now() at time zone 'Asia/Manila')::date + d, case when d < 7 then 'URGENT' else 'REGULAR' end, null, null,
-  '[{"destinationId":"d88","purposeId":"p88"}]', 'V88')).id, d from unnest(array[1, 20]) as d;
+  '[{"destinationId":"d88","purposeId":"p88"}]', null)).id, d from unnest(array[1, 20]) as d;
 
 select is((select count(*)::int from request_progress p join made m on m.id = p.request_id), 2,
   'both new requests are in the view');

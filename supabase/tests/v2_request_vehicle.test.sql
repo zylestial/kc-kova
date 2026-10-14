@@ -1,40 +1,39 @@
--- The Requester chooses the vehicle on the request; a schedule takes only
--- requests for its own vehicle (0050_request_vehicle.sql).
+-- Company Trip setup: who may ask for which kind of trip, Driver types,
+-- vehicles that can be requested for company trips, and a request's chosen
+-- vehicle (0050_request_vehicle.sql, 0051_company_trip_setup.sql).
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(25);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000ca', 'juanc@test.local'),
   ('00000000-0000-0000-0000-0000000000cb', 'adminc@test.local'),
   ('00000000-0000-0000-0000-0000000000cd', 'schedc@test.local'),
-  ('00000000-0000-0000-0000-0000000000c1', 'driverc1@test.local'),
-  ('00000000-0000-0000-0000-0000000000c2', 'driverc2@test.local'),
-  ('00000000-0000-0000-0000-0000000000c3', 'driverc3@test.local'),
-  ('00000000-0000-0000-0000-0000000000c4', 'driverc4@test.local'),
-  ('00000000-0000-0000-0000-0000000000c5', 'driverc5@test.local');
+  ('00000000-0000-0000-0000-0000000000c1', 'truckc@test.local'),
+  ('00000000-0000-0000-0000-0000000000c2', 'carc@test.local'),
+  ('00000000-0000-0000-0000-0000000000c3', 'carc3@test.local'),
+  ('00000000-0000-0000-0000-0000000000c4', 'vanc@test.local'),
+  ('00000000-0000-0000-0000-0000000000c5', 'flipc@test.local');
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-0000000000ca', 'juanc', 'Juan C', 'Requester'),
   ('00000000-0000-0000-0000-0000000000cb', 'adminc', 'Ada C', 'Admin'),
   ('00000000-0000-0000-0000-0000000000cd', 'schedc', 'Sam C', 'Scheduler'),
-  ('00000000-0000-0000-0000-0000000000c1', 'driverc1', 'Dee One', 'Driver'),
-  ('00000000-0000-0000-0000-0000000000c2', 'driverc2', 'Dee Two', 'Driver'),
-  ('00000000-0000-0000-0000-0000000000c3', 'driverc3', 'Dee Three', 'Driver'),
-  ('00000000-0000-0000-0000-0000000000c4', 'driverc4', 'Dee Truck', 'Driver'),
-  ('00000000-0000-0000-0000-0000000000c5', 'driverc5', 'Dee Five', 'Driver');
-insert into vehicles (plate, name, status, assigned_driver_id) values
-  ('VA', 'Van A', 'Active', '00000000-0000-0000-0000-0000000000c1'),
-  ('VB', 'Van B', 'Active', '00000000-0000-0000-0000-0000000000c2'),
-  ('VC', 'Van C', 'Active', '00000000-0000-0000-0000-0000000000c3'),
-  ('VN', 'Van N', 'Active', null),
-  ('VI', 'Van I', 'Inactive', null);
-insert into vehicles (plate, name, vehicle_type, requestable, assigned_driver_id) values
-  ('VT', 'Truck T', 'Truck', true, '00000000-0000-0000-0000-0000000000c4'),
-  ('VR', 'Van R', 'Van', false, '00000000-0000-0000-0000-0000000000c5');
+  ('00000000-0000-0000-0000-0000000000c1', 'truckc', 'Tess Truck', 'Driver'),
+  ('00000000-0000-0000-0000-0000000000c3', 'carc3', 'Cy Car', 'Driver'),
+  ('00000000-0000-0000-0000-0000000000c4', 'vanc', 'Van Driver', 'Driver'),
+  ('00000000-0000-0000-0000-0000000000c5', 'flipc', 'Flip Driver', 'Driver');
+insert into accounts (id, username, name, role, driver_type, can_request_daily) values
+  ('00000000-0000-0000-0000-0000000000c2', 'carc', 'Cora Car', 'Driver', 'Company car', true);
+insert into vehicles (plate, name, status, company_trips, assigned_driver_id) values
+  ('VA', 'Mirage A', 'Active', true, '00000000-0000-0000-0000-0000000000c3'),
+  ('VC', 'Mirage C', 'Active', true, null),
+  ('VI', 'Mirage I', 'Inactive', true, null),
+  ('VS', 'Hilux S', 'Active', false, '00000000-0000-0000-0000-0000000000c4');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'dc', 'City Hall C', 'Active'),
+  ('destinations', 'dc2', 'Port C', 'Active'),
   ('purposes', 'pc', 'Inspection', 'Active');
 
 create function pg_temp.act_as(p_uid uuid) returns void language plpgsql as $$
@@ -61,116 +60,96 @@ create function pg_temp.legs(p_k text) returns jsonb language sql as $$
       'stops', (select jsonb_agg(id) from request_destinations where request_id = pg_temp.id(p_k) and active)),
     jsonb_build_object('isFinal', true, 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:30'));
 $$;
+create function pg_temp.make(p_plate text) returns requests language sql as $$
+  select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', p_plate);
+$$;
 create function pg_temp.edit(p_k text, p_plate text) returns requests language sql as $$
   select update_request(pg_temp.id(p_k), pg_temp.rv(p_k), pg_temp.d(), 'REGULAR', null, null,
     '[{"destinationId":"dc","purposeId":"pc"}]', p_plate);
 $$;
 
--- Choosing the vehicle -----------------------------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
+-- Accounts: Driver type and the request switches ----------------------------
+select is((select driver_type from accounts where username = 'truckc'), 'Truck', 'A new Driver starts as a Truck driver');
 select throws_ok(
-  $$ select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', null) $$,
-  '22023', 'Select a vehicle',
-  'A request needs a vehicle');
+  $$ update accounts set can_request_daily = true where username = 'truckc' $$,
+  '23514', null, 'A Truck driver can never be allowed to make requests');
 select throws_ok(
-  $$ select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VI') $$,
-  '22023', 'Select an active vehicle',
-  'An inactive vehicle cannot be chosen');
-select throws_ok(
-  $$ select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VN') $$,
-  '22023', 'This vehicle has no Driver assigned',
-  'A vehicle with no Driver cannot be chosen');
+  $$ update accounts set can_request_company = true where username = 'juanc' $$,
+  '23514', null, 'Company trips need a Position on the account');
 select lives_ok(
-  $$ insert into ids select 'r1', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VA') $$,
-  'The Requester creates a request for Van A');
-select is(pg_temp.plate('r1'), 'VA', 'The request keeps the chosen vehicle');
-select lives_ok($$ select pg_temp.edit('r1', 'VB') $$, 'The Requester changes the vehicle while editing');
-select is(pg_temp.plate('r1'), 'VB', 'The request now names Van B');
+  $$ update accounts set can_request_company = true, position = 'Purchasing Officer' where username = 'juanc' $$,
+  'With a Position, an Admin allows company trips');
+update accounts set role = 'Requester' where username = 'flipc';
+select is((select driver_type from accounts where username = 'flipc'), null, 'Someone who stops being a Driver loses the Driver type');
 
--- The Scheduler plans on the chosen vehicle --------------------------------
+select ok((select can_request_company(a) from accounts a where username = 'juanc'), 'A Requester with the switch can request company trips');
+select ok(not (select can_request_company(a) from accounts a where username = 'adminc'), 'An Admin without the switch cannot');
+
+-- Drivers ask only when allowed ---------------------------------------------
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select throws_ok($$ select pg_temp.make(null) $$, '42501', 'Not authorized to create requests', 'A Truck driver cannot make requests');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c3');
+select throws_ok($$ select pg_temp.make(null) $$, '42501', 'Not authorized to create requests', 'A Company car driver who is not allowed cannot');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c2');
+select lives_ok(
+  $$ insert into ids select 'drv', id from pg_temp.make(null) $$,
+  'A Company car driver allowed Daily requests makes one');
+select lives_ok($$ select cancel_request(pg_temp.id('drv')) $$, 'and can cancel it');
+
+-- Choosing a vehicle --------------------------------------------------------
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
+select lives_ok($$ insert into ids select 'daily', id from pg_temp.make(null) $$, 'A Daily request names no vehicle');
+select throws_ok($$ select pg_temp.make('VS') $$, '22023', 'This vehicle can''t be requested for company trips',
+  'A vehicle that can''t be requested for company trips is refused');
+select throws_ok($$ select pg_temp.make('VI') $$, '22023', 'Select an active vehicle', 'An inactive vehicle is refused');
+select lives_ok($$ insert into ids select 'r1', id from pg_temp.make('VA') $$, 'A vehicle that can be requested is accepted');
+select is(pg_temp.plate('r1'), 'VA', 'The request keeps the chosen vehicle');
+
+-- A schedule takes only requests for its own vehicle ------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000cd');
 select throws_ok(
-  $$ select save_schedule_draft(null, null, pg_temp.d(), 'VA', array[pg_temp.id('r1')], pg_temp.legs('r1')) $$,
-  '22023', 'A selected request is for VB, not VA. Remove it from this trip',
+  $$ select save_schedule_draft(null, null, pg_temp.d(), 'VS', array[pg_temp.id('r1')], pg_temp.legs('r1')) $$,
+  '22023', 'A selected request is for VA, not VS. Remove it from this trip',
   'A request cannot go on a vehicle its requester did not choose');
 select lives_ok(
-  $$ select save_schedule_draft(null, null, pg_temp.d(), 'VB', array[pg_temp.id('r1')], pg_temp.legs('r1')) $$,
-  'The request goes on its own vehicle');
-
--- A request from before vehicles were chosen may go on any vehicle
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
-insert into ids select 'old', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VC');
-reset role;
-update requests set vehicle_plate = null where id = pg_temp.id('old');
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000cd');
+  $$ select save_schedule_draft(null, null, pg_temp.d(), 'VA', array[pg_temp.id('r1')], pg_temp.legs('r1')) $$,
+  'It goes on its own vehicle');
 select lives_ok(
-  $$ select save_schedule_draft(null, null, pg_temp.d(), 'VA', array[pg_temp.id('old')], pg_temp.legs('old')) $$,
+  $$ select save_schedule_draft(null, null, pg_temp.d(), 'VS', array[pg_temp.id('daily')], pg_temp.legs('daily')) $$,
   'A request with no vehicle may go on any vehicle');
 
--- Sent back, then a new vehicle: back in the pool --------------------------
+-- Sent back, then another vehicle: back in the pool -------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
-insert into ids select 'r2', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VA');
+insert into ids select 'r2', id from pg_temp.make('VA');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000cd');
-select send_back_requests(array[pg_temp.id('r2')], 'Van A is already out that day');
+select send_back_requests(array[pg_temp.id('r2')], 'Mirage A is already out that day');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
 select pg_temp.edit('r2', 'VC');
 select is((select sent_back_at from requests where id = pg_temp.id('r2')), null,
   'Choosing another vehicle returns a sent-back request to the pool');
 
--- Renaming a vehicle carries its requests ----------------------------------
+-- Renaming a vehicle carries its requests -----------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000cb');
-select rename_vehicle('VC', 'VZ', 'Van C', 'Active', '00000000-0000-0000-0000-0000000000c3');
+select rename_vehicle('VC', 'VZ', 'Mirage C', 'Active', null);
 select is(pg_temp.plate('r2'), 'VZ', 'A renamed plate follows onto the request');
 
--- An unchanged vehicle is kept even after it becomes Inactive ---------------
+-- An unchanged vehicle is kept after it stops being offered -----------------
 reset role;
-update vehicles set status = 'Inactive' where plate = 'VZ';
+update vehicles set company_trips = false where plate = 'VZ';
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
-select lives_ok($$ select pg_temp.edit('r2', 'VZ') $$, 'Editing a request keeps its now-inactive vehicle');
-select throws_ok($$ select pg_temp.edit('r2', 'VI') $$, '22023', 'Select an active vehicle',
-  'Switching to an inactive vehicle is refused');
+select lives_ok($$ select pg_temp.edit('r2', 'VZ') $$, 'Editing keeps a vehicle that is no longer offered');
+select throws_ok($$ select pg_temp.edit('r2', 'VS') $$, '22023', 'This vehicle can''t be requested for company trips',
+  'Switching to one that is not offered is refused');
 
--- A split-off part keeps the vehicle ---------------------------------------
-reset role;
-insert into booking_options ("group", id, name, status) values ('destinations', 'dc2', 'Port C', 'Active');
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
+-- A split-off part keeps the vehicle ----------------------------------------
 insert into ids select 'r3', id from create_request(pg_temp.d(), 'REGULAR', null, null,
-  '[{"destinationId":"dc","purposeId":"pc"},{"destinationId":"dc2","purposeId":"pc"}]', 'VB');
+  '[{"destinationId":"dc","purposeId":"pc"},{"destinationId":"dc2","purposeId":"pc"}]', 'VA');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000cd');
 select lives_ok(
   $$ insert into ids select 'r3b', id from split_request(pg_temp.id('r3'),
        array(select id from request_destinations where request_id = pg_temp.id('r3') and destination_id = 'dc2' and active)) $$,
   'The Scheduler splits a stop off');
-select is(pg_temp.plate('r3b'), 'VB', 'The split-off request keeps the chosen vehicle');
-
--- Only vehicles that can be requested are offered (0051) -------------------
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
-select throws_ok(
-  $$ select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VR') $$,
-  '22023', 'This vehicle can''t be requested for company trips',
-  'A vehicle with requests turned off cannot be chosen');
-insert into ids select 'r5', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VA');
-reset role;
-update vehicles set requestable = false where plate = 'VA';
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000ca');
-select lives_ok($$ select pg_temp.edit('r5', 'VA') $$, 'Editing a request keeps a vehicle whose requests were turned off since');
-reset role;
-update vehicles set requestable = true where plate = 'VA';
-
--- Drivers may ask for transport, unless they drive a Truck ------------------
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
-select lives_ok(
-  $$ insert into ids select 'drv', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VB') $$,
-  'A van Driver creates a request');
-select lives_ok($$ select pg_temp.edit('drv', 'VA') $$, 'The Driver edits their own request');
-select lives_ok($$ select cancel_request(pg_temp.id('drv')) $$, 'The Driver cancels their own request');
-select is((select status from requests where id = pg_temp.id('drv')), 'CANCELLED', 'and it is cancelled');
-
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000c4');
-select throws_ok(
-  $$ select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"dc","purposeId":"pc"}]', 'VB') $$,
-  '42501', 'Not authorized to create requests',
-  'A truck Driver cannot create a request');
+select is(pg_temp.plate('r3b'), 'VA', 'The split-off request keeps the chosen vehicle');
 
 select * from finish();
 rollback;

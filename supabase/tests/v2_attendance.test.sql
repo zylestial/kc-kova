@@ -6,10 +6,6 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(30);
 
--- These tests are about scheduling, not the vehicle a request names
--- (v2_request_vehicle.test.sql), so any vehicle may take any request here.
-alter table revision_requests disable trigger revision_requests_request_vehicle;
-
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'admin@test.local'),
@@ -51,10 +47,10 @@ create function pg_temp.rv(p_schedule uuid) returns int language sql as $$
 $$;
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-insert into ids select 'past', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
-insert into ids select 'past2', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
+insert into ids select 'past', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'past2', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
-insert into ids select 'future', id from create_request(pg_temp.manila_today() + 10, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
+insert into ids select 'future', id from create_request(pg_temp.manila_today() + 10, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 reset role;
 insert into ids select k || '_rd', (select id from request_destinations where request_id = v and active) from ids;
 

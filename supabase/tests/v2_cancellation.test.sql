@@ -6,10 +6,6 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(68);
 
--- These tests are about scheduling, not the vehicle a request names
--- (v2_request_vehicle.test.sql), so any vehicle may take any request here.
-alter table revision_requests disable trigger revision_requests_request_vehicle;
-
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'admin@test.local'),
@@ -55,14 +51,14 @@ $$;
 create temp table ids (k text primary key, v uuid);
 grant select, insert on ids to authenticated;
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
-insert into ids select 'juan', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
-insert into ids select 'x2', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
-insert into ids select 'solo', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', 'V1');
+insert into ids select 'juan', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'x2', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'solo', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', null);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
-insert into ids select 'maria', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
-insert into ids select 'port', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', 'V1');
-insert into ids select 'x1', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
-insert into ids select 'x3', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1');
+insert into ids select 'maria', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'port', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', null);
+insert into ids select 'x1', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'x3', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 reset role;
 insert into ids select k || '_rd', (select id from request_destinations where request_id = v and active) from ids;
 
@@ -114,8 +110,8 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok($$ select cancel_request(pg_temp.id('solo')) $$, '42501', null,
   'A Scheduler cannot cancel a request');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
-select throws_ok($$ select cancel_request(pg_temp.id('solo')) $$, 'P0002', null,
-  'A Driver cannot cancel someone else''s request');
+select throws_ok($$ select cancel_request(pg_temp.id('solo')) $$, '42501', null,
+  'A Driver cannot cancel a request');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select throws_ok($$ select cancel_request(pg_temp.id('juan')) $$, '22023', null,
   'A request in a schedule can''t be cancelled directly');
@@ -254,7 +250,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select is((select progress from request_progress where request_id = pg_temp.id('x2')), 'NOT_YET_SCHEDULED',
   'The still-needed request is back to Not yet scheduled');
 select lives_ok($$ select update_request(pg_temp.id('x2'), (select row_version from requests where id = pg_temp.id('x2')),
-  pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1') $$,
+  pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   'and its owner can edit it again');
 -- The edit replaced the request's destination row.
 reset role;

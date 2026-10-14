@@ -1,21 +1,71 @@
--- Vehicle types, a per-vehicle "can be requested" toggle, and Drivers as
--- requesters (owner's call, 2026-10-14).
+-- Company Trip setup (owner's calls, 2026-10-14; prototype "KOVA Company
+-- Trip Flow"): who may ask for which kind of trip, the Driver type, which
+-- vehicles can be requested for company trips, and the new Request choices.
 --
--- A Driver may ask for transport like a Requester, unless the vehicle they
--- are assigned to is a Truck. A Driver with no vehicle may ask too. Only
--- vehicles with `requestable` on can be chosen on a request; an Admin sets
--- both in Settings > Vehicles. Existing vehicles start as Vans that can be
--- requested.
+-- * Requesters and Admins can always make Daily Vehicle Trip requests.
+--   Company Trips need "Can request company trips" on the account, and a
+--   Position (it prints on the Company Trip Form).
+-- * A Driver is a Truck driver or a Company car driver. Drivers can't make
+--   requests unless an Admin allows that account, with Daily requests and
+--   Company trips switched on separately. A Truck driver can never be
+--   allowed.
+-- * A vehicle that "Can be requested for company trips" is offered on the
+--   Company Trip form. Off by default.
 
-alter table vehicles
-  add column vehicle_type text not null default 'Van'
-    check (vehicle_type in ('Car', 'Van', 'Pickup', 'Truck')),
-  add column requestable boolean not null default true;
+alter table accounts
+  add column position text not null default '',
+  add column driver_type text check (driver_type in ('Truck', 'Company car')),
+  add column can_request_daily boolean not null default false,
+  add column can_request_company boolean not null default false;
 
--- Whether this account may create, edit and cancel its own requests: an
--- active Requester or Admin, or an active Driver who doesn't drive a Truck.
--- lib/request-access.ts mirrors this for the menus.
-create function can_request_transport(p_account public.accounts)
+update accounts set driver_type = 'Truck' where role = 'Driver';
+
+-- A new Driver starts as a Truck driver, and someone who stops being a
+-- Driver loses the Driver-only fields, so account saves that don't know
+-- about them (seeds, older callers) stay valid.
+create function normalize_driver_fields()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.role = 'Driver' then
+    new.driver_type := coalesce(new.driver_type, 'Truck');
+  else
+    new.driver_type := null;
+    new.can_request_daily := false;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger accounts_normalize_driver_fields
+  before insert or update of role, driver_type, can_request_daily on accounts
+  for each row execute function normalize_driver_fields();
+
+alter table accounts
+  -- Every Driver has a type; nobody else does.
+  add constraint accounts_driver_type_for_drivers check ((role = 'Driver') = (driver_type is not null)),
+  -- The Daily switch only means something on a Driver: Requesters and Admins always can.
+  add constraint accounts_daily_switch_drivers_only check (not can_request_daily or role = 'Driver'),
+  add constraint accounts_company_switch_roles check (not can_request_company or role in ('Requester', 'Admin', 'Driver')),
+  add constraint accounts_truck_drivers_cannot_request check (
+    driver_type is distinct from 'Truck' or not (can_request_daily or can_request_company)
+  ),
+  add constraint accounts_company_trips_need_position check (not can_request_company or trim(position) <> '');
+
+alter table vehicles add column company_trips boolean not null default false;
+
+alter table booking_options drop constraint booking_options_group_check;
+alter table booking_options add constraint booking_options_group_check check ("group" in (
+  'projects', 'destinations', 'purposes',
+  -- Company Trip form and per-stop Urgent (Request choices, Admin-managed).
+  'departments', 'suppliers', 'supervisors', 'heads', 'starting_points', 'urgent_reasons'
+));
+
+-- Whether this account may make Daily Vehicle Trip requests.
+-- lib/request-access.ts mirrors these three for the menus.
+create function can_request_daily(p_account public.accounts)
 returns boolean
 language sql
 stable
@@ -26,20 +76,45 @@ as $$
     and p_account.status = 'Active'
     and (
       p_account.role in ('Requester', 'Admin')
-      or (
-        p_account.role = 'Driver'
-        and not exists (
-          select 1 from public.vehicles
-          where assigned_driver_id = p_account.id and vehicle_type = 'Truck'
-        )
-      )
+      or (p_account.role = 'Driver' and p_account.driver_type = 'Company car' and p_account.can_request_daily)
     );
 $$;
 
+-- Whether this account may make Company Trip requests.
+create function can_request_company(p_account public.accounts)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_account.id is not null
+    and p_account.status = 'Active'
+    and p_account.can_request_company
+    and (p_account.role in ('Requester', 'Admin') or (p_account.role = 'Driver' and p_account.driver_type = 'Company car'));
+$$;
+
+-- Whether this account may edit and cancel its own requests: it can make
+-- either kind.
+create function can_request_transport(p_account public.accounts)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.can_request_daily(p_account) or public.can_request_company(p_account);
+$$;
+
+revoke execute on function can_request_daily(public.accounts) from public, anon, authenticated;
+revoke execute on function can_request_company(public.accounts) from public, anon, authenticated;
 revoke execute on function can_request_transport(public.accounts) from public, anon, authenticated;
 
--- resolve_request_vehicle: same as 0050, plus a newly chosen vehicle must
--- be one that can be requested. A kept choice stays, as with Inactive.
+-- resolve_request_vehicle: replaces 0050's. Daily requests name no vehicle
+-- (null). A vehicle, once chosen, must be Active and one that can be
+-- requested for company trips; the request's current vehicle (p_kept) is
+-- kept unchanged even if that has since changed. Company trip vehicles
+-- have no fixed Driver: the requester picks one (Company Trip form).
 create or replace function resolve_request_vehicle(p_plate text, p_kept text default null)
 returns text
 language plpgsql
@@ -50,7 +125,7 @@ declare
   v_vehicle public.vehicles;
 begin
   if coalesce(p_plate, '') = '' then
-    raise exception 'Select a vehicle' using errcode = '22023';
+    return null;
   end if;
   if p_plate = p_kept then
     return p_kept;
@@ -59,20 +134,16 @@ begin
   if v_vehicle is null or v_vehicle.status <> 'Active' then
     raise exception 'Select an active vehicle' using errcode = '22023';
   end if;
-  if not v_vehicle.requestable then
+  if not v_vehicle.company_trips then
     raise exception 'This vehicle can''t be requested for company trips' using errcode = '22023';
-  end if;
-  if not exists (
-    select 1 from public.accounts
-    where id = v_vehicle.assigned_driver_id and role = 'Driver' and status = 'Active'
-  ) then
-    raise exception 'This vehicle has no Driver assigned' using errcode = '22023';
   end if;
   return v_vehicle.plate;
 end;
 $$;
 
--- create_request: same as 0050, plus Drivers who don't drive a Truck.
+-- create_request: same as 0050, but who may ask is can_request_daily (the
+-- Daily form is the only one until the Company Trip form arrives), and the
+-- vehicle is optional.
 create or replace function create_request(
   p_requested_date date,
   p_request_type text,
@@ -92,7 +163,7 @@ declare
   v_request public.requests;
 begin
   select * into v_actor from public.accounts where id = auth.uid();
-  if not public.can_request_transport(v_actor) then
+  if not public.can_request_daily(v_actor) then
     raise exception 'Not authorized to create requests' using errcode = '42501';
   end if;
 
@@ -116,7 +187,7 @@ begin
 end;
 $$;
 
--- update_request: same as 0050, plus Drivers who don't drive a Truck.
+-- update_request: same as 0050, but who may edit is can_request_transport.
 create or replace function update_request(
   p_request_id uuid,
   p_expected_row_version integer,
@@ -203,7 +274,7 @@ begin
 end;
 $$;
 
--- cancel_request: same as 0028, plus Drivers who don't drive a Truck.
+-- cancel_request: same as 0028, but who may cancel is can_request_transport.
 create or replace function cancel_request(p_request_id uuid)
 returns public.requests
 language plpgsql
@@ -243,7 +314,7 @@ begin
 end;
 $$;
 
--- request_cancellation: same as 0035, plus Drivers who don't drive a Truck.
+-- request_cancellation: same as 0035, but who may ask is can_request_transport.
 create or replace function request_cancellation(p_request_id uuid, p_reason text)
 returns public.request_cancellations
 language plpgsql
