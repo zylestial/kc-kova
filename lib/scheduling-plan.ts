@@ -65,6 +65,9 @@ export type WorkLeg = {
   timeIn?: string;
 };
 
+/** After this a trip runs past the Driver's day (prototype WORK_END). */
+export const DAY_END = "18:00";
+
 /** A fixed-time stop counts as late more than 5 minutes either side of its time. */
 const isLate = (fixed: string, arrive: string) => Math.abs(toMinutes(arrive) - toMinutes(fixed)) > 5;
 
@@ -107,6 +110,7 @@ export function legTimer(context: Pick<PlanContext, "requests" | "destinations">
   return { timed, lateIn, requestOf };
 }
 
+/** Best first: vehicles that can take it, fewest late stops, ending by 6 PM, then the soonest (Urgent) or the fewest added minutes. */
 export function planOptions(stops: TransportRequest[], rows: VehicleRow[], context: PlanContext): PlanOption[] {
   const urgent = stops.some((stop) => stop.requestType === "URGENT");
   return rows
@@ -115,6 +119,7 @@ export function planOptions(stops: TransportRequest[], rows: VehicleRow[], conte
       (a, b) =>
         Number(!!a.blocked) - Number(!!b.blocked) ||
         a.late.length - b.late.length ||
+        Number(a.end > DAY_END) - Number(b.end > DAY_END) ||
         (urgent ? a.arrive.localeCompare(b.arrive) : a.extra - b.extra),
     );
 }

@@ -150,6 +150,14 @@ describe("planOptions", () => {
     expect(options.map((option) => option.blocked)).toEqual(["", "No Driver assigned"]);
   });
 
+  it("prefers a free vehicle to a trip that would run past 6 PM", () => {
+    const a = stop("a", "wilcon");
+    const b = stop("b", "bir");
+    const late = trip([leg(1, "wilcon", "17:00", "17:30", ["rd-a"]), leg(2, undefined, "18:00", "18:30", [], true)], ["a"]);
+    const free = row([], { vehicle: { plate: "V2", name: "Van 2", status: "Active", assignedDriverId: "d1", companyTrips: false } });
+    expect(planOptions([b], [row([late]), free], context([a, b]))[0].row.vehicle.plate).toBe("V2");
+  });
+
   it("offers a Company stop only on the vehicle the requester asked for", () => {
     const c = stop("c", "bdo", { group: group({ form: "COMPANY", vehiclePlate: "NBC" }) });
     const company = row([], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true } });

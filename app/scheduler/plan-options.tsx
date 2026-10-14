@@ -1,12 +1,9 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { hhmmLabel } from "@/lib/stop-times";
-import type { PlanOption } from "@/lib/scheduling-plan";
+import { DAY_END, type PlanOption } from "@/lib/scheduling-plan";
 import type { TransportRequest } from "@/lib/kova-api";
 import { stopNumber } from "@/lib/scheduling";
-
-/** After this the trip runs past the Driver's day (prototype WORK_END). */
-const DAY_END = "18:00";
 
 /**
  * Where the stops in the sheet can go (prototype "Best options first"):
