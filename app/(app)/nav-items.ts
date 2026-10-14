@@ -1,4 +1,5 @@
 import {
+  Car,
   CalendarDays,
   CalendarPlus,
   CheckCircle2,
@@ -35,6 +36,7 @@ export function navItems(viewRole: Account["role"], canRequest = false): NavItem
     return [
       home,
       { href: "/schedules/new", label: "Create schedule", icon: CalendarPlus },
+      { href: "/schedules/company", label: "Company trips", icon: Car },
       { href: "/schedules", label: "Schedules", icon: CalendarDays },
       { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
     ];
