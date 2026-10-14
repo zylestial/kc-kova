@@ -8,8 +8,10 @@ import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
   changeAccountPassword,
+  VEHICLE_TYPES,
   type VehicleType,
 } from "@/lib/kova-api";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
 import BookingOptions from "./booking-options";
 import { Button } from "@/components/ui/button";
@@ -362,6 +364,8 @@ export default function Settings() {
                   <tr>
                     <th>PLATE NUMBER</th>
                     <th>VEHICLE NAME / MODEL</th>
+                    <th>TYPE</th>
+                    <th>COMPANY TRIPS</th>
                     <th>ASSIGNED DRIVER</th>
                     <th>STATUS</th>
                     <th></th>
@@ -374,6 +378,8 @@ export default function Settings() {
                         <b>{v.plate}</b>
                       </td>
                       <td>{v.name}</td>
+                      <td>{v.type}</td>
+                      <td>{v.requestable ? "Can be requested" : "Not offered"}</td>
                       <td>{driverName(v.assignedDriverId)}</td>
                       <td>
                         <span
@@ -558,6 +564,8 @@ export default function Settings() {
             </DialogTitle>
             <DialogDescription>
               Manage which vehicles are available in Schedule. Inactive vehicles can&apos;t be chosen for new schedules.
+              Requesters pick from the vehicles that can be requested for company trips. The Driver of a Truck
+              can&apos;t make requests.
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
@@ -573,6 +581,24 @@ export default function Settings() {
               value={vehicle.name}
               onChange={(v) => setVehicle({ ...vehicle, name: v })}
             />
+            <Choice
+              label="Type"
+              value={vehicle.type}
+              items={VEHICLE_TYPES}
+              onChange={(v) => setVehicle({ ...vehicle, type: v })}
+            />
+            <div className="field">
+              <span>Company trips</span>
+              <div className="person-projects">
+                <label>
+                  <Checkbox
+                    checked={vehicle.requestable}
+                    onCheckedChange={(v) => setVehicle({ ...vehicle, requestable: v === true })}
+                  />
+                  Can be requested for company trips
+                </label>
+              </div>
+            </div>
             <label className="field">
               <span>Assigned Driver</span>
               <Select
