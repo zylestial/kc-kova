@@ -42,7 +42,15 @@ describe("vehicle bodies", () => {
       name: "Van",
       status: "Active",
       assignedDriverId: null,
+      type: "Van",
+      requestable: true,
     });
+  });
+
+  it("reads the type and request toggle, falling back to a requestable Van", () => {
+    const body = { plate: "ABC 123", name: "Hauler", status: "Active" };
+    expect(parseWith(updateVehicleBody, { ...body, type: "Truck", requestable: false })).toMatchObject({ type: "Truck", requestable: false });
+    expect(parseWith(updateVehicleBody, { ...body, type: "Boat", requestable: "no" })).toMatchObject({ type: "Van", requestable: true });
   });
 
   it("needs a known status when editing", () => {

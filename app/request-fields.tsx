@@ -25,6 +25,7 @@ export type RequestDraft = {
   projectId: string;
   projectOther: string;
   projectOtherMode: boolean;
+  vehiclePlate: string;
   // key keeps React rows stable while destinations are added and removed.
   destinations: Array<{
     key: string;
@@ -48,7 +49,7 @@ const newRow = () => ({
 });
 
 export function emptyDraft(date: string): RequestDraft {
-  return { date, projectId: "", projectOther: "", projectOtherMode: false, destinations: [newRow()] };
+  return { date, projectId: "", projectOther: "", projectOtherMode: false, vehiclePlate: "", destinations: [newRow()] };
 }
 
 export function draftFromRequest(request: TransportRequest): RequestDraft {
@@ -57,6 +58,7 @@ export function draftFromRequest(request: TransportRequest): RequestDraft {
     projectId: request.projectId ?? "",
     projectOther: request.projectIsOther ? request.projectName : "",
     projectOtherMode: request.projectIsOther,
+    vehiclePlate: request.vehiclePlate ?? "",
     destinations: request.destinations.map((item) => ({
       key: item.id,
       destinationId: item.destinationIsOther ? "" : (item.destinationId ?? ""),
@@ -74,6 +76,7 @@ export function draftToInput(draft: RequestDraft): RequestInput {
     date: draft.date,
     projectId: draft.projectOtherMode ? "" : draft.projectId,
     projectOther: draft.projectOtherMode ? draft.projectOther.trim() : "",
+    vehiclePlate: draft.vehiclePlate,
     destinations: draft.destinations.map((item) => ({
       destinationId: item.destinationOtherMode ? "" : item.destinationId,
       destinationOther: item.destinationOtherMode ? item.destinationOther.trim() : "",

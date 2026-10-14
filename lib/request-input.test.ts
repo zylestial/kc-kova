@@ -5,6 +5,7 @@ const valid = {
   date: "2026-10-05",
   projectId: "pr1",
   projectOther: "",
+  vehiclePlate: "ABC-123",
   destinations: [
     { destinationId: "d1", destinationOther: "", purposeId: "p1", purposeOther: "" },
     { destinationId: "d2", destinationOther: "", purposeId: "p2", purposeOther: "" },
@@ -37,6 +38,8 @@ describe("parseRequestInput", () => {
     expect(parseRequestInput(null)).toBeNull();
     expect(parseRequestInput({ ...valid, date: "10/05/2026" })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [] })).toBeNull();
+    expect(parseRequestInput({ ...valid, vehiclePlate: undefined })).toBeNull();
+    expect(parseRequestInput({ ...valid, vehiclePlate: "  " })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "d1" }] })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "", destinationOther: "", purposeId: "p1" }] })).toBeNull();
   });

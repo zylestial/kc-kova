@@ -52,6 +52,7 @@ describe("toTransportRequest", () => {
     project_id: null,
     project_name: "Barangay 5 hall",
     project_is_other: true,
+    vehicle_plate: "ABC-123",
     status: "ACTIVE" as const,
     row_version: 2,
     created_at: "2026-09-24T01:00:00Z",
@@ -91,6 +92,7 @@ describe("toTransportRequest", () => {
       projectId: undefined,
       projectName: "Barangay 5 hall",
       projectIsOther: true,
+      vehiclePlate: "ABC-123",
       rowVersion: 2,
       progress: "SCHEDULING",
     });
@@ -101,6 +103,10 @@ describe("toTransportRequest", () => {
     expect(toTransportRequest(row).progress).toBe("NOT_YET_SCHEDULED");
     expect(toTransportRequest({ ...row, status: "CANCELLED" }).progress).toBe("CANCELLED");
     expect(toTransportRequest({ ...row, request_destinations: undefined }).destinations).toEqual([]);
+  });
+
+  it("leaves the vehicle out of a request made before vehicles were chosen", () => {
+    expect(toTransportRequest({ ...row, vehicle_plate: null }).vehiclePlate).toBeUndefined();
   });
 
   it("maps a send-back, and defaults its progress to SENT_BACK", () => {

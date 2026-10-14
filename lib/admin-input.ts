@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Role } from "@/lib/kova-api";
+import { VEHICLE_TYPES, type Role } from "@/lib/kova-api";
 
 /**
  * Body schemas for the Admin-only routes (accounts, vehicles, booking
@@ -34,9 +34,27 @@ export const updateAccountBody = z.object({ name: required, username: required, 
 /** Any string; the password policy gives the message for a bad one. */
 export const passwordBody = z.object({ password: z.string() }).catch({ password: "" });
 
-export const createVehicleBody = z.object({ plate: required, name: required, status: statusOrActive, assignedDriverId: optionalId });
+/** Defaults match the columns' (0051): a Van that can be requested. */
+const vehicleType = z.enum(VEHICLE_TYPES).catch("Van");
+const requestable = z.boolean().catch(true);
 
-export const updateVehicleBody = z.object({ plate: required, name: required, status, assignedDriverId: optionalId });
+export const createVehicleBody = z.object({
+  plate: required,
+  name: required,
+  status: statusOrActive,
+  assignedDriverId: optionalId,
+  type: vehicleType,
+  requestable,
+});
+
+export const updateVehicleBody = z.object({
+  plate: required,
+  name: required,
+  status,
+  assignedDriverId: optionalId,
+  type: vehicleType,
+  requestable,
+});
 
 export const bookingOptionBody = z.object({
   name: required,

@@ -11,6 +11,7 @@ const requestBody = z.object({
   date: isoDate,
   projectId: text,
   projectOther: trimmedText,
+  vehiclePlate: z.string().trim().min(1),
   destinations: z.array(destination).min(1),
 });
 

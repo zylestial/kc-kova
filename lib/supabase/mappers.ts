@@ -13,9 +13,17 @@ import type {
   TripAttendance,
   TripCompletion,
   Vehicle,
+  VehicleType,
 } from "@/lib/kova-api";
 
-type VehicleRow = { plate: string; name: string; status: "Active" | "Inactive"; assigned_driver_id: string | null };
+type VehicleRow = {
+  plate: string;
+  name: string;
+  status: "Active" | "Inactive";
+  assigned_driver_id: string | null;
+  vehicle_type: VehicleType;
+  requestable: boolean;
+};
 
 export function toVehicle(row: VehicleRow): Vehicle {
   return {
@@ -23,6 +31,8 @@ export function toVehicle(row: VehicleRow): Vehicle {
     name: row.name,
     status: row.status,
     assignedDriverId: row.assigned_driver_id ?? undefined,
+    type: row.vehicle_type,
+    requestable: row.requestable,
   };
 }
 
@@ -73,6 +83,7 @@ type RequestRow = {
   project_id: string | null;
   project_name: string;
   project_is_other: boolean;
+  vehicle_plate: string | null;
   status: "ACTIVE" | "CANCELLED";
   row_version: number;
   created_at: string;
@@ -95,6 +106,7 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
     projectId: row.project_id ?? undefined,
     projectName: row.project_name,
     projectIsOther: row.project_is_other,
+    vehiclePlate: row.vehicle_plate ?? undefined,
     status: row.status,
     rowVersion: row.row_version,
     createdAt: row.created_at,

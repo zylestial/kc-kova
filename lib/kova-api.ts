@@ -21,7 +21,13 @@ export type Vehicle = {
   name: string;
   status: "Active" | "Inactive";
   assignedDriverId?: string | null;
+  /** A Truck's Driver can't ask for transport (0051). */
+  type: VehicleType;
+  /** Whether it's offered on the request form (0051). */
+  requestable: boolean;
 };
+export const VEHICLE_TYPES = ["Car", "Van", "Pickup", "Truck"] as const;
+export type VehicleType = (typeof VEHICLE_TYPES)[number];
 export type BookingOption = {
   id: string;
   name: string;
@@ -50,7 +56,7 @@ export type RequestDestination = {
   purposeName: string;
   purposeIsOther: boolean;
 };
-/** A v2 transport request: a date and destinations, no vehicle or time. */
+/** A v2 transport request: a date, the vehicle its requester chose, and destinations; no time. */
 export type TransportRequest = {
   id: string;
   ownerAccountId: string;
@@ -60,6 +66,8 @@ export type TransportRequest = {
   projectId?: string;
   projectName: string;
   projectIsOther: boolean;
+  /** The plate the requester chose (0050); missing on requests made before that. */
+  vehiclePlate?: string;
   status: "ACTIVE" | "CANCELLED";
   rowVersion: number;
   createdAt: string;
@@ -190,6 +198,7 @@ export type RequestInput = {
   date: string;
   projectId: string;
   projectOther: string;
+  vehiclePlate: string;
   destinations: Array<{ destinationId: string; destinationOther: string; purposeId: string; purposeOther: string }>;
 };
 export type ScheduleRevisionStatus = "DRAFT" | "SUBMITTED" | "RETURNED" | "APPROVED" | "SUPERSEDED" | "DISCARDED";

@@ -8,6 +8,7 @@ import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
   changeAccountPassword,
+  type VehicleType,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import BookingOptions from "./booking-options";
@@ -40,6 +41,8 @@ type Vehicle = {
   name: string;
   status: "Active" | "Inactive";
   assignedDriverId?: string | null;
+  type: VehicleType;
+  requestable: boolean;
 };
 const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
@@ -54,6 +57,8 @@ const blankVehicle = () => ({
   name: "",
   status: "Active" as Vehicle["status"],
   assignedDriverId: UNASSIGNED,
+  type: "Van" as VehicleType,
+  requestable: true,
 });
 function TextField({
   label,
@@ -194,6 +199,8 @@ export default function Settings() {
       name: v.name,
       status: v.status,
       assignedDriverId: v.assignedDriverId || UNASSIGNED,
+      type: v.type,
+      requestable: v.requestable,
     });
     setOriginalPlate(v.plate);
     setVehicleModal("edit");
@@ -217,6 +224,8 @@ export default function Settings() {
             vehicle.assignedDriverId === UNASSIGNED
               ? undefined
               : vehicle.assignedDriverId,
+          type: vehicle.type,
+          requestable: vehicle.requestable,
         },
         vehicleModal === "edit" ? originalPlate : undefined,
       );
