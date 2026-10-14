@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { CircleHelp, LogOut, X } from "lucide-react";
 import { useAccount } from "./providers";
 import { activeHref, navItems } from "./nav-items";
-import { canRequestTransport } from "@/lib/request-access";
+import { canRequestCompany, canRequestTransport } from "@/lib/request-access";
 
 export default function Sidebar({
   open,
@@ -20,7 +20,7 @@ export default function Sidebar({
   const router = useRouter();
   const pathname = usePathname();
   const { account, viewAs, viewRole, leave } = useAccount();
-  const items = navItems(viewRole, canRequestTransport(account));
+  const items = navItems(viewRole, canRequestTransport(account), canRequestCompany(account));
   const active = activeHref(items, pathname);
 
   // The phone drawer closes on Escape.
