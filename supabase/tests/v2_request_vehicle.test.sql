@@ -111,9 +111,10 @@ select throws_ok(
   $$ select save_schedule_draft(null, null, pg_temp.d(), 'VS', array[pg_temp.id('r1')], pg_temp.legs('r1')) $$,
   '22023', 'A selected request is for VA, not VS. Remove it from this trip',
   'A request cannot go on a vehicle its requester did not choose');
-select lives_ok(
+select throws_ok(
   $$ select save_schedule_draft(null, null, pg_temp.d(), 'VA', array[pg_temp.id('r1')], pg_temp.legs('r1')) $$,
-  'It goes on its own vehicle');
+  '22023', 'VA can be requested for company trips, so it isn''t used for Daily trips',
+  'Nor on a Daily trip with its own vehicle: those are Company trips (0054)');
 select lives_ok(
   $$ select save_schedule_draft(null, null, pg_temp.d(), 'VS', array[pg_temp.id('daily')], pg_temp.legs('daily')) $$,
   'A request with no vehicle may go on any vehicle');

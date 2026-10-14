@@ -76,9 +76,9 @@ insert into ids values ('sf', pg_temp.publish('V2', pg_temp.manila_today() + 10,
 -- follow-up candidate.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select record_trip_attendance(pg_temp.id('sp'), 'START');
-select record_stop_tap(pg_temp.id('sp'), l.id, kind)
+select record_stop_tap(pg_temp.id('sp'), l.id, tap.kind)
 from schedule_legs l join schedules s on s.published_revision_id = l.revision_id,
-  unnest(array['ARRIVE', 'LEAVE']) as kind
+  unnest(array['ARRIVE', 'LEAVE']) as tap (kind)
 where s.id = pg_temp.id('sp') and l.leg_no = 1;
 select record_trip_attendance(pg_temp.id('sp'), 'END');
 select submit_completion(pg_temp.id('sp'), 1000, 1042);
