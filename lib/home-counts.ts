@@ -44,7 +44,8 @@ export function homeCounts(account: Account, data: HomeData, now: Date = new Dat
   const today = manilaToday(now);
   const counts: Partial<Record<HomeCardKey, string>> = {};
 
-  if (account.role === "Requester" || account.role === "Admin") {
+  // A Driver may make requests too (0051); the card only shows when they can.
+  if (account.role === "Requester" || account.role === "Admin" || account.role === "Driver") {
     const open = data.requests.filter(
       (request) =>
         request.ownerAccountId === account.id &&

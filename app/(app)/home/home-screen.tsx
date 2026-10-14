@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useKovaData } from "@/lib/use-kova-data";
 import { homeCounts } from "@/lib/home-counts";
+import { canRequestTransport } from "@/lib/request-access";
 import { homeStats, type StatTone } from "@/lib/home-stats";
 import { useAccount } from "../providers";
 
@@ -57,8 +58,20 @@ export default function HomeScreen() {
   // and the viewing-as banner's "Return to Admin" are leave()-guarded.
   const go = (path: string) => router.push(path);
   // Re-renders when the app reloads its data, so the card counts stay current.
-  const { requests, schedules, cancellations, completions, problems, attendance } = useKovaData();
+  const { requests, schedules, cancellations, completions, problems, attendance, vehicles } = useKovaData();
   const counts = homeCounts(account, { requests, schedules, cancellations, completions, problems, attendance });
+  const canRequest = canRequestTransport(account, vehicles);
+  const requestCards = (
+    <>
+      <HomeCard icon={<FilePlus2 size={24} />} label="New request" onClick={() => go("/requests/new")} />
+      <HomeCard
+        icon={<ClipboardList size={24} />}
+        label="My requests"
+        count={counts["my-requests"]}
+        onClick={() => go("/requests")}
+      />
+    </>
+  );
   const stats = homeStats(
     viewRole,
     account.id,
@@ -112,21 +125,10 @@ export default function HomeScreen() {
               label="Finished Trips"
               onClick={() => go("/finished/driver")}
             />
+            {canRequest && requestCards}
           </>
         ) : viewRole === "Requester" ? (
-          <>
-            <HomeCard
-              icon={<FilePlus2 size={24} />}
-              label="New request"
-              onClick={() => go("/requests/new")}
-            />
-            <HomeCard
-              icon={<ClipboardList size={24} />}
-              label="My requests"
-              count={counts["my-requests"]}
-              onClick={() => go("/requests")}
-            />
-          </>
+          requestCards
         ) : viewRole === "Scheduler" ? (
           <>
             <HomeCard

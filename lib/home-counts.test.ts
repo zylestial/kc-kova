@@ -33,6 +33,11 @@ describe("homeCounts", () => {
     expect(homeCounts(account("Requester"), empty, NOW)["my-requests"]).toBe("No open requests");
   });
 
+  it("counts a Driver's own requests too", () => {
+    const data = { ...empty, requests: [request({ id: "a", ownerAccountId: "d1" }), request({ id: "b" })] };
+    expect(homeCounts(account("Driver", "d1"), data, NOW)["my-requests"]).toBe("1 open · 1 not yet scheduled");
+  });
+
   it("tells a Requester how many requests were sent back, and keeps them out of the Scheduler's count", () => {
     const data = { ...empty, requests: [request({ id: "a" }), request({ id: "b", progress: "SENT_BACK" })] };
     expect(homeCounts(account("Requester"), data, NOW)["my-requests"]).toBe("2 open · 1 not yet scheduled · 1 sent back");
