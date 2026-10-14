@@ -1,16 +1,24 @@
 "use client";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Scheduling from "../../scheduling";
 import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
 
-/** /scheduling, or ?date=YYYY-MM-DD to open on a day. */
+/** /scheduling, or ?date=YYYY-MM-DD&type=DAILY|COMPANY to open the planner for that day and type. */
 export default function SchedulingGate() {
   const { viewRole } = useAccount();
   const params = useSearchParams();
+  const router = useRouter();
+  const type = params.get("type");
   return (
     <RequireRole allow={viewRole === "Scheduler"}>
-      <Scheduling initialDate={params.get("date") ?? undefined} />
+      <Scheduling
+        initialDate={params.get("date") ?? undefined}
+        initialKind={type === "DAILY" || type === "COMPANY" ? type : undefined}
+        onStep={(date, kind) =>
+          router.replace(`/scheduling?date=${encodeURIComponent(date)}${kind ? `&type=${kind}` : ""}`, { scroll: false })
+        }
+      />
     </RequireRole>
   );
 }
