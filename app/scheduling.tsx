@@ -18,6 +18,7 @@ import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/sc
 import { manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
+  byFixedTime,
   dayCounts,
   isLocked,
   placeGroups,
@@ -175,14 +176,14 @@ export default function Scheduling({
   /**
    * Plan for me: every stop still to plan this day goes on the best vehicle
    * that can take it (planOptions), Urgent and fixed times first, stops at
-   * the same place together. Each is saved as a draft, so the Scheduler
+   * the same place and time together. Each is saved as a draft, so the Scheduler
    * checks the trips, changes what they like and submits.
    */
   const planForMe = () =>
     run(async () => {
       let placed = 0;
       const missed: string[] = [];
-      for (const group of placeGroups(toPlan(getRequests(), day, kind))) {
+      for (const group of placeGroups(toPlan(getRequests(), day, kind)).flatMap(byFixedTime)) {
         const fresh = getRequests();
         const waiting = group.flatMap((stop) => fresh.filter((item) => item.id === stop.id && item.progress === "NOT_YET_SCHEDULED"));
         if (!waiting.length) continue;

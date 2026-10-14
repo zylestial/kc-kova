@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, RequestGroup, Schedule, ScheduleRevision, TransportRequest, Vehicle } from "@/lib/kova-api";
-import { dayCounts, placeGroups, toPlan, tripState, vehicleRows, weekDays, weekStops } from "@/lib/scheduling";
+import { byFixedTime, dayCounts, placeGroups, toPlan, tripState, vehicleRows, weekDays, weekStops } from "@/lib/scheduling";
 
 const group = (patch: Partial<RequestGroup> = {}): RequestGroup => ({
   id: "g",
@@ -69,6 +69,12 @@ describe("what's to plan", () => {
     const company = stop("x", { group: group({ form: "COMPANY", vehiclePlate: "NBC-4821" }) });
     const groups = placeGroups([stop("a"), stop("b", {}, "bir"), stop("c", { requestType: "URGENT" }), company]);
     expect(groups.map((item) => item.map((request) => request.id))).toEqual([["c", "a"], ["b"], ["x"]]);
+  });
+
+  it("splits a place group by fixed time for Plan for me", () => {
+    const one = stop("f", { flexibility: "FIXED", fixedTime: "13:00" });
+    const parts = byFixedTime([one, stop("a"), stop("g", { flexibility: "FIXED", fixedTime: "13:00" }), stop("b", { flexibility: "WEEK" })]);
+    expect(parts.map((item) => item.map((request) => request.id))).toEqual([["f", "g"], ["a", "b"]]);
   });
 });
 
