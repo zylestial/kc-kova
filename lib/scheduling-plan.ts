@@ -243,7 +243,18 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     legs.map((leg, index) => (index < from ? leg : index === 0 ? { ...leg, timeIn: undefined } : { ...leg, timeOut: undefined, timeIn: undefined }));
 
   const last = base.findIndex((leg) => leg.isFinal);
-  const positions = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index);
+  const every = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index);
+  // A Company trip keeps the requester's order: 52-A before 52-B.
+  const inOrder = (at: number) =>
+    base.every((leg, index) =>
+      leg.stops.every((id) => {
+        const other = requestOf(id);
+        if (!other?.group || other.group.id !== stops[0].group?.id) return true;
+        return other.stopLetter < stops[0].stopLetter === index < at;
+      }),
+    );
+  const ordered = company ? every.filter(inOrder) : every;
+  const positions = ordered.length ? ordered : every;
   // As its own leg: fewest late fixed-time stops, then the earliest end; on
   // a tie the later place, so fewer legs move.
   let best: { legs: Array<WorkLeg & { timeOut: string; timeIn: string }>; at: number; late: number } | null = null;

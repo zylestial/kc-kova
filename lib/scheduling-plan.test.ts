@@ -189,4 +189,16 @@ describe("planOptions", () => {
     expect(first.input.legs).toHaveLength(1);
     expect(second.blocked).toBe("Asked for NBC");
   });
+
+  it("keeps a Company request's stops in the order the requester gave", () => {
+    const companyGroup = group({ form: "COMPANY", vehiclePlate: "NBC" });
+    // A Delivery stays 45 and a Pick up 30, so B first would end sooner.
+    const a = stop("a", "wilcon", { group: companyGroup, destinations: [{ ...stop("a", "wilcon").destinations[0], purposeName: "Delivery" }] });
+    const b = stop("b", "bir", { group: companyGroup, stopLetter: "B" });
+    const first = trip([leg(1, "wilcon", "08:00", "08:30", ["rd-a"])], ["a"]);
+    first.schedule.kind = "COMPANY";
+    const company = row([first], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true } });
+    const option = planOn([b], company, context([a, b]));
+    expect(option.input.legs.map((item) => item.destinationId)).toEqual(["wilcon", "bir"]);
+  });
 });
