@@ -392,6 +392,8 @@ superseded by v2); left in place, since a pushed tag may be in use.
 
 ## Urgent window (2026-10-02)
 
+**Superseded 2026-10-14:** Urgent is now set per stop with a reason, and the date no longer decides it (see "Company Trip flow and request groups").
+
 - **Urgent is today up to 6 days ahead; Regular is 7+.** The owner wanted
   any date before the 7-day Regular notice to be bookable as Urgent, so the
   old 2–6 day gap is gone and the date alone decides the type. Today still
@@ -673,3 +675,75 @@ superseded by v2); left in place, since a pushed tag may be in use.
   reuses "Wilcon Calasiao"; typos still get through, and an Admin fixes them
   in Request choices. Requests already typed in were left as typed; only the
   names were added as choices.
+
+## Company Trip flow and request groups (2026-10-14)
+
+Built from the owner's prototypes ("KOVA Company Trip Flow", "KOVA New
+Request", "KOVA Company Trip", "KOVA Scheduler"), migrations 0050–0056.
+The prototypes were the spec; these are the calls made on top of them.
+
+- **The requester picks the vehicle and the Company car Driver** on a
+  Company Trip; the Scheduler never changes them. Only vehicles marked
+  "Can be requested for company trips" are offered. Wording: every vehicle
+  is a company vehicle, so never say "non-company vehicle".
+- **Truck / Company car is a Driver type** on the account, not a vehicle
+  field (an early version of this branch put "Truck" on vehicles; 0051
+  replaced it).
+- **Who may ask:** Company trips only for accounts an Admin allows, and
+  those need a Position (it prints). Drivers make requests only when
+  allowed, with Daily and Company switched on separately; Truck Drivers
+  never.
+- **Each stop is its own request** (52-A, 52-B under a `request_groups`
+  row), so stops can be planned on different vehicles or days. This
+  replaced "all destinations of a request stay in one schedule".
+- **Urgent per stop, with a reason** from an Admin list; the 7-day rule is
+  gone for both forms. **Purpose stays a dropdown plus Details** (≤ 150
+  characters), required for Pick up, Delivery and Urgent stops.
+- **"Any day that week"** stops can be moved by a Scheduler to Monday–
+  Saturday of that week; the requester is notified (REQUEST_MOVED), not
+  asked.
+- **Daily vs Company trips are kept apart** (`schedules.kind`, 0054): the
+  Daily Planner never offers a vehicle that can be requested for company
+  trips, and one trip per vehicle per day (0048) is Daily only. A Company
+  vehicle can take several trips a day without overlaps; one department and
+  one starting point per trip; no leg back to ANONANG.
+- **The requester records the Company trip** on My Trips (0055): Start trip
+  with the odometer, Arrived / Leaving, End trip at the last stop with the
+  odometer. End trip submits it, so it goes straight to Finished Trips. The
+  Driver only sees it, and nothing goes into Attendance. 0056 refuses Start
+  trip before the trip's date (My Trips already hid it; the database didn't
+  check).
+- **Finished Trips** gets a Form filter (Daily / Company) for the Admin and
+  prints the Company Trip Form for Company trips. The Scheduler's and
+  Driver's Finished Trips lists have no filters, so they didn't get one.
+- **Form times:** a Company trip's last leg's TIME IN is End trip
+  (`legTimes(…, endsAtLastLeg)` in `lib/stop-times.ts`,
+  `runAsAttendance` in `lib/company-trips.ts`; `trip_times_missing` in
+  0055). Change the TS and SQL together, as for Daily trips.
+- **Seeds:** `scripts/seed-uat.mjs` now adds the Company setup the e2e
+  suite needs: `carjun` (Jun Reyes, Company car Driver), NBC-4821 Mirage
+  (can be requested for company trips), `req1` allowed with Position
+  "Purchasing Officer", and one of each new choice list. A re-run updates
+  existing accounts' Company fields.
+- **Gotcha: an account made by raw SQL has no real login**, so
+  `seed-uat.mjs`'s password reset fails on it ("User not found"). Reset the
+  local database rather than mixing hand-made accounts with the seed.
+- **Gotcha: the "Filters" button only shows below 700px.** On a desktop
+  viewport e2e tests use the filter controls directly.
+- **e2e:** `e2e/company-trip.spec.ts` runs on today's date (My Trips starts
+  a trip only on its day), on a free 35-minute slot of the Mirage's day, so
+  about 25 runs fit in a day before a reset is needed. It has a 3-minute
+  limit and waits up to 30 s on saves; a cold dev server is slow. The
+  full suite once failed `trip-record.spec.ts` on a 5 s wait for "marked as
+  done"; it passed on every re-run.
+
+**Known gaps** (tell the owner before relying on them):
+- The Company planner sets times with time fields, not by dragging on the
+  timeline as in the prototype.
+- "Propose a change" on an approved Company trip hasn't been tried.
+- A sent-back stop can't change its date while other stops of its group
+  are being scheduled (the group shares the date).
+- A request made with the old `create_request` and a vehicle can't be
+  scheduled; the app no longer uses it.
+- The REQUEST_SCHEDULED notification for a Company trip links to My
+  requests, not My Trips.
