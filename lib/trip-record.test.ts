@@ -503,6 +503,7 @@ describe("commitments", () => {
   const schedule = (patch: Partial<Schedule>): Schedule => ({
     id: "s1",
     date: "2026-10-05",
+    kind: "DAILY",
     createdByAccountId: "sched",
     status: "ACTIVE",
     createdAt: "",

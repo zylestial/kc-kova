@@ -469,6 +469,8 @@ type ScheduleRow = {
   published_revision_id: string | null;
   created_at: string;
   updated_at: string;
+  /** 0054; missing on rows from before it. */
+  kind?: Schedule["kind"];
   schedule_revisions?: ScheduleRevisionRow[];
 };
 
@@ -479,6 +481,7 @@ export function toSchedule(row: ScheduleRow): Schedule {
   return {
     id: row.id,
     date: row.schedule_date,
+    kind: row.kind ?? "DAILY",
     createdByAccountId: row.created_by_account_id,
     status: row.status,
     publishedRevisionId: row.published_revision_id ?? undefined,

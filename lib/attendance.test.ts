@@ -20,6 +20,7 @@ const revision = (id: string, driverName = "Dan"): ScheduleRevision => ({
 const schedule = (id: string, date: string, driverName?: string, status: Schedule["status"] = "ACTIVE"): Schedule => ({
   id,
   date,
+  kind: "DAILY",
   createdByAccountId: "s1",
   status,
   publishedRevisionId: "r-" + id,
