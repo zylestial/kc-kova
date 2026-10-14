@@ -36,23 +36,39 @@ const ACCOUNTS = [
   { username: "driver2", name: "QA Driver Two", role: "Driver" },
   // Used by the e2e suite (e2e/*.spec.ts).
   { username: "sched1", name: "QA Scheduler", role: "Scheduler" },
-  { username: "req1", name: "QA Requester Three", role: "Requester" },
+  // req1 may also request Company trips (e2e/company-trip.spec.ts).
+  { username: "req1", name: "QA Requester Three", role: "Requester", position: "Purchasing Officer", can_request_company: true },
+  // The Company car Driver a Company trip is requested with.
+  { username: "carjun", name: "Jun Reyes", role: "Driver", driver_type: "Company car" },
 ];
 
 const VEHICLES = [
   { plate: "UAT-001", name: "Toyota Hiace (UAT)" },
   { plate: "UAT-002", name: "Isuzu Crosswind (UAT)" },
+  { plate: "NBC-4821", name: "Mirage", company_trips: true },
 ];
 
 const BOOKING_OPTIONS = [
   { group: "projects", id: "uat-project", name: "UAT Project" },
   { group: "destinations", id: "uat-destination", name: "UAT Destination" },
   { group: "purposes", id: "uat-purpose", name: "UAT Purpose" },
+  { group: "destinations", id: "uat-destination-2", name: "UAT Second Destination" },
+  // The Company Trip form's choices.
+  { group: "urgent_reasons", id: "uat-urgent", name: "Critical materials delivery" },
+  { group: "starting_points", id: "uat-start", name: "Main Office" },
+  { group: "departments", id: "uat-department", name: "Procurement – Main Office" },
+  { group: "supervisors", id: "uat-supervisor", name: "Engr. Dante Villanueva" },
+  { group: "heads", id: "uat-head", name: "Engr. Carmela Ong – Project Manager" },
+  { group: "suppliers", id: "uat-supplier", name: "Wilcon Depot – Mandaue branch" },
 ];
 
-async function seedAccount({ username, name, role }) {
+async function seedAccount({ username, name, role, ...extra }) {
   const { data: existing } = await admin.from("accounts").select("id").eq("username", username).maybeSingle();
   if (existing) {
+    if (Object.keys(extra).length) {
+      const { error } = await admin.from("accounts").update(extra).eq("id", existing.id);
+      if (error) throw new Error(`accounts update(${username}) failed: ${error.message}`);
+    }
     // Reset the password so a re-run always yields a known-good UAT login,
     // even if the account was created by an earlier manual QA pass.
     const { error } = await admin.auth.admin.updateUserById(existing.id, { password: UAT_PASSWORD });
@@ -70,7 +86,7 @@ async function seedAccount({ username, name, role }) {
   }
   const { error: insertError } = await admin
     .from("accounts")
-    .insert({ id: created.user.id, username, name, role, status: "Active", project: null });
+    .insert({ id: created.user.id, username, name, role, status: "Active", project: null, ...extra });
   if (insertError) {
     await admin.auth.admin.deleteUser(created.user.id);
     throw new Error(`accounts insert(${username}) failed: ${insertError.message}`);
@@ -78,13 +94,13 @@ async function seedAccount({ username, name, role }) {
   console.log(`created account ${username} (${role})`);
 }
 
-async function seedVehicle({ plate, name }) {
+async function seedVehicle({ plate, name, company_trips = false }) {
   const { data: existing } = await admin.from("vehicles").select("plate").eq("plate", plate).maybeSingle();
   if (existing) {
     console.log(`skip vehicle ${plate} (already exists)`);
     return;
   }
-  const { error } = await admin.from("vehicles").insert({ plate, name, status: "Active" });
+  const { error } = await admin.from("vehicles").insert({ plate, name, status: "Active", company_trips });
   if (error) throw new Error(`vehicles insert(${plate}) failed: ${error.message}`);
   console.log(`created vehicle ${plate}`);
 }
