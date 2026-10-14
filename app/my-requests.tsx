@@ -262,7 +262,10 @@ export default function MyRequests({
               <tbody>
                 {visible.map((request) => (
                   <tr key={request.id} onClick={() => { setSelected(request); setError(""); }}>
-                    <td>{stopNumber(request) || "—"}</td>
+                    <td>
+                      {stopNumber(request) || "—"}
+                      {request.group?.form === "COMPANY" && <small>Company trip</small>}
+                    </td>
                     <td>
                       {dateLabel(request.date)}
                       {request.group && <small>{flexibilityShort(request.date, request.flexibility, request.fixedTime ?? "")}</small>}
@@ -320,6 +323,15 @@ export default function MyRequests({
                 {[
                   ["Type", shown.urgentReason ? `Urgent: ${shown.urgentReason.name}` : shown.requestType === "URGENT" ? "Urgent" : "Regular"],
                   ...(shown.group ? [["When", whenText(shown.date, shown.flexibility, shown.fixedTime ?? "")]] : []),
+                  ...(shown.group?.form === "COMPANY"
+                    ? [
+                        ["Form", "Company Trip"],
+                        ["Vehicle", shown.group.vehiclePlate ?? "—"],
+                        ["Driver", shown.group.driver?.name ?? "—"],
+                        ["Starting point", shown.group.startingPoint?.name ?? "—"],
+                        ["Department / Site", shown.group.department?.name ?? "—"],
+                      ]
+                    : []),
                   ["Requested by", shown.ownerName],
                   ["Project / Site", projectText(shown)],
                   ["Progress", requestProgressLabel[shown.progress]],
@@ -348,6 +360,11 @@ export default function MyRequests({
               {shown.details && (
                 <p className="helper">
                   <b>Details:</b> {shown.details}
+                </p>
+              )}
+              {shown.supplier && (
+                <p className="helper">
+                  <b>Supplier:</b> {shown.supplier.name}
                 </p>
               )}
               {shown.contact && (
