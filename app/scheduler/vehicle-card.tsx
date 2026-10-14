@@ -1,24 +1,16 @@
 "use client";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { hhmmLabel } from "@/lib/stop-times";
-import { timelinePercent } from "@/lib/company-trips";
 import { tripState, tripStateLabel, tripStateTone, type Trip, type TripState, type VehicleRow } from "@/lib/scheduling";
-
-const TICKS = ["06:00", "09:00", "12:00", "15:00", "18:00"];
-const tickLabel = (time: string) => (time === "06:00" ? "6 AM" : time === "12:00" ? "12 PM" : String(Number(time.slice(0, 2)) % 12));
-const percent = (time: string) => `${timelinePercent(time)}%`;
-
 
 /**
  * One vehicle on the Scheduling page (prototype vehicle card): a header
- * that folds the card open, then the day's timeline and each trip's leg cards.
+ * that folds the card open, then each trip's leg cards.
  */
 export default function VehicleCard({
   row,
   open,
   onToggle,
-  isToday,
-  now,
   started,
   drop,
   renderTrip,
@@ -26,9 +18,6 @@ export default function VehicleCard({
   row: VehicleRow;
   open: boolean;
   onToggle: () => void;
-  isToday: boolean;
-  /** "HH:MM" in Manila, for the red now line on today's timeline. */
-  now: string;
   started: (scheduleId: string) => boolean;
   /** A trip's legs and buttons (TripEditor). */
   renderTrip: (trip: Trip, state: TripState) => React.ReactNode;
@@ -80,29 +69,6 @@ export default function VehicleCard({
       </button>
       {open && (
         <>
-          <div className="sc-track" aria-hidden="true">
-            {trips.flatMap((trip) =>
-              trip.revision.legs
-                .filter((leg) => leg.plannedTimeOut && leg.plannedTimeIn)
-                .map((leg) => (
-                  <i
-                    key={leg.id}
-                    className={["APPROVED", "ON_THE_ROAD"].includes(stateOf(trip)) ? "" : "draft"}
-                    style={{ left: percent(leg.plannedTimeOut), width: `calc(${percent(leg.plannedTimeIn)} - ${percent(leg.plannedTimeOut)})` }}
-                  >
-                    {leg.legNo}
-                  </i>
-                )),
-            )}
-            {isToday && <span className="sc-now" style={{ left: percent(now) }} />}
-          </div>
-          <div className="sc-ticks" aria-hidden="true">
-            {TICKS.map((time) => (
-              <span key={time} style={{ left: percent(time) }}>
-                {tickLabel(time)}
-              </span>
-            ))}
-          </div>
           {!trips.length && <p className="sc-muted">Free all day.</p>}
           {trips.map((trip) => {
             const state = stateOf(trip);
