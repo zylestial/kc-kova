@@ -322,7 +322,14 @@ export function whenText(date: string, flexibility: StopFlexibility, fixedTime: 
   return `${dayLabel(date)}, any time`;
 }
 
-export const FLEXIBILITY: Record<StopFlexibility, { label: string; hint: string }> = {
+/** The same without the date, for a list that shows it already: "Any time", "At 1:05 PM", "Any day Oct 12–17". */
+export function flexibilityShort(date: string, flexibility: StopFlexibility, fixedTime: string) {
+  if (flexibility === "WEEK") return `Any day ${weekLabel(date)}`;
+  if (flexibility === "FIXED") return `At ${fixedTime ? timeLabel(fixedTime) : "—"}`;
+  return "Any time";
+}
+
+export const FLEXIBILITY:Record<StopFlexibility, { label: string; hint: string }> = {
   DAY: { label: "Any time that day", hint: "The Scheduler picks the time." },
   FIXED: { label: "Fixed time", hint: "An appointment at an exact time." },
   WEEK: { label: "Any day that week", hint: "The Scheduler may move it to another day that week and tells you." },

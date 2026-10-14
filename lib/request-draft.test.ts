@@ -7,6 +7,7 @@ import {
   draftToInput,
   emptyRequestDraft,
   emptyStop,
+  flexibilityShort,
   needsDetails,
   stopErrors,
   stopLetter,
@@ -161,6 +162,8 @@ describe("labels", () => {
     expect(weekLabel("2026-10-14")).toBe("Oct 12–17");
     expect(whenText("2026-10-15", "FIXED", "13:05")).toBe("Thu, Oct 15 at 1:05 PM");
     expect(whenText("2026-10-15", "DAY", "")).toBe("Thu, Oct 15, any time");
+    expect(flexibilityShort("2026-10-15", "WEEK", "")).toBe("Any day Oct 12–17");
+    expect(flexibilityShort("2026-10-15", "FIXED", "09:30")).toBe("At 9:30 AM");
   });
 
   it("sees an untouched form as empty", () => {
