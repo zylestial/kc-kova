@@ -31,6 +31,8 @@ import { useKovaData } from "@/lib/use-kova-data";
 import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
+import CompanyTripPrint from "./company-trip-print";
+import { runAsAttendance } from "@/lib/company-trips";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
@@ -83,11 +85,14 @@ export default function AdminFinishedTrips({
   /** One of `finishedProblemFilters`, e.g. from a Dashboard tile. */
   initialProblems?: string;
 } = {}) {
-  const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, timeCorrections, accounts, options } = useKovaData();
+  const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, timeCorrections, accounts, options, companyRuns } =
+    useKovaData();
   const trips = useMemo(() => buildAdminTrips(schedules, completions, problemReports), [schedules, completions, problemReports]);
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [vehicle, setVehicle] = useState("all");
+  /** Daily Vehicle Trips or Company Trips (Company Trip Flow prototype, "Review & print"). */
+  const [form, setForm] = useState("all");
   const [status, setStatus] = useState(initialStatus ?? "all");
   const [problems, setProblems] = useState(initialProblems ?? "all");
   const [sort, setSort] = useState<Sort<SortKey>>(null);
@@ -110,13 +115,17 @@ export default function AdminFinishedTrips({
 
   const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone";
   /** Each leg's printed Time Out / Time In for a trip, from taps and Admin entries. */
-  const timesFor = (trip: { schedule: { id: string }; revision: { legs: Parameters<typeof legTimes>[0] } }) =>
+  // A Company trip's Start/End trip are its requester's (0055), and it ends at its last stop.
+  const timesFor = (trip: { schedule: { id: string; kind: string }; revision: { legs: Parameters<typeof legTimes>[0] } }) =>
     legTimes(
       trip.revision.legs,
-      attendance.find((item) => item.scheduleId === trip.schedule.id),
+      trip.schedule.kind === "COMPANY"
+        ? runAsAttendance(companyRuns.find((item) => item.scheduleId === trip.schedule.id))
+        : attendance.find((item) => item.scheduleId === trip.schedule.id),
       stopTaps.filter((item) => item.scheduleId === trip.schedule.id),
       timeCorrections.filter((item) => item.scheduleId === trip.schedule.id),
       placeResolver(options.destinations),
+      trip.schedule.kind === "COMPANY",
     );
 
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
@@ -128,6 +137,7 @@ export default function AdminFinishedTrips({
         inDateFilter(trip.schedule.date, dates, today) &&
         (driver === "all" || trip.revision.driverName === driver) &&
         (vehicle === "all" || trip.revision.plate === vehicle) &&
+        (form === "all" || trip.schedule.kind === form) &&
         (status === "all" || status === (trip.completion?.status ?? "UNSUBMITTED")) &&
         (problems === "all" || (problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
     ),
@@ -286,8 +296,21 @@ export default function AdminFinishedTrips({
           </Button>
         </div>
         <OlderRecordsNotice />
-        <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, status, problems].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
+        <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, form, status, problems].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
           <DateRangeFilter value={dates} onChange={setDates} />
+          <label className="field">
+            <span>Form</span>
+            <Select value={form} onValueChange={setForm}>
+              <SelectTrigger aria-label="Form filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All forms</SelectItem>
+                <SelectItem value="DAILY">Daily Vehicle Trips</SelectItem>
+                <SelectItem value="COMPANY">Company Trips</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
           <label className="field">
             <span>Driver</span>
             <Select value={driver} onValueChange={setDriver}>
@@ -640,7 +663,10 @@ export default function AdminFinishedTrips({
           )}
         </DialogContent>
       </Dialog>
-      {selected?.completion && (
+      {selected?.completion && selected.schedule.kind === "COMPANY" && (
+        <CompanyTripPrint trip={{ ...selected, completion: selected.completion }} requests={requests} times={selectedTimes} />
+      )}
+      {selected?.completion && selected.schedule.kind !== "COMPANY" && (
         <FinishedTripPrint
           trip={{ ...selected, completion: selected.completion }}
           stopsById={stopsById}
