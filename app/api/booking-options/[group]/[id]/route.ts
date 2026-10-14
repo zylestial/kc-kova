@@ -3,11 +3,10 @@ import { authed, readJson } from "@/lib/api-route";
 import { toBookingOption } from "@/lib/supabase/mappers";
 import { bookingOptionBody } from "@/lib/admin-input";
 import { parseWith } from "@/lib/validation";
-
-const GROUPS = ["projects", "destinations", "purposes"] as const;
+import { OPTION_GROUPS, type OptionGroup } from "@/lib/kova-api";
 
 export const PUT = authed<{ group: string; id: string }>(async ({ request, supabase, account, params: { group, id } }) => {
-  if (!GROUPS.includes(group as (typeof GROUPS)[number])) {
+  if (!OPTION_GROUPS.includes(group as OptionGroup)) {
     return NextResponse.json({ message: "Unknown booking option group." }, { status: 404 });
   }
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });

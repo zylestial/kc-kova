@@ -15,19 +15,25 @@ export type Account = {
   username: string;
   role: Role;
   status: "Active" | "Inactive";
+  /** Prints on the Company Trip Form; required to request company trips (0051). */
+  position: string;
+  /** Drivers only: a Truck driver can never make requests (0051). */
+  driverType?: DriverType;
+  /** Drivers only: an Admin allowed this Driver to make Daily requests. */
+  canRequestDaily: boolean;
+  /** An Admin allowed this account to request company trips. */
+  canRequestCompany: boolean;
 };
+export const DRIVER_TYPES = ["Truck", "Company car"] as const;
+export type DriverType = (typeof DRIVER_TYPES)[number];
 export type Vehicle = {
   plate: string;
   name: string;
   status: "Active" | "Inactive";
   assignedDriverId?: string | null;
-  /** A Truck's Driver can't ask for transport (0051). */
-  type: VehicleType;
-  /** Whether it's offered on the request form (0051). */
-  requestable: boolean;
+  /** "Can be requested for company trips": offered on the Company Trip form (0051). */
+  companyTrips: boolean;
 };
-export const VEHICLE_TYPES = ["Car", "Van", "Pickup", "Truck"] as const;
-export type VehicleType = (typeof VEHICLE_TYPES)[number];
 export type BookingOption = {
   id: string;
   name: string;
@@ -198,7 +204,8 @@ export type RequestInput = {
   date: string;
   projectId: string;
   projectOther: string;
-  vehiclePlate: string;
+  /** Company Trips only (the Company Trip form, later): a vehicle that can be requested for company trips. */
+  vehiclePlate?: string;
   destinations: Array<{ destinationId: string; destinationOther: string; purposeId: string; purposeOther: string }>;
 };
 export type ScheduleRevisionStatus = "DRAFT" | "SUBMITTED" | "RETURNED" | "APPROVED" | "SUPERSEDED" | "DISCARDED";
@@ -261,11 +268,22 @@ export type ScheduleInput = {
     isFinal: boolean;
   }>;
 };
-export type BookingOptions = {
-  projects: BookingOption[];
-  destinations: BookingOption[];
-  purposes: BookingOption[];
-};
+/** Request choices an Admin manages; the last six are for the Company Trip form and per-stop Urgent (0051). */
+export const OPTION_GROUPS = [
+  "projects",
+  "destinations",
+  "purposes",
+  "departments",
+  "suppliers",
+  "supervisors",
+  "heads",
+  "starting_points",
+  "urgent_reasons",
+] as const;
+export type OptionGroup = (typeof OPTION_GROUPS)[number];
+export type BookingOptions = Record<OptionGroup, BookingOption[]>;
+export const emptyOptions = (): BookingOptions =>
+  Object.fromEntries(OPTION_GROUPS.map((group) => [group, []])) as unknown as BookingOptions;
 export type BootstrapData = {
   /** Records from this date on are loaded (plus older ones still needing someone); "" before the first load. */
   since: string;
@@ -289,7 +307,7 @@ const emptyData: BootstrapData = {
   since: "",
   accounts: [],
   vehicles: [],
-  options: { projects: [], destinations: [], purposes: [] },
+  options: emptyOptions(),
   requests: [],
   schedules: [],
   cancellations: [],
@@ -411,7 +429,7 @@ async function refreshAfter<T>(operation: Promise<T>) {
 export const saveAccount = (account: Account & { password?: string }) => refreshAfter(request<Account>(account.id ? `/api/accounts/${encodeURIComponent(account.id)}` : "/api/accounts", { method: account.id ? "PUT" : "POST", body: JSON.stringify(account) }));
 export const changeAccountPassword = (accountId: string, password: string) => request<void>(`/api/accounts/${encodeURIComponent(accountId)}/password`, { method: "POST", body: JSON.stringify({ password }) });
 export const saveVehicle = (vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
-export const saveBookingOption = (group: "projects" | "destinations" | "purposes", option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
+export const saveBookingOption = (group: OptionGroup, option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));

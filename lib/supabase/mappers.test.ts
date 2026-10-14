@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { emptyOptions } from "@/lib/kova-api";
 import { toBookingOption, toBookingOptions, toProblemReport, toSchedule, toStopTap, toTransportRequest, toTripAttendance, toTripCompletion, toTripTimeCorrection } from "@/lib/supabase/mappers";
 
 describe("toBookingOptions", () => {
@@ -10,6 +11,7 @@ describe("toBookingOptions", () => {
       { group: "projects", id: "p2", name: "Project 2", status: "Inactive", is_other_stop: false },
     ]);
     expect(options).toEqual({
+      ...emptyOptions(),
       projects: [
         { id: "p1", name: "Project 1", status: "Active", isOtherStop: false },
         { id: "p2", name: "Project 2", status: "Inactive", isOtherStop: false },
@@ -32,7 +34,8 @@ describe("toBookingOptions", () => {
   });
 
   it("returns empty groups for no rows", () => {
-    expect(toBookingOptions([])).toEqual({ projects: [], destinations: [], purposes: [] });
+    expect(toBookingOptions([])).toEqual(emptyOptions());
+    expect(toBookingOptions([{ group: "urgent_reasons", id: "x", name: "Site emergency", status: "Active", is_other_stop: false }]).urgent_reasons).toHaveLength(1);
   });
 });
 

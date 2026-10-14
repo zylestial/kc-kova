@@ -30,6 +30,10 @@ describe("parseRequestInput", () => {
     expect(parsed?.destinations).toEqual([{ destinationId: "", destinationOther: "Warehouse X", purposeId: "p1", purposeOther: "" }]);
   });
 
+  it("leaves the vehicle blank for a Daily request", () => {
+    expect(parseRequestInput({ ...valid, vehiclePlate: undefined })?.vehiclePlate).toBe("");
+  });
+
   it("ignores a request type sent by the client", () => {
     expect(parseRequestInput({ ...valid, requestType: "URGENT" })).toEqual(valid);
   });
@@ -38,8 +42,6 @@ describe("parseRequestInput", () => {
     expect(parseRequestInput(null)).toBeNull();
     expect(parseRequestInput({ ...valid, date: "10/05/2026" })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [] })).toBeNull();
-    expect(parseRequestInput({ ...valid, vehiclePlate: undefined })).toBeNull();
-    expect(parseRequestInput({ ...valid, vehiclePlate: "  " })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "d1" }] })).toBeNull();
     expect(parseRequestInput({ ...valid, destinations: [{ destinationId: "", destinationOther: "", purposeId: "p1" }] })).toBeNull();
   });

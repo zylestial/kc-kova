@@ -33,7 +33,6 @@ import RequestFields, {
   draftFromRequest,
   draftToInput,
   keptOptions,
-  vehicleLabel,
   type RequestDraft,
 } from "./request-fields";
 import { requestProgressLabel, requestProgressMeaning } from "@/lib/status-text";
@@ -80,7 +79,7 @@ export default function MyRequests({
 }) {
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
-  const { requests: allRequests, options, cancellations, vehicles } = useKovaData();
+  const { requests: allRequests, options, cancellations } = useKovaData();
   const requests = useMemo(
     () =>
       allRequests
@@ -305,7 +304,6 @@ export default function MyRequests({
                 {[
                   ["Type", shown.requestType === "URGENT" ? "Urgent" : "Regular"],
                   ["Requested by", shown.ownerName],
-                  ["Vehicle", shown.vehiclePlate ? vehicleLabel(vehicles, shown.vehiclePlate) : "Chosen by the Scheduler"],
                   ["Project / Site", projectText(shown)],
                   ["Progress", requestProgressLabel[shown.progress]],
                   ["Submitted", submittedLabel(shown.createdAt)],
@@ -453,8 +451,6 @@ export default function MyRequests({
                 draft={draft}
                 onChange={setDraft}
                 options={options}
-                vehicles={vehicles}
-                keptVehicle={editing.vehiclePlate}
                 requestedBy={editing.ownerName}
                 requestType={editType}
                 kept={keptOptions(editing)}

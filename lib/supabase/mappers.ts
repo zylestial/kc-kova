@@ -12,17 +12,17 @@ import type {
   TripTimeCorrection,
   TripAttendance,
   TripCompletion,
+  OptionGroup,
   Vehicle,
-  VehicleType,
 } from "@/lib/kova-api";
+import { emptyOptions } from "@/lib/kova-api";
 
 type VehicleRow = {
   plate: string;
   name: string;
   status: "Active" | "Inactive";
   assigned_driver_id: string | null;
-  vehicle_type: VehicleType;
-  requestable: boolean;
+  company_trips: boolean;
 };
 
 export function toVehicle(row: VehicleRow): Vehicle {
@@ -31,13 +31,12 @@ export function toVehicle(row: VehicleRow): Vehicle {
     name: row.name,
     status: row.status,
     assignedDriverId: row.assigned_driver_id ?? undefined,
-    type: row.vehicle_type,
-    requestable: row.requestable,
+    companyTrips: row.company_trips,
   };
 }
 
 type BookingOptionRow = {
-  group: "projects" | "destinations" | "purposes";
+  group: OptionGroup;
   id: string;
   name: string;
   status: "Active" | "Inactive";
@@ -48,7 +47,7 @@ type BookingOptionRow = {
 export type DestinationLocationRow = { destination_id: string; lat: number; lng: number };
 
 export function toBookingOptions(rows: BookingOptionRow[], locations: DestinationLocationRow[] = []): BookingOptions {
-  const options: BookingOptions = { projects: [], destinations: [], purposes: [] };
+  const options = emptyOptions();
   const locationOf = new Map(locations.map((row) => [row.destination_id, row]));
   for (const row of rows) {
     options[row.group].push(toBookingOption(row, row.group === "destinations" ? locationOf.get(row.id) : undefined));

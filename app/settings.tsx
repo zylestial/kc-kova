@@ -8,9 +8,10 @@ import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
   changeAccountPassword,
-  VEHICLE_TYPES,
-  type VehicleType,
+  DRIVER_TYPES,
+  type DriverType,
 } from "@/lib/kova-api";
+import { canRequestCompany, canRequestDaily } from "@/lib/request-access";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
 import BookingOptions from "./booking-options";
@@ -37,14 +38,17 @@ type Account = {
   username: string;
   role: "Requester" | "Scheduler" | "Admin" | "Driver";
   status: "Active" | "Inactive";
+  position: string;
+  driverType?: DriverType;
+  canRequestDaily: boolean;
+  canRequestCompany: boolean;
 };
 type Vehicle = {
   plate: string;
   name: string;
   status: "Active" | "Inactive";
   assignedDriverId?: string | null;
-  type: VehicleType;
-  requestable: boolean;
+  companyTrips: boolean;
 };
 const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
@@ -53,15 +57,23 @@ const blankAccount = () => ({
   password: "",
   role: "Requester" as Account["role"],
   status: "Active" as Account["status"],
+  position: "",
+  driverType: "Truck" as DriverType,
+  canRequestDaily: false,
+  canRequestCompany: false,
 });
 const blankVehicle = () => ({
   plate: "",
   name: "",
   status: "Active" as Vehicle["status"],
   assignedDriverId: UNASSIGNED,
-  type: "Van" as VehicleType,
-  requestable: true,
+  companyTrips: false,
 });
+/** What an account may request, for the Accounts list (0051). */
+function requestsLabel(account: Account) {
+  const kinds = [canRequestDaily(account) && "Daily", canRequestCompany(account) && "Company trips"].filter(Boolean);
+  return kinds.length ? kinds.join(" · ") : "—";
+}
 function TextField({
   label,
   value,
@@ -141,6 +153,12 @@ export default function Settings() {
   );
   const driverName = (id?: string | null) =>
     (id && accounts.find((a) => a.id === id)?.name) || "No Driver assigned";
+  // Who may request what (0051): a Truck driver never; a Company car driver
+  // only with the switches below; Requesters and Admins always make Daily
+  // requests, and company trips with their switch.
+  const isDriver = account.role === "Driver";
+  const carDriver = isDriver && account.driverType === "Company car";
+  const companyAllowed = account.role === "Requester" || account.role === "Admin" || carDriver;
   // The lists follow the app's data (useKovaData), so another Admin's change
   // shows once the app refreshes; after a save there is only the error to clear.
   function load() {
@@ -158,6 +176,10 @@ export default function Settings() {
       role: a.role,
       status: a.status,
       password: "",
+      position: a.position,
+      driverType: a.driverType ?? "Truck",
+      canRequestDaily: a.canRequestDaily,
+      canRequestCompany: a.canRequestCompany,
     });
     setAccountId(a.id);
     setAccountModal("edit");
@@ -165,6 +187,7 @@ export default function Settings() {
   }
   async function saveAccount() {
     const missing = accountMissing(account, accountModal === "add");
+    if (companyAllowed && account.canRequestCompany && !account.position.trim()) missing.push("Position");
     if (missing.length) {
       setFormError(stillNeeded(missing));
       return;
@@ -179,6 +202,11 @@ export default function Settings() {
         role: account.role,
         status: account.status,
         password: accountModal === "add" ? account.password : undefined,
+        // Switches the role or Driver type can't have are sent off.
+        position: account.position.trim(),
+        driverType: isDriver ? account.driverType : undefined,
+        canRequestDaily: carDriver && account.canRequestDaily,
+        canRequestCompany: companyAllowed && account.canRequestCompany,
       });
       setAccountModal(null);
       setAccount({ ...account, password: "" });
@@ -201,8 +229,7 @@ export default function Settings() {
       name: v.name,
       status: v.status,
       assignedDriverId: v.assignedDriverId || UNASSIGNED,
-      type: v.type,
-      requestable: v.requestable,
+      companyTrips: v.companyTrips,
     });
     setOriginalPlate(v.plate);
     setVehicleModal("edit");
@@ -226,8 +253,7 @@ export default function Settings() {
             vehicle.assignedDriverId === UNASSIGNED
               ? undefined
               : vehicle.assignedDriverId,
-          type: vehicle.type,
-          requestable: vehicle.requestable,
+          companyTrips: vehicle.companyTrips,
         },
         vehicleModal === "edit" ? originalPlate : undefined,
       );
@@ -313,6 +339,7 @@ export default function Settings() {
                   <th>NAME</th>
                   <th>USERNAME</th>
                   <th>ACCOUNT TYPE</th>
+                  <th>CAN REQUEST</th>
                   <th>STATUS</th>
                   <th></th>
                 </tr>
@@ -324,7 +351,8 @@ export default function Settings() {
                       <b>{a.name}</b>
                     </td>
                     <td>{a.username}</td>
-                    <td>{a.role}</td>
+                    <td>{a.role === "Driver" ? `Driver · ${a.driverType ?? "Truck"}` : a.role}</td>
+                    <td>{requestsLabel(a)}</td>
                     <td>
                       <span
                         className={
@@ -364,7 +392,6 @@ export default function Settings() {
                   <tr>
                     <th>PLATE NUMBER</th>
                     <th>VEHICLE NAME / MODEL</th>
-                    <th>TYPE</th>
                     <th>COMPANY TRIPS</th>
                     <th>ASSIGNED DRIVER</th>
                     <th>STATUS</th>
@@ -378,8 +405,7 @@ export default function Settings() {
                         <b>{v.plate}</b>
                       </td>
                       <td>{v.name}</td>
-                      <td>{v.type}</td>
-                      <td>{v.requestable ? "Can be requested" : "Not offered"}</td>
+                      <td>{v.companyTrips ? "Can be requested" : "—"}</td>
                       <td>{driverName(v.assignedDriverId)}</td>
                       <td>
                         <span
@@ -461,12 +487,57 @@ export default function Settings() {
               items={["Requester", "Scheduler", "Admin", "Driver"]}
               onChange={(v) => setAccount({ ...account, role: v })}
             />
+            {isDriver && (
+              <Choice
+                label="Driver type"
+                value={account.driverType}
+                items={DRIVER_TYPES}
+                onChange={(v) => setAccount({ ...account, driverType: v })}
+              />
+            )}
             <Choice
               label="Status"
               value={account.status}
               items={["Active", "Inactive"]}
               onChange={(v) => setAccount({ ...account, status: v })}
             />
+            {account.role !== "Scheduler" && (
+              <div className="field">
+                <span>Requests</span>
+                {isDriver && !carDriver ? (
+                  <small>Truck drivers can&apos;t make requests.</small>
+                ) : (
+                  <div className="person-projects">
+                    {carDriver ? (
+                      <label>
+                        <Checkbox
+                          checked={account.canRequestDaily}
+                          onCheckedChange={(v) => setAccount({ ...account, canRequestDaily: v === true })}
+                        />
+                        Can make Daily Vehicle Trip requests
+                      </label>
+                    ) : (
+                      <small>Can make Daily Vehicle Trip requests.</small>
+                    )}
+                    <label>
+                      <Checkbox
+                        checked={account.canRequestCompany}
+                        onCheckedChange={(v) => setAccount({ ...account, canRequestCompany: v === true })}
+                      />
+                      Can request company trips
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
+            {companyAllowed && account.canRequestCompany && (
+              <TextField
+                label="Position"
+                hint="Prints on the Company Trip Form, e.g. Site Engineer."
+                value={account.position}
+                onChange={(v) => setAccount({ ...account, position: v })}
+              />
+            )}
           </div>
           {formError && (
             <p className="modal-error" role="alert">
@@ -564,8 +635,8 @@ export default function Settings() {
             </DialogTitle>
             <DialogDescription>
               Manage which vehicles are available in Schedule. Inactive vehicles can&apos;t be chosen for new schedules.
-              Requesters pick from the vehicles that can be requested for company trips. The Driver of a Truck
-              can&apos;t make requests.
+              A vehicle that can be requested for company trips is offered on the Company Trip form, and its
+              requester picks the Driver.
             </DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
@@ -581,19 +652,13 @@ export default function Settings() {
               value={vehicle.name}
               onChange={(v) => setVehicle({ ...vehicle, name: v })}
             />
-            <Choice
-              label="Type"
-              value={vehicle.type}
-              items={VEHICLE_TYPES}
-              onChange={(v) => setVehicle({ ...vehicle, type: v })}
-            />
             <div className="field">
               <span>Company trips</span>
               <div className="person-projects">
                 <label>
                   <Checkbox
-                    checked={vehicle.requestable}
-                    onCheckedChange={(v) => setVehicle({ ...vehicle, requestable: v === true })}
+                    checked={vehicle.companyTrips}
+                    onCheckedChange={(v) => setVehicle({ ...vehicle, companyTrips: v === true })}
                   />
                   Can be requested for company trips
                 </label>

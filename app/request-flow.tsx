@@ -22,7 +22,6 @@ import RequestFields, {
   emptyDraft,
   optionName,
   requestTypeLabel,
-  vehicleLabel,
   type RequestDraft,
 } from "./request-fields";
 
@@ -48,7 +47,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
   const [step, setStep] = useState(1);
   const [anchor, setAnchor] = useState(today);
   const [draft, setDraft] = useState<RequestDraft>(() => emptyDraft(today));
-  const { options, vehicles } = useKovaData();
+  const { options } = useKovaData();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -106,7 +105,7 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
           <p>
             {step === 1
               ? "The date sets the type: Urgent for today up to 6 days ahead, Regular for 7 or more days ahead."
-              : "Choose the vehicle and add each destination with its own purpose. The vehicle's Driver comes with it; a Scheduler sets the times."}
+              : "Add each destination with its own purpose. A Scheduler assigns the vehicle, Driver and times."}
           </p>
         </div>
         {step > 1 && <b>{dateLabel(draft.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</b>}
@@ -178,12 +177,11 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
             draft={draft}
             onChange={setDraft}
             options={options}
-            vehicles={vehicles}
             requestedBy={account?.name ?? ""}
             requestType={requestTypeFor(draft.date)}
             dateHint={dateHint}
           />
-          <p className="helper">Only active choices appear. No Driver or time is chosen at this stage.</p>
+          <p className="helper">Only active choices appear. No vehicle, Driver or time is chosen at this stage.</p>
         </section>
       )}
 
@@ -231,9 +229,6 @@ export default function RequestFlow({ onSubmitted }: { onSubmitted: () => void }
             </p>
             <p>
               <b>Requested by:</b> {account?.name}
-            </p>
-            <p>
-              <b>Vehicle:</b> {vehicleLabel(vehicles, draft.vehiclePlate)}
             </p>
             <p>
               <b>Project / Site:</b>{" "}

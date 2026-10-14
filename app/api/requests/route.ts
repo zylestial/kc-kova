@@ -12,7 +12,7 @@ function errorResponse(error: { code?: string; message: string }) {
 export const POST = authed(async ({ request, supabase, account }) => {
   const input = parseRequestInput(await readJson(request));
   if (!input) {
-    return NextResponse.json({ message: "Date, vehicle and at least one destination with a purpose are required." }, { status: 422 });
+    return NextResponse.json({ message: "Date and at least one destination with a purpose are required." }, { status: 422 });
   }
   const dateError = requestDateError(input.date, account.role === "Admin");
   if (dateError) return NextResponse.json({ message: dateError }, { status: 422 });
@@ -25,7 +25,7 @@ export const POST = authed(async ({ request, supabase, account }) => {
     p_project_id: input.projectId,
     p_project_other: input.projectOther,
     p_destinations: input.destinations,
-    p_vehicle_plate: input.vehiclePlate,
+    p_vehicle_plate: input.vehiclePlate || null,
   });
   if (error || !data) return errorResponse(error ?? { message: "Could not create the request." });
 

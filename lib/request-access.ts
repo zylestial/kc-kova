@@ -1,14 +1,29 @@
-import type { Account, Vehicle } from "@/lib/kova-api";
+import type { Account } from "@/lib/kova-api";
 
-/**
- * Whether this account may ask for transport (New request, My requests):
- * an active Requester or Admin, or an active Driver who doesn't drive a
- * Truck. Mirrors can_request_transport in Postgres (0051), which is what
- * actually enforces it; this only decides which menus to show.
+type Who = Pick<Account, "role" | "status" | "driverType" | "canRequestDaily" | "canRequestCompany">;
+
+/*
+ * Who may ask for which kind of trip (0051). These mirror
+ * can_request_daily / can_request_company / can_request_transport in
+ * Postgres, which is what actually enforces them; these only decide which
+ * menus and forms to show.
  */
-export function canRequestTransport(account: Pick<Account, "id" | "role" | "status">, vehicles: Vehicle[]): boolean {
+
+const companyCarDriver = (account: Who) => account.role === "Driver" && account.driverType === "Company car";
+
+/** Daily Vehicle Trip requests: every Requester and Admin, and Company car drivers an Admin allowed. */
+export function canRequestDaily(account: Who): boolean {
   if (account.status !== "Active") return false;
-  if (account.role === "Requester" || account.role === "Admin") return true;
-  if (account.role !== "Driver") return false;
-  return !vehicles.some((vehicle) => vehicle.assignedDriverId === account.id && vehicle.type === "Truck");
+  return account.role === "Requester" || account.role === "Admin" || (companyCarDriver(account) && account.canRequestDaily);
+}
+
+/** Company Trip requests: accounts an Admin allowed; never a Scheduler or a Truck driver. */
+export function canRequestCompany(account: Who): boolean {
+  if (account.status !== "Active" || !account.canRequestCompany) return false;
+  return account.role === "Requester" || account.role === "Admin" || companyCarDriver(account);
+}
+
+/** Either kind, so the request screens (New request, My requests) show. */
+export function canRequestTransport(account: Who): boolean {
+  return canRequestDaily(account) || canRequestCompany(account);
 }

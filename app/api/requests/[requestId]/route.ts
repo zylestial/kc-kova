@@ -17,7 +17,7 @@ export const PUT = authed<{ requestId: string }>(async ({ request, supabase, acc
   const input = parseRequestInput(body);
   const version = parseWith(rowVersionBody, body);
   if (!input || !version) {
-    return NextResponse.json({ message: "Date, vehicle and at least one destination with a purpose are required." }, { status: 422 });
+    return NextResponse.json({ message: "Date and at least one destination with a purpose are required." }, { status: 422 });
   }
 
   // The type is set from the date when it was asked for; it only changes
@@ -44,7 +44,7 @@ export const PUT = authed<{ requestId: string }>(async ({ request, supabase, acc
     p_project_id: input.projectId,
     p_project_other: input.projectOther,
     p_destinations: input.destinations,
-    p_vehicle_plate: input.vehiclePlate,
+    p_vehicle_plate: input.vehiclePlate || null,
   });
   if (error || !data) return errorResponse(error ?? { message: "Could not update the request." });
 

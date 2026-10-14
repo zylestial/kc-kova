@@ -7,13 +7,11 @@ import { requestProgressLabel } from "@/lib/status-text";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
-import { useKovaData } from "@/lib/use-kova-data";
 import { canRequestTransport } from "@/lib/request-access";
 
 export default function RequestsGate() {
   const router = useRouter();
   const { account } = useAccount();
-  const { vehicles } = useKovaData();
   const params = useSearchParams();
   // Read once, then strip from the URL so a refresh doesn't re-show it.
   const [notice, setNotice] = useState(() => params.get("notice") ?? "");
@@ -30,7 +28,7 @@ export default function RequestsGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <RequireRole allow={canRequestTransport(account, vehicles)}>
+    <RequireRole allow={canRequestTransport(account)}>
       <MyRequests notice={notice} openRequestId={openRequestId} initialProgress={progress} />
     </RequireRole>
   );

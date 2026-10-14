@@ -13,7 +13,6 @@ export function requestDraftMissing(draft: {
   date: string;
   projectOtherMode: boolean;
   projectOther: string;
-  vehiclePlate: string;
   destinations: Array<{
     destinationId: string;
     destinationOtherMode: boolean;
@@ -26,7 +25,6 @@ export function requestDraftMissing(draft: {
   const missing: string[] = [];
   if (!draft.date) missing.push("Date");
   if (draft.projectOtherMode && !draft.projectOther.trim()) missing.push("Project / Site");
-  if (!draft.vehiclePlate) missing.push("Vehicle");
   if (!draft.destinations.length) missing.push("at least one destination");
   const many = draft.destinations.length > 1;
   draft.destinations.forEach((item, index) => {

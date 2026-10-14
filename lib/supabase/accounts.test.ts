@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
+import { requestAccessError, toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
 
 describe("usernameToAuthEmail", () => {
   it("lowercases and trims the username before building the email", () => {
@@ -19,6 +19,10 @@ describe("toAccount", () => {
       name: "Jane Doe",
       role: "Requester",
       status: "Active",
+      position: "Purchasing Officer",
+      driver_type: null,
+      can_request_daily: false,
+      can_request_company: true,
     });
     expect(account).toEqual({
       id: "11111111-1111-1111-1111-111111111111",
@@ -26,6 +30,23 @@ describe("toAccount", () => {
       username: "jane",
       role: "Requester",
       status: "Active",
+      position: "Purchasing Officer",
+      driverType: undefined,
+      canRequestDaily: false,
+      canRequestCompany: true,
     });
+  });
+});
+
+describe("requestAccessError", () => {
+  it("explains the request-access constraints, and nothing else", () => {
+    expect(requestAccessError({ message: 'violates check constraint "accounts_truck_drivers_cannot_request"' })).toBe(
+      "A Truck driver can't be allowed to make requests.",
+    );
+    expect(requestAccessError({ message: 'violates check constraint "accounts_company_trips_need_position"' })).toBe(
+      "Add a Position to allow company trips.",
+    );
+    expect(requestAccessError({ message: "something else" })).toBeNull();
+    expect(requestAccessError(null)).toBeNull();
   });
 });

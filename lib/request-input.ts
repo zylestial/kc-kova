@@ -11,7 +11,8 @@ const requestBody = z.object({
   date: isoDate,
   projectId: text,
   projectOther: trimmedText,
-  vehiclePlate: z.string().trim().min(1),
+  /** Blank for a Daily request: the Scheduler assigns its vehicle. */
+  vehiclePlate: trimmedText,
   destinations: z.array(destination).min(1),
 });
 
