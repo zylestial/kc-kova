@@ -17,8 +17,9 @@ insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-00000000000c', 'req2', 'Maria Requester', 'Requester'),
   ('00000000-0000-0000-0000-00000000000d', 'sched', 'Sam Scheduler', 'Scheduler'),
   ('00000000-0000-0000-0000-00000000000e', 'driver', 'Dan Driver', 'Driver');
-insert into vehicles (plate, name, assigned_driver_id) values
-  ('V1', 'Van 1', '00000000-0000-0000-0000-00000000000e');
+-- Dan drives a truck, so he may not ask for transport (0051).
+insert into vehicles (plate, name, vehicle_type, assigned_driver_id) values
+  ('V1', 'Van 1', 'Truck', '00000000-0000-0000-0000-00000000000e');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'd1', 'City Hall', 'Active'),
   ('destinations', 'd2', 'Port Office', 'Active'),
@@ -49,7 +50,7 @@ select lives_ok(
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select throws_ok(
   $$ select create_request(pg_temp.today() + 7, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', 'V1') $$,
-  '42501', null, 'Driver cannot create requests');
+  '42501', null, 'A truck Driver cannot create requests');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok(

@@ -114,8 +114,8 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok($$ select cancel_request(pg_temp.id('solo')) $$, '42501', null,
   'A Scheduler cannot cancel a request');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
-select throws_ok($$ select cancel_request(pg_temp.id('solo')) $$, '42501', null,
-  'A Driver cannot cancel a request');
+select throws_ok($$ select cancel_request(pg_temp.id('solo')) $$, 'P0002', null,
+  'A Driver cannot cancel someone else''s request');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select throws_ok($$ select cancel_request(pg_temp.id('juan')) $$, '22023', null,
   'A request in a schedule can''t be cancelled directly');
