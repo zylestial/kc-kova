@@ -16,17 +16,21 @@ export const whatText = (stop: TransportRequest) => stop.urgentReason?.name ?? s
 
 /**
  * One waiting stop in "To plan" (prototype stop card): number, Urgent,
- * requester, where, what and when. Tapping it opens its details.
+ * requester, where, what and when. Tapping it opens its details and where
+ * it can go; it can also be dragged onto a vehicle.
  */
 export default function StopCard({
   stop,
   inGroup = false,
   onOpen,
+  onDrag,
 }: {
   stop: TransportRequest;
   /** In a place group, which already names the place. */
   inGroup?: boolean;
   onOpen: (ids: string[]) => void;
+  /** Dragging starts (the stop ids) or ends (null). */
+  onDrag?: (ids: string[] | null) => void;
 }) {
   const urgent = stop.requestType === "URGENT";
   return (
@@ -34,6 +38,15 @@ export default function StopCard({
       type="button"
       className={"sc-stop" + (urgent ? " urgent" : stop.flexibility === "FIXED" ? " fixed" : "")}
       onClick={() => onOpen([stop.id])}
+      draggable={!!onDrag}
+      onDragStart={(event) => {
+        // Inside a group, only this stop moves.
+        event.stopPropagation();
+        event.dataTransfer.setData("text/plain", stop.id);
+        event.dataTransfer.effectAllowed = "move";
+        onDrag?.([stop.id]);
+      }}
+      onDragEnd={() => onDrag?.(null)}
     >
       <span className="sc-stop-top">
         <span>
