@@ -41,6 +41,13 @@ describe("legTimes", () => {
       [false, true],
     ]);
   });
+
+  it("ends a Company trip at its last stop, with no leg back to ANONANG", () => {
+    const company = [leg("l1", 1, "City Hall"), leg("l2", 2, "Market")];
+    const times = legTimes(company, { ...started, end: tapAt }, [stop("ARRIVE", "l1"), stop("LEAVE", "l1")], [], undefined, true);
+    expect(times[1].in.source).toEqual({ kind: "END" });
+    expect(missingTimes(times)).toBe(0);
+  });
 });
 
 describe("atStop and stopPlaceLabel", () => {

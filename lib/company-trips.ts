@@ -1,4 +1,4 @@
-import type { Schedule, ScheduleInput, TransportRequest } from "@/lib/kova-api";
+import type { CompanyTripRun, Schedule, ScheduleInput, TransportRequest, TripAttendance } from "@/lib/kova-api";
 import { currentRevision, poolOrder } from "@/lib/trip-record";
 
 /**
@@ -183,4 +183,20 @@ export function companyTripSteps(
     ]),
     { key: "END", kind: "END", label: `Arrived at ${last.destinationName} · End trip`, at: run?.endAt },
   ];
+}
+
+/**
+ * A Company trip's Start and End trip in the shape of a Driver's attendance,
+ * so the form's times (lib/stop-times legTimes) come out the same way.
+ */
+export function runAsAttendance(run: CompanyTripRun | undefined): TripAttendance | undefined {
+  if (!run) return undefined;
+  return {
+    id: run.id,
+    scheduleId: run.scheduleId,
+    revisionId: run.revisionId,
+    driverId: "",
+    start: { at: run.startAt, recordedByAccountId: "", location: null },
+    end: run.endAt ? { at: run.endAt, recordedByAccountId: "", location: null } : undefined,
+  };
 }
