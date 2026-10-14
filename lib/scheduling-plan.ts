@@ -1,0 +1,257 @@
+import type { BookingOption, ScheduleInput, ScheduleLeg, TransportRequest } from "@/lib/kova-api";
+import { canShareTrip, MAX_TRIP_LEGS } from "@/lib/company-trips";
+import { MAX_LEGS, openRevision } from "@/lib/trip-record";
+import { isLocked, tripState, type Trip, type VehicleRow } from "@/lib/scheduling";
+import {
+  BASE_PLACE,
+  estimateTimes,
+  startTime,
+  stayFor,
+  stayMinutes,
+  toMinutes,
+  type EstimateLeg,
+  type Place,
+} from "@/lib/trip-estimate";
+
+/**
+ * Where a stop (or a "Plan together" group) can go on the Scheduling page
+ * (prototype "Fit it in" and drag and drop): for each vehicle, the trip it
+ * would join or start, where on the route, when it would arrive, and the
+ * draft that gets saved. save_schedule_draft and create_company_trip stay
+ * the authority; this only shows the choice before a save.
+ */
+
+export type PlanContext = {
+  requests: TransportRequest[];
+  destinations: BookingOption[];
+  day: string;
+  isToday: boolean;
+  /** "HH:MM" in Manila. */
+  now: string;
+  started: (scheduleId: string) => boolean;
+};
+
+export type PlanOption = {
+  row: VehicleRow;
+  /** The trip it joins; none for a new trip. */
+  trip?: Trip;
+  /** The open version to save over; null to start changes to an approved trip. */
+  rowVersion: number | null;
+  input: ScheduleInput;
+  /** "HH:MM" the first of these stops is reached. */
+  arrive: string;
+  /** "HH:MM" the trip ends. */
+  end: string;
+  /** Minutes this adds to the trip (the whole trip for a new one). */
+  extra: number;
+  /** Stops with a fixed time this would make late. */
+  late: string[];
+  /** Why it can't go here; "" when it can. */
+  blocked: string;
+  /** How it fits, e.g. "Free now · new trip" or "After Wilcon". */
+  label: string;
+  /** It changes an approved trip, so it goes into draft changes for the Admin. */
+  needsAdmin: boolean;
+};
+
+/** A leg being worked on: what save_schedule_draft takes, with the times the Scheduler set. */
+type WorkLeg = {
+  destinationId?: string;
+  stops: string[];
+  isFinal: boolean;
+  contactName: string;
+  contactNumber: string;
+  timeOut?: string;
+  timeIn?: string;
+};
+
+/** A fixed-time stop counts as late more than 5 minutes either side of its time. */
+const isLate = (fixed: string, arrive: string) => Math.abs(toMinutes(arrive) - toMinutes(fixed)) > 5;
+
+export function planOptions(stops: TransportRequest[], rows: VehicleRow[], context: PlanContext): PlanOption[] {
+  const urgent = stops.some((stop) => stop.requestType === "URGENT");
+  return rows
+    .map((row) => planOn(stops, row, context))
+    .sort(
+      (a, b) =>
+        Number(!!a.blocked) - Number(!!b.blocked) ||
+        a.late.length - b.late.length ||
+        (urgent ? a.arrive.localeCompare(b.arrive) : a.extra - b.extra),
+    );
+}
+
+/** The best way to add these stops to one vehicle's day. */
+export function planOn(stops: TransportRequest[], row: VehicleRow, context: PlanContext): PlanOption {
+  const { requests, destinations } = context;
+  const company = row.kind === "COMPANY";
+  const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
+  const placeOf = (destinationId?: string): Place | null =>
+    destinationId ? (destinations.find((option) => option.id === destinationId)?.location ?? null) : null;
+  const estimateLeg = (leg: WorkLeg): EstimateLeg => {
+    if (leg.isFinal) return { place: BASE_PLACE, stay: 0, timeOut: leg.timeOut, timeIn: leg.timeIn };
+    const served = leg.stops.map(requestOf).filter((request): request is TransportRequest => !!request);
+    const fixed = served.filter((request) => request.flexibility === "FIXED" && request.fixedTime).map((request) => request.fixedTime!);
+    return {
+      place: placeOf(leg.destinationId),
+      stay: served.length ? stayMinutes(served.map((request) => request.urgentReason?.name ?? request.destinations[0]?.purposeName ?? "")) : stayFor("fuel"),
+      fixedTime: fixed.sort()[0],
+      timeOut: leg.timeOut,
+      timeIn: leg.timeIn,
+    };
+  };
+  const from = company ? null : BASE_PLACE;
+  const timed = (legs: WorkLeg[], start: string) => {
+    const times = estimateTimes(legs.map(estimateLeg), start, from);
+    return legs.map((leg, index) => ({ ...leg, ...times[index] }));
+  };
+  const lateIn = (legs: ReturnType<typeof timed>) =>
+    legs.flatMap((leg) =>
+      leg.stops.flatMap((stopId) => {
+        const request = requestOf(stopId);
+        return request?.flexibility === "FIXED" && request.fixedTime && isLate(request.fixedTime, leg.timeIn) ? [request.id] : [];
+      }),
+    );
+  const stopIds = stops.map((stop) => stop.destinations[0]?.id).filter((id): id is string => !!id);
+  const newLeg: WorkLeg = {
+    destinationId: stops[0].destinations[0]?.destinationId,
+    stops: stopIds,
+    isFinal: false,
+    contactName: stops.map((stop) => stop.contact).filter(Boolean).join(", ").slice(0, 100),
+    contactNumber: "",
+  };
+  const toInput = (legs: ReturnType<typeof timed>, requestIds: string[]): ScheduleInput => ({
+    date: context.day,
+    plate: row.vehicle.plate,
+    requestIds,
+    legs: legs.map((leg) => ({
+      destinationId: leg.isFinal ? undefined : leg.destinationId,
+      plannedTimeOut: leg.timeOut,
+      plannedTimeIn: leg.timeIn,
+      contactName: leg.contactName,
+      contactNumber: leg.contactNumber,
+      stops: leg.isFinal ? [] : leg.stops,
+      isFinal: leg.isFinal,
+    })),
+  });
+  const ids = stops.map((stop) => stop.id);
+  const fail = (blocked: string): PlanOption => ({
+    row,
+    rowVersion: null,
+    input: { date: context.day, plate: row.vehicle.plate, requestIds: ids, legs: [] },
+    arrive: "",
+    end: "",
+    extra: 0,
+    late: [],
+    blocked,
+    label: "",
+    needsAdmin: false,
+  });
+
+  if (company) {
+    const asked = stops.find((stop) => stop.group?.vehiclePlate !== row.vehicle.plate);
+    if (asked) return fail(`Asked for ${asked.group?.vehiclePlate ?? "another vehicle"}`);
+  } else if (!row.driver) {
+    return fail("No Driver assigned");
+  }
+
+  // The trip these stops would join: a Daily vehicle's one trip; a Company
+  // vehicle's open trip for the same department, Driver and starting point.
+  const joinable = row.trips.find(
+    (trip) =>
+      !company ||
+      trip.revision.requestIds.some((id) => {
+        const request = requests.find((item) => item.id === id);
+        return request && canShareTrip(request, stops[0]);
+      }),
+  );
+  const fresh = (start: string): PlanOption => {
+    const legs = timed(company ? [newLeg] : [newLeg, { isFinal: true, stops: [], contactName: "", contactNumber: "" }], start);
+    const end = legs.at(-1)!.timeIn;
+    return {
+      row,
+      rowVersion: null,
+      input: toInput(legs, ids),
+      arrive: legs[0].timeIn,
+      end,
+      extra: toMinutes(end) - toMinutes(start),
+      late: lateIn(legs),
+      blocked: "",
+      label: `Free${context.isToday ? " now" : ""} · new trip`,
+      needsAdmin: false,
+    };
+  };
+
+  if (!joinable) {
+    if (!row.trips.length) return fresh(startTime(context.isToday, context.now));
+    if (!company) return fail("Already has a trip");
+    // Another Company trip that day: start after the last one ends.
+    const lastEnd = row.trips
+      .flatMap((trip) => trip.revision.legs.map((leg) => leg.plannedTimeIn))
+      .filter(Boolean)
+      .sort()
+      .at(-1);
+    const start = startTime(context.isToday, context.now);
+    const after = lastEnd ? Math.max(toMinutes(start), toMinutes(lastEnd) + 15) : toMinutes(start);
+    return fresh(`${String(Math.floor(after / 60)).padStart(2, "0")}:${String(after % 60).padStart(2, "0")}`);
+  }
+
+  const state = tripState(joinable.schedule, context.started(joinable.schedule.id));
+  if (isLocked(state)) return fail("Waiting for Admin");
+  if (state === "ON_THE_ROAD") return fail("On the road");
+  const base: WorkLeg[] = joinable.revision.legs.map((leg: ScheduleLeg) => ({
+    destinationId: leg.destinationId,
+    stops: leg.stops,
+    isFinal: leg.isFinal,
+    contactName: leg.contactName,
+    contactNumber: leg.contactNumber,
+    timeOut: leg.plannedTimeOut || undefined,
+    timeIn: leg.plannedTimeIn || undefined,
+  }));
+  const start = base[0]?.timeOut ?? startTime(context.isToday, context.now);
+  const baseTimed = timed(base, start);
+  const baseEnd = baseTimed.at(-1)?.timeIn ?? start;
+  const wasLate = new Set(lateIn(baseTimed));
+  // Times the Scheduler set stay before the change; from it on, they're estimated again.
+  const unpinFrom = (legs: WorkLeg[], from: number) =>
+    legs.map((leg, index) => (index < from ? leg : index === 0 ? { ...leg, timeIn: undefined } : { ...leg, timeOut: undefined, timeIn: undefined }));
+
+  let legs: ReturnType<typeof timed>;
+  let label: string;
+  const same = base.findIndex((leg) => !leg.isFinal && leg.destinationId && leg.destinationId === newLeg.destinationId);
+  if (same >= 0) {
+    const merged = base.map((leg, index) => (index === same ? { ...leg, stops: [...leg.stops, ...stopIds] } : leg));
+    legs = timed(unpinFrom(merged, same), start);
+    label = `Combine with the ${joinable.revision.legs[same].destinationName} stop`;
+  } else {
+    const last = base.findIndex((leg) => leg.isFinal);
+    const positions = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index);
+    // Fewest late fixed-time stops, then the earliest end; on a tie the
+    // later place, so fewer legs move.
+    let best: { legs: ReturnType<typeof timed>; at: number; late: number } | null = null;
+    for (const at of positions) {
+      const candidate = timed(unpinFrom([...base.slice(0, at), newLeg, ...base.slice(at)], at), start);
+      const late = lateIn(candidate).length;
+      const ends = toMinutes(candidate.at(-1)!.timeIn);
+      if (!best || late < best.late || (late === best.late && ends <= toMinutes(best.legs.at(-1)!.timeIn)))
+        best = { legs: candidate, at, late };
+    }
+    legs = best!.legs;
+    label = best!.at === 0 ? (company ? "First stop" : "First stop after ANONANG") : `After ${joinable.revision.legs[best!.at - 1].destinationName}`;
+  }
+  const index = legs.findIndex((leg) => stopIds.some((id) => leg.stops.includes(id)));
+  const end = legs.at(-1)!.timeIn;
+  const open = openRevision(joinable.schedule);
+  return {
+    row,
+    trip: joinable,
+    rowVersion: open ? open.rowVersion : null,
+    input: toInput(legs, [...new Set([...joinable.revision.requestIds, ...ids])]),
+    arrive: legs[index].timeIn,
+    end,
+    extra: toMinutes(end) - toMinutes(baseEnd),
+    late: lateIn(legs).filter((id) => !wasLate.has(id)),
+    blocked: legs.length > (company ? MAX_TRIP_LEGS : MAX_LEGS) ? `Over ${company ? MAX_TRIP_LEGS : MAX_LEGS} legs` : "",
+    label,
+    needsAdmin: !open,
+  };
+}
