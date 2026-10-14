@@ -151,3 +151,36 @@ export function timelinePercent(time: string) {
   const minutes = Math.min(Math.max(toMinutes(time), DAY_START), DAY_END);
   return ((minutes - DAY_START) / (DAY_END - DAY_START)) * 100;
 }
+
+export type CompanyStep = {
+  /** "START", "END", or "ARRIVE:<leg id>" / "LEAVE:<leg id>". */
+  key: string;
+  kind: "START" | "ARRIVE" | "LEAVE" | "END";
+  legId?: string;
+  label: string;
+  /** When it was tapped, if it has been. */
+  at?: string;
+};
+
+/**
+ * A Company trip's taps in route order (0055): Start trip at the starting
+ * point, Arrived and Leaving at each stop but the last, then End trip on
+ * arriving at the last stop.
+ */
+export function companyTripSteps(
+  legs: Array<{ id: string; origin: string; destinationName: string }>,
+  run: { startAt: string; endAt?: string } | undefined,
+  taps: Array<{ legId: string; kind: "ARRIVE" | "LEAVE"; at: string }>,
+): CompanyStep[] {
+  if (!legs.length) return [];
+  const tapAt = (legId: string, kind: "ARRIVE" | "LEAVE") => taps.find((tap) => tap.legId === legId && tap.kind === kind)?.at;
+  const last = legs.at(-1)!;
+  return [
+    { key: "START", kind: "START", label: `Start trip at ${legs[0].origin}`, at: run?.startAt },
+    ...legs.slice(0, -1).flatMap((leg) => [
+      { key: `ARRIVE:${leg.id}`, kind: "ARRIVE" as const, legId: leg.id, label: `Arrived at ${leg.destinationName}`, at: tapAt(leg.id, "ARRIVE") },
+      { key: `LEAVE:${leg.id}`, kind: "LEAVE" as const, legId: leg.id, label: `Leaving ${leg.destinationName}`, at: tapAt(leg.id, "LEAVE") },
+    ]),
+    { key: "END", kind: "END", label: `Arrived at ${last.destinationName} · End trip`, at: run?.endAt },
+  ];
+}

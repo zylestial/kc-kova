@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RequestGroup, TransportRequest } from "@/lib/kova-api";
 import {
   canShareTrip,
+  companyTripSteps,
   estimateLegs,
   legProblems,
   linkedRuns,
@@ -114,5 +115,26 @@ describe("tripInput and checks", () => {
     expect(overlaps(span, { start: "09:00", end: "10:00" })).toBe(true);
     expect(timelinePercent("06:00")).toBe(0);
     expect(timelinePercent("20:00")).toBe(100);
+  });
+});
+
+describe("companyTripSteps", () => {
+  const legs = [
+    { id: "l1", origin: "Main Office", destinationName: "BIR" },
+    { id: "l2", origin: "BIR", destinationName: "BDO" },
+  ];
+
+  it("starts at the starting point and ends on arriving at the last stop", () => {
+    expect(companyTripSteps(legs, undefined, []).map((step) => step.label)).toEqual([
+      "Start trip at Main Office",
+      "Arrived at BIR",
+      "Leaving BIR",
+      "Arrived at BDO · End trip",
+    ]);
+  });
+
+  it("marks what was tapped", () => {
+    const steps = companyTripSteps(legs, { startAt: "t0" }, [{ legId: "l1", kind: "ARRIVE", at: "t1" }]);
+    expect(steps.map((step) => step.at)).toEqual(["t0", "t1", undefined, undefined]);
   });
 });
