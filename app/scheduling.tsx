@@ -76,7 +76,7 @@ export default function Scheduling({
     strip.current?.querySelector(".sc-day.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [day]);
 
-  const days = weekDays(day);
+  const days = weekDays(day, requests);
   const rows = vehicleRows(vehicles, accounts, schedules, day).filter((row) => row.kind === kind);
   const stops = toPlan(requests, day, kind);
   const week = weekStops(requests, day, kind);

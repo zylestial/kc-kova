@@ -14,8 +14,15 @@ export function mondayOf(date: string) {
   return addDays(date, -((weekday + 6) % 7));
 }
 
-/** Monday to Saturday of a date's week: the days vehicles run. */
-export const weekDays = (date: string) => Array.from({ length: 6 }, (_, index) => addDays(mondayOf(date), index));
+/**
+ * Monday to Saturday of a date's week: the days vehicles run. Sunday too
+ * when it's the date, or a stop is waiting that day.
+ */
+export function weekDays(date: string, requests: TransportRequest[] = []) {
+  const sunday = addDays(mondayOf(date), 6);
+  const withSunday = date === sunday || requests.some((request) => waiting(request) && request.date === sunday);
+  return Array.from({ length: withSunday ? 7 : 6 }, (_, index) => addDays(mondayOf(date), index));
+}
 
 /** "52-A" for a stop of a request group, "" for an older request. */
 export const stopNumber = (request: TransportRequest) => (request.group ? `${request.group.number}-${request.stopLetter}` : "");

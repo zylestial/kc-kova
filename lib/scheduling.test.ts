@@ -42,6 +42,8 @@ describe("days", () => {
   it("runs Monday to Saturday of the week", () => {
     expect(weekDays("2026-10-14")).toEqual(["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17"]);
     expect(weekDays("2026-10-18")[0]).toBe("2026-10-12");
+    expect(weekDays("2026-10-18").at(-1)).toBe("2026-10-18");
+    expect(weekDays("2026-10-14", [stop("s", { date: "2026-10-18" })]).at(-1)).toBe("2026-10-18");
   });
 });
 
