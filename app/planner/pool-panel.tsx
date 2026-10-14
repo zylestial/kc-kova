@@ -15,7 +15,7 @@ type Props = {
 };
 
 /** Monday to Saturday of the week a request was asked for, from today on, other than the day it's on. */
-function moveDays(request: TransportRequest, today: string) {
+export function moveDays(request: TransportRequest, today: string) {
   const asked = request.group?.date ?? request.date;
   const monday = addDays(asked, -((new Date(asked + "T12:00:00").getDay() + 6) % 7));
   return Array.from({ length: 6 }, (_, index) => addDays(monday, index)).filter(
