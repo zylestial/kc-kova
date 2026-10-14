@@ -34,7 +34,7 @@ create function pg_temp.d() returns date language sql as $$
 $$;
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000001a');
-select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d9","purposeId":"p9"}]');
+select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d9","purposeId":"p9"}]', 'V9');
 reset role;
 
 create temp table ids (k text primary key, v uuid);

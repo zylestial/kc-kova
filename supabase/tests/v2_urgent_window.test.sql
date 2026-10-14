@@ -8,6 +8,10 @@ select plan(7);
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000007a', 'juan7@test.local');
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-00000000007a', 'juan7', 'Juan Seven', 'Requester');
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000007b', 'driver7@test.local');
+insert into accounts (id, username, name, role) values
+  ('00000000-0000-0000-0000-00000000007b', 'driver7', 'Dan 7', 'Driver');
+insert into vehicles (plate, name, assigned_driver_id) values ('V77', 'Van 77', '00000000-0000-0000-0000-00000000007b');
 insert into booking_options ("group", id, name, status) values
   ('destinations', 'd77', 'City Hall 77', 'Active'),
   ('purposes', 'p77', 'Inspection', 'Active');
@@ -15,7 +19,7 @@ insert into booking_options ("group", id, name, status) values
 create function pg_temp.ask(p_days int, p_type text) returns void language sql as $$
   select null::void from create_request(
     (now() at time zone 'Asia/Manila')::date + p_days, p_type, null, null,
-    '[{"destinationId":"d77","purposeId":"p77"}]');
+    '[{"destinationId":"d77","purposeId":"p77"}]', 'V77');
 $$;
 
 select set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000007a', 'role', 'authenticated')::text, true);

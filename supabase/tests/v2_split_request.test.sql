@@ -33,7 +33,7 @@ $$;
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000006a');
 select create_request(pg_temp.d(), 'REGULAR', null, 'Site 6',
-  '[{"destinationId":"d61","purposeId":"p66"},{"destinationId":"d62","purposeId":"p66"}]');
+  '[{"destinationId":"d61","purposeId":"p66"},{"destinationId":"d62","purposeId":"p66"}]', 'V66');
 reset role;
 
 create temp table ids (k text primary key, v uuid);
