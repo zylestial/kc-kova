@@ -15,6 +15,7 @@ const draft = (over: Partial<Parameters<typeof requestDraftMissing>[0]> = {}) =>
   date: "2026-10-05",
   projectOtherMode: false,
   projectOther: "",
+  vehiclePlate: "ABC-123",
   destinations: [row()],
   ...over,
 });
@@ -29,6 +30,10 @@ describe("stillNeeded", () => {
 describe("requestDraftMissing", () => {
   it("is empty for a complete request", () => {
     expect(requestDraftMissing(draft())).toEqual([]);
+  });
+
+  it("needs a vehicle", () => {
+    expect(requestDraftMissing(draft({ vehiclePlate: "" }))).toEqual(["Vehicle"]);
   });
 
   it("names the destination and purpose that are empty, numbered when there are several stops", () => {

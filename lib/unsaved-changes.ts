@@ -26,11 +26,13 @@ export function useUnsavedChanges(key: string, value: boolean) {
 export function requestDraftHasContent(draft: {
   projectId: string;
   projectOther: string;
+  vehiclePlate: string;
   destinations: Array<{ destinationId: string; destinationOther: string; purposeId: string; purposeOther: string }>;
 }): boolean {
   return !!(
     draft.projectId ||
     draft.projectOther.trim() ||
+    draft.vehiclePlate ||
     draft.destinations.some(
       (item) => item.destinationId || item.destinationOther.trim() || item.purposeId || item.purposeOther.trim(),
     )

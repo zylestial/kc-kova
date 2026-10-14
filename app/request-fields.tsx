@@ -14,6 +14,7 @@ import type {
   BookingOptions,
   RequestInput,
   TransportRequest,
+  Vehicle,
 } from "@/lib/kova-api";
 import { requestDraftMissing } from "@/lib/missing-fields";
 
@@ -130,10 +131,33 @@ export function keptOptions(request?: TransportRequest | null) {
 
 export const requestTypeLabel = (type: TransportRequest["requestType"]) => (type === "URGENT" ? "Urgent" : "Regular");
 
+/** "Toyota Hiace · ABC-123", or just the plate for a vehicle no longer listed. */
+export function vehicleLabel(vehicles: Vehicle[], plate: string) {
+  const vehicle = vehicles.find((item) => item.plate === plate);
+  return vehicle ? `${vehicle.name} · ${vehicle.plate}` : plate;
+}
+
+/**
+ * Vehicles a request may name: Active ones that can be requested for
+ * company trips (0051), plus the one the request being edited already has,
+ * which the server lets it keep. One with no Driver is listed but can't be
+ * picked, as in the Planner.
+ */
+function vehicleChoices(vehicles: Vehicle[], kept?: string) {
+  const list = vehicles
+    .filter((item) => item.status === "Active" && item.requestable)
+    .map((item) => ({ plate: item.plate, label: vehicleLabel(vehicles, item.plate), noDriver: !item.assignedDriverId }));
+  if (kept && !list.some((item) => item.plate === kept))
+    list.push({ plate: kept, label: `${vehicleLabel(vehicles, kept)} (no longer offered)`, noDriver: false });
+  return list;
+}
+
 export default function RequestFields({
   draft,
   onChange,
   options,
+  vehicles,
+  keptVehicle,
   requestedBy,
   requestType,
   kept = keptOptions(),
@@ -142,6 +166,9 @@ export default function RequestFields({
   draft: RequestDraft;
   onChange: (draft: RequestDraft) => void;
   options: BookingOptions;
+  vehicles: Vehicle[];
+  /** The plate the request being edited already has. */
+  keptVehicle?: string;
   requestedBy: string;
   /** Set by the date, never picked: shown so the Requester knows which it is. */
   requestType: TransportRequest["requestType"];
@@ -155,6 +182,7 @@ export default function RequestFields({
     kept.destinations,
   );
   const purposes = choices(options.purposes, kept.purposes);
+  const vehicleList = vehicleChoices(vehicles, keptVehicle);
   const setRow = (key: string, change: Partial<RequestDraft["destinations"][number]>) =>
     onChange({
       ...draft,
@@ -172,6 +200,23 @@ export default function RequestFields({
         <label className="field">
           <span>Requested by (you)</span>
           <Input readOnly value={requestedBy} aria-label="Requested by" />
+        </label>
+        <label className="field">
+          <span>Vehicle *</span>
+          <Select value={draft.vehiclePlate} onValueChange={(value) => onChange({ ...draft, vehiclePlate: value })}>
+            <SelectTrigger aria-label="Vehicle">
+              <SelectValue placeholder="Select a vehicle" />
+            </SelectTrigger>
+            <SelectContent>
+              {vehicleList.map((item) => (
+                <SelectItem key={item.plate} value={item.plate} disabled={item.noDriver}>
+                  {item.label}
+                  {item.noDriver && " (no Driver assigned)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!vehicleList.length && <small className="field-hint">No vehicles can be requested right now. Ask an Admin.</small>}
         </label>
         <label className="field">
           <span>Project / Site (optional)</span>

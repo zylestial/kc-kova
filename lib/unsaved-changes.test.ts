@@ -21,15 +21,16 @@ describe("unsaved changes registry", () => {
 
 describe("requestDraftHasContent", () => {
   const emptyRow = { destinationId: "", destinationOther: "", purposeId: "", purposeOther: "" };
-  const empty = { projectId: "", projectOther: "", destinations: [emptyRow] };
+  const empty = { projectId: "", projectOther: "", vehiclePlate: "", destinations: [emptyRow] };
 
   it("treats a fresh form as empty", () => {
     expect(requestDraftHasContent(empty)).toBe(false);
     expect(requestDraftHasContent({ ...empty, projectOther: "   " })).toBe(false);
   });
 
-  it("notices a project, a destination or a purpose", () => {
+  it("notices a project, a vehicle, a destination or a purpose", () => {
     expect(requestDraftHasContent({ ...empty, projectId: "p1" })).toBe(true);
+    expect(requestDraftHasContent({ ...empty, vehiclePlate: "ABC-123" })).toBe(true);
     expect(requestDraftHasContent({ ...empty, projectOther: "Site B" })).toBe(true);
     expect(requestDraftHasContent({ ...empty, destinations: [{ ...emptyRow, destinationId: "d1" }] })).toBe(true);
     expect(requestDraftHasContent({ ...empty, destinations: [{ ...emptyRow, purposeId: "u1" }] })).toBe(true);
