@@ -165,8 +165,8 @@ async function legsFor(requestIds, destinationId) {
   ];
 }
 
-/** Creates a request as the given persona. Returns the request row. */
-async function createRequest(username, { date, destinationId, purposeId }) {
+/** Creates a request as the given persona, for the vehicle it will be planned on. Returns the request row. */
+async function createRequest(username, { date, destinationId, purposeId, plate = "UAT-001" }) {
   const client = await clientFor(username);
   return rpc(client, "create_request", {
     p_requested_date: date,
@@ -174,6 +174,7 @@ async function createRequest(username, { date, destinationId, purposeId }) {
     p_project_id: "uat-project",
     p_project_other: "",
     p_destinations: [{ destinationId, purposeId }],
+    p_vehicle_plate: plate,
   });
 }
 
@@ -208,7 +209,7 @@ async function returnToScheduler(scheduleId, rowVersion, comment) {
 
 /** Drives one request through create -> draft -> submit, returning both. */
 async function scheduleOneRequest({ requesterUsername, schedulerUsername, date, plate, destinationId, purposeId }) {
-  const request = await createRequest(requesterUsername, { date, destinationId, purposeId });
+  const request = await createRequest(requesterUsername, { date, destinationId, purposeId, plate });
   const draft = await createDraft(schedulerUsername, { date, plate, requestIds: [request.id], destinationId });
   const submitted = await submit(schedulerUsername, draft.schedule_id, draft.row_version);
   return { request, scheduleId: draft.schedule_id, revision: submitted };
@@ -235,7 +236,7 @@ async function main() {
   // 2. Scheduling (draft saved, not submitted).
   {
     const date = addDays(TODAY, 9);
-    const request = await createRequest("req2", { date, destinationId: destB, purposeId: purposePickup });
+    const request = await createRequest("req2", { date, destinationId: destB, purposeId: purposePickup, plate: "UAT-002" });
     await createDraft("sched1", { date, plate: "UAT-002", requestIds: [request.id], destinationId: destB });
     console.log("2/14 draft (unsubmitted) schedule created");
   }
@@ -334,7 +335,7 @@ async function main() {
   // ---- Past-date trips (Admin bypasses the notice deadline), driving completions/problems ----
   async function pastTrip({ daysAgo, plate, destinationId, purposeId }) {
     const date = addDays(TODAY, daysAgo);
-    const request = await createRequest("admin1", { date, destinationId, purposeId });
+    const request = await createRequest("admin1", { date, destinationId, purposeId, plate });
     const draft = await createDraft("sched1", { date, plate, requestIds: [request.id], destinationId });
     const submitted = await submit("sched1", draft.schedule_id, draft.row_version);
     await approve(draft.schedule_id, submitted.row_version);

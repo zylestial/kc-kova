@@ -154,6 +154,7 @@ async function approvedTrip(date, plate, destinationId) {
     p_project_id: "uat-project",
     p_project_other: "",
     p_destinations: [{ destinationId, purposeId: "uat-purpose-delivery" }],
+    p_vehicle_plate: plate,
   });
   const { data: stops, error } = await admin
     .from("request_destinations")

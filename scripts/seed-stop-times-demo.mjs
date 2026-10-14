@@ -154,6 +154,7 @@ async function approvedTrip(date, plate, afternoon = false) {
       { destinationId: "uat-dest-a", purposeId: "uat-purpose-delivery" },
       { destinationId: "uat-dest-b", purposeId: "uat-purpose-delivery" },
     ],
+    p_vehicle_plate: plate,
   });
   const { data: stops, error } = await admin
     .from("request_destinations")
