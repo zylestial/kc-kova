@@ -31,23 +31,20 @@ export function randomDate(min: number, max: number) {
 type Option = { id: string; status: string; isOtherStop?: boolean };
 type Request = { id: string; date: string; status: string; progress: string; cancellationPending: boolean; destinations: { id: string; destinationId: string }[] };
 
-/** Files a one-destination request as the page's account and returns it. */
+/** Files a one-stop Daily request as the page's account and returns the stop. */
 export async function createRequestVia(page: Page, date: string): Promise<Request> {
   const bootstrap = await (await page.request.get("/api/bootstrap")).json();
   const options = bootstrap.options as Record<"projects" | "destinations" | "purposes", Option[]>;
   const active = (list: Option[]) => list.filter((o) => o.status === "Active" && !o.isOtherStop);
-  const response = await page.request.post("/api/requests", {
+  const response = await page.request.post("/api/request-groups", {
     data: {
+      form: "DAILY",
       date,
-      projectId: active(options.projects)[0].id,
-      projectOther: "",
-      destinations: [
-        { destinationId: active(options.destinations)[0].id, destinationOther: "", purposeId: active(options.purposes)[0].id, purposeOther: "" },
-      ],
+      stops: [{ projectId: active(options.projects)[0].id, destinationId: active(options.destinations)[0].id, purposeId: active(options.purposes)[0].id }],
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
-  return response.json();
+  return ((await response.json()) as Request[])[0];
 }
 
 type Schedule = { id: string; date: string; status: string; revisions: { status: string; rowVersion: number }[] };
