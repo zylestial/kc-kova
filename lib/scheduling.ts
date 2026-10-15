@@ -19,6 +19,12 @@ export const stopNumber = (request: TransportRequest) => (request.group ? `${req
 
 export type TripKind = "DAILY" | "COMPANY";
 
+/** The Scheduling page opened on a day and kind; the old planner links lead here. */
+export function schedulingHref(date?: string, kind?: TripKind) {
+  const query = [date && `date=${encodeURIComponent(date)}`, kind && `type=${kind}`].filter(Boolean).join("&");
+  return query ? `/scheduling?${query}` : "/scheduling";
+}
+
 /** Daily Vehicle Trip or Company Trip; requests made before groups are Daily. */
 export const kindOf = (request: TransportRequest): TripKind => request.group?.form ?? "DAILY";
 

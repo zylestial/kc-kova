@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, RequestGroup, Schedule, ScheduleRevision, TransportRequest, Vehicle } from "@/lib/kova-api";
-import { dayCounts, placeGroups, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
+import { dayCounts, placeGroups, schedulingHref, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
 
 const group = (patch: Partial<RequestGroup> = {}): RequestGroup => ({
   id: "g",
@@ -113,5 +113,13 @@ describe("trips", () => {
       ["V1", "DAILY", "Mario", 1],
       ["NBC", "COMPANY", undefined, 0],
     ]);
+  });
+});
+
+describe("links", () => {
+  it("opens Scheduling on a day and kind", () => {
+    expect(schedulingHref()).toBe("/scheduling");
+    expect(schedulingHref("2026-10-15")).toBe("/scheduling?date=2026-10-15");
+    expect(schedulingHref("2026-10-15", "COMPANY")).toBe("/scheduling?date=2026-10-15&type=COMPANY");
   });
 });
