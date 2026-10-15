@@ -50,7 +50,7 @@ export default function SchedulesGate() {
         onCreate={viewRole === "Scheduler" ? () => router.push(schedulingHref(date)) : undefined}
         onEdit={(id) => {
           const schedule = schedules.find((item) => item.id === id);
-          router.push(schedulingHref(schedule?.date, schedule?.kind));
+          router.push(schedulingHref(schedule?.date, schedule?.kind, schedule?.id));
         }}
       />
     </RequireRole>
