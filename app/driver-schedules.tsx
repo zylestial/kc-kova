@@ -11,6 +11,7 @@ import { anyDate, inDateFilter, presetRange, type DateFilter } from "@/lib/date-
 import { sortRows, type Sort } from "@/lib/table-sort";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
+import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import {
   Dialog,
@@ -139,6 +140,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [vehicle, setVehicle] = useState("all");
   const [driver, setDriver] = useState("all");
   const [status, setStatus] = useState("all");
+  const [form, setForm] = useState<FormFilterValue>("all");
   const [sort, setSort] = useState<Sort<TripSortKey>>(null);
   const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
@@ -235,6 +237,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
   const plates = [...new Set(trips.map((trip) => trip.revision.plate))].sort();
   const showDriver = driverId === null;
+  // A Company car Driver with both kinds of trip gets the Form filter too.
+  const bothForms = trips.some((trip) => trip.schedule.kind === "COMPANY") && trips.some((trip) => trip.schedule.kind === "DAILY");
   const columns: SortColumn<TripSortKey>[] = [
     { label: "DATE", key: "date" },
     ...(showDriver ? [{ label: "DRIVER", key: "driver" as const }] : []),
@@ -249,7 +253,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
         inDateFilter(trip.schedule.date, dates, today) &&
         (vehicle === "all" || trip.revision.plate === vehicle) &&
         (driver === "all" || trip.revision.driverName === driver) &&
-        (status === "all" || tripStatus(trip) === status),
+        (status === "all" || tripStatus(trip) === status) &&
+        formMatches(form, trip.schedule.kind),
     ),
     sort,
     {
@@ -347,11 +352,19 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                       <span className="count">{list.length}</span>
                     </div>
                   </div>
-                  {index === 0 && (
-                    <div className="admin-trip-filters sort-only">
-                      <SortSelect columns={columns} sort={sort} onSort={setSort} />
-                    </div>
-                  )}
+                  {index === 0 &&
+                    (bothForms ? (
+                      <div className="admin-trip-filters">
+                        <FormFilter value={form} onChange={setForm} />
+                        <div className="sort-only">
+                          <SortSelect columns={columns} sort={sort} onSort={setSort} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="admin-trip-filters sort-only">
+                        <SortSelect columns={columns} sort={sort} onSort={setSort} />
+                      </div>
+                    ))}
                   {list.length ? tripTable(list) : <p className="helper trip-sections-empty">No trips today.</p>}
                 </section>
               ),
@@ -363,12 +376,13 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           <div>
             <CalendarDays size={20} />
             <h2>Your trips</h2>
-            <span className="count">{showDriver ? visible.length : trips.length}</span>
+            <span className="count">{visible.length}</span>
           </div>
         </div>
         {showDriver && trips.length > 0 && (
-          <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
+          <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, status, form].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
             <DateRangeFilter value={dates} onChange={setDates} />
+            <FormFilter value={form} onChange={setForm} />
             {showDriver && (
               <label className="field">
                 <span>Driver</span>
