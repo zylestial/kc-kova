@@ -437,6 +437,15 @@ export default function RequestForm({
             <div className="request-step">Step 3</div>
             <h2>Where should the vehicle go?</h2>
             <p>Add each destination. For each one, pick {draft.projectMode === "multi" ? "its project, " : ""}when you need it, and whether it&apos;s urgent.</p>
+            {/* A Company Trip starts at its starting point: always first, never moved. */}
+            {company && (
+              <div className="request-stop request-start">
+                <div className="request-stop-head">
+                  <b>Start</b>
+                </div>
+                {tripChoice("startingPoint", "startingPointId", "Starting point", startingPoints, "Leg 1 starts here.")}
+              </div>
+            )}
             {draft.stops.map((stop, index) => {
               const errors = showErrors ? stopErrors(draft, stop, options) : {};
               const name = `Stop ${letter(index)}`;
@@ -658,7 +667,6 @@ export default function RequestForm({
               <div className="request-trip-fields">
                 {(
                   [
-                    ["startingPoint", "startingPointId", "Starting point", startingPoints, "Leg 1 starts here."],
                     ["supervisor", "supervisorId", "Immediate Supervisor", supervisors, undefined],
                     ["head", "headId", "Project Manager / Construction Manager / Dept. Head", heads, undefined],
                   ] as const
