@@ -2,7 +2,7 @@ import type { ScheduleInput, ScheduleLeg } from "@/lib/kova-api";
 import { DAY_END, type legTimer, type WorkLeg } from "@/lib/scheduling-plan";
 import { MAX_LEGS } from "@/lib/trip-record";
 import { hhmmLabel } from "@/lib/stop-times";
-import { toMinutes } from "@/lib/trip-estimate";
+import { toHhmm, toMinutes } from "@/lib/trip-estimate";
 
 /**
  * Editing a trip's legs on the Scheduling page (prototype leg cards): type
@@ -62,6 +62,14 @@ export function editLegs(legs: ScheduleLeg[], timer: Timer, start: string): Edit
     return { ...leg, set: (index > 0 && estimate.timeOut !== leg.timeOut) || estimate.timeIn !== leg.timeIn };
   });
 }
+
+/**
+ * A leg's Time In when its Time Out is changed to `timeOut`: the leg keeps
+ * its length, so moving a trip earlier never stretches a leg over the
+ * vehicle's other trips that day.
+ */
+export const movedTimeIn = (leg: Pick<EditLeg, "timeOut" | "timeIn">, timeOut: string) =>
+  toHhmm(toMinutes(timeOut) + toMinutes(leg.timeIn) - toMinutes(leg.timeOut));
 
 /** Sets one leg's Time Out and Time In; later legs follow. */
 export function setLegTimes(legs: EditLeg[], index: number, timeOut: string, timeIn: string, timer: Timer): EditLeg[] {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleLeg, TransportRequest } from "@/lib/kova-api";
 import { legTimer } from "@/lib/scheduling-plan";
-import { changeDestination, editInput, editLegs, moveLeg, removeLeg, setLegTimes, tripChecks } from "@/lib/scheduling-edit";
+import { changeDestination, editInput, editLegs, moveLeg, movedTimeIn, removeLeg, setLegTimes, tripChecks } from "@/lib/scheduling-edit";
 
 // No saved locations: every drive is 30 minutes; a Pick up stays 30.
 const request = (id: string): TransportRequest =>
@@ -47,6 +47,11 @@ describe("edits", () => {
 
   it("keeps a typed time and moves the legs after it", () => {
     expect(times(setLegTimes(legs, 1, "09:10", "09:40", timer))).toEqual(["08:00-08:30", "09:10-09:40", "10:10-10:40"]);
+  });
+
+  it("keeps a leg's length when its Time Out moves", () => {
+    expect(movedTimeIn({ timeOut: "17:20", timeIn: "17:50" }, "06:00")).toBe("06:30");
+    expect(movedTimeIn({ timeOut: "08:00", timeIn: "08:45" }, "09:10")).toBe("09:55");
   });
 
   it("reorders, keeping the return last", () => {
