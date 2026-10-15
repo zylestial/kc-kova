@@ -1,10 +1,11 @@
 -- Scheduling: a Scheduler can change a trip that's waiting for Admin
 -- approval. Until now save_schedule_draft refused a SUBMITTED revision for a
--- Scheduler ("This schedule is waiting for Admin approval"). The revision
--- stays SUBMITTED through the edit, so it stays in the Admin's queue; the
--- Admin approves or returns the latest version, and approve_schedule /
--- return_schedule already refuse a stale row version, so an Admin looking at
--- an older copy is told to reload. Everything else is as in 0054.
+-- Scheduler ("This schedule is waiting for Admin approval"). Now the change
+-- takes it back from the Admin: the revision goes back to DRAFT (keeping
+-- submitted_at, so the Scheduling page offers "Resubmit for approval"), and
+-- the Admin sees it again once it's submitted. An Admin editing a SUBMITTED
+-- revision still leaves it SUBMITTED, as before. Everything else is as in
+-- 0054.
 
 create or replace function save_schedule_draft(
   p_schedule_id uuid,
@@ -69,11 +70,10 @@ begin
     for update;
 
     if v_revision.id is not null then
-      -- A Scheduler may change a SUBMITTED revision too (0057): it stays
-      -- SUBMITTED, and the Admin approves whatever it is by then (approve
-      -- and return check the row version). Admin editing a not-yet-submitted
-      -- revision is acting as Scheduler (override); editing a SUBMITTED one
-      -- is Admin's pre-existing power.
+      -- A Scheduler may change a SUBMITTED revision too (0057): it goes back
+      -- to DRAFT below, for the Scheduler to resubmit. Admin editing a
+      -- not-yet-submitted revision is acting as Scheduler (override);
+      -- editing a SUBMITTED one is Admin's pre-existing power.
       if v_actor.role = 'Admin' and v_revision.status <> 'SUBMITTED' then
         v_is_override := true;
         perform set_config('kova.audit_is_override', 'true', true);
@@ -153,7 +153,11 @@ begin
       plate = v_vehicle.plate,
       driver_id = v_driver.id,
       driver_name = v_driver.name,
-      status = case when status = 'RETURNED' then 'DRAFT' else status end,
+      status = case
+        when status = 'RETURNED' then 'DRAFT'
+        when status = 'SUBMITTED' and v_actor.role = 'Scheduler' then 'DRAFT'
+        else status
+      end,
       row_version = row_version + 1,
       updated_at = now()
     where id = v_revision.id

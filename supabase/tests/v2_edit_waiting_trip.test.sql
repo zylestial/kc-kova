@@ -1,9 +1,9 @@
 -- A Scheduler can change a trip that's waiting for Admin approval (0057):
--- the version stays SUBMITTED, and the Admin can only approve the latest.
+-- the change takes it back to DRAFT, and the Admin sees it again once resubmitted.
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(5);
+select plan(6);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -50,28 +50,26 @@ select pg_temp.act_as('00000000-0000-0000-0000-0000000ee00d');
 insert into ids select 's1', schedule_id from save_schedule_draft(null, null, pg_temp.day(), 'EWT-1', array[pg_temp.id('r1')],
   pg_temp.legs('08:00', '09:00', '10:00'));
 select submit_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')));
-create temp table seen (rv int);
-grant select, insert on seen to authenticated;
-insert into seen select pg_temp.rv(pg_temp.id('s1'));
-
 -- Tests --------------------------------------------------------------------
 select lives_ok(
   format($$ select save_schedule_draft(%L, %s, null, 'EWT-1', array[pg_temp.id('r1')], pg_temp.legs('08:30', '09:30', '10:30')) $$,
     pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))),
   'The Scheduler can change a trip waiting for Admin approval');
-select is((select status from schedule_revisions where schedule_id = pg_temp.id('s1') and status <> 'DISCARDED'), 'SUBMITTED',
-  'and it stays waiting for the Admin');
+select is((select status from schedule_revisions where schedule_id = pg_temp.id('s1') and status <> 'DISCARDED'), 'DRAFT',
+  'which takes it back to draft');
+select isnt((select submitted_at from schedule_revisions where schedule_id = pg_temp.id('s1') and status = 'DRAFT'), null,
+  'remembering it was submitted, for Resubmit');
 select is((select to_char(planned_time_out, 'HH24:MI') from schedule_legs l join schedule_revisions r on r.id = l.revision_id
   where r.schedule_id = pg_temp.id('s1') and l.leg_no = 1), '08:30',
   'with the new times');
+select lives_ok(
+  format($$ select submit_schedule(%L, %s) $$, pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))),
+  'The Scheduler resubmits it');
 
 select pg_temp.act_as('00000000-0000-0000-0000-0000000ee00a');
-select throws_ok(
-  format($$ select approve_schedule(%L, %s) $$, pg_temp.id('s1'), (select rv from seen)),
-  '40001', null, 'The Admin can''t approve the version from before the change');
 select lives_ok(
   format($$ select approve_schedule(%L, %s) $$, pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))),
-  'but approves the latest one');
+  'and the Admin approves the new version');
 
 select * from finish();
 rollback;
