@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,9 +30,18 @@ const askedLabel = (iso: string) =>
  * schedule. The schedule stays in force until one is confirmed; declining
  * needs a note so the Requester knows why the request stays.
  */
-export default function CancellationRequests() {
+export default function CancellationRequests({ highlightRequestId }: { highlightRequestId?: string } = {}) {
   const { cancellations, requests, schedules } = useKovaData();
   const pending = cancellations.filter((item) => item.status === "PENDING");
+  // The ask a notification led to: scrolled into view and highlighted for a moment.
+  const [flashId, setFlashId] = useState(highlightRequestId);
+  const flashing = pending.some((item) => item.requestId === flashId);
+  useEffect(() => {
+    if (!flashing) return;
+    document.querySelector("#cancellations tr.flash-row")?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const timer = setTimeout(() => setFlashId(undefined), 3000);
+    return () => clearTimeout(timer);
+  }, [flashing]);
   const [deciding, setDeciding] = useState<{ item: CancellationRequest; action: "confirm" | "decline" } | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -91,7 +100,7 @@ export default function CancellationRequests() {
               {pending.map((item) => {
                 const request = requests.find((entry) => entry.id === item.requestId);
                 return (
-                  <tr key={item.id}>
+                  <tr key={item.id} className={item.requestId === flashId ? "flash-row" : undefined}>
                     <td>{request && dateLabel(request.date)}</td>
                     <td>{request?.ownerName}</td>
                     <td>
