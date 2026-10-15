@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
+  CalendarClock,
   CalendarPlus,
   CheckCircle2,
   CircleAlert,
@@ -54,7 +55,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { account, viewAs, setViewAs, viewRole, leave } = useAccount();
   // HomeCard clicks are plain navigation, same as the old setScreen calls --
-  // only leaving a screen with a draft on it (new-request, create-schedule)
+  // only leaving a screen with a draft on it (new-request, scheduling)
   // and the viewing-as banner's "Return to Admin" are leave()-guarded.
   const go = (path: string) => router.push(path);
   // Re-renders when the app reloads its data, so the card counts stay current.
@@ -132,10 +133,10 @@ export default function HomeScreen() {
         ) : viewRole === "Scheduler" ? (
           <>
             <HomeCard
-              icon={<CalendarPlus size={24} />}
-              label="Create schedule"
-              count={counts["create-schedule"]}
-              onClick={() => go("/schedules/new")}
+              icon={<CalendarClock size={24} />}
+              label="Scheduling"
+              count={counts["scheduling"]}
+              onClick={() => go("/scheduling")}
             />
             <HomeCard
               icon={<CalendarDays size={24} />}

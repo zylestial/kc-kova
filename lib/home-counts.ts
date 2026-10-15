@@ -10,7 +10,7 @@ import type {
 import { addDays, hasTripEnded, manilaToday } from "@/lib/timezone";
 import { scheduleState } from "@/lib/trip-record";
 
-export type HomeCardKey = "my-requests" | "create-schedule" | "schedules" | "my-schedule" | "finished";
+export type HomeCardKey = "my-requests" | "scheduling" | "schedules" | "my-schedule" | "finished";
 
 export type HomeData = {
   requests: TransportRequest[];
@@ -70,7 +70,7 @@ export function homeCounts(account: Account, data: HomeData, now: Date = new Dat
     const waiting = data.requests.filter(
       (request) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED" && request.date >= today,
     ).length;
-    counts["create-schedule"] = waiting ? `${plural(waiting, "request")} waiting to be scheduled` : "No requests waiting";
+    counts["scheduling"] = waiting ? `${plural(waiting, "request")} waiting to be scheduled` : "No requests waiting";
 
     const states = data.schedules.map(scheduleState);
     const returned = states.filter((state) => state === "RETURNED").length;
