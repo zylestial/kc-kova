@@ -50,6 +50,8 @@ function notificationTarget(notification: Notification, schedules: Schedule[]): 
     case "CANCELLATION_DECLINED":
       return relatedRequestId ? `/requests?open=${encodeURIComponent(relatedRequestId)}` : "/requests";
     case "CANCELLATION_REQUESTED":
+      // The ask itself, with its Confirm and Decline.
+      return relatedRequestId ? `/schedules?cancellation=${encodeURIComponent(relatedRequestId)}` : "/schedules#cancellations";
     case "SCHEDULE_SUBMITTED":
       return relatedScheduleId ? `/schedules?open=${encodeURIComponent(relatedScheduleId)}` : "/schedules";
     case "PROBLEM_REPORTED":
