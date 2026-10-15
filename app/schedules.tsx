@@ -37,6 +37,7 @@ import CancellationRequests from "./cancellation-requests";
 import { scheduleStateMeaning } from "@/lib/status-text";
 import { compareSchedules, finishState } from "@/lib/trip-finish";
 import FilterFold from "./filter-fold";
+import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import { SortSelect, type SortColumn } from "./sortable-head";
@@ -104,6 +105,7 @@ export default function Schedules({
   const [vehicle, setVehicle] = useState("all");
   const [driver, setDriver] = useState("all");
   const [requester, setRequester] = useState("all");
+  const [form, setForm] = useState<FormFilterValue>("all");
   const [status, setStatus] = useState<"all" | ScheduleState>(initialStatus ?? "all");
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [sort, setSort] = useState<Sort<ScheduleSortKey>>(null);
@@ -131,6 +133,7 @@ export default function Schedules({
     .filter((schedule) => {
       const revision = currentRevision(schedule);
       return (
+        formMatches(form, schedule.kind) &&
         (vehicle === "all" || revision?.plate === vehicle) &&
         (driver === "all" || revision?.driverId === driver) &&
         (requester === "all" || (revision?.requestIds ?? []).some((id) => requestsById.get(id)?.ownerAccountId === requester)) &&
@@ -292,7 +295,7 @@ export default function Schedules({
           </div>
         </div>
         <OlderRecordsNotice />
-        <FilterFold active={[vehicle, driver, requester, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
+        <FilterFold active={[form, vehicle, driver, requester, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
           <label className="field">
             <span>Date</span>
             {/* Picking a date leaves All dates for that day. */}
@@ -306,6 +309,7 @@ export default function Schedules({
               }}
             />
           </label>
+          <FormFilter value={form} onChange={setForm} />
           <label className="field">
             <span>Vehicle</span>
             <Select value={vehicle} onValueChange={setVehicle}>
