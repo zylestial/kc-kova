@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   createCompanyTrip,
@@ -15,7 +16,7 @@ import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
 import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
-import { manilaToday } from "@/lib/timezone";
+import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
   dayCounts,
@@ -25,11 +26,10 @@ import {
   toPlan,
   tripState,
   vehicleRows,
-  weekDays,
   weekStops,
   type TripKind,
 } from "@/lib/scheduling";
-import { dateLabel } from "./planner/format";
+import { dateLabel, fullDate } from "./planner/format";
 import StopCard, { whatText } from "./scheduler/stop-card";
 import StopSheet from "./scheduler/stop-sheet";
 import PlanOptions from "./scheduler/plan-options";
@@ -37,6 +37,9 @@ import VehicleCard from "./scheduler/vehicle-card";
 import TripEditor from "./scheduler/trip-editor";
 
 const shortDay = (day: string) => dateLabel(day, { weekday: "short", month: "short", day: "numeric" });
+
+/** Days in the date strip, from its first day. */
+const STRIP_DAYS = 14;
 
 const KINDS: Record<TripKind, string> = { DAILY: "Daily trips", COMPANY: "Company trips" };
 
@@ -60,6 +63,8 @@ export default function Scheduling({
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
+  // The strip's first day: today, or the chosen day when it's further out.
+  const [anchor, setAnchor] = useState(() => (day >= addDays(today, STRIP_DAYS) ? day : today));
   // Vehicle cards start folded; one opens on a click, or when something is added to it.
   const [openPlates, setOpenPlates] = useState<Set<string>>(new Set());
   const [sheetIds, setSheetIds] = useState<string[]>([]);
@@ -74,10 +79,10 @@ export default function Scheduling({
   const strip = useRef<HTMLDivElement>(null);
   // On phones the strip scrolls; keep the chosen day in view.
   useEffect(() => {
-    strip.current?.querySelector(".sc-day.on")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    strip.current?.querySelector(".date-card.selected")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [day]);
 
-  const days = weekDays(day, requests);
+  const days = Array.from({ length: STRIP_DAYS }, (_, index) => addDays(anchor, index));
   const rows = vehicleRows(vehicles, accounts, schedules, day).filter((row) => row.kind === kind);
   const stops = toPlan(requests, day, kind);
   const week = weekStops(requests, day, kind);
@@ -192,6 +197,7 @@ export default function Scheduling({
   const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
   function pickDay(next: string) {
+    if (next < anchor || next >= addDays(anchor, STRIP_DAYS)) setAnchor(next);
     setDay(next);
     onChange(next, kind);
   }
@@ -218,26 +224,40 @@ export default function Scheduling({
         </div>
       </div>
 
-      <div className="sc-days" ref={strip}>
-        {days.map((item) => {
-          const counts = dayCounts(requests, item, kind);
-          return (
-            <button
-              key={item}
-              type="button"
-              className={"sc-day" + (item === day ? " on" : "")}
-              aria-pressed={item === day}
-              disabled={item < today}
-              onClick={() => pickDay(item)}
-            >
-              <b>{item === today ? `Today · ${dateLabel(item, { month: "short", day: "numeric" })}` : shortDay(item)}</b>
-              <span>
-                {counts.toPlan ? `${counts.toPlan} to plan` : "All planned"}
-                {counts.urgent > 0 && <span className="sc-urgent-count"> · {counts.urgent} urgent</span>}
-              </span>
-            </button>
-          );
-        })}
+      <div className="date-strip-wrap sc-strip">
+        {anchor > today && (
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Earlier dates"
+            onClick={() => setAnchor(addDays(anchor, -7) < today ? today : addDays(anchor, -7))}
+          >
+            <ChevronLeft size={18} />
+          </Button>
+        )}
+        <div className="date-strip" ref={strip}>
+          {days.map((item) => {
+            const counts = dayCounts(requests, item, kind);
+            return (
+              <button
+                key={item}
+                type="button"
+                className={"date-card" + (item === day ? " selected" : "")}
+                aria-pressed={item === day}
+                aria-label={`${fullDate(item)}, ${counts.toPlan} waiting${counts.urgent ? `, ${counts.urgent} urgent` : ""}`}
+                onClick={() => pickDay(item)}
+              >
+                <span>{dateLabel(item, { weekday: "short" })}</span>
+                <b>{dateLabel(item, { day: "numeric" })}</b>
+                <small>{counts.toPlan ? `${counts.toPlan} waiting` : "none"}</small>
+                {counts.urgent > 0 && <small className="date-card-urgent">{counts.urgent} urgent</small>}
+              </button>
+            );
+          })}
+        </div>
+        <Button variant="outline" size="icon" aria-label="Later dates" onClick={() => setAnchor(addDays(anchor, 7))}>
+          <ChevronRight size={18} />
+        </Button>
       </div>
       {otherDays.length > 0 && (
         <div className="date-waiting-elsewhere">

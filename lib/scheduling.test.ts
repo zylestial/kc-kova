@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, RequestGroup, Schedule, ScheduleRevision, TransportRequest, Vehicle } from "@/lib/kova-api";
-import { dayCounts, placeGroups, toPlan, tripState, vehicleRows, weekDays, weekStops } from "@/lib/scheduling";
+import { dayCounts, placeGroups, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
 
 const group = (patch: Partial<RequestGroup> = {}): RequestGroup => ({
   id: "g",
@@ -36,15 +36,6 @@ const stop = (id: string, patch: Partial<TransportRequest> = {}, destinationId =
   cancellationPending: false,
   destinations: [{ id: "rd-" + id, position: 1, destinationId, destinationName: destinationId, destinationIsOther: false, purposeName: "Pick up", purposeIsOther: false }],
   ...patch,
-});
-
-describe("days", () => {
-  it("runs Monday to Saturday of the week", () => {
-    expect(weekDays("2026-10-14")).toEqual(["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17"]);
-    expect(weekDays("2026-10-18")[0]).toBe("2026-10-12");
-    expect(weekDays("2026-10-18").at(-1)).toBe("2026-10-18");
-    expect(weekDays("2026-10-14", [stop("s", { date: "2026-10-18" })]).at(-1)).toBe("2026-10-18");
-  });
 });
 
 describe("what's to plan", () => {
