@@ -16,6 +16,7 @@ import { openRevision, publishedRevision } from "@/lib/trip-record";
 import { hhmmLabel } from "@/lib/stop-times";
 import { toMinutes } from "@/lib/trip-estimate";
 import { legTimer, type PlanContext } from "@/lib/scheduling-plan";
+import { undoEntry, type UndoEntry } from "@/lib/scheduling-undo";
 import { stopNumber, tripStateLabel, type Trip, type TripKind, type TripState } from "@/lib/scheduling";
 import {
   changeDestination,
@@ -86,8 +87,8 @@ export default function TripEditor({
   /** The Driver (or requester) has reached this leg: Arrived, or End trip on the last. */
   doneLeg: (legId: string, isLast: boolean) => boolean;
   busy: boolean;
-  /** Runs a save; the message it returns is shown when it works. */
-  run: (action: () => Promise<string>) => Promise<void>;
+  /** Runs a save; the message it returns is shown when it works. `undo`: the trip before it, or "clear". */
+  run: (action: () => Promise<string>, undo?: UndoEntry | "clear") => Promise<void>;
 }) {
   const company = kind === "COMPANY";
   const { requests } = context;
@@ -126,12 +127,21 @@ export default function TripEditor({
     choices.fuel = fuel.map((option) => ({ id: option.id, name: option.name, stops: [], urgent: false, moveIds: [], label: `${option.name} (fuel)` }));
 
   const save = (next: EditLeg[], message: string, moveIds: string[] = [], sendBack?: { ids: string[]; reason: string }) =>
-    run(async () => {
-      for (const id of moveIds) await moveRequestDay(id, day);
-      await saveScheduleDraft(trip.schedule.id, open ? open.rowVersion : null, editInput(day, trip.revision.plate, next, (stopId) => requestOf(stopId)?.id));
-      if (sendBack?.ids.length) await sendBackRequests(sendBack.ids, sendBack.reason);
-      return message + (open ? "." : ". Saved in draft changes, not sent yet.");
-    });
+    run(
+      async () => {
+        for (const id of moveIds) await moveRequestDay(id, day);
+        await saveScheduleDraft(trip.schedule.id, open ? open.rowVersion : null, editInput(day, trip.revision.plate, next, (stopId) => requestOf(stopId)?.id));
+        if (sendBack?.ids.length) await sendBackRequests(sendBack.ids, sendBack.reason);
+        return message + (open ? "." : ". Saved in draft changes, not sent yet.");
+      },
+      sendBack?.ids.length
+        ? "clear"
+        : undoEntry(
+            trip.schedule,
+            kind,
+            moveIds.map((id) => ({ id, from: requests.find((request) => request.id === id)?.date ?? day })),
+          ),
+    );
 
   function commitTime(index: number, which: "out" | "in", value: string) {
     const leg = legs[index];
@@ -167,12 +177,15 @@ export default function TripEditor({
     setRemoving(null);
     if (!next.some((item) => item.stops.length)) {
       // The trip's only stop: nothing is left to plan, so the draft goes.
-      void run(async () => {
-        if (!open || publishedRevision(trip.schedule)) throw new Error("A trip needs at least one stop. Discard the changes instead.");
-        await discardScheduleDraft(trip.schedule.id, open.rowVersion);
-        if (sendBack) await sendBackRequests(sendBack.ids, sendBack.reason);
-        return `Leg removed and the draft discarded.${reason ? " Sent back to the requester." : ""}`;
-      });
+      void run(
+        async () => {
+          if (!open || publishedRevision(trip.schedule)) throw new Error("A trip needs at least one stop. Discard the changes instead.");
+          await discardScheduleDraft(trip.schedule.id, open.rowVersion);
+          if (sendBack) await sendBackRequests(sendBack.ids, sendBack.reason);
+          return `Leg removed and the draft discarded.${reason ? " Sent back to the requester." : ""}`;
+        },
+        sendBack ? "clear" : undoEntry(trip.schedule, kind),
+      );
       return;
     }
     const names = leg.stops.map((stopId) => stopNumber(requestOf(stopId)!)).join(", ");
@@ -346,6 +359,7 @@ export default function TripEditor({
       <TripActions
         trip={trip}
         state={state}
+        kind={kind}
         busy={busy}
         run={run}
         legs={legs}
@@ -380,6 +394,7 @@ export default function TripEditor({
 function TripActions({
   trip,
   state,
+  kind,
   busy,
   run,
   legs,
@@ -389,8 +404,9 @@ function TripActions({
 }: {
   trip: Trip;
   state: TripState;
+  kind: TripKind;
   busy: boolean;
-  run: (action: () => Promise<string>) => Promise<void>;
+  run: (action: () => Promise<string>, undo?: UndoEntry | "clear") => Promise<void>;
   legs: EditLeg[];
   day: string;
   /** What's wrong with the trip (tripChecks): Submit waits until it's fixed. */
@@ -404,17 +420,17 @@ function TripActions({
       if (problems.length) throw new Error("Fix the warnings on this trip before submitting.");
       await submitSchedule(trip.schedule.id, open!.rowVersion);
       return "Submitted. The Admin can see it now.";
-    });
+    }, "clear");
   const discard = () =>
     run(async () => {
       await discardScheduleDraft(trip.schedule.id, open!.rowVersion);
       return published ? "Draft changes discarded. The approved trip stays." : "Draft discarded. Its stops are back in To plan.";
-    });
+    }, undoEntry(trip.schedule, kind));
   const propose = () =>
     run(async () => {
       await saveScheduleDraft(trip.schedule.id, null, editInput(day, trip.revision.plate, legs, requestIdOf));
       return "Draft changes opened. Only you can see them until you submit.";
-    });
+    }, undoEntry(trip.schedule, kind));
   const tone = state === "APPROVED" || state === "ON_THE_ROAD" ? " ok" : state === "RETURNED" ? " error" : "";
   return (
     <div className={"sc-state" + tone}>

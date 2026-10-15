@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import {
   createCompanyTrip,
   createSchedule,
+  discardScheduleDraft,
+  getSchedules,
   hydrateKovaData,
   moveRequestDay,
   saveScheduleDraft,
@@ -12,6 +14,7 @@ import {
 import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
+import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
 import { manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
@@ -65,6 +68,8 @@ export default function Scheduling({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  // Changes that can be undone, the last one last.
+  const [undos, setUndos] = useState<UndoEntry[]>([]);
   useAutoClear(notice, setNotice);
   const strip = useRef<HTMLDivElement>(null);
   // On phones the strip scrolls; keep the chosen day in view.
@@ -117,10 +122,16 @@ export default function Scheduling({
     setNotice("");
     try {
       const moved = stops.filter((stop) => stop.date !== day);
+      const moves = moved.map((stop) => ({ id: stop.id, from: stop.date }));
       for (const stop of moved) await moveRequestDay(stop.id, day);
-      if (option.trip) await saveScheduleDraft(option.trip.schedule.id, option.rowVersion, option.input);
-      else if (kind === "COMPANY") await createCompanyTrip(option.input);
-      else await createSchedule(option.input);
+      if (option.trip) {
+        const before = undoEntry(option.trip.schedule, kind, moves);
+        await saveScheduleDraft(option.trip.schedule.id, option.rowVersion, option.input);
+        setUndos((list) => [...list, before]);
+      } else {
+        const created = await (kind === "COMPANY" ? createCompanyTrip(option.input) : createSchedule(option.input));
+        setUndos((list) => [...list, { scheduleId: created.id, kind, input: null, moves }]);
+      }
       setSheetIds([]);
       setOpenPlates((plates) => new Set([...plates, option.row.vehicle.plate]));
       setNotice(
@@ -137,19 +148,46 @@ export default function Scheduling({
     }
   }
 
-  /** Runs a change to a trip, showing its message when it works and the reason when it doesn't. */
-  async function run(action: () => Promise<string>) {
+  /**
+   * Runs a change to a trip, showing its message when it works and the
+   * reason when it doesn't. `undo` is how the trip was before, for Undo;
+   * "clear" for a change Undo can't take back (Submit, sent back).
+   */
+  async function run(action: () => Promise<string>, undo?: UndoEntry | "clear") {
     setBusy(true);
     setError("");
     setNotice("");
     try {
       setNotice(await action());
+      if (undo === "clear") setUndos([]);
+      else if (undo) setUndos((list) => [...list, undo]);
     } catch (caught) {
       setError((caught as Error).message);
       await hydrateKovaData().catch(() => undefined);
     } finally {
       setBusy(false);
     }
+  }
+  /** Undo: puts the last changed trip back as it was, and moved stops back on their day. */
+  function undoLast() {
+    const entry = undos.at(-1);
+    if (!entry) return;
+    setUndos(undos.slice(0, -1));
+    void run(async () => {
+      const step = undoStep(
+        entry,
+        getSchedules().find((schedule) => schedule.id === entry.scheduleId),
+      );
+      if (step.action === "discard") await discardScheduleDraft(step.id, step.rowVersion);
+      else if (step.action === "save") await saveScheduleDraft(step.id, step.rowVersion, step.input);
+      else if (step.action === "create") {
+        // Made again under a new id: earlier entries for the trip follow it.
+        const created = await (step.kind === "COMPANY" ? createCompanyTrip(step.input) : createSchedule(step.input));
+        setUndos((list) => list.map((item) => (item.scheduleId === entry.scheduleId ? { ...item, scheduleId: created.id } : item)));
+      }
+      for (const move of entry.moves) await moveRequestDay(move.id, move.from);
+      return "Undone." + (entry.moves.length ? " Requester notified of the day." : "");
+    });
   }
   const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
@@ -258,6 +296,11 @@ export default function Scheduling({
           <b>{shortDay(day)}:</b> {trips.length} {trips.length === 1 ? "trip" : "trips"}
           {stops.length > urgent.length ? ` · ${stops.length - urgent.length} to plan` : " · all planned"}
         </span>
+        {undos.length > 0 && (
+          <Button size="sm" variant="outline" disabled={busy} onClick={undoLast}>
+            Undo
+          </Button>
+        )}
       </div>
       {notice && (
         <div className="notice success" role="status">
