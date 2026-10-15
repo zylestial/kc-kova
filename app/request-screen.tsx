@@ -39,7 +39,6 @@ function keptChoices(group: RequestGroup, stops: TransportRequest[]): KeptChoice
     urgent_reasons: pick(stops.map((stop) => [stop.urgentReason?.id, stop.urgentReason?.name ?? ""])),
     suppliers: pick(stops.map((stop) => [stop.supplier?.id, stop.supplier?.name ?? ""])),
     starting_points: pick([[group.startingPoint?.id, group.startingPoint?.name ?? ""]]),
-    departments: pick([[group.department?.id, group.department?.name ?? ""]]),
     supervisors: pick([[group.supervisor?.id, group.supervisor?.name ?? ""]]),
     heads: pick([[group.head?.id, group.head?.name ?? ""]]),
     vehicle: group.vehiclePlate ? { id: group.vehiclePlate, name: group.vehiclePlate } : undefined,
