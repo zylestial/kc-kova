@@ -80,7 +80,6 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   filters fold behind a "Filters" button (with a count of those set), and
   an empty day in the week is one line.
 - Screens no longer have a "← Home" back button; the sidebar replaces it.
-  The Planner keeps "← Schedules" when editing an existing schedule.
   Below 1024px the top bar shows **← Back** (in place of the logo) on every
   screen but the Dashboard: it goes to the previous screen visited in the
   app, or the Dashboard when the page was opened directly, through
@@ -198,8 +197,7 @@ router/URL segments are used for in-app navigation.
 | `new-request` | `app/request-screen.tsx` with `app/request-form.tsx` (New Request prototype: a Daily / Company Trip choice for accounts allowed both; a date strip with Jump to date; one project or a different one per stop; stop cards, each Regular / Urgent with a reason, destination, purpose, Details, how flexible (any time that day / fixed time / any day that week), contact, and on a Company Trip a supplier; the Company Trip's fields and a printed form preview; a summary panel; also used to edit) | Requester, Admin, allowed Drivers |
 | `my-requests` | `app/my-requests.tsx` (one row per stop, numbered 52-A; details show the request's other stops and the Company Trip's fields) | Requester, Admin, allowed Drivers |
 | `my-trips` | `app/my-trips.tsx` (the requester's approved Company trips as folding cards: the steps in route order with their times, one big button for the next (Start trip at …, Arrived at …, Leaving …, Arrived at … · End trip), an odometer field on Start and End trip, the distance once ended) | Requesters with Company trips |
-| `company-planner` | `app/company-planner.tsx` at `/schedules/company` (Company Trip Flow prototype, "Plan": waiting stops most urgent first with 🔗 on stops requested together, Plan / Add / Send back / Move per stop; one timeline per vehicle that can be requested for company trips; a trip editor with Time Out / Time In per leg, warnings for overlaps and order; the day's trips with Edit / Discard / Submit) | Scheduler |
-| `create-schedule` | `app/schedule-planner.tsx` | Scheduler |
+| `scheduling` | `app/scheduling.tsx` with `app/scheduler/` at `/scheduling` (see below) | Scheduler |
 | `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
 | `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short; no requester, distances or coordinates; then a big Complete trip) | Driver |
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
@@ -207,41 +205,39 @@ router/URL segments are used for in-app navigation.
 | `settings` | `app/settings.tsx` | Admin (accounts with Position, Can request company trips, Driver type and a Company car Driver's request switches; vehicles with Can be requested for company trips; booking options) |
 | — | `app/booking-options.tsx` | Admin (projects/destinations/purposes, Urgent reasons, Starting points, Departments / Sites, Suppliers, Immediate Supervisors, PM / CM / Dept. Heads; a destination's Location column and field take pasted coordinates or a Google Maps link) |
 
-The Planner (`app/schedule-planner.tsx`) holds the state and the save, submit,
-discard and send-back logic, and composes its screen from `app/planner/`: day
-picker, existing commitments, vehicle panel (vehicle only; its Driver comes
-with it), one `LegCard` per
-leg, the checklist, and the submit, discard and remove-leg
-dialogs. Those parts only show what they're given and call back; they hold no
-state of their own. Kept short on purpose (owner, 2026-10-09): the explanation
-sits in a closed "How planning works" fold, "Other trips this day" is folded
-(it opens by itself on a clash), the checklist lists only what's still to
-do, and each leg's contact sits behind "+ Add contact". There is no request
-pool panel: waiting destinations are picked from each leg's Destination
-dropdown (Urgent tagged). Sending requests back happens once the legs are
-confirmed: the Submit dialog lists what isn't on the route and, ticked by
-default, sends it
-back to the requesters with an optional reason. A `LegCard`'s fields follow the form: Origin, Time Out,
-Destination (with its contact name and number), then Time In. The
-destination stays a dropdown even once the leg serves requests: picking
-another puts those stops back in the pool (`changeLegDestination`). A new
-schedule opens on the first day with requests
-waiting (today if none) with Leg 1 only; the Scheduler adds the return leg
-to ANONANG when the route is done. The day picker lists waiting days outside its
-14-day strip. "Draft saved" and save errors show in the bottom bar, above the
-buttons; on phones the bar is one row (an icon-only Discard, "Submit"). The
-only step numbers are the top stepper's. With nothing else held that day, the
-commitments panel is one line under the pool. A clash with another
-schedule's time blocks Save and Submit and shows on the checklist.
+**Scheduling** (`app/scheduling.tsx`, prototype "KOVA Scheduler",
+2026-10-14/15) is the Scheduler's one planning screen for Daily and Company
+trips. It replaced Create schedule and the Company trip planner; their old
+addresses (`/schedules/new`, `/schedules/company`) redirect to it, and
+`?date=&type=DAILY|COMPANY` keeps the day and kind in the address. From the
+top:
 
-Since the request groups (2026-10-14) the Planner also shows "Requests for
-this day" (`app/planner/pool-panel.tsx`): each stop as the requester sent
-it, numbered, Urgent and its reason, purpose, Details, how flexible it is
-and the contact, in pool order (Urgent, fixed times, any time that day, any
-day that week), with "On this route" or "Not placed". An "any day that
-week" stop not on the route gets a "Move to another day that week" picker.
-The vehicle list leaves out vehicles that can be requested for company
-trips; those are planned on the Company trip planner.
+- the month, then two weeks of date cards from today (Sundays included),
+  each with its waiting and urgent counts, arrows to page a week at a time,
+  and "Also waiting" buttons for days beyond the strip;
+- a **Daily trips | Company trips** switch, each with its counts;
+- an Urgent banner per urgent stop with **Fit it in**, a banner per trip
+  waiting for the Admin, and the blue day banner (trips, still to plan)
+  with **Undo**;
+- two columns: **To plan** (stop cards, Urgent first, stops at the same
+  place grouped with **Plan together**, then "Any day this week"), and the
+  vehicles (`app/scheduler/vehicle-card.tsx`): folded by default, each
+  with its Driver, a summary and the trip's state; one opens when clicked
+  or when something is added to it.
+
+A stop is dragged onto a vehicle (the card shows whether it can take it)
+or tapped: a sheet slides in from the right with its details and the
+options, best first (`app/scheduler/plan-options.tsx`), each saying when
+it would arrive, how it fits, and what it would make late. Each trip's
+legs (`app/scheduler/trip-editor.tsx`) follow the form: Origin, Time Out,
+Destination (waiting stops and fuel / errand stops), Time In. Legs reorder
+by dragging ⠿ or with the arrows; **Remove** opens the remove-leg dialog
+(back to To plan, or back to the requester with a reason). Warnings (⚠)
+name the stop and the times involved and block Submit. Below the legs a
+box says what the trip waits for, with **Submit / Resubmit for approval**
+and **Discard**, or **Propose changes** on an approved trip (its legs
+stay locked until pressed). Left out on purpose (owner, 2026-10-15):
+timeline bars and "Plan for me".
 
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.
@@ -252,8 +248,8 @@ All screens are client components (`"use client"`) that read/write through
 call. Screens read it with the `useKovaData()` hook (`lib/use-kova-data.ts`,
 built on `useSyncExternalStore`), which re-renders them whenever the cache is
 replaced; derive lists from it with `useMemo` rather than copying them into
-state. A screen that must hold a snapshot (the Planner's schedule being
-edited) reads `getSchedules()`/`getRequests()` once instead.
+state. A step that needs the cache as it is right now, outside a render
+(Scheduling's Undo), reads `getSchedules()` instead.
 
 ## Sorting tables (2026-10-08)
 
