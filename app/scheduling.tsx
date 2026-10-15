@@ -20,7 +20,7 @@ import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
   dayCounts,
-  isLocked,
+  isWaiting,
   placeGroups,
   stopNumber,
   toPlan,
@@ -90,7 +90,7 @@ export default function Scheduling({
   const trips = rows.flatMap((row) => row.trips);
   const started = (scheduleId: string) =>
     attendance.some((item) => item.scheduleId === scheduleId && item.start) || companyRuns.some((run) => run.scheduleId === scheduleId);
-  const waitingForAdmin = trips.filter((trip) => isLocked(tripState(trip.schedule, started(trip.schedule.id))));
+  const waitingForAdmin = trips.filter((trip) => isWaiting(tripState(trip.schedule, started(trip.schedule.id))));
   const tripsOfKind = (of: TripKind) =>
     schedules.filter((schedule) => schedule.status === "ACTIVE" && schedule.date === day && schedule.kind === of).length;
   const vehicleName = (plate: string) => vehicles.find((vehicle) => vehicle.plate === plate)?.name ?? plate;
@@ -143,6 +143,7 @@ export default function Scheduling({
         `Added to ${name}.` +
           (moved.length ? " Requester notified of the new day." : "") +
           (option.needsAdmin ? " Saved in draft changes, not sent yet." : "") +
+          (option.trip?.revision.status === "SUBMITTED" ? " Still waiting for Admin, who sees the change." : "") +
           (option.late.length ? ` ${option.late.length === 1 ? "1 stop" : `${option.late.length} stops`} will be late; change the times.` : ""),
       );
     } catch (caught) {

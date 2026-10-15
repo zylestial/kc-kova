@@ -1,7 +1,7 @@
 import type { BookingOption, ScheduleInput, ScheduleLeg, TransportRequest } from "@/lib/kova-api";
 import { canShareTrip, MAX_TRIP_LEGS } from "@/lib/company-trips";
 import { MAX_LEGS, openRevision } from "@/lib/trip-record";
-import { isLocked, tripState, type Trip, type VehicleRow } from "@/lib/scheduling";
+import { tripState, type Trip, type VehicleRow } from "@/lib/scheduling";
 import {
   BASE_PLACE,
   driveMinutes,
@@ -223,7 +223,6 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
   }
 
   const state = tripState(joinable.schedule, context.started(joinable.schedule.id));
-  if (isLocked(state)) return fail("Waiting for Admin");
   if (state === "ON_THE_ROAD") return fail("On the road");
   const base: WorkLeg[] = joinable.revision.legs.map((leg: ScheduleLeg) => ({
     destinationId: leg.destinationId,

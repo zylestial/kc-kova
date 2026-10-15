@@ -98,7 +98,9 @@ export default function TripEditor({
     [trip.revision.legs, timer],
   );
   const open = openRevision(trip.schedule);
-  const editable = ["DRAFT", "RETURNED", "CHANGES"].includes(state);
+  // A trip waiting for the Admin can still be changed; it stays waiting (0057).
+  const editable = ["DRAFT", "RETURNED", "SUBMITTED", "CHANGES", "CHANGES_SUBMITTED"].includes(state);
+  const waitingNote = open?.status === "SUBMITTED" ? " Still waiting for Admin, who sees the change." : "";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
   const tripRequests = trip.revision.requestIds.flatMap((id) => requests.filter((request) => request.id === id));
   const startingPoint = tripRequests[0]?.group?.startingPoint?.name ?? "Starting point";
@@ -132,7 +134,7 @@ export default function TripEditor({
         for (const id of moveIds) await moveRequestDay(id, day);
         await saveScheduleDraft(trip.schedule.id, open ? open.rowVersion : null, editInput(day, trip.revision.plate, next, (stopId) => requestOf(stopId)?.id));
         if (sendBack?.ids.length) await sendBackRequests(sendBack.ids, sendBack.reason);
-        return message + (open ? "." : ". Saved in draft changes, not sent yet.");
+        return message + (open ? "." + waitingNote : ". Saved in draft changes, not sent yet.");
       },
       sendBack?.ids.length
         ? "clear"
@@ -180,6 +182,7 @@ export default function TripEditor({
       void run(
         async () => {
           if (!open || publishedRevision(trip.schedule)) throw new Error("A trip needs at least one stop. Discard the changes instead.");
+          if (open.status === "SUBMITTED") throw new Error("A trip waiting for Admin needs at least one stop.");
           await discardScheduleDraft(trip.schedule.id, open.rowVersion);
           if (sendBack) await sendBackRequests(sendBack.ids, sendBack.reason);
           return `Leg removed and the draft discarded.${reason ? " Sent back to the requester." : ""}`;
@@ -437,10 +440,11 @@ function TripActions({
       <b>{tripStateLabel[state]}</b>
       {state === "DRAFT" && " · only you can see it. Submit when the trip is ready."}
       {state === "RETURNED" && <> · the Admin sent it back{open?.decisionComment ? `: “${open.decisionComment}”` : ""}. Fix it, then submit again.</>}
-      {state === "SUBMITTED" && " · locked until the Admin approves or returns it."}
+      {state === "SUBMITTED" && " · the Admin can see it. You can still change it; the Admin approves the latest version."}
       {(state === "APPROVED" || state === "ON_THE_ROAD") && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
       {state === "CHANGES" && " · only you can see these. The Driver still follows the approved times below until the Admin approves."}
-      {state === "CHANGES_SUBMITTED" && " · the changes are submitted; the approved times below stay in effect until approved."}
+      {state === "CHANGES_SUBMITTED" &&
+        " · the changes are submitted and you can still change them; the approved times below stay in effect until approved."}
       {(state === "CHANGES" || state === "CHANGES_SUBMITTED") && published && (
         <ul className="sc-legs">
           {published.legs.map((leg) => (

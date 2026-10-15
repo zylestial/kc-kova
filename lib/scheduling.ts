@@ -145,4 +145,5 @@ export const tripStateTone: Record<TripState, "ok" | "warn" | "error" | "info"> 
 };
 
 /** Waiting for the Admin: nothing about it can change until it's approved or returned. */
-export const isLocked = (state: TripState) => state === "SUBMITTED" || state === "CHANGES_SUBMITTED";
+/** Submitted and waiting for the Admin; the Scheduler can still change it (0057). */
+export const isWaiting = (state: TripState) => state === "SUBMITTED" || state === "CHANGES_SUBMITTED";

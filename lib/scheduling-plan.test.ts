@@ -70,7 +70,7 @@ const leg = (no: number, destinationId: string | undefined, out: string, inn: st
   isFinal,
   stops,
 });
-const trip = (legs: ScheduleLeg[], requestIds: string[], status: "DRAFT" | "APPROVED" = "DRAFT"): VehicleRow["trips"][number] => {
+const trip = (legs: ScheduleLeg[], requestIds: string[], status: "DRAFT" | "SUBMITTED" | "APPROVED" = "DRAFT"): VehicleRow["trips"][number] => {
   const revision = { id: "r1", version: 1, status, plate: "V1", driverId: "d1", driverName: "Mario", rowVersion: 3, createdAt: "", updatedAt: "", decisionComment: "", requestIds, legs };
   const schedule: Schedule = {
     id: "s1",
@@ -155,6 +155,11 @@ describe("joining a trip", () => {
     const approved = trip(existing.revision.legs, ["a"], "APPROVED");
     expect(planOn([b], row([approved]), context([a, b]))).toMatchObject({ needsAdmin: true, rowVersion: null });
     expect(planOn([b], row([approved]), context([a, b], { started: () => true })).blocked).toBe("On the road");
+  });
+
+  it("can still go on a trip waiting for Admin, which stays waiting", () => {
+    const waiting = trip(existing.revision.legs, ["a"], "SUBMITTED");
+    expect(planOn([b], row([waiting]), context([a, b]))).toMatchObject({ blocked: "", needsAdmin: false, rowVersion: 3 });
   });
 
   it("names a fixed-time stop it would make late", () => {
