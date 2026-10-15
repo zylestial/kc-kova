@@ -2,7 +2,6 @@ import {
   Car,
   CalendarClock,
   CalendarDays,
-  CalendarPlus,
   CheckCircle2,
   ClipboardList,
   FilePlus2,
@@ -41,8 +40,6 @@ export function navItems(viewRole: Account["role"], canRequest = false, canCompa
     return [
       home,
       { href: "/scheduling", label: "Scheduling", icon: CalendarClock },
-      { href: "/schedules/new", label: "Create schedule", icon: CalendarPlus },
-      { href: "/schedules/company", label: "Company trips", icon: Car },
       { href: "/schedules", label: "Schedules", icon: CalendarDays },
       { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
     ];
