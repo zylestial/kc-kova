@@ -702,8 +702,8 @@ The prototypes were the spec; these are the calls made on top of them.
 - **"Any day that week"** stops can be moved by a Scheduler to Monday–
   Saturday of that week; the requester is notified (REQUEST_MOVED), not
   asked.
-- **Daily vs Company trips are kept apart** (`schedules.kind`, 0054): the
-  Daily Planner never offers a vehicle that can be requested for company
+- **Daily vs Company trips are kept apart** (`schedules.kind`, 0054):
+  Daily trips never offer a vehicle that can be requested for company
   trips, and one trip per vehicle per day (0048) is Daily only. A Company
   vehicle can take several trips a day without overlaps; one department and
   one starting point per trip; no leg back to ANONANG.
@@ -731,15 +731,14 @@ The prototypes were the spec; these are the calls made on top of them.
 - **Gotcha: the "Filters" button only shows below 700px.** On a desktop
   viewport e2e tests use the filter controls directly.
 - **e2e:** `e2e/company-trip.spec.ts` runs on today's date (My Trips starts
-  a trip only on its day), on a free 35-minute slot of the Mirage's day, so
-  about 25 runs fit in a day before a reset is needed. It has a 3-minute
+  a trip only on its day). It moves the trip to a free start from 06:00
+  with three hours clear (so it ends before 6 PM), so only a few runs fit in
+  a day before a reset is needed. It has a 3-minute
   limit and waits up to 30 s on saves; a cold dev server is slow. The
   full suite once failed `trip-record.spec.ts` on a 5 s wait for "marked as
   done"; it passed on every re-run.
 
 **Known gaps** (tell the owner before relying on them):
-- The Company planner sets times with time fields, not by dragging on the
-  timeline as in the prototype.
 - "Propose a change" on an approved Company trip hasn't been tried.
 - A sent-back stop can't change its date while other stops of its group
   are being scheduled (the group shares the date).
@@ -747,3 +746,49 @@ The prototypes were the spec; these are the calls made on top of them.
   scheduled; the app no longer uses it.
 - The REQUEST_SCHEDULED notification for a Company trip links to My
   requests, not My Trips.
+
+## Scheduling page (2026-10-14/15)
+
+One page for Daily and Company trips, built from the owner's "KOVA
+Scheduler" prototype on `feat/scheduling-page`; migration 0057. It
+replaced Create schedule (`app/schedule-planner.tsx`, `app/planner/`) and
+the Company trip planner (`app/company-planner.tsx`), which were deleted
+with their CSS and the `lib/trip-record.ts` / `lib/company-trips.ts`
+helpers only they used. The rules are in `docs/RULES.md` "Scheduling
+page"; the owner's calls:
+
+- **Look and layout follow the prototype.** Vehicle cards start folded;
+  the blue day banner has Undo; no timeline bars; "Plan for me" left out
+  for now; "Shorter route" and real drive times (OpenRouteService) deferred.
+- **Date strip:** two weeks of date cards from today, Sundays included,
+  the month on top, like the old planner's cards.
+- **Warnings block Submit** and name the stop and times, without minute
+  counts.
+- **Planner:** an any-time stop doesn't go on a leg where the vehicle would
+  wait more than 30 minutes for a fixed-time stop; a trip ending by 6 PM is
+  preferred.
+- **Editing a trip waiting for the Admin takes it back** to a draft
+  ("Resubmit for approval", 0057). An approved trip keeps "Propose
+  changes", its legs locked until pressed.
+- **Changing a leg's Time Out moves its Time In with it** (2026-10-15):
+  with Time In fixed, moving a leg earlier stretched it over the vehicle's
+  other trips that day and the save was refused as an overlap.
+- **Old links redirect:** `/schedules/new` (with `?scheduleId=`) and
+  `/schedules/company` (with `?date=` or `?trip=`) open Scheduling on that
+  schedule's day and kind (`schedulingHref` in `lib/scheduling.ts`), as do
+  Home, the Schedules buttons and the "returned" notification.
+- **Split is gone from the screen:** every request since 0052 has one
+  stop. `split_request` and its route stay for older requests.
+
+Gotchas:
+- **Times are estimated from now.** On today, a trip planned late in the
+  afternoon ends after 6 PM and can't be submitted until the Scheduler
+  moves it earlier. The Company e2e test sets its start for this reason.
+- **A Company stop joined any trip of the same requester setup**, even one
+  already on the road, and was then blocked ("On the road"); fixed
+  2026-10-15 so it starts a new trip after it.
+- **`cancellations.spec.ts` "admin confirms" fails now and then:** Confirm
+  opens the Decline dialog. It passed on re-runs; likely the row re-renders
+  between finding the button and clicking it.
+- **Docs use CRLF line endings,** and Git Bash's `grep` hides the `\r`.
+  Scripts that match multi-line text in them must allow for it.
