@@ -3,13 +3,16 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Schedules, { scheduleViews, type ScheduleView } from "../../schedules";
 import { scheduleStateLabel, type ScheduleState } from "@/lib/trip-record";
+import { schedulingHref } from "@/lib/scheduling";
 import { useAutoClear } from "@/lib/use-auto-clear";
+import { useKovaData } from "@/lib/use-kova-data";
 import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
 
 export default function SchedulesGate() {
   const router = useRouter();
   const { account, viewRole } = useAccount();
+  const { schedules } = useKovaData();
   const params = useSearchParams();
   const [date] = useState(() => params.get("date") ?? undefined);
   // Read once, then strip from the URL so a refresh doesn't re-show it.
@@ -44,8 +47,11 @@ export default function SchedulesGate() {
         initialOpenId={openId}
         initialView={view}
         initialStatus={status}
-        onCreate={viewRole === "Scheduler" ? () => router.push("/schedules/new") : undefined}
-        onEdit={(id) => router.push("/schedules/new?scheduleId=" + encodeURIComponent(id))}
+        onCreate={viewRole === "Scheduler" ? () => router.push(schedulingHref(date)) : undefined}
+        onEdit={(id) => {
+          const schedule = schedules.find((item) => item.id === id);
+          router.push(schedulingHref(schedule?.date, schedule?.kind));
+        }}
       />
     </RequireRole>
   );
