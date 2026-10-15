@@ -17,7 +17,7 @@ import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
 import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
-import { openRevision } from "@/lib/trip-record";
+import { currentRevision, openRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
@@ -54,10 +54,13 @@ const KINDS: Record<TripKind, string> = { DAILY: "Daily trips", COMPANY: "Compan
 export default function Scheduling({
   initialDate,
   initialKind,
+  initialTripId,
   onChange,
 }: {
   initialDate?: string;
   initialKind?: TripKind;
+  /** A trip to show: its vehicle opens, scrolls into view and is highlighted for a moment. */
+  initialTripId?: string;
   /** Keeps the address in step, so a refresh or a link opens the same day and kind. */
   onChange: (date: string, kind: TripKind) => void;
 }) {
@@ -67,8 +70,13 @@ export default function Scheduling({
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
   // The strip's first day: today, or the chosen day when it's further out.
   const [anchor, setAnchor] = useState(() => (day >= addDays(today, STRIP_DAYS) ? day : today));
-  // Vehicle cards start folded; one opens on a click, or when something is added to it.
-  const [openPlates, setOpenPlates] = useState<Set<string>>(new Set());
+  // The vehicle of the trip a link (a notification, Edit) asked for.
+  const [flashPlate, setFlashPlate] = useState(() => {
+    const trip = schedules.find((schedule) => schedule.id === initialTripId);
+    return trip ? currentRevision(trip)?.plate : undefined;
+  });
+  // Vehicle cards start folded; one opens on a click, when something is added to it, or when a link names its trip.
+  const [openPlates, setOpenPlates] = useState<Set<string>>(() => new Set(flashPlate ? [flashPlate] : []));
   const [sheetIds, setSheetIds] = useState<string[]>([]);
   // The stops being dragged onto a vehicle.
   const [dragIds, setDragIds] = useState<string[] | null>(null);
@@ -83,6 +91,12 @@ export default function Scheduling({
   useEffect(() => {
     strip.current?.querySelector(".date-card.selected")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [day]);
+  useEffect(() => {
+    if (!flashPlate) return;
+    document.querySelector(`.sc-vehicle[data-plate="${CSS.escape(flashPlate)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const timer = setTimeout(() => setFlashPlate(undefined), 2500);
+    return () => clearTimeout(timer);
+  }, [flashPlate]);
 
   const days = Array.from({ length: STRIP_DAYS }, (_, index) => addDays(anchor, index));
   // "October 2026", or "October 2026 – November 2026" when the strip runs into the next month.
@@ -401,6 +415,7 @@ export default function Scheduling({
               key={row.vehicle.plate}
               row={row}
               open={openPlates.has(row.vehicle.plate)}
+              flash={row.vehicle.plate === flashPlate}
               onToggle={() => toggle(row.vehicle.plate)}
               started={started}
               renderTrip={(trip, state) => (
