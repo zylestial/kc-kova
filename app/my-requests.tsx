@@ -222,7 +222,7 @@ export default function MyRequests({
         {requests.length > 0 && (
           <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [progress, type, form].filter((value) => value !== "all").length}>
             <DateRangeFilter value={dates} onChange={setDates} />
-            <FormFilter value={form} onChange={setForm} />
+            {requests.some((request) => kindOf(request) === "COMPANY") && <FormFilter value={form} onChange={setForm} />}
             <label className="field">
               <span>Progress</span>
               <Select value={progress} onValueChange={(value) => setProgress(value as typeof progress)}>
