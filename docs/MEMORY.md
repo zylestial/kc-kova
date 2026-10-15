@@ -707,6 +707,14 @@ The prototypes were the spec; these are the calls made on top of them.
   trips, and one trip per vehicle per day (0048) is Daily only. A Company
   vehicle can take several trips a day without overlaps; one department and
   one starting point per trip; no leg back to ANONANG.
+- **A Company Trip's Department / Site is its Project / Site** (0058,
+  2026-10-15, from the owner's click-through): one Project / Site for all
+  its stops (the "several projects" choice is hidden on Company Trips), no
+  separate Department picker, and the Departments / Sites list is hidden
+  in Settings. Vehicle and Driver sit next to Project / Site in step 2.
+  The Position block, the Vehicle and Driver hints and (for requesters)
+  the printed form preview are no longer shown on the form; Position still
+  prints.
 - **The requester records the Company trip** on My Trips (0055): Start trip
   with the odometer, Arrived / Leaving, End trip at the last stop with the
   odometer. End trip submits it, so it goes straight to Finished Trips. The
