@@ -185,14 +185,16 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
   }
 
   // The trip these stops would join: a Daily vehicle's one trip; a Company
-  // vehicle's open trip for the same department, Driver and starting point.
+  // vehicle's trip for the same department, Driver and starting point that
+  // hasn't started (once one has, the next goes after it as a new trip).
   const joinable = row.trips.find(
     (trip) =>
       !company ||
-      trip.revision.requestIds.some((id) => {
-        const request = requests.find((item) => item.id === id);
-        return request && canShareTrip(request, stops[0]);
-      }),
+      (!context.started(trip.schedule.id) &&
+        trip.revision.requestIds.some((id) => {
+          const request = requests.find((item) => item.id === id);
+          return request && canShareTrip(request, stops[0]);
+        })),
   );
   const fresh = (start: string): PlanOption => {
     const legs = timed(company ? [newLeg] : [newLeg, { isFinal: true, stops: [], contactName: "", contactNumber: "" }], start);

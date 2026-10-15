@@ -206,4 +206,16 @@ describe("planOptions", () => {
     const option = planOn([b], company, context([a, b]));
     expect(option.input.legs.map((item) => item.destinationId)).toEqual(["wilcon", "bir"]);
   });
+
+  it("starts a new Company trip after one already on the road", () => {
+    const companyGroup = group({ form: "COMPANY", vehiclePlate: "NBC" });
+    const a = stop("a", "wilcon", { group: companyGroup });
+    const c = stop("c", "bir", { group: group({ id: "g2", number: 53, form: "COMPANY", vehiclePlate: "NBC" }) });
+    const first = trip([leg(1, "wilcon", "08:00", "08:30", ["rd-a"])], ["a"], "APPROVED");
+    first.schedule.kind = "COMPANY";
+    const company = row([first], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true } });
+    const option = planOn([c], company, context([a, c], { started: () => true }));
+    expect(option).toMatchObject({ blocked: "", arrive: "09:15" });
+    expect(option.trip).toBeUndefined();
+  });
 });
