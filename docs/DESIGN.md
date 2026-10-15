@@ -84,6 +84,11 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   query parameters the screen reads once and strips (`/schedules?status=`
   and `?view=`, `/requests?progress=`, `/finished?status=` and
   `?problems=`); "Cancellation requests" jumps to `/schedules#cancellations`.
+- **Form filter: Daily Vehicle Trips / Company Trips** (`app/form-filter.tsx`,
+  2026-10-15) on Schedules, Finished Trips (Admin and Scheduler), My
+  Schedule (an Admin viewing as Driver; a Driver only when they have both
+  kinds of trip, next to Sort) and My requests (only when the account has
+  Company requests).
 - **Schedules has Day, Week and All dates views.** All dates lists every
   matching schedule with its date on each card; a status link with no view
   opens it, so the list shows everything the tile counted. Picking a date
