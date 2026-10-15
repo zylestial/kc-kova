@@ -18,7 +18,7 @@ A person has exactly one role; there is no multi-role account.
 | Role | Can do |
 | --- | --- |
 | **Requester** | Ask for transport (a date and one or more stops, each with a purpose). If an Admin allows it, ask for a **Company trip** instead, picking the vehicle and its Company car Driver, and record that trip themselves on **My Trips**. Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
-| **Scheduler** | Plan a day: take requests from the day's pool, pick a vehicle (its assigned Driver comes with it), build the route as a Trip Record, and submit it for approval. Plan Company trips on each vehicle's timeline. Send back requests that won't fit, move an "any day that week" stop to another day, or split a request across vehicles. The only role that creates schedules. |
+| **Scheduler** | Plan each day's Daily and Company trips on one **Scheduling** page: add waiting stops to vehicles (a Daily vehicle's assigned Driver comes with it), adjust each trip's legs and times, and submit it for approval. Send back stops that won't fit, or move an "any day that week" stop to another day. Change a trip that's waiting for the Admin, or propose changes to an approved one. The only role that creates schedules. |
 | **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers and times, handle problem reports, mark Done, print the form), check Drivers' attendance, and manage Accounts, Vehicles and request choices, including who may request Company trips. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
 | **Driver** | Either a **Truck** or a **Company car** Driver. See the approved trips assigned to them ("My Schedule"). On Daily trips, tap Start trip when leaving ANONANG and End trip on returning (their attendance), and Arrived and Leaving at each stop in between; after the trip ends, submit its odometer readings and final-return checks. On Company trips the requester records the trip; the Driver only sees it. Report a problem on a trip at any time. An Admin may let a Company car Driver make requests; a Truck Driver never can. |
 
@@ -34,24 +34,34 @@ A person has exactly one role; there is no multi-role account.
    days. An Admin may also log a past date for a trip nobody requested at the
    time. On a **Daily** request no vehicle, Driver or time is chosen at this
    stage.
-2. **Plan the day.** A Scheduler opens a day and sees its request pool, Urgent
-   first, then fixed times, any time that day and any day that week. An "any
-   day that week" stop can be moved to another day that week, and its
-   requester is told. They pick a vehicle (an Admin assigns each vehicle a
-   Driver; vehicles that can be requested for company trips aren't offered
-   here, and a vehicle has one Daily trip a day) and build the
-   **Trip Record**: legs in travel order,
-   starting and ending at ANONANG (the home base), with times for each leg.
-   Fuel or errand stops can be added without a request. Saving a draft
-   reserves the time and locks the requests so nobody else plans them. A
-   request that won't fit is sent back to its requester (with a reason) when
-   the Scheduler submits, so they can
-   pick another day; one only partly on the route is split so the rest can go
-   on another vehicle.
+2. **Plan the day.** On the **Scheduling** page a Scheduler picks a day from
+   the next two weeks, then **Daily trips** or **Company trips**. Urgent
+   stops show at the top. The day's waiting stops are listed Urgent first,
+   then fixed times, any time that day, and the week's "any day that week"
+   stops; each vehicle is listed with its trips. A stop is added to a
+   vehicle by dragging it there or by picking from the options KOVA
+   suggests, best first (no other stop made late, no end after the Driver's
+   6 PM end of day, then the least added time, or for an Urgent stop the
+   soonest arrival). Adding an "any day that week"
+   stop to another day moves it there, and its requester is told. Each
+   vehicle's legs form its **Trip Record**: legs in travel order, a Daily
+   trip starting and ending at ANONANG (the home base), with times for each
+   leg that KOVA estimates and the Scheduler can change. Fuel or errand
+   stops can be added without a request. A vehicle has one Daily trip a
+   day, and a vehicle that can be requested for company trips takes only
+   Company trips. Saving reserves the time and locks the requests so nobody
+   else plans them. A trip with a warning (too little time to drive a leg,
+   a fixed-time stop reached late, an end after 6 PM) can't be submitted
+   until it's fixed. A stop that won't fit is taken off its leg and goes
+   back to the waiting list, or back to its requester with a reason so they
+   can pick another day. **Undo** reverses the Scheduler's last change.
 3. **Approve.** The Scheduler submits the plan. An Admin approves it, which
    publishes it to the Requesters and the Driver, or returns it with a
-   comment saying what to change. A published schedule can be revised through
-   the same steps, and an Admin can cancel it with a reason.
+   comment saying what to change. While a trip waits for the Admin, the
+   Scheduler can still change it; that takes it back to a draft, to be
+   resubmitted. A published schedule can be revised through the same steps
+   (the Scheduler proposes changes; the approved times stay in effect until
+   the Admin approves them), and an Admin can cancel it with a reason.
 4. **Drive and record.** The Driver taps **Start trip** at ANONANG before
    leaving and **End trip** on returning. Each tap records the time and,
    when the phone shares it, where the Driver was; a tap away from ANONANG
@@ -70,10 +80,11 @@ A person has exactly one role; there is no multi-role account.
    department or site, the vehicle (one that can be requested for company
    trips), its Company car Driver, the site officer, the Immediate Supervisor
    and the PM / CM / Dept. Head, plus a supplier and contact per stop. A
-   Scheduler plans these on the Company trip planner: the requester's vehicle
-   and Driver are fixed, a vehicle can take several trips a day as long as
-   they don't overlap, a trip serves one department, and the route starts at
-   the starting point and ends at the last stop (no return to ANONANG).
+   Scheduler plans these under Company trips on the Scheduling page: the
+   requester's vehicle and Driver are fixed, a vehicle can take several
+   trips a day as long as they don't overlap, a trip serves one department,
+   and the route starts at the starting point and ends at the last stop (no
+   return to ANONANG).
    Approval works as for Daily trips. The **requester** records the trip on
    My Trips: Start trip with the odometer, Arrived and Leaving at each stop,
    and End trip on reaching the last stop with the odometer again (never
@@ -153,9 +164,14 @@ in `supabase/tests/` already check automatically.
   overlapping time, even when two people save at once. (tested)
 - A Scheduler can move an "any day that week" stop to another day that week,
   and its requester is told. (tested)
-- The Daily Planner doesn't offer vehicles that can be requested for company
-  trips. A Company trip uses the requester's vehicle and Driver, serves one
-  department, and never overlaps another trip on that vehicle. (tested)
+- A Scheduler can change a trip waiting for Admin approval; it goes back to
+  a draft and must be resubmitted. (tested)
+- A trip with a warning (a leg too short to drive, a fixed-time stop reached
+  late, an end after 6 PM) can't be submitted.
+- Daily trips on the Scheduling page don't offer vehicles that can be
+  requested for company trips. A Company trip uses the requester's vehicle
+  and Driver, serves one department, and never overlaps another trip on that
+  vehicle. (tested)
 - An Admin can approve a submitted schedule, which shows it to its
   Requesters and Driver, or return it with a comment. (tested)
 - An Admin can cancel an approved schedule with a reason; its requests go
