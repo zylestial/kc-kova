@@ -253,6 +253,12 @@ export default function Scheduling({
           </span>
         </div>
       ))}
+      <div className="sc-banner info">
+        <span>
+          <b>{shortDay(day)}:</b> {trips.length} {trips.length === 1 ? "trip" : "trips"}
+          {stops.length > urgent.length ? ` · ${stops.length - urgent.length} to plan` : " · all planned"}
+        </span>
+      </div>
       {notice && (
         <div className="notice success" role="status">
           {notice}
