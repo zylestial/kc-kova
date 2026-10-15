@@ -21,6 +21,7 @@ export default function SchedulesGate() {
   // Read once, then strip from the URL so a refresh doesn't re-show it.
   const [notice, setNotice] = useState(() => params.get("notice") ?? "");
   const [openId] = useState(() => params.get("open") ?? undefined);
+  const [cancellationId] = useState(() => params.get("cancellation") ?? undefined);
   // A Dashboard tile's starting filter. A status filter on its own opens
   // All dates, so the screen shows everything the tile counted.
   const [status] = useState(() => {
@@ -33,7 +34,7 @@ export default function SchedulesGate() {
   });
   useAutoClear(notice, setNotice);
   useEffect(() => {
-    if (["notice", "open", "status", "view"].some((key) => params.get(key)))
+    if (["notice", "open", "cancellation", "status", "view"].some((key) => params.get(key)))
       router.replace(date ? `/schedules?date=${encodeURIComponent(date)}` : "/schedules");
     // Only ever runs once, on mount, to consume the initial query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,6 +49,7 @@ export default function SchedulesGate() {
         notice={notice}
         initialDate={date}
         initialOpenId={openId}
+        initialCancellationId={cancellationId}
         initialView={view}
         initialStatus={status}
         onCreate={viewRole === "Scheduler" ? () => router.push(schedulingHref(date)) : undefined}
