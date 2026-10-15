@@ -14,6 +14,7 @@ import {
   Undo2,
   type LucideIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -80,7 +81,7 @@ function timeAgo(iso: string) {
   return `${days}d ago`;
 }
 
-function NotificationItem({ notification }: { notification: Notification }) {
+function NotificationItem({ notification, onOpen }: { notification: Notification; onOpen: () => void }) {
   const router = useRouter();
   const { schedules } = useKovaData();
   const unread = !notification.readAt;
@@ -92,7 +93,10 @@ function NotificationItem({ notification }: { notification: Notification }) {
       onClick={() => {
         if (unread) void markNotificationRead(notification.id).catch(() => {});
         const target = notificationTarget(notification, schedules);
-        if (target) router.push(target);
+        if (!target) return;
+        // Close the panel so it doesn't cover what it opened.
+        onOpen();
+        router.push(target);
       }}
     >
       <span className={`notif-icon tone-${tone}`} aria-hidden="true">
@@ -108,10 +112,11 @@ function NotificationItem({ notification }: { notification: Notification }) {
 
 export default function NotificationBell() {
   const { notifications } = useKovaData();
+  const [open, setOpen] = useState(false);
   const unreadCount = notifications.filter((item) => !item.readAt).length;
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Notifications" title="Notifications" className="notif-trigger">
           <Bell size={15} />
@@ -130,7 +135,7 @@ export default function NotificationBell() {
         {notifications.length === 0 ? (
           <div className="notif-empty">Nothing here yet</div>
         ) : (
-          notifications.map((notification) => <NotificationItem key={notification.id} notification={notification} />)
+          notifications.map((notification) => <NotificationItem key={notification.id} notification={notification} onOpen={() => setOpen(false)} />)
         )}
       </PopoverContent>
     </Popover>
