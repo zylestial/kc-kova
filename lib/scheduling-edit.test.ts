@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleLeg, TransportRequest } from "@/lib/kova-api";
 import { legTimer } from "@/lib/scheduling-plan";
-import { changeDestination, editInput, editLegs, moveLeg, removeLeg, setLegTimes } from "@/lib/scheduling-edit";
+import { changeDestination, editInput, editLegs, moveLeg, removeLeg, setLegTimes, tripChecks } from "@/lib/scheduling-edit";
 
 // No saved locations: every drive is 30 minutes; a Pick up stays 30.
 const request = (id: string): TransportRequest =>
@@ -66,5 +66,27 @@ describe("edits", () => {
     expect(input.requestIds).toEqual(["a", "c"]);
     expect(input.legs[1]).toMatchObject({ destinationId: "c", stops: ["rd-c"], plannedTimeOut: "09:00" });
     expect(input.legs[2]).toMatchObject({ destinationId: undefined, stops: [], isFinal: true });
+  });
+});
+
+describe("tripChecks", () => {
+  const name = (id: string) => id.toUpperCase();
+  it("finds nothing wrong with an estimated trip", () => {
+    expect(tripChecks(editLegs(estimated, timer, "08:00"), timer, false, name)).toEqual([]);
+  });
+
+  it("names times that don't work", () => {
+    const typed = [estimated[0], leg(2, "b", "09:00", "09:10"), leg(3, null, "09:05", "19:00")];
+    expect(tripChecks(editLegs(typed, timer, "08:00"), timer, false, name)).toEqual([
+      "Ends 7:00 PM (after 6 PM)",
+      "Leg 2: Time In 9:10 AM leaves too little drive time to b (about 30 min)",
+      "Leg 3: Time Out 9:05 AM is before it arrives from the previous stop",
+    ]);
+  });
+
+  it("wants a Daily trip to end at ANONANG, not a Company trip", () => {
+    const open = editLegs(estimated.slice(0, 2), timer, "08:00");
+    expect(tripChecks(open, timer, false, name)).toEqual(["Must end at ANONANG"]);
+    expect(tripChecks(open, timer, true, name)).toEqual([]);
   });
 });

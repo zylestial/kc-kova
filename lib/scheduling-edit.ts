@@ -1,5 +1,8 @@
 import type { ScheduleInput, ScheduleLeg } from "@/lib/kova-api";
-import type { legTimer, WorkLeg } from "@/lib/scheduling-plan";
+import { DAY_END, type legTimer, type WorkLeg } from "@/lib/scheduling-plan";
+import { MAX_LEGS } from "@/lib/trip-record";
+import { hhmmLabel } from "@/lib/stop-times";
+import { toMinutes } from "@/lib/trip-estimate";
 
 /**
  * Editing a trip's legs on the Scheduling page (prototype leg cards): type
@@ -123,4 +126,29 @@ export function editInput(date: string, plate: string, legs: EditLeg[], requestI
       isFinal: leg.isFinal,
     })),
   };
+}
+
+/**
+ * What's wrong with a trip, shown under the vehicle (prototype "checks"):
+ * Submit is refused until these are fixed. A Daily trip must end at
+ * ANONANG; a Company trip ends at its last stop.
+ */
+export function tripChecks(legs: EditLeg[], timer: Timer, company: boolean, nameOf: (requestId: string) => string): string[] {
+  const problems: string[] = [];
+  if (!legs.length) return problems;
+  if (legs.length > MAX_LEGS) problems.push(`Over ${MAX_LEGS} legs`);
+  const end = legs.at(-1)!.timeIn;
+  if (end > DAY_END) problems.push(`Ends ${hhmmLabel(end)} (after 6 PM)`);
+  legs.forEach((leg, index) => {
+    const wait = timer.waitAt(legs, index);
+    if (wait < 0) {
+      const drive = toMinutes(leg.timeIn) - toMinutes(leg.timeOut) - wait;
+      problems.push(`Leg ${index + 1}: Time In ${hhmmLabel(leg.timeIn)} leaves too little drive time to ${leg.destinationName} (about ${drive} min)`);
+    }
+    if (index > 0 && toMinutes(leg.timeOut) < toMinutes(legs[index - 1].timeIn))
+      problems.push(`Leg ${index + 1}: Time Out ${hhmmLabel(leg.timeOut)} is before it arrives from the previous stop`);
+  });
+  for (const id of new Set(timer.lateIn(legs))) problems.push(`${nameOf(id)} late`);
+  if (!company && !legs.at(-1)!.isFinal) problems.push("Must end at ANONANG");
+  return problems;
 }
