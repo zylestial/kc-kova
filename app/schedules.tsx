@@ -77,6 +77,7 @@ export default function Schedules({
   initialOpenId,
   initialView,
   initialStatus,
+  initialCancellationId,
 }: {
   /** The signed-in account, so a Scheduler's own draft can say "you". */
   viewerId: string;
@@ -94,6 +95,8 @@ export default function Schedules({
   initialView?: ScheduleView;
   /** A status to filter by from the start, e.g. from a Dashboard tile. */
   initialStatus?: ScheduleState;
+  /** A cancellation request to highlight (its request id), from a notification. */
+  initialCancellationId?: string;
 }) {
   const { schedules, requests, vehicles, accounts, completions } = useKovaData();
   const [view, setView] = useState<ScheduleView>(initialView ?? "week");
@@ -242,7 +245,7 @@ export default function Schedules({
           {decided || notice}
         </div>
       )}
-      {canReview && <CancellationRequests />}
+      {canReview && <CancellationRequests highlightRequestId={initialCancellationId} />}
       <section className="schedule-panel">
         <div className="panel-toolbar schedules-toolbar">
           <div>
