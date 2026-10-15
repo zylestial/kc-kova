@@ -10,6 +10,7 @@ import { tripState, tripStateLabel, tripStateTone, type Trip, type TripState, ty
 export default function VehicleCard({
   row,
   open,
+  flash = false,
   onToggle,
   started,
   drop,
@@ -17,6 +18,8 @@ export default function VehicleCard({
 }: {
   row: VehicleRow;
   open: boolean;
+  /** Highlighted for a moment, when a link (a notification, Edit) led to one of its trips. */
+  flash?: boolean;
   onToggle: () => void;
   started: (scheduleId: string) => boolean;
   /** A trip's legs and buttons (TripEditor). */
@@ -41,7 +44,8 @@ export default function VehicleCard({
 
   return (
     <div
-      className={"sc-vehicle" + (drop ? (drop.blocked ? " drop-no" : " drop-ok") : "")}
+      className={"sc-vehicle" + (drop ? (drop.blocked ? " drop-no" : " drop-ok") : "") + (flash ? " flash" : "")}
+      data-plate={vehicle.plate}
       title={drop?.blocked || undefined}
       onDragOver={(event) => {
         if (!drop) return;
