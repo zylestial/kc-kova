@@ -25,7 +25,6 @@ const groupBody = z.object({
   date: isoDate,
   stops: z.array(stop).max(20),
   startingPointId: text,
-  departmentId: text,
   vehiclePlate: trimmedText,
   driverId: text,
   supervisorId: text,
