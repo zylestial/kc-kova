@@ -49,8 +49,8 @@ should be written, for both humans and AI agents.)
   (`approve_schedule`).
 - Vehicles are never hard-deleted, only marked `Inactive`.
 - A vehicle that **can be requested for company trips** (`company_trips`,
-  off by default) is offered only on the Company Trip form and the Company
-  trip planner, never on a Daily trip (trigger
+  off by default) is offered only on the Company Trip form and under
+  Company trips on the Scheduling page, never on a Daily trip (trigger
   `schedule_revisions_kind_vehicle`, 0054). Every vehicle is a company
   vehicle; never call the others "non-company".
 
@@ -67,8 +67,42 @@ Daily trips only since 0054): once a vehicle is on an active Daily schedule
 for a day (any live version, timed or not), no other schedule may use it
 that day, even at other times. A schedule keeps its own vehicle across
 revisions; cancelling or discarding it frees the vehicle. Enforced by a
-trigger on `schedule_revisions`; the Planner also leaves booked vehicles out
-of its list (`platesBookedOn`).
+trigger on `schedule_revisions`; the Scheduling page only offers to add to
+that trip (`planOn` in `lib/scheduling-plan.ts`).
+
+**Scheduling page** (`/scheduling`, owner's calls 2026-10-14/15). The
+database stays the authority; these are the page's own rules:
+
+- **Changing a trip waiting for the Admin takes it back** (0057): a
+  Scheduler's `save_schedule_draft` on a `SUBMITTED` revision puts it back
+  to `DRAFT`, keeping `submitted_at`, so the page offers "Resubmit for
+  approval"; the Admin sees it again only once it's resubmitted. An Admin
+  editing a `SUBMITTED` revision still leaves it `SUBMITTED`.
+- An approved trip's legs are locked until the Scheduler presses **Propose
+  changes** (a new draft version; the approved times stay in effect until
+  the Admin approves the change).
+- **Warnings block Submit** (`tripChecks` in `lib/scheduling-edit.ts`): a
+  leg whose Time In is too soon to drive there, a Time Out before the leg
+  before it arrives, a fixed-time stop reached more than 5 minutes off its
+  time, more than 8 legs, an end after the Driver's day ends at 6 PM, and a
+  Daily trip that doesn't end at ANONANG.
+- **Adding a stop** (`planOn`): a Daily vehicle needs an assigned Driver and
+  takes one trip a day, so a stop joins that trip (not once it's on the
+  road). A Company stop goes only on the vehicle its requester picked,
+  joining that vehicle's trip for the same department, Driver and starting
+  point if one hasn't started yet, otherwise as a new trip at least 15
+  minutes after the vehicle's last one. A Company request's stops keep the
+  requester's order (52-A before 52-B).
+- Changing a leg's Time Out moves its Time In by the same amount (the leg
+  keeps its length); changing Time In changes only Time In. Later legs
+  without a typed time are estimated again.
+- **Taking a stop off** (Remove on its leg) sends it back to the waiting
+  list, or back to its requester with a reason (`send_back_requests`).
+- **Undo** reverses the Scheduler's changes on the page one at a time,
+  moved "any day that week" stops included; it can't undo a submit or a
+  send-back.
+- Older requests with several destinations can't be split on this page
+  (`split_request` stays in the API); every request since 0052 has one stop.
 
 The request rules (`create_request_group`, `update_request_group`,
 `write_request_stop`, 0052; owner's calls 2026-10-14):
