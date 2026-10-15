@@ -18,12 +18,12 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Change your mind", detail: "Edit before scheduling starts; after that, ask to cancel." },
   ],
   Scheduler: [
-    { title: "Build the day", detail: "Create schedule, then pick from the waiting stops, urgent first." },
-    { title: "Any day that week", detail: "Move such a stop to another day that week; the requester is told." },
-    { title: "Vehicle picks the Driver", detail: "Choosing a vehicle assigns its Driver for you." },
-    { title: "Fill the Trip Record", detail: "One leg per stop, timed Out/In, starting and ending at ANONANG." },
-    { title: "Plan Company trips", detail: "Company trips: place each on its vehicle's timeline, without overlaps. No return to ANONANG." },
-    { title: "Submit for approval", detail: "Draft holds the time; Admin approves or sends it back." },
+    { title: "Pick the day", detail: "On Scheduling, tap a date card, then Daily trips or Company trips. Urgent stops show on top." },
+    { title: "Add stops to a vehicle", detail: "Drag a stop onto a vehicle, or tap it for the best options. Daily trips get the vehicle's Driver." },
+    { title: "Any day that week", detail: "Adding such a stop to another day moves it there; the requester is told." },
+    { title: "Check the legs", detail: "Open a vehicle to set each leg's Time Out/In or reorder legs. Fix any warning before you submit." },
+    { title: "Take a stop off", detail: "Remove its leg: back to To plan, or back to the requester with a reason." },
+    { title: "Submit for approval", detail: "Admin approves or sends it back. Undo reverses your last change; Propose changes edits an approved trip." },
   ],
   Driver: [
     { title: "See your trips", detail: "My Schedule lists only your approved trips." },
