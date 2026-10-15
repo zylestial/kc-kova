@@ -32,6 +32,7 @@ import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trip
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
 import CompanyTripPrint from "./company-trip-print";
+import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { runAsAttendance } from "@/lib/company-trips";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import OlderRecordsNotice from "./older-records-notice";
@@ -91,8 +92,7 @@ export default function AdminFinishedTrips({
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [driver, setDriver] = useState("all");
   const [vehicle, setVehicle] = useState("all");
-  /** Daily Vehicle Trips or Company Trips (Company Trip Flow prototype, "Review & print"). */
-  const [form, setForm] = useState("all");
+  const [form, setForm] = useState<FormFilterValue>("all");
   const [status, setStatus] = useState(initialStatus ?? "all");
   const [problems, setProblems] = useState(initialProblems ?? "all");
   const [sort, setSort] = useState<Sort<SortKey>>(null);
@@ -137,7 +137,7 @@ export default function AdminFinishedTrips({
         inDateFilter(trip.schedule.date, dates, today) &&
         (driver === "all" || trip.revision.driverName === driver) &&
         (vehicle === "all" || trip.revision.plate === vehicle) &&
-        (form === "all" || trip.schedule.kind === form) &&
+        formMatches(form, trip.schedule.kind) &&
         (status === "all" || status === (trip.completion?.status ?? "UNSUBMITTED")) &&
         (problems === "all" || (problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
     ),
@@ -298,19 +298,7 @@ export default function AdminFinishedTrips({
         <OlderRecordsNotice />
         <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, form, status, problems].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
           <DateRangeFilter value={dates} onChange={setDates} />
-          <label className="field">
-            <span>Form</span>
-            <Select value={form} onValueChange={setForm}>
-              <SelectTrigger aria-label="Form filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All forms</SelectItem>
-                <SelectItem value="DAILY">Daily Vehicle Trips</SelectItem>
-                <SelectItem value="COMPANY">Company Trips</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
+          <FormFilter value={form} onChange={setForm} />
           <label className="field">
             <span>Driver</span>
             <Select value={driver} onValueChange={setDriver}>
