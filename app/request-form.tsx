@@ -734,7 +734,8 @@ export default function RequestForm({
           </p>
         </aside>
       </div>
-      {company && (
+      {/* Only an Admin prints the form; a requester doesn't need the preview. */}
+      {company && isAdmin && (
         <section className="request-paper-preview">
           <h2>Printed form preview</h2>
           <div className="trip-paper-frame">
