@@ -790,5 +790,6 @@ Gotchas:
 - **`cancellations.spec.ts` "admin confirms" fails now and then:** Confirm
   opens the Decline dialog. It passed on re-runs; likely the row re-renders
   between finding the button and clicking it.
-- **Docs use CRLF line endings,** and Git Bash's `grep` hides the `\r`.
-  Scripts that match multi-line text in them must allow for it.
+- **Some docs use CRLF line endings** (PRD, for one; TASKS doesn't), and
+  Git Bash's `grep` hides the `\r`. Scripts that match multi-line text in
+  them must allow for either.
