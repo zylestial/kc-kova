@@ -50,7 +50,7 @@ export function homeStats(
       (schedule) => schedule.status === "ACTIVE" && schedule.publishedRevisionId && schedule.date === today,
     ).length;
     return [
-      { label: "Waiting to be scheduled", href: "/schedules/new", value: waiting, tone: "warning" },
+      { label: "Waiting to be scheduled", href: "/scheduling", value: waiting, tone: "warning" },
       { label: "Drafts to finish", href: "/schedules?status=DRAFT", value: states.filter((state) => state === "DRAFT").length, tone: "info" },
       { label: "Returned by Admin", href: "/schedules?status=RETURNED", value: states.filter((state) => state === "RETURNED").length, tone: "error" },
       { label: "Trips today", href: "/schedules?view=day", value: tripsToday, tone: "success" },
