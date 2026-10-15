@@ -58,7 +58,7 @@ function notificationTarget(notification: Notification, schedules: Schedule[]): 
       // Fixed on Scheduling, opened on the schedule's day and kind.
       if (!relatedScheduleId) return "/schedules";
       const schedule = schedules.find((item) => item.id === relatedScheduleId);
-      return schedulingHref(schedule?.date, schedule?.kind);
+      return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
     }
     case "TRIP_PUBLISHED":
       return relatedScheduleId ? `/my-schedule?open=${encodeURIComponent(relatedScheduleId)}` : "/my-schedule";
