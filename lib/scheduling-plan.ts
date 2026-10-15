@@ -53,6 +53,8 @@ export type PlanOption = {
   label: string;
   /** It changes an approved trip, so it goes into draft changes for the Admin. */
   needsAdmin: boolean;
+  /** The trip is waiting for the Admin: this takes it back to draft, to resubmit. */
+  takesBack: boolean;
 };
 
 /** A leg being worked on: what save_schedule_draft takes, with the times the Scheduler set. */
@@ -172,6 +174,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     blocked,
     label: "",
     needsAdmin: false,
+    takesBack: false,
   });
 
   if (company) {
@@ -205,6 +208,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
       blocked: "",
       label: `Free${context.isToday ? " now" : ""} · new trip`,
       needsAdmin: false,
+      takesBack: false,
     };
   };
 
@@ -300,5 +304,6 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     blocked: legs.length > (company ? MAX_TRIP_LEGS : MAX_LEGS) ? `Over ${company ? MAX_TRIP_LEGS : MAX_LEGS} legs` : "",
     label,
     needsAdmin: !open,
+    takesBack: open?.status === "SUBMITTED",
   };
 }

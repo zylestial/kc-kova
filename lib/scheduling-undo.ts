@@ -5,8 +5,9 @@ import type { TripKind } from "@/lib/scheduling";
 /**
  * Undo on the Scheduling page (prototype "Undo"): before a change to a
  * trip, what its open version was; undoing puts that back. Every change is
- * a real save, so undoing is another save: the old version saved again, a
- * new draft discarded, or a discarded one made again. Moved "any day that
+ * a real save, so undoing is another save: the old version saved again (and
+ * resubmitted, when the change took it back from the Admin), a new draft
+ * discarded, or a discarded one made again. Moved "any day that
  * week" stops go back to the day they were asked for. Submit and sending a
  * stop back to its requester can't be undone; they clear the list.
  */
@@ -16,6 +17,8 @@ export type UndoEntry = {
   kind: TripKind;
   /** The open version before the change; null when there was none (a new trip, or an approved one). */
   input: ScheduleInput | null;
+  /** It was waiting for the Admin; undoing submits it again. */
+  submitted: boolean;
   /** "Any day that week" stops moved to this day, with the day they were asked for. */
   moves: Array<{ id: string; from: string }>;
 };
@@ -41,7 +44,7 @@ export function revisionInput(date: string, revision: ScheduleRevision): Schedul
 /** A trip's undo entry, taken just before a change to it. */
 export function undoEntry(schedule: Schedule, kind: TripKind, moves: UndoEntry["moves"] = []): UndoEntry {
   const open = openRevision(schedule);
-  return { scheduleId: schedule.id, kind, input: open ? revisionInput(schedule.date, open) : null, moves };
+  return { scheduleId: schedule.id, kind, input: open ? revisionInput(schedule.date, open) : null, submitted: open?.status === "SUBMITTED", moves };
 }
 
 export type UndoStep =

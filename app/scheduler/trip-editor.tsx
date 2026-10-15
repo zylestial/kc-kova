@@ -61,7 +61,9 @@ const two = (index: number) => String(index + 1).padStart(2, "0");
  * Origin (automatic), Planned Time Out, Destination and Planned Time In per
  * leg, reordered by dragging ⠿ or with the arrows, and Remove. Every change
  * saves the draft. Below them, what the trip is waiting for and its
- * buttons: Submit, Discard, or Propose changes once approved.
+ * buttons: Submit (Resubmit once it has been sent), Discard. Changing an
+ * approved trip saves draft changes; changing one waiting for the Admin
+ * takes it back to draft (0057). Either way it's resubmitted.
  */
 export default function TripEditor({
   trip,
@@ -98,9 +100,11 @@ export default function TripEditor({
     [trip.revision.legs, timer],
   );
   const open = openRevision(trip.schedule);
-  // A trip waiting for the Admin can still be changed; it stays waiting (0057).
-  const editable = ["DRAFT", "RETURNED", "SUBMITTED", "CHANGES", "CHANGES_SUBMITTED"].includes(state);
-  const waitingNote = open?.status === "SUBMITTED" ? " Still waiting for Admin, who sees the change." : "";
+  // Every trip can be changed until the Driver is done with it: an approved
+  // one gets draft changes, one waiting for the Admin goes back to draft.
+  const editable = true;
+  const resubmitNote =
+    open?.status === "SUBMITTED" ? " Taken back from the Admin. Resubmit when ready." : !open ? " Saved as draft changes. Resubmit when ready." : "";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
   const tripRequests = trip.revision.requestIds.flatMap((id) => requests.filter((request) => request.id === id));
   const startingPoint = tripRequests[0]?.group?.startingPoint?.name ?? "Starting point";
@@ -134,7 +138,7 @@ export default function TripEditor({
         for (const id of moveIds) await moveRequestDay(id, day);
         await saveScheduleDraft(trip.schedule.id, open ? open.rowVersion : null, editInput(day, trip.revision.plate, next, (stopId) => requestOf(stopId)?.id));
         if (sendBack?.ids.length) await sendBackRequests(sendBack.ids, sendBack.reason);
-        return message + (open ? "." + waitingNote : ". Saved in draft changes, not sent yet.");
+        return message + "." + resubmitNote;
       },
       sendBack?.ids.length
         ? "clear"
@@ -182,7 +186,7 @@ export default function TripEditor({
       void run(
         async () => {
           if (!open || publishedRevision(trip.schedule)) throw new Error("A trip needs at least one stop. Discard the changes instead.");
-          if (open.status === "SUBMITTED") throw new Error("A trip waiting for Admin needs at least one stop.");
+          if (open.status === "SUBMITTED") throw new Error("A trip waiting for Admin needs at least one stop. Ask the Admin to return it, then discard it.");
           await discardScheduleDraft(trip.schedule.id, open.rowVersion);
           if (sendBack) await sendBackRequests(sendBack.ids, sendBack.reason);
           return `Leg removed and the draft discarded.${reason ? " Sent back to the requester." : ""}`;
@@ -365,10 +369,7 @@ export default function TripEditor({
         kind={kind}
         busy={busy}
         run={run}
-        legs={legs}
-        day={day}
         problems={problems}
-        requestIdOf={(stopId) => requestOf(stopId)?.id}
       />
 
       <RemoveLegDialog
@@ -400,51 +401,43 @@ function TripActions({
   kind,
   busy,
   run,
-  legs,
-  day,
   problems,
-  requestIdOf,
 }: {
   trip: Trip;
   state: TripState;
   kind: TripKind;
   busy: boolean;
   run: (action: () => Promise<string>, undo?: UndoEntry | "clear") => Promise<void>;
-  legs: EditLeg[];
-  day: string;
   /** What's wrong with the trip (tripChecks): Submit waits until it's fixed. */
   problems: string[];
-  requestIdOf: (stopId: string) => string | undefined;
 }) {
   const open = openRevision(trip.schedule);
   const published = publishedRevision(trip.schedule);
+  // Sent before (taken back, returned) or changes to an approved trip: Resubmit.
+  const again = !!open?.submittedAt || !!published;
   const submit = () =>
     run(async () => {
-      if (problems.length) throw new Error("Fix the warnings on this trip before submitting.");
+      if (problems.length) throw new Error(`Fix the warnings on this trip before ${again ? "resubmitting" : "submitting"}.`);
       await submitSchedule(trip.schedule.id, open!.rowVersion);
-      return "Submitted. The Admin can see it now.";
+      return `${again ? "Resubmitted" : "Submitted"}. The Admin can see it now.`;
     }, "clear");
   const discard = () =>
     run(async () => {
       await discardScheduleDraft(trip.schedule.id, open!.rowVersion);
       return published ? "Draft changes discarded. The approved trip stays." : "Draft discarded. Its stops are back in To plan.";
     }, undoEntry(trip.schedule, kind));
-  const propose = () =>
-    run(async () => {
-      await saveScheduleDraft(trip.schedule.id, null, editInput(day, trip.revision.plate, legs, requestIdOf));
-      return "Draft changes opened. Only you can see them until you submit.";
-    }, undoEntry(trip.schedule, kind));
   const tone = state === "APPROVED" || state === "ON_THE_ROAD" ? " ok" : state === "RETURNED" ? " error" : "";
   return (
     <div className={"sc-state" + tone}>
       <b>{tripStateLabel[state]}</b>
-      {state === "DRAFT" && " · only you can see it. Submit when the trip is ready."}
-      {state === "RETURNED" && <> · the Admin sent it back{open?.decisionComment ? `: “${open.decisionComment}”` : ""}. Fix it, then submit again.</>}
-      {state === "SUBMITTED" && " · the Admin can see it. You can still change it; the Admin approves the latest version."}
-      {(state === "APPROVED" || state === "ON_THE_ROAD") && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
+      {state === "DRAFT" && (open?.submittedAt ? " · taken back from the Admin. Resubmit when ready." : " · only you can see it. Submit when the trip is ready.")}
+      {state === "RETURNED" && <> · the Admin sent it back{open?.decisionComment ? `: “${open.decisionComment}”` : ""}. Fix it, then resubmit.</>}
+      {state === "SUBMITTED" && " · the Admin can see it. Changing it takes it back to you to resubmit."}
+      {(state === "APPROVED" || state === "ON_THE_ROAD") &&
+        " · the Driver follows these times. Change anything above to make draft changes; the Driver keeps these until the Admin approves."}
       {state === "CHANGES" && " · only you can see these. The Driver still follows the approved times below until the Admin approves."}
       {state === "CHANGES_SUBMITTED" &&
-        " · the changes are submitted and you can still change them; the approved times below stay in effect until approved."}
+        " · the changes are with the Admin. Changing them takes them back to you to resubmit; the approved times below stay in effect until approved."}
       {(state === "CHANGES" || state === "CHANGES_SUBMITTED") && published && (
         <ul className="sc-legs">
           {published.legs.map((leg) => (
@@ -461,17 +454,12 @@ function TripActions({
         {["DRAFT", "RETURNED", "CHANGES"].includes(state) && (
           <>
             <Button size="sm" className="primary" disabled={busy} onClick={submit}>
-              Submit for approval
+              {again ? "Resubmit for approval" : "Submit for approval"}
             </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={discard}>
               {state === "CHANGES" ? "Discard changes" : "Discard draft"}
             </Button>
           </>
-        )}
-        {(state === "APPROVED" || state === "ON_THE_ROAD") && (
-          <Button size="sm" className="primary" disabled={busy} onClick={propose}>
-            Propose changes
-          </Button>
         )}
       </div>
     </div>

@@ -10,12 +10,14 @@ import {
   hydrateKovaData,
   moveRequestDay,
   saveScheduleDraft,
+  submitSchedule,
   type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
 import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
+import { openRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
@@ -135,15 +137,15 @@ export default function Scheduling({
         setUndos((list) => [...list, before]);
       } else {
         const created = await (kind === "COMPANY" ? createCompanyTrip(option.input) : createSchedule(option.input));
-        setUndos((list) => [...list, { scheduleId: created.id, kind, input: null, moves }]);
+        setUndos((list) => [...list, { scheduleId: created.id, kind, input: null, submitted: false, moves }]);
       }
       setSheetIds([]);
       setOpenPlates((plates) => new Set([...plates, option.row.vehicle.plate]));
       setNotice(
         `Added to ${name}.` +
           (moved.length ? " Requester notified of the new day." : "") +
-          (option.needsAdmin ? " Saved in draft changes, not sent yet." : "") +
-          (option.trip?.revision.status === "SUBMITTED" ? " Still waiting for Admin, who sees the change." : "") +
+          (option.needsAdmin ? " Saved as draft changes. Resubmit when ready." : "") +
+          (option.takesBack ? " Taken back from the Admin. Resubmit when ready." : "") +
           (option.late.length ? ` ${option.late.length === 1 ? "1 stop" : `${option.late.length} stops`} will be late; change the times.` : ""),
       );
     } catch (caught) {
@@ -185,7 +187,12 @@ export default function Scheduling({
         getSchedules().find((schedule) => schedule.id === entry.scheduleId),
       );
       if (step.action === "discard") await discardScheduleDraft(step.id, step.rowVersion);
-      else if (step.action === "save") await saveScheduleDraft(step.id, step.rowVersion, step.input);
+      else if (step.action === "save") {
+        const saved = await saveScheduleDraft(step.id, step.rowVersion, step.input);
+        // The change took it back from the Admin: send it back to them.
+        const open = entry.submitted ? openRevision(saved) : undefined;
+        if (open) await submitSchedule(saved.id, open.rowVersion);
+      }
       else if (step.action === "create") {
         // Made again under a new id: earlier entries for the trip follow it.
         const created = await (step.kind === "COMPANY" ? createCompanyTrip(step.input) : createSchedule(step.input));

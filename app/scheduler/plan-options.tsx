@@ -47,7 +47,8 @@ export default function PlanOptions({
               {option.blocked && <span className="sc-late">{option.blocked}</span>}
               {option.end > DAY_END && <span className="sc-late">Ends {hhmmLabel(option.end)} (after 6 PM)</span>}
               {option.late.length > 0 && <span className="sc-late">Late: {option.late.map(name).join(", ")}</span>}
-              {option.needsAdmin && <span className="sc-muted">Approved trip: goes into draft changes, then you submit</span>}
+              {option.needsAdmin && <span className="sc-muted">Approved trip: goes into draft changes, then you resubmit</span>}
+              {option.takesBack && <span className="sc-muted">Waiting for Admin: goes back to draft, then you resubmit</span>}
             </div>
             <Button
               size="sm"

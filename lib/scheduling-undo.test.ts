@@ -51,7 +51,7 @@ describe("undo", () => {
   });
 
   it("discards a new trip, or the draft changes opened on an approved one", () => {
-    expect(undoStep({ scheduleId: "s1", kind: "DAILY", input: null, moves: [] }, schedule([revision("r1", "DRAFT", 2)]))).toEqual({
+    expect(undoStep({ scheduleId: "s1", kind: "DAILY", input: null, submitted: false, moves: [] }, schedule([revision("r1", "DRAFT", 2)]))).toEqual({
       action: "discard",
       id: "s1",
       rowVersion: 2,
@@ -61,6 +61,11 @@ describe("undo", () => {
     expect(entry.input).toBeNull();
     const withChanges = schedule([revision("r1", "APPROVED"), revision("r2", "DRAFT", 3)], { publishedRevisionId: "r1" });
     expect(undoStep(entry, withChanges)).toEqual({ action: "discard", id: "s1", rowVersion: 3 });
+  });
+
+  it("remembers a trip was waiting for the Admin", () => {
+    expect(undoEntry(schedule([revision("r1", "SUBMITTED")]), "DAILY").submitted).toBe(true);
+    expect(undoEntry(schedule([revision("r1", "DRAFT")]), "DAILY").submitted).toBe(false);
   });
 
   it("makes a discarded draft again, and reopens discarded changes", () => {
