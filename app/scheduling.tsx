@@ -1,12 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   createCompanyTrip,
   createSchedule,
-  getRequests,
-  getSchedules,
   hydrateKovaData,
   moveRequestDay,
   saveScheduleDraft,
@@ -18,7 +15,6 @@ import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/sc
 import { manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
-  byFixedTime,
   dayCounts,
   isLocked,
   placeGroups,
@@ -173,41 +169,6 @@ export default function Scheduling({
     setFlipped(next);
   }
 
-  /**
-   * Plan for me: every stop still to plan this day goes on the best vehicle
-   * that can take it (planOptions), Urgent and fixed times first, stops at
-   * the same place and time together. Each is saved as a draft, so the Scheduler
-   * checks the trips, changes what they like and submits.
-   */
-  const planForMe = () =>
-    run(async () => {
-      let placed = 0;
-      const missed: string[] = [];
-      for (const group of placeGroups(toPlan(getRequests(), day, kind)).flatMap(byFixedTime)) {
-        const fresh = getRequests();
-        const waiting = group.flatMap((stop) => fresh.filter((item) => item.id === stop.id && item.progress === "NOT_YET_SCHEDULED"));
-        if (!waiting.length) continue;
-        const rowsNow = vehicleRows(vehicles, accounts, getSchedules(), day).filter((row) => row.kind === kind);
-        const best = planOptions(waiting, rowsNow, { ...context, requests: fresh }).find((option) => !option.blocked);
-        if (!best) {
-          missed.push(...waiting.map((stop) => stopNumber(stop) || stop.ownerName));
-          continue;
-        }
-        try {
-          if (best.trip) await saveScheduleDraft(best.trip.schedule.id, best.rowVersion, best.input);
-          else if (kind === "COMPANY") await createCompanyTrip(best.input);
-          else await createSchedule(best.input);
-          placed += waiting.length;
-        } catch {
-          missed.push(...waiting.map((stop) => stopNumber(stop) || stop.ownerName));
-        }
-      }
-      return (
-        `Planned ${placed} ${placed === 1 ? "stop" : "stops"} as drafts. Check the trips, then submit each one.` +
-        (missed.length ? ` Couldn't fit ${missed.join(", ")}; drag ${missed.length === 1 ? "it" : "them"} onto a vehicle or send back.` : "")
-      );
-    });
-
   return (
     <div className="scheduling">
       <div className="page-heading">
@@ -306,9 +267,6 @@ export default function Scheduling({
         <section className="sc-panel">
           <h2>
             To plan · {day === today ? "today" : shortDay(day)} <span className="count">{stops.length}</span>
-            <Button size="sm" className="primary sc-plan-me" disabled={busy || !stops.length} onClick={planForMe}>
-              <Sparkles size={14} /> {busy ? "Planning…" : "Plan for me"}
-            </Button>
           </h2>
           <div className="sc-list">
             {placeGroups(stops).map((group) =>

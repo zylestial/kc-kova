@@ -81,19 +81,6 @@ export function placeGroups(stops: TransportRequest[]): TransportRequest[][] {
     .sort((a, b) => Math.max(...b.map(stopRank)) - Math.max(...a.map(stopRank)));
 }
 
-/**
- * A place group split by fixed time, as Plan for me places it: stops that
- * can go any time aren't held to a fixed-time stop at the same place.
- */
-export function byFixedTime(group: TransportRequest[]): TransportRequest[][] {
-  const parts = new Map<string, TransportRequest[]>();
-  for (const stop of group) {
-    const key = stop.flexibility === "FIXED" ? `fixed:${stop.fixedTime ?? ""}` : "any";
-    parts.set(key, [...(parts.get(key) ?? []), stop]);
-  }
-  return [...parts.values()];
-}
-
 export type Trip = { schedule: Schedule; revision: ScheduleRevision };
 
 export type VehicleRow = {
