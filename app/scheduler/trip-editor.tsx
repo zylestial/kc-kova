@@ -24,6 +24,7 @@ import {
   editLegs,
   moveLeg,
   removeLeg,
+  legProblems,
   setLegTimes,
   tripChecks,
   type EditLeg,
@@ -199,11 +200,11 @@ export default function TripEditor({
     void save(next, `Leg removed.${names ? (reason ? ` ${names} sent back to the requester` : ` ${names} back in To plan`) : ""}`.replace(/\.$/, ""), [], sendBack);
   }
 
-  const late = new Set(timer.lateIn(legs));
-  const problems = tripChecks(legs, timer, company, (id) => {
+  const nameOf = (id: string) => {
     const request = requests.find((item) => item.id === id);
     return request ? stopNumber(request) || request.ownerName : "A stop";
-  });
+  };
+  const problems = tripChecks(legs, timer, company, nameOf);
   const removingLeg = removing === null ? null : legs[removing];
 
   return (
@@ -219,10 +220,7 @@ export default function TripEditor({
         const movable = editable && !done && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
         const lastMovable = legs.length - (legs.at(-1)?.isFinal ? 2 : 1);
-        const warnings = [
-          index > 0 && toMinutes(leg.timeOut) < toMinutes(legs[index - 1].timeIn) && "Time Out is before it arrives from the previous stop.",
-          leg.stops.some((stopId) => late.has(requestOf(stopId)?.id ?? "")) && "Late for the requester's fixed time.",
-        ].filter((item): item is string => !!item);
+        const warnings = legProblems(legs, index, timer, nameOf).map((problem) => problem + ".");
         return (
           <div
             key={leg.key}

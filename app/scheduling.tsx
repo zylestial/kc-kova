@@ -443,7 +443,7 @@ export default function Scheduling({
                 {error}
               </div>
             )}
-            <PlanOptions options={planOptions(sheetStops, rows, context)} stops={sheetStops} busy={busy} onAdd={(option) => add(option, sheetStops)} />
+            <PlanOptions options={planOptions(sheetStops, rows, context)} stops={sheetStops} requests={requests} busy={busy} onAdd={(option) => add(option, sheetStops)} />
           </>
         )}
       </StopSheet>

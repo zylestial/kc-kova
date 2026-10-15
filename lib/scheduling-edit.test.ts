@@ -78,15 +78,22 @@ describe("tripChecks", () => {
   it("names times that don't work", () => {
     const typed = [estimated[0], leg(2, "b", "09:00", "09:10"), leg(3, null, "09:05", "19:00")];
     expect(tripChecks(editLegs(typed, timer, "08:00"), timer, false, name)).toEqual([
-      "Ends 7:00 PM (after 6 PM)",
-      "Leg 2: Time In 9:10 AM leaves too little drive time to b (about 30 min)",
-      "Leg 3: Time Out 9:05 AM is before it arrives from the previous stop",
+      "Ends 7:00 PM, after the Driver's day ends at 6:00 PM",
+      "Leg 2: Time In 9:10 AM leaves 10 min to drive to b; it takes about 30 min",
+      "Leg 3: Time Out 9:05 AM is before it arrives at b at 9:10 AM",
     ]);
+  });
+
+  it("says when a fixed-time stop is reached", () => {
+    const fixed = { ...request("b"), flexibility: "FIXED", fixedTime: "10:00" } as TransportRequest;
+    const withFixed = legTimer({ requests: [request("a"), fixed], destinations: [] }, false);
+    const legs = editLegs([estimated[0], leg(2, "b", "09:00", "09:30"), leg(3, null, "10:00", "10:30")], withFixed, "08:00");
+    expect(tripChecks(legs, withFixed, false, name)).toEqual(["Leg 2: B asked for 10:00 AM; it arrives 9:30 AM (30 min early)"]);
   });
 
   it("wants a Daily trip to end at ANONANG, not a Company trip", () => {
     const open = editLegs(estimated.slice(0, 2), timer, "08:00");
-    expect(tripChecks(open, timer, false, name)).toEqual(["Must end at ANONANG"]);
+    expect(tripChecks(open, timer, false, name)).toEqual(["Must end at ANONANG: the last leg goes to b"]);
     expect(tripChecks(open, timer, true, name)).toEqual([]);
   });
 });

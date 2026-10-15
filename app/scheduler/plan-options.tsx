@@ -13,18 +13,25 @@ import { stopNumber } from "@/lib/scheduling";
 export default function PlanOptions({
   options,
   stops,
+  requests,
   busy,
   onAdd,
 }: {
   options: PlanOption[];
   stops: TransportRequest[];
+  /** Every request, to name a stop on the trip this would make late. */
+  requests: TransportRequest[];
   busy: boolean;
   onAdd: (option: PlanOption) => void;
 }) {
   const urgent = stops.some((stop) => stop.requestType === "URGENT");
-  const name = (id: string) => {
-    const stop = stops.find((item) => item.id === id);
-    return stop ? stopNumber(stop) || stop.ownerName : id;
+  // "52-A asked for 1:00 PM, would arrive 1:30 PM"
+  const lateText = (option: PlanOption, id: string) => {
+    const request = requests.find((item) => item.id === id);
+    if (!request) return id;
+    const name = stopNumber(request) || request.ownerName;
+    const leg = option.input.legs.find((item) => item.stops.includes(request.destinations[0]?.id ?? ""));
+    return request.fixedTime && leg ? `${name} asked for ${hhmmLabel(request.fixedTime)}, would arrive ${hhmmLabel(leg.plannedTimeIn)}` : name;
   };
   return (
     <div>
@@ -45,8 +52,8 @@ export default function PlanOptions({
                 </span>
               )}
               {option.blocked && <span className="sc-late">{option.blocked}</span>}
-              {option.end > DAY_END && <span className="sc-late">Ends {hhmmLabel(option.end)} (after 6 PM)</span>}
-              {option.late.length > 0 && <span className="sc-late">Late: {option.late.map(name).join(", ")}</span>}
+              {option.end > DAY_END && <span className="sc-late">Ends {hhmmLabel(option.end)}, after the Driver&apos;s day ends at 6:00 PM</span>}
+              {option.late.length > 0 && <span className="sc-late">Late: {option.late.map((id) => lateText(option, id)).join("; ")}</span>}
               {option.needsAdmin && <span className="sc-muted">Approved trip: goes into draft changes, then you resubmit</span>}
               {option.takesBack && <span className="sc-muted">Waiting for Admin: goes back to draft, then you resubmit</span>}
             </div>

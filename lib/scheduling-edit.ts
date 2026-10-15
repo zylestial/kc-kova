@@ -136,19 +136,40 @@ export function editInput(date: string, plate: string, legs: EditLeg[], requestI
 export function tripChecks(legs: EditLeg[], timer: Timer, company: boolean, nameOf: (requestId: string) => string): string[] {
   const problems: string[] = [];
   if (!legs.length) return problems;
-  if (legs.length > MAX_LEGS) problems.push(`Over ${MAX_LEGS} legs`);
+  if (legs.length > MAX_LEGS) problems.push(`Over ${MAX_LEGS} legs: this trip has ${legs.length}`);
   const end = legs.at(-1)!.timeIn;
-  if (end > DAY_END) problems.push(`Ends ${hhmmLabel(end)} (after 6 PM)`);
-  legs.forEach((leg, index) => {
-    const wait = timer.waitAt(legs, index);
-    if (wait < 0) {
-      const drive = toMinutes(leg.timeIn) - toMinutes(leg.timeOut) - wait;
-      problems.push(`Leg ${index + 1}: Time In ${hhmmLabel(leg.timeIn)} leaves too little drive time to ${leg.destinationName} (about ${drive} min)`);
-    }
-    if (index > 0 && toMinutes(leg.timeOut) < toMinutes(legs[index - 1].timeIn))
-      problems.push(`Leg ${index + 1}: Time Out ${hhmmLabel(leg.timeOut)} is before it arrives from the previous stop`);
-  });
-  for (const id of new Set(timer.lateIn(legs))) problems.push(`${nameOf(id)} late`);
-  if (!company && !legs.at(-1)!.isFinal) problems.push("Must end at ANONANG");
+  if (end > DAY_END) problems.push(`Ends ${hhmmLabel(end)}, after the Driver's day ends at 6:00 PM`);
+  legs.forEach((_, index) => problems.push(...legProblems(legs, index, timer, nameOf).map((problem) => `Leg ${index + 1}: ${problem}`)));
+  if (!company && !legs.at(-1)!.isFinal) problems.push(`Must end at ANONANG: the last leg goes to ${legs.at(-1)!.destinationName}`);
+  return problems;
+}
+
+/**
+ * What's wrong with one leg, with the times involved: too little time to
+ * drive there, leaving before it arrives from the stop before, and each
+ * fixed-time stop it reaches more than 5 minutes off.
+ */
+export function legProblems(legs: EditLeg[], index: number, timer: Timer, nameOf: (requestId: string) => string): string[] {
+  const leg = legs[index];
+  const problems: string[] = [];
+  const wait = timer.waitAt(legs, index);
+  if (wait < 0) {
+    const drive = toMinutes(leg.timeIn) - toMinutes(leg.timeOut) - wait;
+    problems.push(
+      `Time In ${hhmmLabel(leg.timeIn)} leaves ${toMinutes(leg.timeIn) - toMinutes(leg.timeOut)} min to drive to ${leg.destinationName}; it takes about ${drive} min`,
+    );
+  }
+  const before = legs[index - 1];
+  if (before && toMinutes(leg.timeOut) < toMinutes(before.timeIn))
+    problems.push(`Time Out ${hhmmLabel(leg.timeOut)} is before it arrives at ${before.destinationName} at ${hhmmLabel(before.timeIn)}`);
+  for (const stopId of leg.stops) {
+    const request = timer.requestOf(stopId);
+    if (request?.flexibility !== "FIXED" || !request.fixedTime) continue;
+    const off = toMinutes(leg.timeIn) - toMinutes(request.fixedTime);
+    if (Math.abs(off) <= 5) continue;
+    problems.push(
+      `${nameOf(request.id)} asked for ${hhmmLabel(request.fixedTime)}; it arrives ${hhmmLabel(leg.timeIn)} (${Math.abs(off)} min ${off > 0 ? "late" : "early"})`,
+    );
+  }
   return problems;
 }
