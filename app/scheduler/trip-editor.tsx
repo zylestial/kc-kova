@@ -24,6 +24,7 @@ import {
   moveLeg,
   removeLeg,
   setLegTimes,
+  tripChecks,
   type EditLeg,
 } from "@/lib/scheduling-edit";
 import RemoveLegDialog from "./remove-leg-dialog";
@@ -179,10 +180,19 @@ export default function TripEditor({
   }
 
   const late = new Set(timer.lateIn(legs));
+  const problems = tripChecks(legs, timer, company, (id) => {
+    const request = requests.find((item) => item.id === id);
+    return request ? stopNumber(request) || request.ownerName : "A stop";
+  });
   const removingLeg = removing === null ? null : legs[removing];
 
   return (
     <div className="sc-trip">
+      {problems.map((problem) => (
+        <div key={problem} className="sc-check">
+          ⚠ {problem}
+        </div>
+      ))}
       {legs.map((leg, index) => {
         const done = doneLeg(trip.revision.legs[index]?.id ?? "", index === legs.length - 1);
         const locked = !editable || done || busy;
@@ -333,7 +343,16 @@ export default function TripEditor({
         );
       })}
 
-      <TripActions trip={trip} state={state} busy={busy} run={run} legs={legs} day={day} requestIdOf={(stopId) => requestOf(stopId)?.id} />
+      <TripActions
+        trip={trip}
+        state={state}
+        busy={busy}
+        run={run}
+        legs={legs}
+        day={day}
+        problems={problems}
+        requestIdOf={(stopId) => requestOf(stopId)?.id}
+      />
 
       <RemoveLegDialog
         key={removing ?? "closed"}
@@ -365,6 +384,7 @@ function TripActions({
   run,
   legs,
   day,
+  problems,
   requestIdOf,
 }: {
   trip: Trip;
@@ -373,12 +393,15 @@ function TripActions({
   run: (action: () => Promise<string>) => Promise<void>;
   legs: EditLeg[];
   day: string;
+  /** What's wrong with the trip (tripChecks): Submit waits until it's fixed. */
+  problems: string[];
   requestIdOf: (stopId: string) => string | undefined;
 }) {
   const open = openRevision(trip.schedule);
   const published = publishedRevision(trip.schedule);
   const submit = () =>
     run(async () => {
+      if (problems.length) throw new Error("Fix the warnings on this trip before submitting.");
       await submitSchedule(trip.schedule.id, open!.rowVersion);
       return "Submitted. The Admin can see it now.";
     });
