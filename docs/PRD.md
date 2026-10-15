@@ -76,9 +76,10 @@ A person has exactly one role; there is no multi-role account.
    attached). A Driver can report a problem on a trip at any time, even
    before submitting.
 5. **Company trips.** An account an Admin allows (with its Position set) can
-   choose **Company Trip** on the request form. It adds a starting point, the
-   department or site, the vehicle (one that can be requested for company
-   trips), its Company car Driver, the site officer, the Immediate Supervisor
+   choose **Company Trip** on the request form. It is for one Project / Site
+   (which is also its department / site on the form) and adds a starting
+   point, the vehicle (one that can be requested for company trips), its
+   Company car Driver, the site officer, the Immediate Supervisor
    and the PM / CM / Dept. Head, plus a supplier and contact per stop. A
    Scheduler plans these under Company trips on the Scheduling page: the
    requester's vehicle and Driver are fixed, a vehicle can take several
@@ -110,7 +111,7 @@ A person has exactly one role; there is no multi-role account.
    Vehicles (each vehicle's assigned Driver, and whether it can be requested
    for company trips) and the request choices (Projects/Sites, Destinations,
    Purposes, which destinations are fuel/errand stops, Urgent reasons,
-   Starting points, Departments / Sites, Suppliers, Immediate Supervisors and
+   Starting points, Suppliers, Immediate Supervisors and
    PM / CM / Dept. Heads). Nothing is ever hard-deleted; entries are marked
    Inactive so past records keep displaying correctly.
 9. **Stay informed.** An in-app bell tells people what changed for them (a
