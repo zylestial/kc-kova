@@ -14,7 +14,10 @@ export default function SchedulesGate() {
   const { account, viewRole } = useAccount();
   const { schedules } = useKovaData();
   const params = useSearchParams();
-  const [date] = useState(() => params.get("date") ?? undefined);
+  // A link to one schedule (a notification) shows its day behind it.
+  const [date] = useState(
+    () => params.get("date") ?? schedules.find((schedule) => schedule.id === params.get("open"))?.date ?? undefined,
+  );
   // Read once, then strip from the URL so a refresh doesn't re-show it.
   const [notice, setNotice] = useState(() => params.get("notice") ?? "");
   const [openId] = useState(() => params.get("open") ?? undefined);
