@@ -85,6 +85,8 @@ export default function Scheduling({
   }, [day]);
 
   const days = Array.from({ length: STRIP_DAYS }, (_, index) => addDays(anchor, index));
+  // "October 2026", or "October 2026 – November 2026" when the strip runs into the next month.
+  const months = [...new Set(days.map((item) => dateLabel(item, { month: "long", year: "numeric" })))];
   const rows = vehicleRows(vehicles, accounts, schedules, day).filter((row) => row.kind === kind);
   const stops = toPlan(requests, day, kind);
   const week = weekStops(requests, day, kind);
@@ -232,6 +234,9 @@ export default function Scheduling({
         </div>
       </div>
 
+      <div className="sc-month" aria-live="polite">
+        {months.join(" – ")}
+      </div>
       <div className="date-strip-wrap sc-strip">
         {anchor > today && (
           <Button
