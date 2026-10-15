@@ -24,14 +24,19 @@ app/                    Next.js App Router: pages (client components) + API rout
     schedules/          Scheduler: create, save, submit, discard; Admin: approve, return;
                          Company trip recording (company-run, company-stops)
     booking-options/    Admin: Projects/Destinations/Purposes
-  *.tsx                 Screens (my-requests, schedules, admin-finished-trips, settings, etc.) — client components
+  *.tsx                 Screens (my-requests, schedules, scheduling, admin-finished-trips, settings, etc.) — client components
+  scheduler/            The Scheduling page's parts: stop cards, the options sheet, vehicle cards, the trip editor
 lib/
   api-route.ts          authed(): session client + 401 + params for route handlers
   kova-api.ts           Typed frontend adapter: every fetch to /api/**, plus the in-memory
                          cache the screens read from
   request-draft.ts      The request form's state and checks (both forms)
   request-access.ts     Who may make Daily / Company requests (mirrors the SQL helpers)
-  company-trips.ts      Company trip planner rules, My Trips steps
+  scheduling.ts         Scheduling page: what's to plan, vehicle rows, trip states, links
+  scheduling-plan.ts    Where a stop can go, best first, with estimated leg times
+  scheduling-edit.ts    Editing a trip's legs, and the warnings that block Submit
+  scheduling-undo.ts    Undo steps for the Scheduling page
+  company-trips.ts      Which stops can share a Company trip, My Trips steps
   stop-times.ts         Each leg's printed Time Out / Time In from taps and Admin entries
   supabase/
     server.ts           Cookie-bound Supabase client for use inside route handlers (RLS applies)
@@ -225,7 +230,9 @@ to its requester, and cleared by a trigger once the request's date changes.
 `request_progress` reports such a request as `SENT_BACK`, and a trigger on
 `schedule_requests` stops any schedule from including it.
 `split_request` (migration 0039) moves stops a vehicle can't fit off a request
-into a new request for the same requester and day.
+into a new request for the same requester and day. It's only for requests
+made before request groups (0052), which can hold several stops; the
+Scheduling page doesn't offer it.
 
 ### `request_groups` (migration 0052)
 
@@ -246,6 +253,10 @@ Trip's Driver, and anyone who may see one of its stops).
 starts a Company trip; triggers on `schedule_revisions` and
 `revision_requests` keep the two kinds apart (vehicle, requests, no leg
 back to ANONANG on a Company trip, one department and starting point).
+
+Since 0057 a Scheduler's `save_schedule_draft` on a `SUBMITTED` revision
+takes it back to `DRAFT` (keeping `submitted_at`) instead of refusing it,
+so the Scheduling page can change a trip that's waiting for the Admin.
 
 ### `company_trip_runs` (migration 0055)
 
@@ -337,7 +348,7 @@ Summary, with the implementing route file:
 | PUT | `/api/request-groups/:groupId` | `app/api/request-groups/[groupId]/route.ts` | Owner, Admin; `rowVersion` required |
 | POST | `/api/requests/:requestId/move` | `app/api/requests/[requestId]/move/route.ts` | Scheduler; an "any day that week" stop, `{ date }` |
 | POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403); `kind: "COMPANY"` starts a Company trip |
-| PUT | `/api/schedules/:scheduleId` | `app/api/schedules/[scheduleId]/route.ts` | Scheduler (DRAFT/RETURNED), Admin (SUBMITTED) |
+| PUT | `/api/schedules/:scheduleId` | `app/api/schedules/[scheduleId]/route.ts` | Scheduler (DRAFT/RETURNED, or SUBMITTED, which goes back to DRAFT; 0057), Admin (SUBMITTED) |
 | POST | `/api/schedules/:scheduleId/submit` | `app/api/schedules/[scheduleId]/submit/route.ts` | Scheduler |
 | POST | `/api/schedules/:scheduleId/discard` | `app/api/schedules/[scheduleId]/discard/route.ts` | Scheduler |
 | POST | `/api/schedules/:scheduleId/approve` | `app/api/schedules/[scheduleId]/approve/route.ts` | Admin |
