@@ -153,23 +153,15 @@ export function legProblems(legs: EditLeg[], index: number, timer: Timer, nameOf
   const leg = legs[index];
   const problems: string[] = [];
   const wait = timer.waitAt(legs, index);
-  if (wait < 0) {
-    const drive = toMinutes(leg.timeIn) - toMinutes(leg.timeOut) - wait;
-    problems.push(
-      `Time In ${hhmmLabel(leg.timeIn)} leaves ${toMinutes(leg.timeIn) - toMinutes(leg.timeOut)} min to drive to ${leg.destinationName}; it takes about ${drive} min`,
-    );
-  }
+  if (wait < 0) problems.push(`Time In ${hhmmLabel(leg.timeIn)} is too soon to drive to ${leg.destinationName}`);
   const before = legs[index - 1];
   if (before && toMinutes(leg.timeOut) < toMinutes(before.timeIn))
     problems.push(`Time Out ${hhmmLabel(leg.timeOut)} is before it arrives at ${before.destinationName} at ${hhmmLabel(before.timeIn)}`);
   for (const stopId of leg.stops) {
     const request = timer.requestOf(stopId);
     if (request?.flexibility !== "FIXED" || !request.fixedTime) continue;
-    const off = toMinutes(leg.timeIn) - toMinutes(request.fixedTime);
-    if (Math.abs(off) <= 5) continue;
-    problems.push(
-      `${nameOf(request.id)} asked for ${hhmmLabel(request.fixedTime)}; it arrives ${hhmmLabel(leg.timeIn)} (${Math.abs(off)} min ${off > 0 ? "late" : "early"})`,
-    );
+    if (Math.abs(toMinutes(leg.timeIn) - toMinutes(request.fixedTime)) <= 5) continue;
+    problems.push(`${nameOf(request.id)} asked for ${hhmmLabel(request.fixedTime)}; it arrives ${hhmmLabel(leg.timeIn)}`);
   }
   return problems;
 }
