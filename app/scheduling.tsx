@@ -57,8 +57,8 @@ export default function Scheduling({
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
-  // Vehicles with a trip start open, free ones folded; these were flipped by a click.
-  const [flipped, setFlipped] = useState<Set<string>>(new Set());
+  // Vehicle cards start folded; one opens on a click, or when something is added to it.
+  const [openPlates, setOpenPlates] = useState<Set<string>>(new Set());
   const [sheetIds, setSheetIds] = useState<string[]>([]);
   // The stops being dragged onto a vehicle.
   const [dragIds, setDragIds] = useState<string[] | null>(null);
@@ -122,6 +122,7 @@ export default function Scheduling({
       else if (kind === "COMPANY") await createCompanyTrip(option.input);
       else await createSchedule(option.input);
       setSheetIds([]);
+      setOpenPlates((plates) => new Set([...plates, option.row.vehicle.plate]));
       setNotice(
         `Added to ${name}.` +
           (moved.length ? " Requester notified of the new day." : "") +
@@ -163,10 +164,10 @@ export default function Scheduling({
     onChange(day, next);
   }
   function toggle(plate: string) {
-    const next = new Set(flipped);
+    const next = new Set(openPlates);
     if (next.has(plate)) next.delete(plate);
     else next.add(plate);
-    setFlipped(next);
+    setOpenPlates(next);
   }
 
   return (
@@ -317,7 +318,7 @@ export default function Scheduling({
             <VehicleCard
               key={row.vehicle.plate}
               row={row}
-              open={(row.trips.length > 0) !== flipped.has(row.vehicle.plate)}
+              open={openPlates.has(row.vehicle.plate)}
               onToggle={() => toggle(row.vehicle.plate)}
               started={started}
               renderTrip={(trip, state) => (
