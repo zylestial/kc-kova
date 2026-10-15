@@ -70,19 +70,6 @@ export function stopsFor(requests: TransportRequest[]): StopInfo[] {
   );
 }
 
-const FLEXIBILITY_RANK: Record<StopFlexibility, number> = { FIXED: 0, DAY: 1, WEEK: 2 };
-
-/**
- * Request pool order: Urgent first, then fixed times, then any time that
- * day, then any day that week (prototype order), then by requester and
- * when they asked.
- */
-export function poolOrder(a: TransportRequest, b: TransportRequest): number {
-  const urgency = Number(b.requestType === "URGENT") - Number(a.requestType === "URGENT");
-  const flexibility = FLEXIBILITY_RANK[a.flexibility ?? "DAY"] - FLEXIBILITY_RANK[b.flexibility ?? "DAY"];
-  return urgency || flexibility || a.ownerName.localeCompare(b.ownerName) || a.createdAt.localeCompare(b.createdAt);
-}
-
 export const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 
 /** The reservation a set of legs would take: first Time Out to last Time In. */
