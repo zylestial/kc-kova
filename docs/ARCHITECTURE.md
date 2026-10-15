@@ -253,6 +253,9 @@ Trip's Driver, and anyone who may see one of its stops).
 starts a Company trip; triggers on `schedule_revisions` and
 `revision_requests` keep the two kinds apart (vehicle, requests, no leg
 back to ANONANG on a Company trip, one department and starting point).
+Since 0058 a Company Trip group's `department_id` / `department_name` is
+its one Project / Site (a `projects` option), set by
+`resolve_group_fields`; the `departments` list is no longer used.
 
 Since 0057 a Scheduler's `save_schedule_draft` on a `SUBMITTED` revision
 takes it back to `DRAFT` (keeping `submitted_at`) instead of refusing it,
