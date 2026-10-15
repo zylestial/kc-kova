@@ -62,9 +62,9 @@ const two = (index: number) => String(index + 1).padStart(2, "0");
  * Origin (automatic), Planned Time Out, Destination and Planned Time In per
  * leg, reordered by dragging ⠿ or with the arrows, and Remove. Every change
  * saves the draft. Below them, what the trip is waiting for and its
- * buttons: Submit (Resubmit once it has been sent), Discard. Changing an
- * approved trip saves draft changes; changing one waiting for the Admin
- * takes it back to draft (0057). Either way it's resubmitted.
+ * buttons: Submit (Resubmit once it has been sent), Discard, or Propose
+ * changes on an approved trip. Changing one waiting for the Admin takes it
+ * back to draft (0057), to resubmit.
  */
 export default function TripEditor({
   trip,
@@ -101,9 +101,9 @@ export default function TripEditor({
     [trip.revision.legs, timer],
   );
   const open = openRevision(trip.schedule);
-  // Every trip can be changed until the Driver is done with it: an approved
-  // one gets draft changes, one waiting for the Admin goes back to draft.
-  const editable = true;
+  // An approved trip is changed through Propose changes; any other can be
+  // edited, and one waiting for the Admin goes back to draft to resubmit.
+  const editable = state !== "APPROVED" && state !== "ON_THE_ROAD";
   const resubmitNote =
     open?.status === "SUBMITTED" ? " Taken back from the Admin. Resubmit when ready." : !open ? " Saved as draft changes. Resubmit when ready." : "";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
@@ -367,7 +367,10 @@ export default function TripEditor({
         kind={kind}
         busy={busy}
         run={run}
+        legs={legs}
+        day={day}
         problems={problems}
+        requestIdOf={(stopId) => requestOf(stopId)?.id}
       />
 
       <RemoveLegDialog
@@ -399,15 +402,21 @@ function TripActions({
   kind,
   busy,
   run,
+  legs,
+  day,
   problems,
+  requestIdOf,
 }: {
   trip: Trip;
   state: TripState;
   kind: TripKind;
   busy: boolean;
   run: (action: () => Promise<string>, undo?: UndoEntry | "clear") => Promise<void>;
+  legs: EditLeg[];
+  day: string;
   /** What's wrong with the trip (tripChecks): Submit waits until it's fixed. */
   problems: string[];
+  requestIdOf: (stopId: string) => string | undefined;
 }) {
   const open = openRevision(trip.schedule);
   const published = publishedRevision(trip.schedule);
@@ -424,6 +433,11 @@ function TripActions({
       await discardScheduleDraft(trip.schedule.id, open!.rowVersion);
       return published ? "Draft changes discarded. The approved trip stays." : "Draft discarded. Its stops are back in To plan.";
     }, undoEntry(trip.schedule, kind));
+  const propose = () =>
+    run(async () => {
+      await saveScheduleDraft(trip.schedule.id, null, editInput(day, trip.revision.plate, legs, requestIdOf));
+      return "Draft changes opened. Only you can see them until you resubmit.";
+    }, undoEntry(trip.schedule, kind));
   const tone = state === "APPROVED" || state === "ON_THE_ROAD" ? " ok" : state === "RETURNED" ? " error" : "";
   return (
     <div className={"sc-state" + tone}>
@@ -431,8 +445,7 @@ function TripActions({
       {state === "DRAFT" && (open?.submittedAt ? " · taken back from the Admin. Resubmit when ready." : " · only you can see it. Submit when the trip is ready.")}
       {state === "RETURNED" && <> · the Admin sent it back{open?.decisionComment ? `: “${open.decisionComment}”` : ""}. Fix it, then resubmit.</>}
       {state === "SUBMITTED" && " · the Admin can see it. Changing it takes it back to you to resubmit."}
-      {(state === "APPROVED" || state === "ON_THE_ROAD") &&
-        " · the Driver follows these times. Change anything above to make draft changes; the Driver keeps these until the Admin approves."}
+      {(state === "APPROVED" || state === "ON_THE_ROAD") && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
       {state === "CHANGES" && " · only you can see these. The Driver still follows the approved times below until the Admin approves."}
       {state === "CHANGES_SUBMITTED" &&
         " · the changes are with the Admin. Changing them takes them back to you to resubmit; the approved times below stay in effect until approved."}
@@ -458,6 +471,11 @@ function TripActions({
               {state === "CHANGES" ? "Discard changes" : "Discard draft"}
             </Button>
           </>
+        )}
+        {(state === "APPROVED" || state === "ON_THE_ROAD") && (
+          <Button size="sm" className="primary" disabled={busy} onClick={propose}>
+            Propose changes
+          </Button>
         )}
       </div>
     </div>
