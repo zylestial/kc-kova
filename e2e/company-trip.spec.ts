@@ -53,7 +53,6 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   await pick(second, requester, "Destination", "UAT Second Destination");
   await pick(second, requester, "Purpose", "UAT Purpose");
   await pick(requester, requester, "Starting point", "Main Office");
-  await pick(requester, requester, "Department / Site", /Procurement/);
   await pick(requester, requester, "Vehicle", /Mirage/);
   await pick(requester, requester, "Driver", "Jun Reyes");
   await pick(requester, requester, "Immediate Supervisor", /Dante/);
