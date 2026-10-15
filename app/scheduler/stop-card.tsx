@@ -36,7 +36,7 @@ export default function StopCard({
   return (
     <button
       type="button"
-      className={"sc-stop" + (urgent ? " urgent" : stop.flexibility === "FIXED" ? " fixed" : "")}
+      className={"sc-stop" + (urgent ? " urgent" : stop.flexibility === "FIXED" ? " fixed-time" : "")}
       onClick={() => onOpen([stop.id])}
       draggable={!!onDrag}
       onDragStart={(event) => {
