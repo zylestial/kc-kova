@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { freeDate, pageFor } from "./helpers";
 
-test("a Daily request's stops reach the planner, the urgent one first", async ({ browser }) => {
+test("a Daily request's stops reach Scheduling, the urgent one first", async ({ browser }) => {
   const scheduler = await pageFor(browser, "sched1");
   const date = await freeDate(scheduler, 14, 83);
 
@@ -30,12 +30,13 @@ test("a Daily request's stops reach the planner, the urgent one first", async ({
   await requester.waitForURL((url) => url.pathname === "/requests");
   await expect(requester.locator(".notice.success")).toBeVisible({ timeout: 30_000 });
 
-  // The Daily Planner's pool lists the urgent stop first, with its reason.
-  await scheduler.goto("/schedules/new");
-  await scheduler.getByLabel("Jump to date").fill(date);
-  await scheduler.getByRole("button", { name: /continue/i }).click();
-  const pool = scheduler.locator(".planner-pool > li");
-  await expect(pool).toHaveCount(2);
-  await expect(pool.first()).toContainText("Urgent: Critical materials delivery");
-  await expect(pool.nth(1)).toContainText("UAT Destination");
+  // Scheduling lists the urgent stop first in To plan, with its reason,
+  // and shows it in an Urgent banner.
+  await scheduler.goto(`/scheduling?date=${date}&type=DAILY`);
+  const toPlan = scheduler.locator(".sc-panel .sc-list").first().locator(".sc-stop");
+  await expect(toPlan).toHaveCount(2);
+  await expect(toPlan.first()).toContainText("Urgent");
+  await expect(toPlan.first()).toContainText("Critical materials delivery");
+  await expect(toPlan.nth(1)).toContainText("UAT Destination");
+  await expect(scheduler.locator(".sc-banner").filter({ hasText: "Urgent" })).toContainText("Pick up 40 bags cement");
 });
