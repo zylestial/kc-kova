@@ -40,7 +40,7 @@ const groups: [Group, string, string, string][] = [
   ["purposes", "Purposes", "Purpose", "Add Purpose"],
   // Per-stop Urgent and the Company Trip form (0051).
   ["urgent_reasons", "Urgent reasons", "Urgent reason", "Add Reason"],
-  ["departments", "Departments / Sites", "Department / Site", "Add"],
+  // Departments / Sites is no longer asked for: a Company Trip's is its Project / Site (0058).
   ["starting_points", "Starting points", "Starting point", "Add"],
   ["suppliers", "Suppliers", "Supplier", "Add Supplier"],
   ["supervisors", "Immediate Supervisors", "Immediate Supervisor", "Add Supervisor"],
