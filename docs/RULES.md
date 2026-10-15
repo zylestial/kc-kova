@@ -136,10 +136,14 @@ The request rules (`create_request_group`, `update_request_group`,
 The Company trip rules (`create_request_group` with `COMPANY`, 0052;
 `create_company_trip` and the triggers in 0054):
 
-- A Company Trip request names a starting point, a department / site, a
-  vehicle that can be requested for company trips, an active Company car
+- A Company Trip request names a starting point, a vehicle that can be
+  requested for company trips, an active Company car
   Driver, an Immediate Supervisor and a PM / CM / Dept. Head; the site
-  officer and site company are optional.
+  officer and site company are optional. All its stops have one Project /
+  Site, and that is its department / site (0058, owner's call 2026-10-15):
+  it prints as the department and decides the "one department per trip"
+  rule. The separate Departments / Sites list is hidden; groups made before
+  0058 keep the department they had.
 - A Company trip (`schedules.kind = 'COMPANY'`) takes only Company Trip
   requests, all with the same vehicle, Driver, department and starting
   point; the vehicle and Driver are the requester's, never the Scheduler's.
@@ -245,8 +249,8 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
 
 - Only an Admin may create or edit Projects, Destinations or Purposes, or
   the lists added for the new forms (0051): Urgent reasons, Starting
-  points, Departments / Sites, Suppliers, Immediate Supervisors and PM / CM
-  / Dept. Heads.
+  points, Suppliers, Immediate Supervisors and PM / CM / Dept. Heads
+  (Departments / Sites too, but it's hidden since 0058).
 - Inactive options remain visible on existing requests but must not be
   offered when creating a *new* one (an edit may keep an option the request
   already had).
