@@ -632,8 +632,8 @@ export default function RequestForm({
                   [
                     ["startingPoint", "startingPointId", "Starting point", startingPoints, "Leg 1 starts here. Company trips don't have to start or end at ANONANG."],
                     ["department", "departmentId", "Department / Site", departments, undefined],
-                    ["vehicle", "vehiclePlate", "Vehicle", tripVehicles, "Only vehicles that can be requested for company trips."],
-                    ["driver", "driverId", "Driver", tripDrivers, "Company car drivers only. Truck drivers aren't listed."],
+                    ["vehicle", "vehiclePlate", "Vehicle", tripVehicles, undefined],
+                    ["driver", "driverId", "Driver", tripDrivers, undefined],
                     ["supervisor", "supervisorId", "Immediate Supervisor", supervisors, undefined],
                     ["head", "headId", "Project Manager / Construction Manager / Dept. Head", heads, undefined],
                   ] as const
@@ -653,11 +653,6 @@ export default function RequestForm({
                     onPick={(pick) => onChange({ ...draft, [key]: pick.id })}
                   />
                 ))}
-                <label className="field">
-                  <span>Position</span>
-                  <Input readOnly value={position || "—"} aria-label="Position" />
-                  <small className="field-note">From your account. An Admin can change it.</small>
-                </label>
                 <label className="field">
                   <span>Site Officer / Supplier (optional)</span>
                   <Input
