@@ -181,13 +181,12 @@ describe("Company Trip", () => {
     expect(tripErrors(filled())).toEqual({});
     expect(draftMissing(company(), options)).toEqual([
       "Starting point",
-      "Department / Site",
       "Vehicle",
       "Driver",
       "Immediate Supervisor",
       "PM / CM / Dept. Head",
     ]);
-    const done = { ...company(), startingPointId: "s", departmentId: "d", vehiclePlate: "VM", driverId: "j", supervisorId: "u", headId: "h" };
+    const done = { ...company(), startingPointId: "s", vehiclePlate: "VM", driverId: "j", supervisorId: "u", headId: "h" };
     expect(draftMissing(done, options)).toEqual([]);
   });
 
@@ -203,5 +202,15 @@ describe("Company Trip", () => {
     const draft = withForm({ ...filled(), projectOtherMode: true, projectOther: "X", stops: [typed] }, "COMPANY");
     expect(draft).toMatchObject({ form: "COMPANY", projectOtherMode: false, projectOther: "" });
     expect(draft.stops[0]).toMatchObject({ destinationOtherMode: false, destinationOther: "", purposeId: "sv" });
+  });
+
+  it("has one Project / Site, stop A's when switching from several", () => {
+    const stops = [
+      { ...filled().stops[0], projectId: "p1" },
+      { ...filled().stops[0], key: "b", projectId: "p2" },
+    ];
+    const draft = withForm({ ...filled(), projectMode: "multi", projectId: "", stops }, "COMPANY");
+    expect(draft).toMatchObject({ projectMode: "one", projectId: "p1" });
+    expect(draftToInput(draft).stops.map((stop) => stop.projectId)).toEqual(["p1", "p1"]);
   });
 });

@@ -277,7 +277,6 @@ export type RequestGroupInput = {
   date: string;
   stops: RequestStopInput[];
   startingPointId: string;
-  departmentId: string;
   vehiclePlate: string;
   driverId: string;
   supervisorId: string;

@@ -48,7 +48,7 @@ export type StopDraft = {
 export type RequestDraft = {
   form: RequestForm;
   date: string;
-  /** One project for every stop, or one per stop. */
+  /** One project for every stop, or one per stop (a Company Trip always has one, 0058). */
   projectMode: "one" | "multi";
   /** The single project, in "one" mode. */
   projectId: string;
@@ -57,7 +57,6 @@ export type RequestDraft = {
   stops: StopDraft[];
   // Company Trip only.
   startingPointId: string;
-  departmentId: string;
   vehiclePlate: string;
   driverId: string;
   supervisorId: string;
@@ -99,7 +98,6 @@ export function emptyRequestDraft(form: RequestForm, date: string): RequestDraft
     projectOtherMode: false,
     stops: [emptyStop()],
     startingPointId: "",
-    departmentId: "",
     vehiclePlate: "",
     driverId: "",
     supervisorId: "",
@@ -150,7 +148,6 @@ export function draftFromGroup(group: RequestGroup, stops: TransportRequest[], l
       };
     }),
     startingPointId: group.startingPoint?.id ?? "",
-    departmentId: group.department?.id ?? "",
     vehiclePlate: group.vehiclePlate ?? "",
     driverId: group.driver?.id ?? "",
     supervisorId: group.supervisor?.id ?? "",
@@ -187,7 +184,6 @@ export function draftToInput(draft: RequestDraft): RequestGroupInput {
       supplierId: company ? stop.supplierId : "",
     })),
     startingPointId: company ? draft.startingPointId : "",
-    departmentId: company ? draft.departmentId : "",
     vehiclePlate: company ? draft.vehiclePlate : "",
     driverId: company ? draft.driverId : "",
     supervisorId: company ? draft.supervisorId : "",
@@ -245,14 +241,13 @@ const FIELD_NAMES: Record<StopField, string> = {
   fixedTime: "Time",
 };
 
-export type TripField = "startingPoint" | "department" | "vehicle" | "driver" | "supervisor" | "head";
+export type TripField = "startingPoint" | "vehicle" | "driver" | "supervisor" | "head";
 
 /** A Company Trip's own fields that are still empty (all required; 0052's resolve_group_fields). */
 export function tripErrors(draft: RequestDraft): Partial<Record<TripField, string>> {
   if (draft.form !== "COMPANY") return {};
   const errors: Partial<Record<TripField, string>> = {};
   if (!draft.startingPointId) errors.startingPoint = "Pick where the trip starts.";
-  if (!draft.departmentId) errors.department = "Pick the department or site.";
   if (!draft.vehiclePlate) errors.vehicle = "Pick the vehicle.";
   if (!draft.driverId) errors.driver = "Pick the Driver.";
   if (!draft.supervisorId) errors.supervisor = "Pick your Immediate Supervisor.";
@@ -262,7 +257,6 @@ export function tripErrors(draft: RequestDraft): Partial<Record<TripField, strin
 
 const TRIP_FIELD_NAMES: Record<TripField, string> = {
   startingPoint: "Starting point",
-  department: "Department / Site",
   vehicle: "Vehicle",
   driver: "Driver",
   supervisor: "Immediate Supervisor",
@@ -278,9 +272,15 @@ export function withForm(draft: RequestDraft, form: RequestForm): RequestDraft {
   if (form === "DAILY") return { ...draft, form };
   const clear = <T extends { projectOther: string; projectOtherMode: boolean }>(item: T): T =>
     item.projectOtherMode ? { ...item, projectOther: "", projectOtherMode: false } : item;
+  // One Project / Site for the whole trip: the single one, or stop A's.
+  const single = draft.projectMode === "one" ? draft : (draft.stops[0] ?? draft);
   return {
     ...clear(draft),
     form,
+    projectMode: "one",
+    ...(single.projectOtherMode
+      ? { projectId: "", projectOther: "", projectOtherMode: false }
+      : { projectId: single.projectId, projectOther: "", projectOtherMode: false }),
     stops: draft.stops.map((stop) => ({
       ...clear(stop),
       ...(stop.destinationOtherMode ? { destinationOther: "", destinationOtherMode: false } : {}),
