@@ -121,5 +121,6 @@ describe("links", () => {
     expect(schedulingHref()).toBe("/scheduling");
     expect(schedulingHref("2026-10-15")).toBe("/scheduling?date=2026-10-15");
     expect(schedulingHref("2026-10-15", "COMPANY")).toBe("/scheduling?date=2026-10-15&type=COMPANY");
+    expect(schedulingHref("2026-10-15", "DAILY", "s1")).toBe("/scheduling?date=2026-10-15&type=DAILY&trip=s1");
   });
 });
