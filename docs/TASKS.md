@@ -50,7 +50,7 @@ v2.1 have git tags so far (plus the old `v1.2-stable`).
 - [ ] **Scheduling page (`feat/scheduling-page`, stacked on `feat/requester-vehicle`, 2026-10-15)**: one page for Daily and Company trips from the "KOVA Scheduler" prototype; it replaced Create schedule and the Company trip planner (old addresses redirect; their code and CSS deleted). Changing a trip waiting for the Admin takes it back to a draft (0057). Warnings block Submit; Undo; Time Out carries Time In. Help text, the three planning e2e specs, PRD, RULES, ARCHITECTURE, DESIGN and MEMORY updated; decisions in `docs/MEMORY.md` "Scheduling page". **Not pushed yet.** Still to do: run the full pgTAP suite on a fresh database, the owner's whole-flow click-through, then the PR; migrations 0050–0057 to production after merge.
 - [ ] **`docs/PRD.md`, `RULES.md` and `DESIGN.md` have not been reviewed by KOVA's operators.** They were written from the code and the schema; treat them as a first draft to correct.
 - [ ] **`docs/PRD.md` acceptance criteria and success metrics are drafts.** They need stakeholder review, and every metric target is still blank (set them from the pilot week's baseline). See `docs/MEMORY.md` "Open questions".
-- [ ] **Notification icons (owner's request, 2026-10-15)**: give each type of notification in the bell its own icon.
+- [ ] **Notification icons (owner's request, 2026-10-15; `feat/notification-icons`, stacked on `feat/scheduling-page`)**: each type of notification in the bell has its own icon in a badge of its status color. Waiting for the owner's test; not pushed.
 
 ## v2.5 (simplification pass, 2026-10-02)
 
