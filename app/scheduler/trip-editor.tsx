@@ -23,6 +23,7 @@ import {
   editInput,
   editLegs,
   moveLeg,
+  movedTimeIn,
   removeLeg,
   legProblems,
   setLegTimes,
@@ -153,7 +154,8 @@ export default function TripEditor({
   function commitTime(index: number, which: "out" | "in", value: string) {
     const leg = legs[index];
     const out = which === "out" ? value : leg.timeOut;
-    const inn = which === "in" ? value : leg.timeIn;
+    // A new Time Out carries Time In with it; a new Time In is just that.
+    const inn = which === "in" ? value : movedTimeIn(leg, value);
     if (toMinutes(inn) <= toMinutes(out)) {
       void run(async () => {
         throw new Error("Planned Time In must be after Planned Time Out.");
