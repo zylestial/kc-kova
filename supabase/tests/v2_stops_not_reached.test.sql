@@ -1,13 +1,13 @@
 -- Stops not reached (0066): End trip reports every non-final leg after the
 -- last one reached as missed (NOT_REACHED), a fuel stop already handled; a
 -- leg before one reached (a forgotten tap) is not. The requester is told
--- when their stop is missed, by report_stop and by End trip. Since 0067 a
+-- when their stop is missed: by the Scheduler's Skip answer (0068) and by End trip. Since 0067 a
 -- report can name some of the requests at a stop: the stop is still reached,
 -- and the Scheduler plans just those again.
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(20);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -81,6 +81,10 @@ select record_trip_attendance(pg_temp.id('s1'), 'START');
 select record_stop_tap(pg_temp.id('s1'), pg_temp.leg(2), 'ARRIVE');
 select report_stop(pg_temp.id('s1'), pg_temp.leg(2), 'NOT_AVAILABLE', '');
 reset role;
+select is(pg_temp.missed_notes(), 0, 'The requester isn''t told until the Scheduler answers');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select answer_stop_report((select id from problem_reports where leg_id = pg_temp.leg(2)), 'SKIP');
+reset role;
 select is(pg_temp.missed_notes(), 1, 'The requester is told their stop was missed');
 select ok((select message from notifications where type = 'STOP_MISSED') like 'Your stop at Market was missed (Not available)%',
   'saying where and why');
@@ -135,6 +139,8 @@ select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'V
 select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'NOT_AVAILABLE', '', false, null, null, null, array[pg_temp.id('r1')]) $$,
   '22023', 'Choose stops at this place', 'Only requests at this stop');
 insert into ids select 'some', id from report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'NOT_AVAILABLE', '', false, null, null, null, array[pg_temp.id('r4')]);
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select answer_stop_report(pg_temp.id('some'), 'SKIP');
 reset role;
 select is((select missed::text || ' ' || (request_ids = array[pg_temp.id('r4')])::text from problem_reports where id = pg_temp.id('some')), 'false true',
   'A report for one of the two: the stop is still reached');

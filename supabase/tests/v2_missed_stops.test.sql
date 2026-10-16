@@ -81,6 +81,9 @@ select record_trip_attendance(pg_temp.id('s1'), 'START');
 insert into ids select 'missed', id from report_stop(pg_temp.id('s1'), pg_temp.leg(1), 'NOT_AVAILABLE', 'Gate locked');
 insert into ids select 'waiting', id from report_stop(pg_temp.id('s1'), pg_temp.leg(2), 'ROAD_BLOCKED', 'Flooded', false);
 insert into ids values ('leg1', pg_temp.leg(1));
+-- The Scheduler answers: skip City Hall (0068).
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select answer_stop_report(pg_temp.id('missed'), 'SKIP');
 
 -- Draft changes opened before the Scheduler sees the report.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
@@ -165,6 +168,7 @@ select throws_ok($$ select handle_problem(pg_temp.id('whole'), 'Seen') $$, '4250
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 insert into ids select 'closed', id from report_stop(pg_temp.id('s1'), pg_temp.leg(2), 'WRONG_ADDRESS', 'Closed today');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select answer_stop_report(pg_temp.id('closed'), 'SKIP');
 select lives_ok($$ select release_missed_stop(pg_temp.id('closed'), true, 'Closed today') $$, 'The Scheduler sends the Market back');
 reset role;
 select is((select sent_back_reason from requests where id = pg_temp.id('r2')), 'Closed today', 'It''s sent back');
