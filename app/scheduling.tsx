@@ -442,7 +442,7 @@ export default function Scheduling({
                   busy={busy}
                   run={run}
                   doneLeg={(legId, isLast) =>
-                    stopTaps.some((tap) => tap.legId === legId && tap.kind === "ARRIVE") ||
+                    stopTaps.some((tap) => tap.legId === legId) ||
                     (isLast &&
                       (attendance.some((item) => item.scheduleId === trip.schedule.id && item.end) ||
                         companyRuns.some((item) => item.scheduleId === trip.schedule.id && item.endAt)))

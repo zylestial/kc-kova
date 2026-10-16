@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   discardScheduleDraft,
+  editLiveTrip,
   moveRequestDay,
   saveScheduleDraft,
   sendBackRequests,
@@ -65,7 +66,10 @@ const two = (index: number) => String(index + 1).padStart(2, "0");
  * saves the draft. Below them, what the trip is waiting for and its
  * buttons: Submit (Resubmit once it has been sent), Discard, or Propose
  * changes on an approved trip. Changing one waiting for the Admin takes it
- * back to draft (0057), to resubmit.
+ * back to draft (0057), to resubmit. A trip on the road is changed with
+ * Change route: the changes stay here until Send to Driver saves them all
+ * at once, straight onto the route the Driver follows (0060); legs the
+ * Driver has reached stay as they are.
  */
 export default function TripEditor({
   trip,
@@ -88,7 +92,7 @@ export default function TripEditor({
   waiting: TransportRequest[];
   /** Fuel or errand stops an Admin set up (Daily trips only). */
   fuel: BookingOption[];
-  /** The Driver (or requester) has reached this leg: Arrived, or End trip on the last. */
+  /** The Driver (or requester) has reached this leg: a tap there, or End trip on the last. */
   doneLeg: (legId: string, isLast: boolean) => boolean;
   busy: boolean;
   /** Runs a save; the message it returns is shown when it works. `undo`: the trip before it, or "clear". */
@@ -97,14 +101,26 @@ export default function TripEditor({
   const company = kind === "COMPANY";
   const { requests } = context;
   const timer = useMemo(() => legTimer(context, company), [context, company]);
-  const legs = useMemo(
-    () => editLegs(trip.revision.legs, timer, trip.revision.legs[0]?.plannedTimeOut || "08:00"),
-    [trip.revision.legs, timer],
+  // On the road, the route the Driver follows, whatever proposal was left open.
+  const live = state === "ON_THE_ROAD";
+  const revision = (live && publishedRevision(trip.schedule)) || trip.revision;
+  const saved = useMemo(
+    () => editLegs(revision.legs, timer, revision.legs[0]?.plannedTimeOut || "08:00"),
+    [revision.legs, timer],
   );
+  // Change route on a trip on the road: the route as changed so far, and
+  // what to do with stops once it's sent.
+  const [change, setChange] = useState<{ legs: EditLeg[]; moveIds: string[]; sendBack: Array<{ ids: string[]; reason: string }> } | null>(
+    null,
+  );
+  const legs = change?.legs ?? saved;
   const open = openRevision(trip.schedule);
-  // An approved trip is changed through Propose changes; any other can be
-  // edited, and one waiting for the Admin goes back to draft to resubmit.
-  const editable = state !== "APPROVED" && state !== "ON_THE_ROAD";
+  // An approved trip is changed through Propose changes, one on the road
+  // through Change route; any other can be edited, and one waiting for the
+  // Admin goes back to draft to resubmit.
+  const editable = live ? !!change : state !== "APPROVED";
+  // Legs up to the last one reached can't change.
+  const lastDone = legs.reduce((last, leg, index) => (doneLeg(leg.key, index === legs.length - 1) ? index : last), -1);
   const resubmitNote =
     open?.status === "SUBMITTED" ? " Taken back from the Admin. Resubmit when ready." : !open ? " Saved as draft changes. Resubmit when ready." : "";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
@@ -134,8 +150,16 @@ export default function TripEditor({
   if (!company)
     choices.fuel = fuel.map((option) => ({ id: option.id, name: option.name, stops: [], urgent: false, moveIds: [], label: `${option.name} (fuel)` }));
 
-  const save = (next: EditLeg[], message: string, moveIds: string[] = [], sendBack?: { ids: string[]; reason: string }) =>
-    run(
+  const save = (next: EditLeg[], message: string, moveIds: string[] = [], sendBack?: { ids: string[]; reason: string }) => {
+    if (live) {
+      setChange((current) => ({
+        legs: next,
+        moveIds: [...(current?.moveIds ?? []), ...moveIds],
+        sendBack: [...(current?.sendBack ?? []), ...(sendBack?.ids.length ? [sendBack] : [])],
+      }));
+      return run(async () => `${message.replace(/\.$/, "")}. Send it to the Driver when ready.`);
+    }
+    return run(
       async () => {
         for (const id of moveIds) await moveRequestDay(id, day);
         await saveScheduleDraft(trip.schedule.id, open ? open.rowVersion : null, editInput(day, trip.revision.plate, next, (stopId) => requestOf(stopId)?.id));
@@ -150,6 +174,16 @@ export default function TripEditor({
             moveIds.map((id) => ({ id, from: requests.find((request) => request.id === id)?.date ?? day })),
           ),
     );
+  };
+  const sendToDriver = () =>
+    run(async () => {
+      if (!change) return "Nothing changed.";
+      for (const id of change.moveIds) await moveRequestDay(id, day);
+      await editLiveTrip(trip.schedule.id, revision.rowVersion, editInput(day, revision.plate, change.legs, (stopId) => requestOf(stopId)?.id));
+      for (const sendBack of change.sendBack) await sendBackRequests(sendBack.ids, sendBack.reason);
+      setChange(null);
+      return "Sent to the Driver. They see the new route now.";
+    }, "clear");
 
   function commitTime(index: number, which: "out" | "in", value: string) {
     const leg = legs[index];
@@ -185,6 +219,12 @@ export default function TripEditor({
     const sendBack = reason ? { ids, reason } : undefined;
     setRemoving(null);
     if (!next.some((item) => item.stops.length)) {
+      if (live) {
+        void run(async () => {
+          throw new Error("A trip on the road needs at least one stop. Ask the Driver to end the trip instead.");
+        });
+        return;
+      }
       // The trip's only stop: nothing is left to plan, so the draft goes.
       void run(
         async () => {
@@ -217,9 +257,9 @@ export default function TripEditor({
         </div>
       ))}
       {legs.map((leg, index) => {
-        const done = doneLeg(trip.revision.legs[index]?.id ?? "", index === legs.length - 1);
-        const locked = !editable || done || busy;
-        const movable = editable && !done && !leg.isFinal;
+        const done = doneLeg(leg.key, index === legs.length - 1);
+        const locked = !editable || index <= lastDone || busy;
+        const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
         const lastMovable = legs.length - (legs.at(-1)?.isFinal ? 2 : 1);
         const warnings = legProblems(legs, index, timer, nameOf).map((problem) => problem + ".");
@@ -281,7 +321,7 @@ export default function TripEditor({
               <span className="sc-space" />
               {movable && (
                 <>
-                  <button type="button" className="sc-icon" aria-label={`Move leg ${index + 1} up`} disabled={busy || index === 0} onClick={() => reorder(index, index - 1)}>
+                  <button type="button" className="sc-icon" aria-label={`Move leg ${index + 1} up`} disabled={busy || index - 1 <= lastDone} onClick={() => reorder(index, index - 1)}>
                     <ArrowUp size={15} />
                   </button>
                   <button
@@ -373,6 +413,10 @@ export default function TripEditor({
         day={day}
         problems={problems}
         requestIdOf={(stopId) => requestOf(stopId)?.id}
+        changing={!!change}
+        onChangeRoute={() => setChange({ legs: saved, moveIds: [], sendBack: [] })}
+        onSend={sendToDriver}
+        onCancel={() => setChange(null)}
       />
 
       <RemoveLegDialog
@@ -408,6 +452,10 @@ function TripActions({
   day,
   problems,
   requestIdOf,
+  changing,
+  onChangeRoute,
+  onSend,
+  onCancel,
 }: {
   trip: Trip;
   state: TripState;
@@ -419,6 +467,11 @@ function TripActions({
   /** What's wrong with the trip (tripChecks): Submit waits until it's fixed. */
   problems: string[];
   requestIdOf: (stopId: string) => string | undefined;
+  /** On the road: Change route was pressed and the changes aren't sent yet. */
+  changing: boolean;
+  onChangeRoute: () => void;
+  onSend: () => void;
+  onCancel: () => void;
 }) {
   const open = openRevision(trip.schedule);
   const published = publishedRevision(trip.schedule);
@@ -447,7 +500,11 @@ function TripActions({
       {state === "DRAFT" && (open?.submittedAt ? " · taken back from the Admin. Resubmit when ready." : " · only you can see it. Submit when the trip is ready.")}
       {state === "RETURNED" && <> · the Admin sent it back{open?.decisionComment ? `: “${open.decisionComment}”` : ""}. Fix it, then resubmit.</>}
       {state === "SUBMITTED" && " · the Admin can see it. Changing it takes it back to you to resubmit."}
-      {(state === "APPROVED" || state === "ON_THE_ROAD") && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
+      {state === "APPROVED" && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
+      {state === "ON_THE_ROAD" &&
+        (changing
+          ? " · changing the route. Stops already reached stay. Nothing reaches the Driver until you send it."
+          : " · the Driver is following this route. Change route sends changes straight to the Driver; the Admin is told.")}
       {state === "CHANGES" && " · only you can see these. The Driver still follows the approved times below until the Admin approves."}
       {state === "CHANGES_SUBMITTED" &&
         " · the changes are with the Admin. Changing them takes them back to you to resubmit; the approved times below stay in effect until approved."}
@@ -474,10 +531,25 @@ function TripActions({
             </Button>
           </>
         )}
-        {(state === "APPROVED" || state === "ON_THE_ROAD") && (
+        {state === "APPROVED" && (
           <Button size="sm" className="primary" disabled={busy} onClick={propose}>
             Propose changes
           </Button>
+        )}
+        {state === "ON_THE_ROAD" && !changing && (
+          <Button size="sm" className="primary" disabled={busy} onClick={onChangeRoute}>
+            Change route
+          </Button>
+        )}
+        {state === "ON_THE_ROAD" && changing && (
+          <>
+            <Button size="sm" className="primary" disabled={busy} onClick={onSend}>
+              Send to Driver
+            </Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={onCancel}>
+              Cancel
+            </Button>
+          </>
         )}
       </div>
     </div>
