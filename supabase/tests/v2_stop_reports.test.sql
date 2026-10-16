@@ -79,8 +79,6 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 1), 'NOT_AVAILABLE', 'Gate locked') $$,
   'P0002', null, 'A Scheduler doesn''t report stops');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
-select throws_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 1), 'NOT_AVAILABLE', '  ') $$,
-  '22023', 'Describe what happened', 'Not available needs a note');
 select throws_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 3), 'ROAD_BLOCKED') $$,
   '22023', null, 'Not on the way back to ANONANG');
 select throws_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 1), 'LOST') $$,
@@ -107,6 +105,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select lives_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'ROAD_BLOCKED', 'Flooded', false) $$,
   'The Driver waits out a flooded road');
 select ok(not (select missed from problem_reports where leg_id = pg_temp.leg('s1', 2) and kind = 'ROAD_BLOCKED'), 'The Market is not missed');
+select lives_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'OTHER', '  ') $$, 'A note is optional');
 
 -- Vehicle problem: paused until Resume trip -------------------------------------------------
 select lives_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'VEHICLE_PROBLEM', 'Flat tire') $$,

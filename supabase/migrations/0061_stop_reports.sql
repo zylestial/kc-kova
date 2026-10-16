@@ -28,7 +28,10 @@ alter table problem_reports
   add column lng double precision check (lng between -180 and 180),
   add column accuracy_m double precision check (accuracy_m >= 0),
   add constraint problem_reports_missed_has_leg check (not missed or leg_id is not null),
-  add constraint problem_reports_position_pair check ((lat is null) = (lng is null));
+  add constraint problem_reports_position_pair check ((lat is null) = (lng is null)),
+  -- A stop report's note is optional; a whole-trip report (0017) still needs one.
+  drop constraint problem_reports_note_check,
+  add constraint problem_reports_note_check check (leg_id is not null or length(trim(note)) > 0);
 
 create index problem_reports_leg_id_idx on problem_reports (leg_id);
 create index problem_reports_reported_by_idx on problem_reports (reported_by_account_id);
@@ -162,9 +165,6 @@ begin
   select * into v_schedule from public.schedules where id = p_schedule_id;
   if p_kind is null or p_kind not in ('NOT_AVAILABLE', 'WRONG_ADDRESS', 'ROAD_BLOCKED', 'VEHICLE_PROBLEM', 'OTHER') then
     raise exception 'Choose what happened' using errcode = '22023';
-  end if;
-  if v_note = '' and p_kind in ('NOT_AVAILABLE', 'WRONG_ADDRESS', 'OTHER') then
-    raise exception 'Describe what happened' using errcode = '22023';
   end if;
   perform public.check_tap_location(p_lat, p_lng, p_accuracy_m);
 
