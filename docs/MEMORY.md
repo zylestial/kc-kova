@@ -836,6 +836,14 @@ in `docs/RULES.md` "on-the-road rules". The owner's calls:
   trip now marks them all not reached; the confirm says so.
 - **The requester is told when their stop is missed** (STOP_MISSED,
   0066), not only when it's moved or sent back.
+- **A report can name some of the requests at a stop** (0067, owner's call
+  2026-10-16): with two requesters at one place, Not available took both
+  off the trip. The Driver now ticks which ones ("Which ones?", all
+  ticked by default), seeing stop number, purpose and details, never the
+  requester. The demo seed has two stops at Site Alpha for this; it also
+  had one old two-stop request, which made release_missed_stop refuse
+  ("A request at this stop has other stops on the trip"). Real requests
+  since 0052 have one stop each.
 - **An unhandled stop report stays on today's Scheduling** after its day,
   with the day named; before, it disappeared once the day passed.
 
