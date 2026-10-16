@@ -249,7 +249,10 @@ cleared by `resume_trip`; a trigger refuses stop taps while it's set.
 version and open drafts without approval, and sets `requests.missed_at`
 (0065), after which `move_request_day` lets a Scheduler move it to any day
 from today (also a waiting request whose day has passed). Schedulers can
-read taps since 0062.
+read taps since 0062. 0066 adds kind `NOT_REACHED`, filed by the trigger
+`trip_attendance_report_unreached` (`report_unreached_stops`) when End
+trip sets `end_at`, and notification type `STOP_MISSED` for the requesters
+of a missed stop (`notify_stop_missed`).
 
 ### `request_groups` (migration 0052)
 
@@ -341,7 +344,7 @@ no insert/update grant for clients at all: every row is written by
 causes the event (`submit_schedule`, `approve_schedule`, `return_schedule`,
 `request_cancellation`, `decline_cancellation`, `confirm_cancellation`,
 `cancel_schedule`, `report_problem`, `send_back_requests`, `split_request`,
-`report_stop`) in the same transaction as the change
+`report_stop`, and End trip's trigger, 0066) in the same transaction as the change
 itself, and `read_at` is only ever set by the `mark_notification_read`/
 `mark_all_notifications_read` RPCs.
 
