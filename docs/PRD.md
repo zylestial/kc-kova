@@ -75,6 +75,14 @@ A person has exactly one role; there is no multi-role account.
    answer the final-return checks (full tank, fleet card used, gas receipt
    attached). A Driver can report a problem on a trip at any time, even
    before submitting.
+   **On the road**, the Driver can report a problem at the current stop:
+   nobody there, wrong address or closed, road blocked (skip it or wait),
+   a vehicle problem (which pauses the trip until Resume trip), or
+   something else. A missed stop is passed over, and the Scheduler sees it
+   on Scheduling to plan again or send back to its requester. A Scheduler
+   can also change a trip already on the road; once an Admin approves, the
+   Driver sees the route changed, with the stops already done kept as they
+   were. A Company trip's requester reports stops the same way.
 5. **Company trips.** An Admin, or an account an Admin allows (with its
    Position set), can choose **Company Trip** on the request form. It is for one Project / Site
    (which is also its department / site on the form) and adds a starting
