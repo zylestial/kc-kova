@@ -308,6 +308,8 @@ export type ScheduleLeg = {
   contactName: string;
   contactNumber: string;
   isFinal: boolean;
+  /** Draft changes to a trip on the road: the leg of the Driver's route this one came from (0060). */
+  sourceLegId?: string;
   /** Request destination ids this leg serves; two or more is a shared stop. */
   stops: string[];
 };

@@ -463,6 +463,8 @@ type ScheduleLegRow = {
   contact_name: string;
   contact_number: string;
   is_final: boolean;
+  /** The leg of the Driver's route a draft leg came from (0060). */
+  source_leg_id?: string | null;
   leg_stops?: Array<{ request_destination_id: string }>;
 };
 
@@ -538,6 +540,7 @@ export function toSchedule(row: ScheduleRow): Schedule {
             contactName: leg.contact_name,
             contactNumber: leg.contact_number,
             isFinal: leg.is_final,
+            sourceLegId: leg.source_leg_id ?? undefined,
             stops: (leg.leg_stops ?? []).map((stop) => stop.request_destination_id),
           })),
       })),
