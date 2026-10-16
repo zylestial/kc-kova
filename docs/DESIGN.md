@@ -273,7 +273,10 @@ Today's view also shows reports not handled on their own day, naming it.
 **Stop report** (`app/stop-report-form.tsx`, shared by My Schedule and My
 Trips): "What happened at …?", then one big button per kind (label and a
 one-line hint) so it's one tap on a phone; Road blocked asks **Skip this
-stop** or **Wait** next; an optional note; Back and Send report.
+stop** or **Wait** next; where several requests share the stop, Not
+available and Wrong address ask **Which ones?** (a checkbox per request,
+"52-A · Delivery · Cement, 20 bags", all ticked); an optional note; Back
+and Send report.
 
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.
