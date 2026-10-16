@@ -11,7 +11,9 @@
 // test1234), as in seed-stop-times-demo.mjs.
 //
 // Local only (.env.local). Runs once per day: a second run the same day
-// stops, since UAT-004 already has its trip.
+// stops, since UAT-004 already has its trip, unless it's run with --fresh:
+// that first cancels today's UAT-004 trip and the demo's requests (and
+// closes their problem reports), then seeds again.
 
 import { existsSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -149,6 +151,52 @@ async function urgentRequest(destinationIds) {
   return { request, stops };
 }
 
+/** --fresh: cancels today's UAT-004 trips and this demo's requests, as if they never ran. */
+async function clearToday(adminId) {
+  const { data: trips, error } = await admin
+    .from("schedules")
+    .select("id, schedule_revisions!schedule_revisions_schedule_id_fkey!inner(plate, revision_requests(request_id))")
+    .eq("schedule_date", TODAY)
+    .eq("status", "ACTIVE")
+    .eq("schedule_revisions.plate", PLATE);
+  if (error) throw new Error(`schedule lookup failed: ${error.message}`);
+  const scheduleIds = trips.map((trip) => trip.id);
+  const { data: waiting, error: waitingError } = await admin
+    .from("requests")
+    .select("id, request_destinations!inner(destination_id)")
+    .eq("requested_date", TODAY)
+    .eq("owner_account_id", adminId)
+    .eq("status", "ACTIVE")
+    .eq("request_destinations.destination_id", "uat-dest-c");
+  if (waitingError) throw new Error(`request lookup failed: ${waitingError.message}`);
+  const requestIds = [
+    ...new Set([
+      ...trips.flatMap((trip) => trip.schedule_revisions.flatMap((revision) => (revision.revision_requests ?? []).map((item) => item.request_id))),
+      ...waiting.map((request) => request.id),
+    ]),
+  ];
+  const now = new Date().toISOString();
+  const steps = [
+    scheduleIds.length && admin.from("schedule_reservations").delete().in("schedule_id", scheduleIds),
+    scheduleIds.length &&
+      admin.from("schedule_requests").update({ active: false, released_at: now, released_by_account_id: adminId }).in("schedule_id", scheduleIds).eq("active", true),
+    scheduleIds.length &&
+      admin
+        .from("problem_reports")
+        .update({ status: "HANDLED", handled_at: now, handled_by_account_id: adminId, handling_note: "Demo reset" })
+        .in("schedule_id", scheduleIds)
+        .eq("status", "OPEN"),
+    scheduleIds.length && admin.from("schedules").update({ status: "CANCELLED", paused_at: null, updated_at: now }).in("id", scheduleIds),
+    requestIds.length &&
+      admin.from("requests").update({ status: "CANCELLED", cancelled_at: now, cancelled_by_account_id: adminId }).in("id", requestIds).eq("status", "ACTIVE"),
+  ];
+  for (const step of steps.filter(Boolean)) {
+    const { error: stepError } = await step;
+    if (stepError) throw new Error(`--fresh failed: ${stepError.message}`);
+  }
+  console.log(`--fresh: cancelled ${scheduleIds.length} trip(s) on ${PLATE} and ${requestIds.length} request(s) from earlier runs today`);
+}
+
 async function main() {
   console.log(`Seeding the on-the-road demo into ${SUPABASE_URL} (today ${TODAY}, Asia/Manila)`);
   const ids = {};
@@ -163,8 +211,10 @@ async function main() {
     .eq("status", "ACTIVE")
     .eq("schedule_revisions.plate", PLATE);
   if (error) throw new Error(`schedule check failed: ${error.message}`);
-  if (already.length) {
-    console.error(`${PLATE} already has a trip today: this demo has run today. Stopping.`);
+  if (process.argv.includes("--fresh")) {
+    await clearToday(ids.admin1);
+  } else if (already.length) {
+    console.error(`${PLATE} already has a trip today: this demo has run today. Run it with --fresh to start over. Stopping.`);
     process.exit(1);
   }
 
