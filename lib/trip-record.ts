@@ -85,7 +85,7 @@ export const publishedRevision = (schedule: Schedule) =>
 /**
  * When the Scheduler last changed a trip's route after it started (0060),
  * for the Driver's "Route changed" notice; undefined if it hasn't changed
- * since. The published version is only saved again by Change route then.
+ * since. The published version is only saved again by a change on the road then.
  */
 export const routeChangedAt = (revision: Pick<ScheduleRevision, "updatedAt">, startedAt: string | undefined) =>
   startedAt && revision.updatedAt > startedAt ? revision.updatedAt : undefined;

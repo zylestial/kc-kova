@@ -102,7 +102,7 @@ insert into ids values ('leg1', pg_temp.leg(1)), ('leg2', pg_temp.leg(2));
 -- Nothing else can replace the version on the road --------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select throws_ok($$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$,
-  '22023', 'This trip is on the road; change it with Change route on Scheduling', 'A proposal can''t be approved once the trip has started');
+  '22023', 'This trip is on the road; change it on Scheduling', 'A proposal can''t be approved once the trip has started');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok($$ select save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')), null, 'V1', array[pg_temp.id('r1')], pg_temp.route('09:00', '[]')) $$,
   '22023', null, 'Nor saved again');

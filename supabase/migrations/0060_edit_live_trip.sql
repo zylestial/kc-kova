@@ -297,7 +297,7 @@ begin
   if new.status in ('DRAFT', 'SUBMITTED', 'APPROVED')
      and new.id is distinct from (select published_revision_id from public.schedules where id = new.schedule_id)
      and public.trip_started(new.schedule_id) then
-    raise exception 'This trip is on the road; change it with Change route on Scheduling' using errcode = '22023';
+    raise exception 'This trip is on the road; change it on Scheduling' using errcode = '22023';
   end if;
   return new;
 end;

@@ -125,7 +125,7 @@ export type TripState = "DRAFT" | "RETURNED" | "SUBMITTED" | "APPROVED" | "CHANG
  * Where a trip stands, as the prototype names it. An approved trip with an
  * open version has changes on the way: a draft only the Scheduler sees, or
  * submitted for the Admin. Once it has started it's on the road, changed
- * in place with Change route (0060), whatever proposal was left open.
+ * in place on Scheduling (0060), whatever proposal was left open.
  */
 export function tripState(schedule: Schedule, started: boolean): TripState {
   const open = openRevision(schedule);
