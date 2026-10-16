@@ -56,6 +56,7 @@ export default function PlanOptions({
               {option.late.length > 0 && <span className="sc-late">Late: {option.late.map((id) => lateText(option, id)).join("; ")}</span>}
               {option.needsAdmin && <span className="sc-muted">Approved trip: goes into draft changes, then you resubmit</span>}
               {option.takesBack && <span className="sc-muted">Waiting for Admin: goes back to draft, then you resubmit</span>}
+              {option.live && <span className="sc-muted">On the road: goes straight to the Driver</span>}
             </div>
             <Button
               size="sm"

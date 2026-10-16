@@ -47,6 +47,7 @@ const context = (requests: TransportRequest[], patch: Partial<PlanContext> = {})
   isToday: false,
   now: "09:00",
   started: () => false,
+  reached: () => 0,
   ...patch,
 });
 const driver = { id: "d1", name: "Mario", role: "Driver", status: "Active" } as Account;
@@ -151,10 +152,20 @@ describe("joining a trip", () => {
     expect([option.arrive, option.extra]).toEqual(["09:30", 60]);
   });
 
-  it("goes into draft changes on an approved trip, and can't touch one on the road", () => {
+  it("goes into draft changes on an approved trip", () => {
     const approved = trip(existing.revision.legs, ["a"], "APPROVED");
-    expect(planOn([b], row([approved]), context([a, b]))).toMatchObject({ needsAdmin: true, rowVersion: null });
-    expect(planOn([b], row([approved]), context([a, b], { started: () => true })).blocked).toBe("On the road");
+    expect(planOn([b], row([approved]), context([a, b]))).toMatchObject({ needsAdmin: true, rowVersion: null, live: false });
+  });
+
+  it("changes a trip on the road straight away, after the legs the Driver has reached", () => {
+    const approved = trip(existing.revision.legs, ["a"], "APPROVED");
+    const option = planOn([b], row([approved]), context([a, b], { started: () => true, reached: () => 1 }));
+    expect(option).toMatchObject({ blocked: "", live: true, needsAdmin: false, rowVersion: 3 });
+    expect(option.input.legs.map((item) => [item.id, item.destinationId])).toEqual([
+      ["l1", "wilcon"],
+      [undefined, "bir"],
+      ["l2", undefined],
+    ]);
   });
 
   it("can still go on a trip waiting for Admin, which stays waiting", () => {

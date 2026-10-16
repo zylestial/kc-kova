@@ -10,6 +10,7 @@ import {
   hydrateKovaData,
   moveRequestDay,
   saveScheduleDraft,
+  editLiveTrip,
   submitSchedule,
   type TransportRequest,
 } from "@/lib/kova-api";
@@ -17,7 +18,7 @@ import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
 import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
-import { currentRevision, openRevision } from "@/lib/trip-record";
+import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
 import {
@@ -126,7 +127,13 @@ export default function Scheduling({
   const sheetStops = stopsOf(sheetIds);
   const dragStops = dragIds ? stopsOf(dragIds) : [];
   const now = manilaHhmm(new Date().toISOString());
-  const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started };
+  // Legs of a trip on the road up to the last one the Driver tapped (0060).
+  const reached = (scheduleId: string) => {
+    const schedule = schedules.find((item) => item.id === scheduleId);
+    const legs = (schedule && publishedRevision(schedule)?.legs) || [];
+    return legs.reduce((count, leg, index) => (stopTaps.some((tap) => tap.legId === leg.id) ? index + 1 : count), 0);
+  };
+  const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started, reached };
 
   /**
    * Saves the stops onto a vehicle as the option says: a new trip, or the
@@ -147,7 +154,11 @@ export default function Scheduling({
       const moved = stops.filter((stop) => stop.date !== day);
       const moves = moved.map((stop) => ({ id: stop.id, from: stop.date }));
       for (const stop of moved) await moveRequestDay(stop.id, day);
-      if (option.trip) {
+      if (option.trip && option.live) {
+        // Straight to the Driver; Undo can't take it back.
+        await editLiveTrip(option.trip.schedule.id, option.rowVersion!, option.input);
+        setUndos([]);
+      } else if (option.trip) {
         const before = undoEntry(option.trip.schedule, kind, moves);
         await saveScheduleDraft(option.trip.schedule.id, option.rowVersion, option.input);
         setUndos((list) => [...list, before]);
@@ -160,6 +171,7 @@ export default function Scheduling({
       setNotice(
         `Added to ${name}.` +
           (moved.length ? " Requester notified of the new day." : "") +
+          (option.live ? " The Driver sees the new route now." : "") +
           (option.needsAdmin ? " Saved as draft changes. Resubmit when ready." : "") +
           (option.takesBack ? " Taken back from the Admin. Resubmit when ready." : "") +
           (option.late.length ? ` ${option.late.length === 1 ? "1 stop" : `${option.late.length} stops`} will be late; change the times.` : ""),
