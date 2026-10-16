@@ -246,8 +246,10 @@ onto the published version in place, so legs keep their ids and their
 `report_stop`. `schedules.paused_at` is set by a Vehicle problem, and
 cleared by `resume_trip`; a trigger refuses stop taps while it's set.
 `release_missed_stop` takes a missed stop's requests off the published
-version and open drafts without approval. Schedulers can read taps since
-0062.
+version and open drafts without approval, and sets `requests.missed_at`
+(0065), after which `move_request_day` lets a Scheduler move it to any day
+from today (also a waiting request whose day has passed). Schedulers can
+read taps since 0062.
 
 ### `request_groups` (migration 0052)
 
