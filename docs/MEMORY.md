@@ -713,9 +713,9 @@ The prototypes were the spec; these are the calls made on top of them.
   separate Department picker, and the Departments / Sites list is hidden
   in Settings. Vehicle and Driver sit next to Project / Site in step 2,
   and the Starting point is a fixed "Start" card above stop A in step 3.
-  The Position block, the Vehicle and Driver hints and (for requesters)
-  the printed form preview are no longer shown on the form; Position still
-  prints.
+  The Position block, the Vehicle and Driver hints and the printed form
+  preview are no longer shown on the form (the paper only appears when an
+  Admin prints from Finished Trips); Position still prints.
 - **The requester records the Company trip** on My Trips (0055): Start trip
   with the odometer, Arrived / Leaving, End trip at the last stop with the
   odometer. End trip submits it, so it goes straight to Finished Trips. The

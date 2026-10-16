@@ -168,8 +168,8 @@ an eight-row trip record (requester, purpose and details, leg, origin, Time
 Out, destination, Time In, site officer / supplier / contact), the
 signatories (requested by, Immediate Supervisor, site officer / supplier,
 PM / CM / Dept. Head) with blank signature lines, and For Finance Use. It
-uses the same portal and `.print-form`, inside `.company-print`. The same
-paper shows as a "Printed form preview" on the Company Trip request form.
+uses the same portal and `.print-form`, inside `.company-print`. It only
+appears when an Admin prints; the request form shows no preview.
 
 ## Empty and focus states (verified)
 
