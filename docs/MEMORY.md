@@ -802,3 +802,35 @@ Gotchas:
 - **Some docs use CRLF line endings** (PRD, for one; TASKS doesn't), and
   Git Bash's `grep` hides the `\r`. Scripts that match multi-line text in
   them must allow for either.
+
+## On the road: stop reports and route changes (2026-10-16)
+
+Built on `feat/driver-stop-reports`, migrations 0060–0064. The rules are
+in `docs/RULES.md` "on-the-road rules". The owner's calls:
+
+- **Report types:** Not available, Wrong address / closed, Road blocked /
+  weather (Skip this stop or Wait), Vehicle problem (pauses the trip),
+  Other. Company trips (the requester on My Trips) report the same way.
+- **A change to a trip on the road needs the Admin.** It first went
+  straight to the Driver (`edit_live_trip`, a `/live` route,
+  LIVE_TRIP_CHANGED); the owner reversed that the same day, and that code
+  was removed. Approval applies the change in place
+  (`apply_changes_on_road`), so the taps stay.
+- **A missed stop is handled on Scheduling, not by the Admin:** Plan again
+  (it waits to be fitted in on any day; there is no separate "Move to
+  another day" button) or Send back to requester. Taking it off the trip
+  needs no approval, since the Driver's route doesn't change; the empty
+  leg stays and prints.
+
+Gotchas:
+- **Approving a new version used to lose taps.** Each approval made legs
+  with new ids, so `stop_taps` and time corrections pointed at the old
+  version. Now draft legs carry `source_leg_id`. It must point at a leg of
+  the route the Driver follows (0064). Before that, a second approved
+  change re-created legs and lost their taps. Local data from before 0064
+  needs `seed-live-trip-demo.mjs --fresh`.
+- **Schedulers couldn't see taps** (0062), so Scheduling showed reached
+  legs as editable and Fit it in could put a stop before them.
+- **`e2e/on-the-road.spec.ts` reseeds UAT-004** (`--fresh`), replacing the
+  owner's test trip, so ask before running it. Demo:
+  `node scripts/seed-live-trip-demo.mjs` (driver4 / UAT-004).
