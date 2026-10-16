@@ -239,7 +239,9 @@ top:
   waiting for the Admin, and the blue day banner (trips, still to plan)
   with **Undo**;
 - two columns: **To plan** (stop cards, Urgent first, stops at the same
-  place grouped with **Plan together**, then "Any day this week"), and the
+  place grouped with **Plan together**, then "Any day this week", then
+  "Missed or past due" when there are any: each card tagged Missed and
+  saying the day it was for), and the
   vehicles (`app/scheduler/vehicle-card.tsx`): folded by default, each
   with its Driver, a summary and the trip's state; one opens when clicked
   or when something is added to it.
@@ -262,7 +264,9 @@ A trip on the road (Start trip tapped) keeps its reached legs locked, shown
 as done; the legs after the last one reached can be edited, which opens
 draft changes for the Admin. Stop reports show as banners above the day
 banner: a missed stop (red) with **Plan again** and **Send back to
-requester** (a reason field, then Send back); any other report (amber)
+requester** (a reason field, then Send back), and **Another day** (a date
+field, then Move, which opens that day with the stop's options); any
+other report (amber)
 with **Got it**. A Vehicle problem adds "trip paused" or "trip resumed".
 
 **Stop report** (`app/stop-report-form.tsx`, shared by My Schedule and My
