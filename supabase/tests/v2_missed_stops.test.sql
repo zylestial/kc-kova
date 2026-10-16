@@ -1,11 +1,12 @@
 -- Missed stops (0063): the Scheduler takes a missed stop's request off a
 -- trip on the road to plan it again or send it back, off draft changes too;
 -- the missed leg stays with no stops and can't change; and a Scheduler marks
--- other stop reports handled.
+-- other stop reports handled. Since 0065 a missed stop, or one whose day
+-- has passed, can move to any day from today.
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(27);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -107,6 +108,35 @@ select is((select status || ': ' || handling_note from problem_reports where id 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok($$ select release_missed_stop(pg_temp.id('missed')) $$, '22023', 'This missed stop was already handled. Reload and try again',
   'Only once');
+
+-- Another day (0065) --------------------------------------------------------------------
+reset role;
+select ok((select missed_at is not null from requests where id = pg_temp.id('r1')), 'City Hall''s request is marked missed');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select throws_ok($$ select move_request_day(pg_temp.id('r1'), pg_temp.today() - 1) $$, '22023', 'That day has passed',
+  'Not to a day that has passed');
+select lives_ok($$ select move_request_day(pg_temp.id('r1'), pg_temp.today() + 10) $$,
+  'The Scheduler moves the missed stop to any later day, not just its week');
+reset role;
+select is((select requested_date from requests where id = pg_temp.id('r1')), pg_temp.today() + 10, 'It''s on the new day');
+select is((select count(*)::int from notifications where type = 'REQUEST_MOVED' and account_id = '00000000-0000-0000-0000-0000000000b1'
+  and message like 'Your stop was missed on %'), 1, 'and the requester is told it was missed');
+
+-- r3: waiting, asked for yesterday; r4: waiting, asked for today.
+insert into requests (owner_account_id, owner_name, requested_date, request_type, status, flexibility)
+values ('00000000-0000-0000-0000-0000000000b1', 'Rita Requester', pg_temp.today() - 1, 'REGULAR', 'ACTIVE', 'DAY'),
+       ('00000000-0000-0000-0000-0000000000b1', 'Rita Requester', pg_temp.today(), 'REGULAR', 'ACTIVE', 'DAY');
+insert into ids select 'r3', id from requests where requested_date = pg_temp.today() - 1;
+insert into ids select 'r4', id from requests where requested_date = pg_temp.today() and id not in (pg_temp.id('r1'), pg_temp.id('r2'));
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select lives_ok($$ select move_request_day(pg_temp.id('r3'), pg_temp.today()) $$, 'A stop whose day passed can move to today');
+select throws_ok($$ select move_request_day(pg_temp.id('r4'), pg_temp.today() + 1) $$, '22023',
+  'Only a stop the requester marked "Any day that week", a missed stop, or one whose day has passed can be moved',
+  'A stop for today that wasn''t missed still can''t');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+select throws_ok($$ select move_request_day(pg_temp.id('r3'), pg_temp.today() + 2) $$, '42501', null,
+  'Only a Scheduler moves stops');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 
 -- The missed leg with no stops in later changes ---------------------------------------
 select lives_ok($$ select save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(), null, 'V1', array[pg_temp.id('r2')],

@@ -47,7 +47,7 @@ select throws_ok(
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000eb');
 select throws_ok(
   format('select move_request_day(%L, %L)', pg_temp.id('b'), pg_temp.nw(0)),
-  '22023', 'Only a stop the requester marked "Any day that week" can be moved', 'A stop for that day only stays');
+  '22023', 'Only a stop the requester marked "Any day that week", a missed stop, or one whose day has passed can be moved', 'A stop for that day only stays');
 select throws_ok(
   format('select move_request_day(%L, %L)', pg_temp.id('a'), pg_temp.nw(6)),
   '22023', 'Pick a day from Monday to Saturday of the week the requester asked for', 'Not to the Sunday');
