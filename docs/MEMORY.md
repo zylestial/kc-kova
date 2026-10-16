@@ -774,8 +774,10 @@ page"; the owner's calls:
 - **Warnings block Submit** and name the stop and times, without minute
   counts.
 - **Planner:** an any-time stop doesn't go on a leg where the vehicle would
-  wait more than 30 minutes for a fixed-time stop; a trip ending by 6 PM is
-  preferred.
+  wait more than 30 minutes for a fixed-time stop. A trip ending by 6 PM
+  was preferred, and an end after 6 PM blocked Submit, until the owner
+  dropped the end of day (2026-10-16): "open 24 hours, Daily or Company".
+  It had started as a warning only; "Warnings block Submit" swept it in.
 - **Editing a trip waiting for the Admin takes it back** to a draft
   ("Resubmit for approval", 0057). An approved trip keeps "Propose
   changes", its legs locked until pressed.
@@ -790,9 +792,9 @@ page"; the owner's calls:
   stop. `split_request` and its route stay for older requests.
 
 Gotchas:
-- **Times are estimated from now.** On today, a trip planned late in the
-  afternoon ends after 6 PM and can't be submitted until the Scheduler
-  moves it earlier. The Company e2e test sets its start for this reason.
+- **Times are estimated from now.** On today, a trip planned late runs into
+  the evening (fine since 2026-10-16), but it can't pass midnight: its times
+  are on one date. The Company e2e test still picks a start from 06:00.
 - **A Company stop joined any trip of the same requester setup**, even one
   already on the road, and was then blocked ("On the road"); fixed
   2026-10-15 so it starts a new trip after it.
@@ -867,9 +869,8 @@ Gotchas:
 - **Schedulers couldn't see taps** (0062), so Scheduling showed reached
   legs as editable and Fit it in could put a stop before them.
 - **`e2e/on-the-road.spec.ts` reseeds UAT-004** (`--fresh`), replacing the
-  owner's test trip, so ask before running it. **Run it before about 2 PM
-  Manila:** the demo trip is planned from the time it's seeded, and adding
-  Site Gamma on the road estimates the legs left from the Driver's real
-  taps, so later in the day the trip ends after 6 PM and Resubmit is
-  refused ("Fix the warnings"). Freezing the browser clock doesn't help. Demo:
+  owner's test trip, so ask before running it. Until the 6 PM end of day
+  was dropped (2026-10-16) it failed after about 2 PM ("Fix the warnings"
+  on Resubmit); late at night the trip may still not fit before midnight.
+  Demo:
   `node scripts/seed-live-trip-demo.mjs` (driver4 / UAT-004).
