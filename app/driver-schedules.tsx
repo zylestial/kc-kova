@@ -25,7 +25,10 @@ import {
   recordAttendance,
   recordStopTap,
   reportProblem,
+  reportStop,
+  resumeTrip,
   submitCompletion,
+  type StopReportKind,
   type ProblemReport,
   type Schedule,
   type ScheduleRevision,
@@ -42,6 +45,8 @@ import { completionLabel } from "@/lib/status-text";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
+import StopReportForm from "./stop-report-form";
+import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -144,7 +149,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [status, setStatus] = useState("all");
   const [form, setForm] = useState<FormFilterValue>("all");
   const [sort, setSort] = useState<Sort<TripSortKey>>(null);
-  const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
+  const [mode, setMode] = useState<"view" | "complete" | "problem" | "stop">("view");
+  /** The stop being reported (0061). */
+  const [reportAt, setReportAt] = useState<{ legId: string; place: string } | null>(null);
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -180,6 +187,43 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setNote("");
     setError("");
     setLocationOff(false);
+    setReportAt(null);
+  }
+
+  // A problem at one stop (0061), with the phone's position when it shares one.
+  async function sendStopReport(report: { kind: StopReportKind; note: string; skip: boolean }) {
+    if (!selected || !reportAt) return;
+    setBusy(true);
+    setError("");
+    try {
+      const location = await getPhoneLocation();
+      await reportStop(selected.schedule.id, { legId: reportAt.legId, ...report, location });
+      setNotice(
+        report.kind === "VEHICLE_PROBLEM"
+          ? "Reported. The trip is paused; the Scheduler has been told."
+          : report.kind === "NOT_AVAILABLE" || report.kind === "WRONG_ADDRESS" || report.skip
+            ? `Reported. ${reportAt.place} is missed; go on to the next stop.`
+            : "Reported. The Scheduler has been told.",
+      );
+      setMode("view");
+      setReportAt(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
+  }
+
+  async function resume() {
+    if (!selected) return;
+    setBusy(true);
+    setError("");
+    try {
+      await resumeTrip(selected.schedule.id);
+      setNotice("Trip resumed.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
   }
 
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
@@ -466,7 +510,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {mode === "complete" ? "Complete this trip" : mode === "problem" ? "Report a problem" : "Your trip"}
+              {mode === "complete" ? "Complete this trip" : mode === "problem" || mode === "stop" ? "Report a problem" : "Your trip"}
             </DialogTitle>
             <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
@@ -501,11 +545,19 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
               <DriverTripSteps
-                steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps))}
+                steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps), new Set(missedLegs(selected.problems).keys()))}
                 legs={selected.revision.legs}
                 stopsById={stopsById}
                 onTap={tapStep}
                 busyKey={busyStop}
+                missed={new Map([...missedLegs(selected.problems)].map(([legId, report]) => [legId, stopReportLabel(report)]))}
+                onReport={(legId, place) => {
+                  setReportAt({ legId, place });
+                  setMode("stop");
+                  setError("");
+                }}
+                paused={!!selected.schedule.pausedAt}
+                onResume={resume}
                 notYet={selected.startable ? undefined : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
               />
               {locationOff && (
@@ -533,7 +585,10 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               )}
               {selected.problems.map((item) => (
                 <p className="helper" key={item.id}>
-                  Problem reported: {item.note}
+                  {item.legId
+                    ? `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}`
+                    : "Problem reported"}
+                  {item.note && `: ${item.note}`}
                 </p>
               ))}
               <DialogFooter>
@@ -607,6 +662,18 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               </p>
             </>
           )}
+          {selected && mode === "stop" && reportAt && (
+            <StopReportForm
+              place={reportAt.place}
+              busy={busy}
+              onCancel={() => {
+                setMode("view");
+                setReportAt(null);
+                setError("");
+              }}
+              onSend={sendStopReport}
+            />
+          )}
           {selected && mode === "problem" && (
             <label className="field">
               <span>What went wrong *</span>
@@ -618,7 +685,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               {error}
             </p>
           )}
-          {selected && mode !== "view" && (
+          {selected && mode !== "view" && mode !== "stop" && (
             <DialogFooter>
               <Button
                 variant="outline"
