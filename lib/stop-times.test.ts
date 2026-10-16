@@ -116,6 +116,11 @@ describe("tripSteps", () => {
     ]);
   });
 
+  it("passes a stop reported missed: its next step is the next one (0061)", () => {
+    const steps = tripSteps(legTimes(legs, started, []), new Set(["l1"])).map((step) => `${step.time.source.kind}:${step.state}`);
+    expect(steps).toEqual(["START:done", "ARRIVE:missed", "LEAVE:missed", "ARRIVE:next", "LEAVE:later", "END:later"]);
+  });
+
   it("marks a passed step as skipped", () => {
     expect(states(legTimes(legs, started, [stop("LEAVE", "l1")]))).toEqual([
       "START:done", "ARRIVE:skipped", "LEAVE:done", "ARRIVE:next", "LEAVE:later", "END:later",

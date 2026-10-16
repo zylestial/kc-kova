@@ -137,25 +137,27 @@ export function stopPlaceLabel(location: StopTapLocation | null, place: string):
 /** One step of a trip as the Driver sees it, in route order. */
 export type TripStep = {
   time: FormTime;
-  /** done: tapped; next: the one button to press; skipped: passed without a tap; later: still ahead. */
-  state: "done" | "next" | "skipped" | "later";
+  /** done: tapped; next: the one button to press; skipped: passed without a tap; missed: a stop reported missed (0061); later: still ahead. */
+  state: "done" | "next" | "skipped" | "missed" | "later";
 };
 
 /**
  * The trip as a simple list of steps for the Driver: Start trip, then
  * Arrived / Leaving at each stop, then End trip. Exactly one step is "next"
  * until End trip is tapped; a step before the latest tap that was never
- * tapped is "skipped" (an Admin fills its time in).
+ * tapped is "skipped" (an Admin fills its time in). Arrived and Leaving at
+ * a stop reported missed are "missed": the next step after them is next.
  */
-export function tripSteps(times: LegTimes[]): TripStep[] {
+export function tripSteps(times: LegTimes[], missed: ReadonlySet<string> = new Set()): TripStep[] {
   const sequence = times.flatMap((item) => [item.out, item.in]);
+  const isMissed = (time: FormTime) => "legId" in time.source && missed.has(time.source.legId);
   let last = -1;
   sequence.forEach((time, index) => {
-    if (time.tap) last = index;
+    if (time.tap || isMissed(time)) last = index;
   });
   return sequence.map((time, index) => ({
     time,
-    state: time.tap ? "done" : index < last ? "skipped" : index === last + 1 ? "next" : "later",
+    state: time.tap ? "done" : isMissed(time) ? "missed" : index < last ? "skipped" : index === last + 1 ? "next" : "later",
   }));
 }
 
