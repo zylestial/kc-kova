@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Check, Circle, Minus, Phone } from "lucide-react";
+import { Check, Circle, Minus, Phone, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ScheduleLeg } from "@/lib/kova-api";
 import { BASE, type StopInfo } from "@/lib/trip-record";
@@ -27,6 +27,8 @@ function labels(source: TimeSource): { button: string; done: string } {
 
 /** One place on the route: where to go, why, who to call, and its taps with planned times. */
 type Card = {
+  /** The stop's leg; none for Start and Back. */
+  legId?: string;
   title: string;
   place: string;
   purposes: string[];
@@ -56,6 +58,7 @@ function cardsFor(steps: TripStep[], legs: ScheduleLeg[], stopsById: Map<string,
   legs.slice(0, last).forEach((leg, i) => {
     const served = leg.stops.map((id) => stopsById.get(id)).filter((stop): stop is StopInfo => !!stop);
     cards.push({
+      legId: leg.id,
       title: `Stop ${i + 1}`,
       place: leg.destinationName,
       purposes: [...new Set(served.map((stop) => stop.purposeName).filter(Boolean))],
@@ -88,6 +91,13 @@ type Props = {
   busyKey: string | null;
   /** Shown instead of the Start trip button before the trip's date. */
   notYet?: string;
+  /** Stops reported missed (0061), by leg, with what happened. */
+  missed?: Map<string, string>;
+  /** Opens the report sheet for a stop. */
+  onReport?: (legId: string, place: string) => void;
+  /** Paused for a vehicle problem: no taps until Resume trip. */
+  paused?: boolean;
+  onResume?: () => void;
 };
 
 /**
@@ -96,9 +106,11 @@ type Props = {
  * Left inside. Done taps are ticked with their time; the next one is the
  * only big button. No distances or flags (the Admin sees those); the
  * position is still recorded. "End trip now" covers a trip cut short, with
- * a second tap to confirm.
+ * a second tap to confirm. "Problem here?" under the current stop reports
+ * it (0061): a missed stop is passed over, and a vehicle problem pauses the
+ * trip until Resume trip.
  */
-export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet }: Props) {
+export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, paused, onResume }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const busy = busyKey !== null;
   const end = steps[steps.length - 1];
@@ -108,8 +120,29 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
   function row({ step, planned }: Card["rows"][number]) {
     const text = labels(step.time.source);
     const key = stepKey(step.time.source);
+    if (step.state === "missed") {
+      // One line for the stop: its Arrived row says it; its Leaving row is left out.
+      if (step.time.source.kind !== "ARRIVE" || !("legId" in step.time.source)) return null;
+      return (
+        <div className="trip-step missed">
+          <TriangleAlert size={18} />
+          <span>{missed?.get(step.time.source.legId) ?? "Missed"}</span>
+        </div>
+      );
+    }
     if (step.state === "next") {
       if (notYet) return <p className="trip-step-note">{notYet}</p>;
+      if (paused)
+        return (
+          <div className="trip-paused">
+            <p className="notice error" role="status">
+              Trip paused for a vehicle problem. The Scheduler knows. Tap Resume trip when you can go on.
+            </p>
+            <Button className="primary trip-step-button" disabled={busy} onClick={onResume}>
+              Resume trip
+            </Button>
+          </div>
+        );
       return (
         <Button className="primary trip-step-button" disabled={busy} onClick={() => onTap(step.time.source)}>
           {busyKey === key ? "Saving… stay where you are" : text.button}
@@ -131,7 +164,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
     <div className="trip-steps">
       {cardsFor(steps, legs, stopsById).map((card) => {
         const current = card.rows.some((item) => item.step.state === "next");
-        const finished = card.rows.every((item) => item.step.state === "done" || item.step.state === "skipped");
+        const finished = card.rows.every((item) => ["done", "skipped", "missed"].includes(item.step.state));
         return (
           <section key={card.title} className={`trip-card${current ? " current" : ""}${finished ? " finished" : ""}`}>
             <header>
@@ -152,6 +185,11 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {card.rows.map((item) => (
               <div key={stepKey(item.step.time.source)}>{row(item)}</div>
             ))}
+            {current && started && !paused && card.legId && onReport && (
+              <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(card.legId!, card.place)}>
+                Problem here? Report it
+              </button>
+            )}
           </section>
         );
       })}
