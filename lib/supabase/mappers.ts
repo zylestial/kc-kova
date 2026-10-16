@@ -411,6 +411,11 @@ type ProblemRow = {
   handled_by_account_id?: string | null;
   handling_note?: string | null;
   follow_up_schedule_id?: string | null;
+  /** 0061; missing on rows from before it. */
+  leg_id?: string | null;
+  kind?: ProblemReport["kind"];
+  missed?: boolean;
+  reported_by_account_id?: string | null;
 };
 
 export function toProblemReport(row: ProblemRow): ProblemReport {
@@ -426,6 +431,10 @@ export function toProblemReport(row: ProblemRow): ProblemReport {
     handledByAccountId: row.handled_by_account_id ?? undefined,
     handlingNote: row.handling_note ?? "",
     followUpScheduleId: row.follow_up_schedule_id ?? undefined,
+    legId: row.leg_id ?? undefined,
+    kind: row.kind ?? "OTHER",
+    missed: row.missed ?? false,
+    reportedByAccountId: row.reported_by_account_id ?? undefined,
   };
 }
 
@@ -495,6 +504,8 @@ type ScheduleRow = {
   updated_at: string;
   /** 0054; missing on rows from before it. */
   kind?: Schedule["kind"];
+  /** 0061: paused for a Vehicle problem. */
+  paused_at?: string | null;
   schedule_revisions?: ScheduleRevisionRow[];
 };
 
@@ -509,6 +520,7 @@ export function toSchedule(row: ScheduleRow): Schedule {
     createdByAccountId: row.created_by_account_id,
     status: row.status,
     publishedRevisionId: row.published_revision_id ?? undefined,
+    pausedAt: row.paused_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     revisions: [...(row.schedule_revisions ?? [])]

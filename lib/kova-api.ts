@@ -232,7 +232,14 @@ export type ProblemReport = {
   handledByAccountId?: string;
   handlingNote: string;
   followUpScheduleId?: string;
+  /** A stop report (0061): the stop, what happened, and whether the stop was missed. */
+  legId?: string;
+  kind: StopReportKind;
+  missed: boolean;
+  reportedByAccountId?: string;
 };
+/** What can happen at a stop (0061); OTHER is also every whole-trip problem report. */
+export type StopReportKind = "NOT_AVAILABLE" | "WRONG_ADDRESS" | "ROAD_BLOCKED" | "VEHICLE_PROBLEM" | "OTHER";
 /** An in-app notification of one event for one recipient (0035). */
 export type NotificationType =
   | "REQUEST_SCHEDULED"
@@ -338,6 +345,8 @@ export type Schedule = {
   createdByAccountId: string;
   status: "ACTIVE" | "DISCARDED" | "CANCELLED";
   publishedRevisionId?: string;
+  /** Paused for a Vehicle problem until Resume trip (0061). */
+  pausedAt?: string;
   createdAt: string;
   updatedAt: string;
   /** Live versions only: the published one and any open draft. */
