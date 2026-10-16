@@ -867,5 +867,9 @@ Gotchas:
 - **Schedulers couldn't see taps** (0062), so Scheduling showed reached
   legs as editable and Fit it in could put a stop before them.
 - **`e2e/on-the-road.spec.ts` reseeds UAT-004** (`--fresh`), replacing the
-  owner's test trip, so ask before running it. Demo:
+  owner's test trip, so ask before running it. **Run it before about 2 PM
+  Manila:** the demo trip is planned from the time it's seeded, and adding
+  Site Gamma on the road estimates the legs left from the Driver's real
+  taps, so later in the day the trip ends after 6 PM and Resubmit is
+  refused ("Fix the warnings"). Freezing the browser clock doesn't help. Demo:
   `node scripts/seed-live-trip-demo.mjs` (driver4 / UAT-004).
