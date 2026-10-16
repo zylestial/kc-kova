@@ -1,11 +1,13 @@
 -- Stops not reached (0066): End trip reports every non-final leg after the
 -- last one reached as missed (NOT_REACHED), a fuel stop already handled; a
 -- leg before one reached (a forgotten tap) is not. The requester is told
--- when their stop is missed, by report_stop and by End trip.
+-- when their stop is missed, by report_stop and by End trip. Since 0067 a
+-- report can name some of the requests at a stop: the stop is still reached,
+-- and the Scheduler plans just those again.
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(19);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -103,6 +105,48 @@ select lives_ok($$ select release_missed_stop((select id from problem_reports wh
   'The Scheduler plans Plaza again');
 reset role;
 select ok((select missed_at is not null from requests where id = pg_temp.id('r3')), 'and it can go on any day');
+
+-- Some of the stops at a place (0067) ----------------------------------------------------
+-- s2: Dee (V2) today, two requests at City Hall on one leg; one of them isn't ready.
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+insert into ids select 'r4', id from create_request(pg_temp.today(), 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'r5', id from create_request(pg_temp.today(), 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+reset role;
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000f', 'driver2@test.local');
+insert into accounts (id, username, name, role) values ('00000000-0000-0000-0000-00000000000f', 'driver2', 'Dee Driver', 'Driver');
+insert into vehicles (plate, name, assigned_driver_id) values ('V2', 'Van 2', '00000000-0000-0000-0000-00000000000f');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+insert into ids select 's2', schedule_id from save_schedule_draft(null, null, pg_temp.today(), 'V2',
+  array[pg_temp.id('r4'), pg_temp.id('r5')], jsonb_build_array(
+    jsonb_build_object('destinationId', 'd1', 'plannedTimeOut', '14:00', 'plannedTimeIn', '14:30',
+      'stops', pg_temp.stops_of('r4') || pg_temp.stops_of('r5')),
+    jsonb_build_object('isFinal', true, 'plannedTimeOut', '15:00', 'plannedTimeIn', '15:30')));
+select submit_schedule(pg_temp.id('s2'), (select row_version from schedule_revisions where schedule_id = pg_temp.id('s2') and status = 'DRAFT'));
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select approve_schedule(pg_temp.id('s2'), (select row_version from schedule_revisions where schedule_id = pg_temp.id('s2') and status = 'SUBMITTED'));
+reset role;
+insert into ids select 's2leg', l.id from schedule_legs l join schedules s on s.published_revision_id = l.revision_id
+  where s.id = pg_temp.id('s2') and l.leg_no = 1;
+
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000f');
+select record_trip_attendance(pg_temp.id('s2'), 'START');
+select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'VEHICLE_PROBLEM', '', false, null, null, null, array[pg_temp.id('r4')]) $$,
+  '22023', 'Only Not available or Wrong address can be for some of the stops here', 'Only a missed kind can be for some stops');
+select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'NOT_AVAILABLE', '', false, null, null, null, array[pg_temp.id('r1')]) $$,
+  '22023', 'Choose stops at this place', 'Only requests at this stop');
+insert into ids select 'some', id from report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'NOT_AVAILABLE', '', false, null, null, null, array[pg_temp.id('r4')]);
+reset role;
+select is((select missed::text || ' ' || (request_ids = array[pg_temp.id('r4')])::text from problem_reports where id = pg_temp.id('some')), 'false true',
+  'A report for one of the two: the stop is still reached');
+select is((select count(*)::int from notifications where type = 'STOP_MISSED' and related_request_id in (pg_temp.id('r4'), pg_temp.id('r5'))), 1,
+  'Only that stop''s requester is told');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000f');
+select lives_ok($$ select record_stop_tap(pg_temp.id('s2'), pg_temp.id('s2leg'), 'ARRIVE') $$, 'The Driver still taps Arrived there');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select lives_ok($$ select release_missed_stop(pg_temp.id('some')) $$, 'The Scheduler plans that one again');
+reset role;
+select is((select array_agg(r.id order by r.id) from schedule_requests sr join requests r on r.id = sr.request_id
+  where sr.schedule_id = pg_temp.id('s2') and sr.active), array[pg_temp.id('r5')], 'and the other stays on the trip');
 
 select * from finish();
 rollback;
