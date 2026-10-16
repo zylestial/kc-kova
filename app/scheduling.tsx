@@ -2,13 +2,16 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   createCompanyTrip,
   createSchedule,
   discardScheduleDraft,
   getSchedules,
+  handleProblem,
   hydrateKovaData,
   moveRequestDay,
+  releaseMissedStop,
   saveScheduleDraft,
   submitSchedule,
   type TransportRequest,
@@ -20,6 +23,7 @@ import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
 import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
+import { missedLegs, openStopReports, stopReportLabel, type OpenStopReport } from "@/lib/stop-reports";
 import {
   dayCounts,
   isWaiting,
@@ -64,7 +68,7 @@ export default function Scheduling({
   /** Keeps the address in step, so a refresh or a link opens the same day and kind. */
   onChange: (date: string, kind: TripKind) => void;
 }) {
-  const { requests, schedules, vehicles, accounts, attendance, companyRuns, stopTaps, options } = useKovaData();
+  const { requests, schedules, vehicles, accounts, attendance, companyRuns, stopTaps, problems, options } = useKovaData();
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
@@ -85,6 +89,8 @@ export default function Scheduling({
   const [error, setError] = useState("");
   // Changes that can be undone, the last one last.
   const [undos, setUndos] = useState<UndoEntry[]>([]);
+  // A missed stop being sent back to its requester, with the reason.
+  const [sendingBack, setSendingBack] = useState<{ id: string; reason: string } | null>(null);
   useAutoClear(notice, setNotice);
   const strip = useRef<HTMLDivElement>(null);
   // On phones the strip scrolls; keep the chosen day in view.
@@ -126,12 +132,15 @@ export default function Scheduling({
   const sheetStops = stopsOf(sheetIds);
   const dragStops = dragIds ? stopsOf(dragIds) : [];
   const now = manilaHhmm(new Date().toISOString());
-  // Legs of a trip on the road up to the last one the Driver tapped (0060).
+  // Stops reported missed (0061), by leg: reached, like a tapped one (0063).
+  const missed = missedLegs(problems);
+  // Legs of a trip on the road up to the last one the Driver tapped or missed (0060).
   const reached = (scheduleId: string) => {
     const schedule = schedules.find((item) => item.id === scheduleId);
     const legs = (schedule && publishedRevision(schedule)?.legs) || [];
-    return legs.reduce((count, leg, index) => (stopTaps.some((tap) => tap.legId === leg.id) ? index + 1 : count), 0);
+    return legs.reduce((count, leg, index) => (stopTaps.some((tap) => tap.legId === leg.id) || missed.has(leg.id) ? index + 1 : count), 0);
   };
+  const reports = openStopReports(problems, schedules, requests, day, kind);
   const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started, reached };
 
   /**
@@ -223,6 +232,21 @@ export default function Scheduling({
       for (const move of entry.moves) await moveRequestDay(move.id, move.from);
       return "Undone." + (entry.moves.length ? " Requester notified of the day." : "");
     });
+  }
+  /** Takes a missed stop's requests off the trip (0063), then shows where they could go. */
+  function planAgain(item: OpenStopReport) {
+    void run(async () => {
+      const { requestIds } = await releaseMissedStop(item.report.id, false);
+      setSheetIds(requestIds);
+      return `${item.place} is waiting again. Fit it in on a trip.`;
+    }, "clear");
+  }
+  function sendBack(item: OpenStopReport, reason: string) {
+    void run(async () => {
+      await releaseMissedStop(item.report.id, true, reason);
+      setSendingBack(null);
+      return `${item.place} sent back to the requester.`;
+    }, "clear");
   }
   const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
@@ -337,6 +361,61 @@ export default function Scheduling({
           </Button>
         </div>
       ))}
+      {reports.map((item) => {
+        const { report } = item;
+        const paused = report.kind === "VEHICLE_PROBLEM" && (item.schedule.pausedAt ? " · trip paused" : " · trip resumed");
+        const stops = item.stops.map((stop) => stopNumber(stop) || stop.ownerName).join(", ");
+        const reason = sendingBack?.id === report.id ? sendingBack.reason : null;
+        return (
+          <div key={report.id} className={"sc-banner" + (report.missed ? "" : " wait")}>
+            <span>
+              <b>{stopReportLabel(report)}</b> at {item.place}
+              {stops && ` (${stops})`} · {vehicleName(item.plate)}
+              {paused}
+              {report.note && ` · "${report.note}"`}
+            </span>
+            {reason !== null ? (
+              <span className="sc-banner-form">
+                <Input
+                  aria-label="Reason for the requester"
+                  placeholder="Reason for the requester (optional)"
+                  value={reason}
+                  maxLength={500}
+                  disabled={busy}
+                  onChange={(event) => setSendingBack({ id: report.id, reason: event.target.value })}
+                />
+                <Button className="danger" disabled={busy} onClick={() => sendBack(item, reason)}>
+                  Send back
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={() => setSendingBack(null)}>
+                  Cancel
+                </Button>
+              </span>
+            ) : report.missed ? (
+              <>
+                <Button className="danger" disabled={busy} onClick={() => planAgain(item)}>
+                  Plan again
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setSendingBack({ id: report.id, reason: `${stopReportLabel(report)} at ${item.place}` })}
+                >
+                  Send back to requester
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void run(async () => (await handleProblem(report.id, "Seen on Scheduling"), "Marked handled."))}
+              >
+                Got it
+              </Button>
+            )}
+          </div>
+        );
+      })}
       {waitingForAdmin.map((trip) => (
         <div key={trip.schedule.id} className="sc-banner wait">
           <span>
@@ -435,6 +514,7 @@ export default function Scheduling({
                   fuel={fuel}
                   busy={busy}
                   run={run}
+                  missedLeg={(legId) => missed.get(legId) && stopReportLabel(missed.get(legId)!)}
                   doneLeg={(legId, isLast) =>
                     stopTaps.some((tap) => tap.legId === legId) ||
                     (isLast &&

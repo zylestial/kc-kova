@@ -79,6 +79,7 @@ export default function TripEditor({
   waiting,
   fuel,
   doneLeg,
+  missedLeg,
   busy,
   run,
 }: {
@@ -93,6 +94,8 @@ export default function TripEditor({
   fuel: BookingOption[];
   /** The Driver (or requester) has reached this leg: a tap there, or End trip on the last. */
   doneLeg: (legId: string, isLast: boolean) => boolean;
+  /** The stop was reported missed (0061): what happened. It's reached, like a done one. */
+  missedLeg: (legId: string) => string | undefined;
   busy: boolean;
   /** Runs a save; the message it returns is shown when it works. `undo`: the trip before it, or "clear". */
   run: (action: () => Promise<string>, undo?: UndoEntry | "clear") => Promise<void>;
@@ -119,7 +122,10 @@ export default function TripEditor({
   const editable = state !== "APPROVED";
   // Legs up to the last one reached can't change; a draft leg is reached
   // when the leg of the Driver's route it came from is.
-  const lastDone = legs.reduce((last, leg, index) => (doneLeg(leg.source ?? leg.key, index === legs.length - 1) ? index : last), -1);
+  const lastDone = legs.reduce(
+    (last, leg, index) => (doneLeg(leg.source ?? leg.key, index === legs.length - 1) || missedLeg(leg.source ?? leg.key) ? index : last),
+    -1,
+  );
   const resubmitNote =
     open?.status === "SUBMITTED" ? " Taken back from the Admin. Resubmit when ready." : !open ? " Saved as draft changes. Resubmit when ready." : "";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
@@ -233,6 +239,7 @@ export default function TripEditor({
       ))}
       {legs.map((leg, index) => {
         const done = doneLeg(leg.source ?? leg.key, index === legs.length - 1);
+        const missed = missedLeg(leg.source ?? leg.key);
         const locked = !editable || index <= lastDone || busy;
         const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
@@ -241,7 +248,7 @@ export default function TripEditor({
         return (
           <div
             key={leg.key}
-            className={"sc-leg" + (done ? " done" : "") + (dragOver === index && dragFrom !== index ? " over" : "") + (dragFrom === index ? " src" : "")}
+            className={"sc-leg" + (done || missed ? " done" : "") + (dragOver === index && dragFrom !== index ? " over" : "") + (dragFrom === index ? " src" : "")}
             onDragOver={(event) => {
               if (dragFrom === null || !movable) return;
               event.preventDefault();
@@ -281,6 +288,7 @@ export default function TripEditor({
                 LEG {two(index)}
                 {leg.isFinal && " · RETURN TO ANONANG"}
                 {done && " · DONE ✓"}
+                {missed && ` · ${missed.toUpperCase()}`}
               </b>
               <span className="sc-stop-tags">
                 {leg.stops.map((stopId) => {
