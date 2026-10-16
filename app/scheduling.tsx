@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  answerStopReport,
   createCompanyTrip,
   createSchedule,
   discardScheduleDraft,
@@ -14,6 +15,7 @@ import {
   releaseMissedStop,
   saveScheduleDraft,
   submitSchedule,
+  type StopDecision,
   type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
@@ -23,7 +25,7 @@ import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
 import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
-import { missedLegs, openStopReports, plansAgain, stopReportLabel, type OpenStopReport } from "@/lib/stop-reports";
+import { missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
 import {
   carriedStops,
   dayCounts,
@@ -257,6 +259,22 @@ export default function Scheduling({
       return `${item.place} moved to ${shortDay(date)}; the requester is told. Fit it in on a trip.`;
     }, "clear");
   }
+  /** Answers a stop report the Driver waits on (0068). Change the route opens the trip to edit. */
+  function answerReport(item: OpenStopReport, decision: StopDecision) {
+    void run(async () => {
+      await answerStopReport(item.report.id, decision);
+      if (decision === "CHANGE") {
+        setOpenPlates((plates) => new Set([...plates, item.plate]));
+        setFlashPlate(item.plate);
+        return "Change the route below, then submit it. The Driver waits until the Admin approves it.";
+      }
+      return decision === "SKIP"
+        ? `The Driver is told to skip ${item.place}.` + (item.stops.length ? " Plan its stops below." : "")
+        : decision === "WAIT"
+          ? "The Driver is told to wait there."
+          : "The Driver is told to end the trip.";
+    });
+  }
   function sendBack(item: OpenStopReport, reason: string) {
     void run(async () => {
       await releaseMissedStop(item.report.id, true, reason);
@@ -379,18 +397,22 @@ export default function Scheduling({
       ))}
       {reports.map((item) => {
         const { report } = item;
-        const paused = report.kind === "VEHICLE_PROBLEM" && (item.schedule.pausedAt ? " · trip paused" : " · trip resumed");
+        // Waiting for an answer (0068); "Change the route" waits on the Admin's approval and can still be answered otherwise.
+        const waiting = waitsForAnswer(report);
+        const changing = waiting && report.decision === "CHANGE";
         const stops = item.stops.map((stop) => stopNumber(stop) || stop.ownerName).join(", ");
         const reason = sendingBack?.id === report.id ? sendingBack.reason : null;
         const moveDate = movingTo?.id === report.id ? movingTo.date : null;
         return (
-          <div key={report.id} className={"sc-banner" + (plansAgain(report) ? "" : " wait")}>
+          <div key={report.id} className={"sc-banner" + (changing ? " wait" : waiting || plansAgain(report) ? "" : " wait")}>
             <span>
               <b>{stopReportLabel(report)}</b> at {item.place}
               {stops && ` (${stops})`} · {vehicleName(item.plate)}
               {item.schedule.date !== day && ` · ${shortDay(item.schedule.date)}`}
-              {paused}
               {report.note && ` · "${report.note}"`}
+              {changing
+                ? " · The Driver waits until the Admin approves your route change."
+                : waiting && " · The Driver is waiting for your answer."}
             </span>
             {reason !== null ? (
               <span className="sc-banner-form">
@@ -426,6 +448,18 @@ export default function Scheduling({
                   Cancel
                 </Button>
               </span>
+            ) : waiting ? (
+              STOP_ANSWERS.filter((answer) => !(changing && answer.decision === "CHANGE")).map((answer, index) => (
+                <Button
+                  key={answer.decision}
+                  className={index === 0 ? "danger" : undefined}
+                  variant={index === 0 ? undefined : "outline"}
+                  disabled={busy}
+                  onClick={() => answerReport(item, answer.decision)}
+                >
+                  {answer.label}
+                </Button>
+              ))
             ) : plansAgain(report) ? (
               <>
                 <Button className="danger" disabled={busy} onClick={() => planAgain(item)}>
