@@ -2,24 +2,30 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  CalendarCheck,
   CalendarDays,
   CalendarClock,
   CalendarPlus,
   CheckCircle2,
-  CircleAlert,
-  CircleCheck,
+  CircleSlash,
+  ClipboardCheck,
   ClipboardList,
+  CornerUpLeft,
+  FilePen,
   FilePlus2,
-  Info,
+  Flag,
+  Send,
   Settings as SettingsIcon,
   UserCheck,
   TriangleAlert,
+  Truck,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKovaData } from "@/lib/use-kova-data";
 import { homeCounts } from "@/lib/home-counts";
 import { canRequestTransport } from "@/lib/request-access";
-import { homeStats, type StatTone } from "@/lib/home-stats";
+import { homeStats, type StatIcon } from "@/lib/home-stats";
 import { useAccount } from "../providers";
 
 function HomeCard({
@@ -44,11 +50,21 @@ function HomeCard({
   );
 }
 
-const TONE_ICON: Record<StatTone, React.ReactNode> = {
-  info: <Info size={18} />,
-  success: <CircleCheck size={18} />,
-  warning: <TriangleAlert size={18} />,
-  error: <CircleAlert size={18} />,
+/** Each tile's icon: what it counts, matching the bell's icon for that event where there is one. */
+const STAT_ICON: Record<StatIcon, React.ReactNode> = {
+  requests: <ClipboardList size={18} />,
+  waiting: <CalendarClock size={18} />,
+  sentBack: <CornerUpLeft size={18} />,
+  scheduled: <CalendarCheck size={18} />,
+  draft: <FilePen size={18} />,
+  returned: <Undo2 size={18} />,
+  trips: <Truck size={18} />,
+  upcoming: <CalendarDays size={18} />,
+  complete: <ClipboardCheck size={18} />,
+  approve: <Send size={18} />,
+  cancellation: <CircleSlash size={18} />,
+  close: <Flag size={18} />,
+  problem: <TriangleAlert size={18} />,
 };
 
 export default function HomeScreen() {
@@ -104,7 +120,7 @@ export default function HomeScreen() {
         {stats.map((stat) => (
           <Link key={stat.label} href={stat.href} className={"stat-tile tone-" + (stat.value ? stat.tone : "neutral")}>
             <span className="stat-icon" aria-hidden="true">
-              {TONE_ICON[stat.tone]}
+              {STAT_ICON[stat.icon]}
             </span>
             <strong>{stat.value}</strong>
             <span>{stat.label}</span>

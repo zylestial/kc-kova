@@ -4,9 +4,24 @@ import { manilaToday } from "@/lib/timezone";
 import { scheduleState } from "@/lib/trip-record";
 
 export type StatTone = "info" | "success" | "warning" | "error";
+/** What each tile counts, so each has its own icon (the bell's, where the bell has that event). */
+export type StatIcon =
+  | "requests"
+  | "waiting"
+  | "sentBack"
+  | "scheduled"
+  | "draft"
+  | "returned"
+  | "trips"
+  | "upcoming"
+  | "complete"
+  | "approve"
+  | "cancellation"
+  | "close"
+  | "problem";
 // `href` is the screen where that work gets done, filtered to what the tile
 // counts where that screen has a matching filter.
-export type HomeStat = { label: string; value: number; tone: StatTone; href: string };
+export type HomeStat = { label: string; value: number; tone: StatTone; icon: StatIcon; href: string };
 
 /**
  * The numbers across the top of the Dashboard for the role being shown.
@@ -34,10 +49,10 @@ export function homeStats(
     const unscheduled = open.filter((request) => request.progress === "NOT_YET_SCHEDULED").length;
     const sentBack = open.filter((request) => request.progress === "SENT_BACK").length;
     return [
-      { label: "Open requests", href: "/requests", value: open.length, tone: "info" },
-      { label: "Not yet scheduled", href: "/requests?progress=NOT_YET_SCHEDULED", value: unscheduled, tone: "warning" },
-      { label: "Sent back", href: "/requests?progress=SENT_BACK", value: sentBack, tone: "error" },
-      { label: "Scheduled", href: "/requests", value: open.length - unscheduled - sentBack, tone: "success" },
+      { label: "Open requests", href: "/requests", value: open.length, tone: "info", icon: "requests" },
+      { label: "Not yet scheduled", href: "/requests?progress=NOT_YET_SCHEDULED", value: unscheduled, tone: "warning", icon: "waiting" },
+      { label: "Sent back", href: "/requests?progress=SENT_BACK", value: sentBack, tone: "error", icon: "sentBack" },
+      { label: "Scheduled", href: "/requests", value: open.length - unscheduled - sentBack, tone: "success", icon: "scheduled" },
     ];
   }
 
@@ -50,10 +65,10 @@ export function homeStats(
       (schedule) => schedule.status === "ACTIVE" && schedule.publishedRevisionId && schedule.date === today,
     ).length;
     return [
-      { label: "Waiting to be scheduled", href: "/scheduling", value: waiting, tone: "warning" },
-      { label: "Drafts to finish", href: "/schedules?status=DRAFT", value: states.filter((state) => state === "DRAFT").length, tone: "info" },
-      { label: "Returned by Admin", href: "/schedules?status=RETURNED", value: states.filter((state) => state === "RETURNED").length, tone: "error" },
-      { label: "Trips today", href: "/schedules?view=day", value: tripsToday, tone: "success" },
+      { label: "Waiting to be scheduled", href: "/scheduling", value: waiting, tone: "warning", icon: "waiting" },
+      { label: "Drafts to finish", href: "/schedules?status=DRAFT", value: states.filter((state) => state === "DRAFT").length, tone: "info", icon: "draft" },
+      { label: "Returned by Admin", href: "/schedules?status=RETURNED", value: states.filter((state) => state === "RETURNED").length, tone: "error", icon: "returned" },
+      { label: "Trips today", href: "/schedules?view=day", value: tripsToday, tone: "success", icon: "trips" },
     ];
   }
 
@@ -68,9 +83,9 @@ export function homeStats(
         return [{ date: schedule.date, ended: tripOver(data, schedule, lastIn, now) }];
       });
     return [
-      { label: "Trips today", href: "/my-schedule", value: trips.filter((trip) => !trip.ended && trip.date === today).length, tone: "info" },
-      { label: "Upcoming trips", href: "/my-schedule", value: trips.filter((trip) => !trip.ended && trip.date > today).length, tone: "success" },
-      { label: "Ready to complete", href: "/my-schedule", value: trips.filter((trip) => trip.ended).length, tone: "warning" },
+      { label: "Trips today", href: "/my-schedule", value: trips.filter((trip) => !trip.ended && trip.date === today).length, tone: "info", icon: "trips" },
+      { label: "Upcoming trips", href: "/my-schedule", value: trips.filter((trip) => !trip.ended && trip.date > today).length, tone: "success", icon: "upcoming" },
+      { label: "Ready to complete", href: "/my-schedule", value: trips.filter((trip) => trip.ended).length, tone: "warning", icon: "complete" },
     ];
   }
 
@@ -80,14 +95,16 @@ export function homeStats(
       href: "/schedules?status=SUBMITTED",
       value: data.schedules.filter((schedule) => scheduleState(schedule) === "SUBMITTED").length,
       tone: "warning",
+      icon: "approve",
     },
     {
       label: "Cancellation requests",
       href: "/schedules#cancellations",
       value: data.cancellations.filter((item) => item.status === "PENDING").length,
       tone: "warning",
+      icon: "cancellation",
     },
-    { label: "Trips to close", href: "/finished?status=SUBMITTED", value: data.completions.filter((item) => item.status === "SUBMITTED").length, tone: "info" },
-    { label: "Open problems", href: "/finished?problems=open", value: data.problems.filter((item) => item.status === "OPEN").length, tone: "error" },
+    { label: "Trips to close", href: "/finished?status=SUBMITTED", value: data.completions.filter((item) => item.status === "SUBMITTED").length, tone: "info", icon: "close" },
+    { label: "Open problems", href: "/finished?problems=open", value: data.problems.filter((item) => item.status === "OPEN").length, tone: "error", icon: "problem" },
   ];
 }
