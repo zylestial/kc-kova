@@ -418,6 +418,7 @@ type ProblemRow = {
   leg_id?: string | null;
   kind?: ProblemReport["kind"];
   missed?: boolean;
+  request_ids?: string[] | null;
   reported_by_account_id?: string | null;
 };
 
@@ -437,6 +438,7 @@ export function toProblemReport(row: ProblemRow): ProblemReport {
     legId: row.leg_id ?? undefined,
     kind: row.kind ?? "OTHER",
     missed: row.missed ?? false,
+    requestIds: row.request_ids ?? undefined,
     reportedByAccountId: row.reported_by_account_id ?? undefined,
   };
 }

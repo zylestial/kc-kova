@@ -14,6 +14,12 @@ describe("parseStopReportInput", () => {
     expect(parseStopReportInput({ legId, kind: "VEHICLE_PROBLEM" })).toEqual({ legId, kind: "VEHICLE_PROBLEM", note: "", skip: false, location: null });
   });
 
+  it("keeps which requests at the stop, and refuses an empty or bad list", () => {
+    expect(parseStopReportInput({ legId, kind: "NOT_AVAILABLE", requestIds: [legId] })?.requestIds).toEqual([legId]);
+    expect(parseStopReportInput({ legId, kind: "NOT_AVAILABLE", requestIds: [] })).toBeNull();
+    expect(parseStopReportInput({ legId, kind: "NOT_AVAILABLE", requestIds: ["x"] })).toBeNull();
+  });
+
   it("rejects an unknown kind or a bad stop", () => {
     expect(parseStopReportInput({ legId, kind: "LOST" })).toBeNull();
     expect(parseStopReportInput({ legId: "x", kind: "OTHER" })).toBeNull();

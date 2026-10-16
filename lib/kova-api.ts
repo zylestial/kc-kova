@@ -208,7 +208,15 @@ export type CompanyRunInput = { kind: "START" | "END"; odometer: number; locatio
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"] };
 /** A problem at one stop (0061); `skip` skips a blocked road instead of waiting. */
-export type StopReportInput = { legId: string; kind: StopReportKind; note: string; skip: boolean; location: AttendanceInput["location"] };
+/** requestIds: some of the requests at the stop, for Not available or Wrong address (0067); left out for all of them. */
+export type StopReportInput = {
+  legId: string;
+  kind: StopReportKind;
+  note: string;
+  skip: boolean;
+  location: AttendanceInput["location"];
+  requestIds?: string[];
+};
 /** An Admin's TIME OUT or TIME IN for one leg of a submitted trip (0046); it prints in place of the tap. */
 export type TripTimeCorrection = {
   id: string;
@@ -240,6 +248,8 @@ export type ProblemReport = {
   legId?: string;
   kind: StopReportKind;
   missed: boolean;
+  /** Missed for just these requests at the stop (0067); the stop itself was reached. */
+  requestIds?: string[];
   reportedByAccountId?: string;
 };
 /** What can happen at a stop (0061); OTHER is also every whole-trip problem report. */

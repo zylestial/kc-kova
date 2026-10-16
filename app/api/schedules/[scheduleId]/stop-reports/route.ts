@@ -23,6 +23,7 @@ export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, p
     p_lat: input.location?.lat ?? null,
     p_lng: input.location?.lng ?? null,
     p_accuracy_m: input.location?.accuracyM ?? null,
+    p_request_ids: input.requestIds ?? null,
   });
   if (error) return scheduleErrorResponse(error, "Could not send the report.", error.message);
 
