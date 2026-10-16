@@ -270,8 +270,16 @@ and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
   - Vehicle problem: **pauses the trip**. No Arrived / Leaving until Resume
     trip; End trip still works.
   - Other: a report only.
-  Schedulers and Admins get STOP_REPORTED. A report is a problem report
-  tied to a leg, so it shows wherever problems do.
+  Schedulers and Admins get STOP_REPORTED, and when a stop is missed its
+  requesters get STOP_MISSED (not whoever reported it). A report is a
+  problem report tied to a leg, so it shows wherever problems do.
+- **Stops not reached** (0066): End trip (in practice "End trip now")
+  reports every non-final leg after the last one reached (tapped or
+  reported missed) as missed, kind NOT_REACHED. A leg before one reached
+  is a forgotten tap, not a missed stop, and still needs the Admin's time.
+  A fuel / errand stop is handled at once; one with requests shows on
+  Scheduling like any missed stop. Its requesters get STOP_MISSED, and
+  Schedulers and Admins one STOP_REPORTED naming the stops.
 - A missed stop needs no Arrived / Leaving: `trip_times_missing` leaves out
   its Time In and the next leg's Time Out, and a Company trip may pass it in
   route order. One missed report per stop.
@@ -282,7 +290,8 @@ and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
   banner offers **Plan again** (the requests wait on their day),
   **Another day** (moved to the day picked) or **Send back to requester**.
   Other reports have **Got it**, which marks them handled; Schedulers may
-  handle stop reports.
+  handle stop reports. A report not handled on its day stays on today's
+  Scheduling, with its day.
 - **Missed or past due** (0065): a stop taken off a trip as missed
   (`requests.missed_at`), or one still waiting after its day passed, may be
   moved by a Scheduler to any day from today, Sundays included, whatever
