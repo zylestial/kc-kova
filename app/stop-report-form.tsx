@@ -25,7 +25,7 @@ export default function StopReportForm({
   const [note, setNote] = useState("");
   const [skip, setSkip] = useState<boolean | null>(null);
   const choice = STOP_REPORT_CHOICES.find((item) => item.kind === kind);
-  const ready = !!choice && (!choice.needsNote || note.trim() !== "") && (kind !== "ROAD_BLOCKED" || skip !== null);
+  const ready = !!choice && (kind !== "ROAD_BLOCKED" || skip !== null);
 
   return (
     <div className="stop-report">
@@ -74,7 +74,7 @@ export default function StopReportForm({
       )}
       {choice && (
         <label className="field">
-          <span>{choice.needsNote ? "What happened *" : "Anything to add"}</span>
+          <span>What happened (optional)</span>
           <Textarea value={note} maxLength={500} disabled={busy} onChange={(event) => setNote(event.target.value)} />
         </label>
       )}

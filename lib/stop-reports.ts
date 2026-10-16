@@ -5,12 +5,12 @@ import type { ProblemReport, StopReportKind } from "@/lib/kova-api";
  * sheet offers them, and what each does to the trip. The database decides
  * (report_stop); this is what the screens say.
  */
-export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; hint: string; needsNote: boolean }> = [
-  { kind: "NOT_AVAILABLE", label: "Not available", hint: "Nobody or nothing there to pick up or drop off. The stop is missed; go on to the next.", needsNote: true },
-  { kind: "WRONG_ADDRESS", label: "Wrong address or closed", hint: "Can't find it, can't get in, or it's closed. The stop is missed; go on to the next.", needsNote: true },
-  { kind: "ROAD_BLOCKED", label: "Road blocked or bad weather", hint: "Flood, accident, road closed. Skip this stop, or wait it out.", needsNote: false },
-  { kind: "VEHICLE_PROBLEM", label: "Vehicle problem", hint: "Breakdown, flat tire. The trip pauses until you tap Resume trip.", needsNote: false },
-  { kind: "OTHER", label: "Something else", hint: "Tell the Scheduler what happened. The trip goes on as planned.", needsNote: true },
+export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; hint: string }> = [
+  { kind: "NOT_AVAILABLE", label: "Not available", hint: "Nobody or nothing there to pick up or drop off. The stop is missed; go on to the next." },
+  { kind: "WRONG_ADDRESS", label: "Wrong address or closed", hint: "Can't find it, can't get in, or it's closed. The stop is missed; go on to the next." },
+  { kind: "ROAD_BLOCKED", label: "Road blocked or bad weather", hint: "Flood, accident, road closed. Skip this stop, or wait it out." },
+  { kind: "VEHICLE_PROBLEM", label: "Vehicle problem", hint: "Breakdown, flat tire. The trip pauses until you tap Resume trip." },
+  { kind: "OTHER", label: "Something else", hint: "Tell the Scheduler what happened. The trip goes on as planned." },
 ];
 
 /** How a report reads on the trip, e.g. "Missed: Not available". */
