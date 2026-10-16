@@ -57,6 +57,23 @@ export const weekStops = (requests: TransportRequest[], day: string, kind?: Trip
     )
     .sort((a, b) => a.date.localeCompare(b.date) || byRank(a, b));
 
+/**
+ * Stops that may go on any day from today (0065): missed on the road, or
+ * still waiting after their day passed. Listed on every other day, so they
+ * don't drop off Scheduling; adding one to a trip moves it to that day.
+ */
+export const carriedStops = (requests: TransportRequest[], day: string, today: string, kind?: TripKind) =>
+  requests
+    .filter(
+      (request) =>
+        waiting(request) &&
+        ofKind(request, kind) &&
+        (!!request.missedAt || request.date < today) &&
+        request.date !== day &&
+        !(request.flexibility === "WEEK" && mondayOf(request.date) === mondayOf(day)),
+    )
+    .sort((a, b) => a.date.localeCompare(b.date) || byRank(a, b));
+
 /** What the day strip shows under each day. */
 export function dayCounts(requests: TransportRequest[], day: string, kind?: TripKind) {
   const stops = toPlan(requests, day, kind);
