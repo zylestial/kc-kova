@@ -92,6 +92,8 @@ describe("formTimeValue and missingTimes", () => {
     expect(missingTimes(legTimes(legs, startedAt0802, []))).toBe(5);
     const times = legTimes(legs, startedAt0802, [], [correction("l2", "OUT", "09:40")]);
     expect(missingTimes(times)).toBe(4);
+    // City Hall missed (0061): its Time In and the Market leg's Time Out aren't missing.
+    expect(missingTimes(legTimes(legs, startedAt0802, []), new Set(["l1"]))).toBe(3);
     expect(formTimeValue(times[1].out)).toBe("09:40");
     expect(formTimeValue(times[0].out)).toBe("08:02");
   });

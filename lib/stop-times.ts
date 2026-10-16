@@ -111,9 +111,19 @@ export function formTimeValue(time: FormTime): string | null {
   return time.tap ? manilaHhmm(time.tap.at) : null;
 }
 
-/** How many TIME OUT / TIME IN cells are still empty (same rule as trip_times_missing, 0046). */
-export const missingTimes = (times: LegTimes[]) =>
-  times.reduce((count, item) => count + Number(!formTimeValue(item.out)) + Number(!formTimeValue(item.in)), 0);
+/**
+ * How many TIME OUT / TIME IN cells are still empty (same rule as
+ * trip_times_missing, 0046): a stop reported missed (0061) needs no Time In,
+ * and the leg after it no Time Out.
+ */
+export const missingTimes = (times: LegTimes[], missed: ReadonlySet<string> = new Set()) =>
+  times.reduce(
+    (count, item, index) =>
+      count +
+      Number(!formTimeValue(item.out) && !(index > 0 && missed.has(times[index - 1].leg.id))) +
+      Number(!formTimeValue(item.in) && !missed.has(item.leg.id)),
+    0,
+  );
 
 /**
  * Whether a stop tap could have been at its destination, with the same
