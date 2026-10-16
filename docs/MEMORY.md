@@ -828,6 +828,16 @@ in `docs/RULES.md` "on-the-road rules". The owner's calls:
   or past-due stops show under "Missed or past due" on every day. A
   waiting stop whose day passed used to drop off Scheduling (it shows
   today on); it now shows there too.
+- **End trip now leaves stops "Not reached"** (0066, owner's call
+  2026-10-16): they used to count as served, nobody was told, and the
+  Admin had to make up their times to mark the trip Done. Only legs after
+  the last one reached count, so a forgotten tap isn't mistaken for a
+  missed stop. The catch: a Driver who taps none of the stops and uses End
+  trip now marks them all not reached; the confirm says so.
+- **The requester is told when their stop is missed** (STOP_MISSED,
+  0066), not only when it's moved or sent back.
+- **An unhandled stop report stays on today's Scheduling** after its day,
+  with the day named; before, it disappeared once the day passed.
 
 Gotchas:
 - **Approving a new version used to lose taps.** Each approval made legs
