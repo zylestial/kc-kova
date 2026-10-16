@@ -224,7 +224,7 @@ export default function TripEditor({
         </div>
       ))}
       {legs.map((leg, index) => {
-        const done = doneLeg(leg.key, index === legs.length - 1);
+        const done = doneLeg(leg.source ?? leg.key, index === legs.length - 1);
         const locked = !editable || index <= lastDone || busy;
         const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
