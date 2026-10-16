@@ -40,9 +40,9 @@ A person has exactly one role; there is no multi-role account.
    then fixed times, any time that day, and the week's "any day that week"
    stops; each vehicle is listed with its trips. A stop is added to a
    vehicle by dragging it there or by picking from the options KOVA
-   suggests, best first (no other stop made late, no end after the Driver's
-   6 PM end of day, then the least added time, or for an Urgent stop the
-   soonest arrival). Adding an "any day that week"
+   suggests, best first (no other stop made late, then the least added
+   time, or for an Urgent stop the soonest arrival). Trips may run at any
+   hour of the day. Adding an "any day that week"
    stop to another day moves it there, and its requester is told. Each
    vehicle's legs form its **Trip Record**: legs in travel order, a Daily
    trip starting and ending at ANONANG (the home base), with times for each
@@ -51,7 +51,7 @@ A person has exactly one role; there is no multi-role account.
    day, and a vehicle that can be requested for company trips takes only
    Company trips. Saving reserves the time and locks the requests so nobody
    else plans them. A trip with a warning (too little time to drive a leg,
-   a fixed-time stop reached late, an end after 6 PM) can't be submitted
+   a fixed-time stop reached late) can't be submitted
    until it's fixed. A stop that won't fit is taken off its leg and goes
    back to the waiting list, or back to its requester with a reason so they
    can pick another day. **Undo** reverses the Scheduler's last change.
@@ -182,7 +182,7 @@ in `supabase/tests/` already check automatically.
 - A Scheduler can change a trip waiting for Admin approval; it goes back to
   a draft and must be resubmitted. (tested)
 - A trip with a warning (a leg too short to drive, a fixed-time stop reached
-  late, an end after 6 PM) can't be submitted.
+  late) can't be submitted. A trip may end at any hour.
 - Daily trips on the Scheduling page don't offer vehicles that can be
   requested for company trips. A Company trip uses the requester's vehicle
   and Driver, serves one department, and never overlaps another trip on that
