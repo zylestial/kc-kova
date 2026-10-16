@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Account, BookingOption, BookingOptions, OptionGroup, RequestForm as FormType, StopFlexibility, Vehicle } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { stillNeeded } from "@/lib/missing-fields";
-import CompanyTripPaper from "./company-trip-paper";
 import {
   DETAILS_MAX,
   FLEXIBILITY,
@@ -155,7 +154,6 @@ export default function RequestForm({
   options,
   isAdmin,
   requestedBy,
-  position,
   forms,
   vehicles,
   accounts,
@@ -176,7 +174,6 @@ export default function RequestForm({
   isAdmin: boolean;
   requestedBy: string;
   /** The requester's Position, printed on a Company Trip Form. */
-  position: string;
   /** The forms this account may use; a choice shows when there are two. */
   forms: FormType[];
   vehicles: Vehicle[];
@@ -752,39 +749,6 @@ export default function RequestForm({
           </p>
         </aside>
       </div>
-      {/* Only an Admin prints the form; a requester doesn't need the preview. */}
-      {company && isAdmin && (
-        <section className="request-paper-preview">
-          <h2>Printed form preview</h2>
-          <div className="trip-paper-frame">
-            <CompanyTripPaper
-              data={{
-                date: draft.date,
-                vehicleName: vehicles.find((item) => item.plate === draft.vehiclePlate)?.name ?? "",
-                plate: draft.vehiclePlate,
-                driverName: nameOf(tripDrivers, draft.driverId),
-                requestedBy,
-                position,
-                department: projectName(draft),
-                legs: draft.stops.map((stop, index) => {
-                  const purpose = stopPurpose(stop, options);
-                  return {
-                    purpose: [stop.urgent ? `Urgent: ${purpose}` : purpose, stop.details.trim()].filter(Boolean).join(" – "),
-                    origin: index ? stopDestination(draft.stops[index - 1]) : nameOf(startingPoints, draft.startingPointId),
-                    destination: stopDestination(stop),
-                    contact: stop.contact.trim(),
-                    supplier: nameOf(suppliers, stop.supplierId),
-                  };
-                }),
-                supervisor: nameOf(supervisors, draft.supervisorId),
-                head: nameOf(heads, draft.headId),
-                siteOfficer: draft.siteOfficer.trim(),
-                siteCompany: draft.siteCompany.trim(),
-              }}
-            />
-          </div>
-        </section>
-      )}
     </div>
   );
 }

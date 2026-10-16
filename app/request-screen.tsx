@@ -159,7 +159,6 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
               options={options}
               isAdmin={isAdmin}
               requestedBy={account?.name ?? ""}
-              position={account?.position ?? ""}
               forms={group ? [group.form] : allowed}
               vehicles={vehicles}
               accounts={accounts}
