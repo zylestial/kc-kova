@@ -16,7 +16,8 @@ export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; h
 
 /** How a report reads on the trip, e.g. "Missed: Not available". */
 export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed">): string {
-  const label = STOP_REPORT_CHOICES.find((choice) => choice.kind === report.kind)?.label ?? "Problem";
+  const label =
+    report.kind === "NOT_REACHED" ? "Not reached" : (STOP_REPORT_CHOICES.find((choice) => choice.kind === report.kind)?.label ?? "Problem");
   return report.missed ? `Missed: ${label}` : label;
 }
 

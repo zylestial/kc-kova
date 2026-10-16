@@ -243,7 +243,8 @@ export type ProblemReport = {
   reportedByAccountId?: string;
 };
 /** What can happen at a stop (0061); OTHER is also every whole-trip problem report. */
-export type StopReportKind = "NOT_AVAILABLE" | "WRONG_ADDRESS" | "ROAD_BLOCKED" | "VEHICLE_PROBLEM" | "OTHER";
+/** NOT_REACHED is never chosen: End trip files it for the stops left (0066). */
+export type StopReportKind = "NOT_AVAILABLE" | "WRONG_ADDRESS" | "ROAD_BLOCKED" | "VEHICLE_PROBLEM" | "OTHER" | "NOT_REACHED";
 /** An in-app notification of one event for one recipient (0035). */
 export type NotificationType =
   | "REQUEST_SCHEDULED"
@@ -259,7 +260,8 @@ export type NotificationType =
   | "SCHEDULE_RETURNED"
   | "TRIP_PUBLISHED"
   | "TRIP_CHANGED"
-  | "STOP_REPORTED";
+  | "STOP_REPORTED"
+  | "STOP_MISSED";
 export type Notification = {
   id: string;
   type: NotificationType;
