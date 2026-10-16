@@ -41,6 +41,7 @@ const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "suc
   TRIP_PUBLISHED: { icon: Truck, tone: "success" },
   TRIP_CHANGED: { icon: Route, tone: "warning" },
   STOP_REPORTED: { icon: MapPinX, tone: "error" },
+  STOP_MISSED: { icon: MapPinX, tone: "warning" },
 };
 
 /** Where clicking a notification should land, per its type. */
@@ -54,6 +55,7 @@ function notificationTarget(notification: Notification, schedules: Schedule[], r
     case "REQUEST_MOVED":
     case "REQUEST_CANCELLED":
     case "CANCELLATION_DECLINED":
+    case "STOP_MISSED":
       return relatedRequestId ? `/requests?open=${encodeURIComponent(relatedRequestId)}` : "/requests";
     case "CANCELLATION_REQUESTED":
       // The ask itself, with its Confirm and Decline.
