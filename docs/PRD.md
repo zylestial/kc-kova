@@ -82,7 +82,10 @@ A person has exactly one role; there is no multi-role account.
    on Scheduling to plan again or send back to its requester. A Scheduler
    can also change a trip already on the road; once an Admin approves, the
    Driver sees the route changed, with the stops already done kept as they
-   were. A Company trip's requester reports stops the same way.
+   were. A Company trip's requester reports stops the same way. If the
+   trip ends early, the stops left go back to the Scheduler as not
+   reached. A requester is told when their stop is missed, and the
+   Scheduler can move it to another day.
 5. **Company trips.** An Admin, or an account an Admin allows (with its
    Position set), can choose **Company Trip** on the request form. It is for one Project / Site
    (which is also its department / site on the form) and adds a starting
