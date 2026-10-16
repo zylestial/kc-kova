@@ -1,6 +1,7 @@
--- Changing a trip on the road (0060): edit_live_trip changes the published
--- version in place, so the Driver's taps survive; legs already tapped can't
--- change; a started trip can't get a new version approved; who's told.
+-- Changes to a trip on the road (0060): they go through draft changes and
+-- Admin approval as usual, but approval writes them onto the version the
+-- Driver follows, so the Driver's taps survive; legs already tapped can't
+-- change; who's told.
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -39,16 +40,13 @@ create function pg_temp.rv(p_schedule uuid) returns int language sql as $$
   select row_version from schedule_revisions
   where schedule_id = p_schedule and status in ('DRAFT', 'SUBMITTED', 'RETURNED');
 $$;
-create function pg_temp.live_rv() returns int language sql as $$
-  select r.row_version from schedule_revisions r join schedules s on s.published_revision_id = r.id
-  where s.id = pg_temp.id('s1');
-$$;
+-- Leg p_no of the version the Driver follows.
 create function pg_temp.leg(p_no int) returns uuid language sql as $$
   select l.id from schedule_legs l join schedules s on s.published_revision_id = l.revision_id
   where s.id = pg_temp.id('s1') and l.leg_no = p_no;
 $$;
--- The route as sent to edit_live_trip: legs 1, 2 and the final one keep
--- their ids; p_middle goes between legs 1 and 2.
+-- Draft changes from the route the Driver follows, as Scheduling sends
+-- them: each leg with the id it came from. p_middle goes between legs 1 and 2.
 create function pg_temp.route(p_first_in text, p_middle jsonb) returns jsonb language sql as $$
   select jsonb_build_array(
     jsonb_build_object('id', pg_temp.leg(1), 'destinationId', 'd1', 'plannedTimeOut', '08:00', 'plannedTimeIn', p_first_in,
@@ -57,6 +55,18 @@ create function pg_temp.route(p_first_in text, p_middle jsonb) returns jsonb lan
     jsonb_build_object('id', pg_temp.leg(2), 'destinationId', 'd2', 'plannedTimeOut', '11:00', 'plannedTimeIn', '12:00',
       'stops', jsonb_build_array(pg_temp.id('r1_d2'))),
     jsonb_build_object('id', pg_temp.leg(3), 'isFinal', true, 'plannedTimeOut', '12:30', 'plannedTimeIn', '13:30'));
+$$;
+-- sched proposes p_legs for p_requests and submits them.
+create function pg_temp.propose(p_requests uuid[], p_legs jsonb) returns uuid language plpgsql as $$
+declare
+  v_revision schedule_revisions;
+begin
+  perform pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+  select * into v_revision from save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')), null, 'V1', p_requests, p_legs);
+  perform submit_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')));
+  perform pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+  return v_revision.id;
+end;
 $$;
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
@@ -83,15 +93,6 @@ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')));
 reset role;
 insert into ids select 'rev1', published_revision_id from schedules where id = pg_temp.id('s1');
 
--- Before the trip starts ------------------------------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$ select edit_live_trip(pg_temp.id('s1'), pg_temp.live_rv(), array[pg_temp.id('r1')], pg_temp.route('09:00', '[]')) $$,
-  '22023', 'This trip hasn''t started yet; propose changes instead', 'A trip not yet started is changed by proposing changes');
--- A proposal waiting for the Admin when the trip starts.
-select save_schedule_draft(pg_temp.id('s1'), null, null, 'V1', array[pg_temp.id('r1')], pg_temp.route('09:15', '[]'));
-select submit_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')));
-insert into ids select 'proposal', id from schedule_revisions where schedule_id = pg_temp.id('s1') and status = 'SUBMITTED';
-
 -- The Driver starts and taps the first stop ------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select record_trip_attendance(pg_temp.id('s1'), 'START');
@@ -99,51 +100,71 @@ select record_stop_tap(pg_temp.id('s1'), pg_temp.leg(1), 'ARRIVE');
 select record_stop_tap(pg_temp.id('s1'), pg_temp.leg(1), 'LEAVE');
 insert into ids values ('leg1', pg_temp.leg(1)), ('leg2', pg_temp.leg(2));
 
--- Nothing else can replace the version on the road --------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-select throws_ok($$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$,
-  '22023', 'This trip is on the road; change it on Scheduling', 'A proposal can''t be approved once the trip has started');
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$ select save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')), null, 'V1', array[pg_temp.id('r1')], pg_temp.route('09:00', '[]')) $$,
-  '22023', null, 'Nor saved again');
-
--- Who may change it, and what --------------------------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
-select throws_ok($$ select edit_live_trip(pg_temp.id('s1'), pg_temp.live_rv(), array[pg_temp.id('r1')], pg_temp.route('09:00', '[]')) $$,
-  '42501', null, 'A Driver cannot change the route');
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$ select edit_live_trip(pg_temp.id('s1'), pg_temp.live_rv() - 1, array[pg_temp.id('r1')], pg_temp.route('09:00', '[]')) $$,
-  'PT409', null, 'A stale change is refused');
-select throws_ok($$ select edit_live_trip(pg_temp.id('s1'), pg_temp.live_rv(), array[pg_temp.id('r1')], pg_temp.route('09:30', '[]')) $$,
-  '22023', 'Stops the Driver has already reached can''t be changed', 'A tapped leg''s times can''t change');
-select throws_ok($$ select edit_live_trip(pg_temp.id('s1'), pg_temp.live_rv(), array[pg_temp.id('r1')], pg_temp.route('09:00', '[]') - 0) $$,
-  '22023', 'Stops the Driver has already reached can''t be changed', 'A tapped leg can''t be removed');
-
--- Adding a stop after the one reached --------------------------------------------
-select lives_ok($$ select edit_live_trip(pg_temp.id('s1'), pg_temp.live_rv(), array[pg_temp.id('r1'), pg_temp.id('r2')],
+-- Draft changes adding the Port after City Hall -----------------------------------
+insert into ids select 'draft1', pg_temp.propose(array[pg_temp.id('r1'), pg_temp.id('r2')],
   pg_temp.route('09:00', jsonb_build_array(jsonb_build_object('destinationId', 'd3', 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:30',
-    'stops', jsonb_build_array(pg_temp.id('r2_d3')))))) $$, 'The Scheduler adds the Port after City Hall');
+    'stops', jsonb_build_array(pg_temp.id('r2_d3'))))));
 reset role;
-select is((select published_revision_id from schedules where id = pg_temp.id('s1')), pg_temp.id('rev1'), 'The same version stays published');
+select is((select array_agg(source_leg_id order by leg_no) from schedule_legs where revision_id = pg_temp.id('draft1')),
+  array[pg_temp.id('leg1'), null, pg_temp.id('leg2'), pg_temp.leg(3)], 'Each draft leg remembers the leg it came from');
+select is((select count(*)::int from notifications where type = 'TRIP_CHANGED'), 0, 'The Driver hears nothing before the Admin approves');
+
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select lives_ok($$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$, 'The Admin approves the changes');
+reset role;
+select is((select published_revision_id from schedules where id = pg_temp.id('s1')), pg_temp.id('rev1'), 'The Driver''s version stays published');
 select is(pg_temp.leg(1), pg_temp.id('leg1'), 'City Hall keeps its leg');
 select is(pg_temp.leg(3), pg_temp.id('leg2'), 'The Market keeps its leg, now third');
 select is((select destination_name from schedule_legs where id = pg_temp.leg(2)), 'Port', 'The Port is leg 2');
 select is((select count(*)::int from stop_taps where leg_id = pg_temp.id('leg1')), 2, 'The Driver''s taps are still there');
-select is((select status from schedule_revisions where id = pg_temp.id('proposal')), 'DISCARDED', 'The waiting proposal is discarded');
+select is((select status from schedule_revisions where id = pg_temp.id('draft1')), 'SUPERSEDED', 'The approved draft is done with');
 select ok((select active from schedule_requests where schedule_id = pg_temp.id('s1') and request_id = pg_temp.id('r2')), 'The new request is on the trip');
 select is((select count(*)::int from notifications where type = 'TRIP_CHANGED' and account_id = '00000000-0000-0000-0000-00000000000e'), 1,
-  'The Driver is told');
-select is((select count(*)::int from notifications where type = 'LIVE_TRIP_CHANGED' and account_id = '00000000-0000-0000-0000-00000000000a'), 1,
-  'Admins are told');
+  'The Driver is told the trip changed');
+select is((select count(*)::int from notifications where type = 'TRIP_PUBLISHED' and account_id = '00000000-0000-0000-0000-00000000000e'), 1,
+  'Not that a new trip was published');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select lives_ok($$ select record_stop_tap(pg_temp.id('s1'), pg_temp.leg(2), 'ARRIVE') $$, 'The Driver can tap the new stop');
 
+-- Changes that move a stop the Driver has reached ----------------------------------
+select pg_temp.propose(array[pg_temp.id('r1'), pg_temp.id('r2')], jsonb_build_array(
+  jsonb_build_object('id', pg_temp.leg(1), 'destinationId', 'd1', 'plannedTimeOut', '08:00', 'plannedTimeIn', '09:00',
+    'stops', jsonb_build_array(pg_temp.id('r1_d1'))),
+  jsonb_build_object('id', pg_temp.leg(2), 'destinationId', 'd3', 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:45',
+    'stops', jsonb_build_array(pg_temp.id('r2_d3'))),
+  jsonb_build_object('id', pg_temp.leg(3), 'destinationId', 'd2', 'plannedTimeOut', '11:00', 'plannedTimeIn', '12:00',
+    'stops', jsonb_build_array(pg_temp.id('r1_d2'))),
+  jsonb_build_object('id', pg_temp.leg(4), 'isFinal', true, 'plannedTimeOut', '12:30', 'plannedTimeIn', '13:30')));
+select throws_ok($$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$, '22023',
+  'The Driver has already reached a stop this change moves. Return it to the Scheduler to redo', 'A reached stop''s times can''t change');
+select is((select planned_time_in from schedule_legs where id = pg_temp.leg(2)), '10:30'::time, 'The Driver''s route is untouched');
+select lives_ok($$ select return_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')), 'The Driver is already at the Port') $$,
+  'The Admin returns it instead');
+
+-- City Hall sent as a new leg: the reached one would go.
+select pg_temp.propose(array[pg_temp.id('r1'), pg_temp.id('r2')], jsonb_build_array(
+  jsonb_build_object('destinationId', 'd1', 'plannedTimeOut', '08:00', 'plannedTimeIn', '09:00',
+    'stops', jsonb_build_array(pg_temp.id('r1_d1'))),
+  jsonb_build_object('id', pg_temp.leg(2), 'destinationId', 'd3', 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:30',
+    'stops', jsonb_build_array(pg_temp.id('r2_d3'))),
+  jsonb_build_object('id', pg_temp.leg(3), 'destinationId', 'd2', 'plannedTimeOut', '11:00', 'plannedTimeIn', '12:00',
+    'stops', jsonb_build_array(pg_temp.id('r1_d2'))),
+  jsonb_build_object('id', pg_temp.leg(4), 'isFinal', true, 'plannedTimeOut', '12:30', 'plannedTimeIn', '13:30')));
+select throws_ok($$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$, '22023', null,
+  'Nor can a reached stop be removed');
+
+-- The backstop -------------------------------------------------------------------
+reset role;
+select throws_ok($$ update schedule_revisions set status = 'APPROVED' where schedule_id = pg_temp.id('s1') and status = 'SUBMITTED' $$,
+  '22023', null, 'No other version can become the approved one on a started trip');
+
 -- After End trip ------------------------------------------------------------------
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select record_trip_attendance(pg_temp.id('s1'), 'END');
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$ select edit_live_trip(pg_temp.id('s1'), pg_temp.live_rv(), array[pg_temp.id('r1')], pg_temp.route('09:00', '[]')) $$,
-  '22023', 'This trip has already ended', 'An ended trip can''t be changed');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select throws_ok($$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$,
+  '22023', 'This trip has already ended', 'Changes can''t be approved once the trip has ended');
 
 select * from finish();
 rollback;
