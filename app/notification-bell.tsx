@@ -7,6 +7,7 @@ import {
   CircleSlash,
   CircleX,
   CornerUpLeft,
+  Route,
   Send,
   Split,
   TriangleAlert,
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { markAllNotificationsRead, markNotificationRead, type Notification, type NotificationType, type Schedule } from "@/lib/kova-api";
 import { schedulingHref } from "@/lib/scheduling";
+import { useAccount } from "./(app)/providers";
 import { useKovaData } from "@/lib/use-kova-data";
 
 /** Each type's icon, and its color: good news, news, needs a look, or something wrong. */
@@ -36,10 +38,12 @@ const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "suc
   SCHEDULE_SUBMITTED: { icon: Send, tone: "info" },
   SCHEDULE_RETURNED: { icon: Undo2, tone: "warning" },
   TRIP_PUBLISHED: { icon: Truck, tone: "success" },
+  TRIP_CHANGED: { icon: Route, tone: "warning" },
+  LIVE_TRIP_CHANGED: { icon: Route, tone: "info" },
 };
 
 /** Where clicking a notification should land, per its type. */
-function notificationTarget(notification: Notification, schedules: Schedule[]): string | undefined {
+function notificationTarget(notification: Notification, schedules: Schedule[], role: string): string | undefined {
   const { type, relatedRequestId, relatedScheduleId } = notification;
   switch (type) {
     case "REQUEST_SCHEDULED":
@@ -65,6 +69,13 @@ function notificationTarget(notification: Notification, schedules: Schedule[]): 
     }
     case "TRIP_PUBLISHED":
       return relatedScheduleId ? `/my-schedule?open=${encodeURIComponent(relatedScheduleId)}` : "/my-schedule";
+    case "TRIP_CHANGED": {
+      // The Driver's trip, or the Company trip a requester records (0055).
+      const page = role === "Driver" ? "/my-schedule" : "/my-trips";
+      return relatedScheduleId ? `${page}?open=${encodeURIComponent(relatedScheduleId)}` : page;
+    }
+    case "LIVE_TRIP_CHANGED":
+      return relatedScheduleId ? `/schedules?open=${encodeURIComponent(relatedScheduleId)}` : "/schedules";
     default:
       return undefined;
   }
@@ -84,6 +95,7 @@ function timeAgo(iso: string) {
 function NotificationItem({ notification, onOpen }: { notification: Notification; onOpen: () => void }) {
   const router = useRouter();
   const { schedules } = useKovaData();
+  const { account } = useAccount();
   const unread = !notification.readAt;
   const { icon: Icon, tone } = notificationIcons[notification.type] ?? { icon: Bell, tone: "info" };
   return (
@@ -92,7 +104,7 @@ function NotificationItem({ notification, onOpen }: { notification: Notification
       className={`notif-item${unread ? " unread" : ""}`}
       onClick={() => {
         if (unread) void markNotificationRead(notification.id).catch(() => {});
-        const target = notificationTarget(notification, schedules);
+        const target = notificationTarget(notification, schedules, account.role);
         if (!target) return;
         // Close the panel so it doesn't cover what it opened.
         onOpen();

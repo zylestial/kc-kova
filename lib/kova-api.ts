@@ -246,7 +246,9 @@ export type NotificationType =
   | "PROBLEM_REPORTED"
   | "SCHEDULE_SUBMITTED"
   | "SCHEDULE_RETURNED"
-  | "TRIP_PUBLISHED";
+  | "TRIP_PUBLISHED"
+  | "TRIP_CHANGED"
+  | "LIVE_TRIP_CHANGED";
 export type Notification = {
   id: string;
   type: NotificationType;
