@@ -142,6 +142,22 @@ test("several people on a trip that's on the road", async ({ browser }) => {
   expect(toScheduler.map((n) => n.message).join()).toContain(`Not available at ${missedPlace}`);
   expect(toAdmin).toHaveLength(toScheduler.length);
 
+  // The Scheduler moves the missed stop to tomorrow (0065): it's off the trip, and waits there tagged Missed.
+  const tomorrow = new Date(`${today}T12:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const nextDay = tomorrow.toISOString().slice(0, 10);
+  await scheduler.goto(`/scheduling?date=${today}&type=DAILY`);
+  const banner = scheduler.locator(".sc-banner", { hasText: `at ${missedPlace}` });
+  await banner.getByRole("button", { name: "Another day" }).click();
+  await banner.getByLabel("Move to").fill(nextDay);
+  await banner.getByRole("button", { name: "Move", exact: true }).click();
+  await expect(scheduler.locator(".notice.success")).toContainText(`${missedPlace} moved to`, saved);
+  await expect(scheduler.locator(".date-card.selected")).toBeVisible();
+  expect(new URL(scheduler.url()).searchParams.get("date")).toBe(nextDay);
+  await scheduler.keyboard.press("Escape");
+  await expect(scheduler.locator(".sc-stop", { hasText: missedPlace }).locator(".sc-tag", { hasText: "Missed" })).toBeVisible();
+  expect(published(await todaysTrip(scheduler)).legs.find((leg) => leg.destinationName === missedPlace)?.stops ?? []).toHaveLength(0);
+
   // A flat tire pauses the trip; no taps until Resume trip.
   await after.locator(".trip-card.current").getByRole("button", { name: /Problem here\?/ }).click();
   await driver.getByRole("button", { name: /^Vehicle problem/ }).click();
