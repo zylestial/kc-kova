@@ -96,7 +96,7 @@ async function seedVehicle(plate, name, driverId) {
   await admin.from("vehicles").update({ assigned_driver_id: null }).eq("assigned_driver_id", driverId);
   const { data: existing } = await admin.from("vehicles").select("plate").eq("plate", plate).maybeSingle();
   const { error } = existing
-    ? await admin.from("vehicles").update({ assigned_driver_id: driverId, status: "Active" }).eq("plate", plate)
+    ? await admin.from("vehicles").update({ name, assigned_driver_id: driverId, status: "Active" }).eq("plate", plate)
     : await admin.from("vehicles").insert({ plate, name, status: "Active", assigned_driver_id: driverId });
   if (error) throw new Error(`vehicle ${plate} failed: ${error.message}`);
 }
@@ -201,7 +201,7 @@ async function main() {
   console.log(`Seeding the on-the-road demo into ${SUPABASE_URL} (today ${TODAY}, Asia/Manila)`);
   const ids = {};
   for (const account of ACCOUNTS) ids[account.username] = await seedAccount(account);
-  await seedVehicle(PLATE, "Toyota Hiace (UAT)", ids.driver4);
+  await seedVehicle(PLATE, "Nissan Urvan (UAT)", ids.driver4);
   for (const option of OPTIONS) await seedOption(option);
 
   const { data: already, error } = await admin
