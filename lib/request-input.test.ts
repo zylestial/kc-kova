@@ -5,6 +5,7 @@ const valid = {
   date: "2026-10-05",
   projectId: "pr1",
   projectOther: "",
+  vehiclePlate: "ABC-123",
   destinations: [
     { destinationId: "d1", destinationOther: "", purposeId: "p1", purposeOther: "" },
     { destinationId: "d2", destinationOther: "", purposeId: "p2", purposeOther: "" },
@@ -27,6 +28,10 @@ describe("parseRequestInput", () => {
       destinations: [{ destinationId: "", destinationOther: "  Warehouse X ", purposeId: "p1", purposeOther: "" }],
     });
     expect(parsed?.destinations).toEqual([{ destinationId: "", destinationOther: "Warehouse X", purposeId: "p1", purposeOther: "" }]);
+  });
+
+  it("leaves the vehicle blank for a Daily request", () => {
+    expect(parseRequestInput({ ...valid, vehiclePlate: undefined })?.vehiclePlate).toBe("");
   });
 
   it("ignores a request type sent by the client", () => {

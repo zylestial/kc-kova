@@ -19,14 +19,20 @@ app/                    Next.js App Router: pages (client components) + API rout
     bootstrap/          GET: one-shot hydration payload for the signed-in role
     accounts/           Admin: create/update accounts, reset passwords
     vehicles/           Admin: create/rename vehicles
-    requests/           Requester/Admin: create/edit v2 transport requests
-    schedules/          Scheduler: create, save, submit, discard; Admin: approve, return
+    request-groups/     Requester/Admin: create/edit a request and its stops (Daily or Company)
+    requests/           Per-stop actions: cancel, send back, split, move to another day
+    schedules/          Scheduler: create, save, submit, discard; Admin: approve, return;
+                         Company trip recording (company-run, company-stops)
     booking-options/    Admin: Projects/Destinations/Purposes
   *.tsx                 Screens (my-requests, schedules, admin-finished-trips, settings, etc.) — client components
 lib/
   api-route.ts          authed(): session client + 401 + params for route handlers
   kova-api.ts           Typed frontend adapter: every fetch to /api/**, plus the in-memory
                          cache the screens read from
+  request-draft.ts      The request form's state and checks (both forms)
+  request-access.ts     Who may make Daily / Company requests (mirrors the SQL helpers)
+  company-trips.ts      Company trip planner rules, My Trips steps
+  stop-times.ts         Each leg's printed Time Out / Time In from taps and Admin entries
   supabase/
     server.ts           Cookie-bound Supabase client for use inside route handlers (RLS applies)
     admin.ts             Service-role client (RLS bypassed) — only for operations an
@@ -136,6 +142,10 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `role` | text | `Requester` \| `Scheduler` \| `Admin` \| `Driver` (v2; `Booker` is converted to `Requester` by migration 0023) |
 | `status` | text | `Active` \| `Inactive` |
 | `project` | text, nullable | Unused since v2.5 (no screen showed it); kept for history |
+| `position` | text | 0051. Prints on the Company Trip Form; required when `can_request_company` is on |
+| `driver_type` | text, nullable | 0051. Drivers only: `Truck` \| `Company car` |
+| `can_request_daily` | boolean | 0051. Lets a Company car Driver make Daily requests (Requesters and Admins always can) |
+| `can_request_company` | boolean | 0051. May make Company Trip requests; never for a Truck Driver |
 | `created_at` | timestamptz | |
 
 ### `vehicles`
@@ -144,11 +154,12 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `plate` | text PK | |
 | `name` | text | |
 | `status` | text | `Active` \| `Inactive` |
+| `company_trips` | boolean | 0051. "Can be requested for company trips": offered on the Company Trip form, never on a Daily trip |
 
 ### `booking_options`
 | Column | Type | Notes |
 | --- | --- | --- |
-| `group` | text | `projects` \| `destinations` \| `purposes` |
+| `group` | text | `projects` \| `destinations` \| `purposes`, and since 0051 `urgent_reasons` \| `starting_points` \| `departments` \| `suppliers` \| `supervisors` \| `heads` |
 | `id` | text | Client-generated (`crypto.randomUUID()`) |
 | `name` | text | |
 | `status` | text | `Active` \| `Inactive` |
@@ -215,6 +226,37 @@ to its requester, and cleared by a trigger once the request's date changes.
 `schedule_requests` stops any schedule from including it.
 `split_request` (migration 0039) moves stops a vehicle can't fit off a request
 into a new request for the same requester and day.
+
+### `request_groups` (migration 0052)
+
+What a request's stops share: `number` (the 52 in 52-A), the owner, the
+form (`DAILY` \| `COMPANY`), `requested_date`, and on a Company Trip the
+starting point, department, `vehicle_plate`, `driver_id`, supervisor and
+head (each an option id plus a name snapshot), `site_officer` and
+`site_company`. Each stop is a `requests` row with `group_id`,
+`stop_letter`, `urgent_reason_id`/`_name`, `details` (≤ 150),
+`flexibility` (`DAY` \| `FIXED` \| `WEEK`), `fixed_time`, `contact` and
+`supplier_id`/`_name`, plus `moved_at`/`moved_by_account_id` when a
+Scheduler moved it to another day of its week (`move_request_day`, 0053).
+Written only by `create_request_group` / `update_request_group`; read
+through `can_view_request_group` (owner, Admin, Scheduler, the Company
+Trip's Driver, and anyone who may see one of its stops).
+
+`schedules.kind` (0054) is `DAILY` or `COMPANY`. `create_company_trip`
+starts a Company trip; triggers on `schedule_revisions` and
+`revision_requests` keep the two kinds apart (vehicle, requests, no leg
+back to ANONANG on a Company trip, one department and starting point).
+
+### `company_trip_runs` (migration 0055)
+
+One row per Company trip: the requester's Start trip and End trip, each
+with server time, the odometer, the phone's position and an address, and
+who tapped. The Arrived / Leaving taps go in `stop_taps` (with the trip's
+Driver as `driver_id` and the requester as `recorded_by_account_id`).
+Written only by `start_company_trip`, `record_company_stop` and
+`end_company_trip`; End trip also writes the `trip_completions` row. Read
+by whoever can see the schedule (`can_view_schedule`). The Driver's
+`trip_attendance` refuses Company trips (trigger `trip_attendance_daily_only`).
 
 ### `trip_attendance` (migration 0042, v2.6)
 
@@ -291,7 +333,10 @@ Summary, with the implementing route file:
 | PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
 | POST | `/api/requests` | `app/api/requests/route.ts` | Requester, Admin |
 | PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
-| POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403) |
+| POST | `/api/request-groups` | `app/api/request-groups/route.ts` | Who may make that form (`can_request_daily` / `can_request_company`); `{ form: "DAILY" \| "COMPANY", date, stops, … }` → the stops |
+| PUT | `/api/request-groups/:groupId` | `app/api/request-groups/[groupId]/route.ts` | Owner, Admin; `rowVersion` required |
+| POST | `/api/requests/:requestId/move` | `app/api/requests/[requestId]/move/route.ts` | Scheduler; an "any day that week" stop, `{ date }` |
+| POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403); `kind: "COMPANY"` starts a Company trip |
 | PUT | `/api/schedules/:scheduleId` | `app/api/schedules/[scheduleId]/route.ts` | Scheduler (DRAFT/RETURNED), Admin (SUBMITTED) |
 | POST | `/api/schedules/:scheduleId/submit` | `app/api/schedules/[scheduleId]/submit/route.ts` | Scheduler |
 | POST | `/api/schedules/:scheduleId/discard` | `app/api/schedules/[scheduleId]/discard/route.ts` | Scheduler |
@@ -309,6 +354,8 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/completion/done` | `app/api/schedules/[scheduleId]/completion/done/route.ts` | Admin |
 | POST | `/api/schedules/:scheduleId/attendance` | `app/api/schedules/[scheduleId]/attendance/route.ts` | Assigned Driver, Admin (as Driver); `{ kind: "START" \| "END", location }` |
 | POST | `/api/schedules/:scheduleId/stop-taps` | `app/api/schedules/[scheduleId]/stop-taps/route.ts` | Assigned Driver, Admin (as Driver), between Start and End; `{ legId, kind: "ARRIVE" \| "LEAVE", location }` |
+| POST | `/api/schedules/:scheduleId/company-run` | `app/api/schedules/[scheduleId]/company-run/route.ts` | Requester with a stop on the Company trip, Admin; `{ kind: "START" \| "END", odometer, location }` |
+| POST | `/api/schedules/:scheduleId/company-stops` | `app/api/schedules/[scheduleId]/company-stops/route.ts` | Same; `{ legId, kind: "ARRIVE" \| "LEAVE", location }` |
 | PUT | `/api/schedules/:scheduleId/times` | `app/api/schedules/[scheduleId]/times/route.ts` | Admin, submitted trip until Done; `{ legId, field: "OUT" \| "IN", time: "HH:MM" \| null }` |
 | POST | `/api/schedules/:scheduleId/problems` | `app/api/schedules/[scheduleId]/problems/route.ts` | Assigned Driver |
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
@@ -330,7 +377,7 @@ after sign-in. It issues parallel `select *` queries (accounts, vehicles,
 booking_options with `destination_locations`, and the v2 `requests` with their active
 destinations plus `request_progress`, the `schedules` with their live
 versions, legs and stops, the completions and problem reports, and the
-Start/End taps, stop taps and Admin time entries) through the
+Start/End taps, stop taps, Company trip runs and Admin time entries) through the
 **session-scoped client**, so RLS does the role-based filtering for free —
 a Driver's query for `trip_completions` only ever returns their own rows, without
 the route needing to know that rule itself. This is why `bootstrap`'s route

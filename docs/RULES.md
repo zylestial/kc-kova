@@ -24,6 +24,17 @@ should be written, for both humans and AI agents.)
   non-Active account as "no session" and sign it out).
 - Passwords are never stored or returned by KOVA's own code — Supabase Auth
   owns the credential.
+- **Who may request what** (0051; `can_request_daily`,
+  `can_request_company`, `can_request_transport`, mirrored for the menus in
+  `lib/request-access.ts`): Requesters and Admins can always make Daily
+  requests. Company trips need "Can request company trips" on the account,
+  and that needs a Position (it prints on the Company Trip Form).
+- A Driver is a **Truck** or a **Company car** Driver (`driver_type`; a new
+  Driver starts as Truck). A Driver can't make requests unless an Admin
+  allows that account, with Daily requests and Company trips switched on
+  separately. A Truck Driver can never be allowed. Someone who stops being
+  a Driver loses the Driver-only fields (trigger
+  `accounts_normalize_driver_fields`).
 
 ## Vehicles
 
@@ -37,6 +48,11 @@ should be written, for both humans and AI agents.)
   (`save_schedule_draft`) or approved once its vehicle has become inactive
   (`approve_schedule`).
 - Vehicles are never hard-deleted, only marked `Inactive`.
+- A vehicle that **can be requested for company trips** (`company_trips`,
+  off by default) is offered only on the Company Trip form and the Company
+  trip planner, never on a Daily trip (trigger
+  `schedule_revisions_kind_vehicle`, 0054). Every vehicle is a company
+  vehicle; never call the others "non-company".
 
 ## Requests, schedules and completions (v2)
 
@@ -46,12 +62,74 @@ approval, cancellation, conflicts) are enforced in the RPCs and documented
 per phase in `docs/v2/` — `phase-3-schema.md` has the permission matrix and
 state transitions.
 
-**One trip per vehicle per day** (migration 0048, owner's call 2026-10-09):
-once a vehicle is on an active schedule for a day (any live version, timed
-or not), no other schedule may use it that day, even at other times. A
-schedule keeps its own vehicle across revisions; cancelling or discarding it
-frees the vehicle. Enforced by a trigger on `schedule_revisions`; the
-Planner also leaves booked vehicles out of its list (`platesBookedOn`).
+**One trip per vehicle per day** (migration 0048, owner's call 2026-10-09;
+Daily trips only since 0054): once a vehicle is on an active Daily schedule
+for a day (any live version, timed or not), no other schedule may use it
+that day, even at other times. A schedule keeps its own vehicle across
+revisions; cancelling or discarding it frees the vehicle. Enforced by a
+trigger on `schedule_revisions`; the Planner also leaves booked vehicles out
+of its list (`platesBookedOn`).
+
+The request rules (`create_request_group`, `update_request_group`,
+`write_request_stop`, 0052; owner's calls 2026-10-14):
+
+- A request is a **group of stops**, numbered 52-A, 52-B, … Each stop is
+  its own `requests` row with one destination, so stops can go on different
+  vehicles or days. The group holds the form (Daily Vehicle Trip or Company
+  Trip), the date and the Company Trip's fields. At most 20 stops.
+- Per stop: Project / Site, destination, purpose (or an Urgent reason),
+  Details, how flexible it is (any time that day, a fixed time with the
+  appointment time, or any day that week), a contact and, on a Company
+  Trip, an optional supplier. Choices must be active (an edit may keep one
+  the stop already had).
+- **Urgent is per stop, with a reason** from the Admin's Urgent reasons.
+  The date no longer decides Regular or Urgent (the 7-day rule is gone);
+  `request_type` is set from whether the stop has a reason.
+- **Details** (what exactly, at most 150 characters) are required for Pick
+  up, Delivery and Urgent stops, optional otherwise.
+- Any date from today on; only an Admin may pick a past date.
+- Once any stop is being scheduled, the group's date and trip fields can't
+  change; a stop already being scheduled can't be edited or removed (ask
+  for its cancellation instead).
+- **Moving a stop** (`move_request_day`, 0053): only a Scheduler, only a
+  stop the requester marked "any day that week", only to Monday–Saturday of
+  that week, not a past day, and not while it's in a schedule. The
+  requester gets a REQUEST_MOVED notification. The stop keeps the asked-for
+  date on its group.
+- `create_request` / `update_request` (0051) stay for older requests; the
+  app's forms use the group RPCs.
+
+The Company trip rules (`create_request_group` with `COMPANY`, 0052;
+`create_company_trip` and the triggers in 0054):
+
+- A Company Trip request names a starting point, a department / site, a
+  vehicle that can be requested for company trips, an active Company car
+  Driver, an Immediate Supervisor and a PM / CM / Dept. Head; the site
+  officer and site company are optional.
+- A Company trip (`schedules.kind = 'COMPANY'`) takes only Company Trip
+  requests, all with the same vehicle, Driver, department and starting
+  point; the vehicle and Driver are the requester's, never the Scheduler's.
+  Its first leg starts at the starting point and its last leg ends at the
+  last stop: no leg back to ANONANG. A Company Trip request can't go on a
+  Daily trip.
+- A vehicle may take several Company trips a day as long as their times
+  don't overlap (`schedule_reservations`). Approval, return, revision and
+  cancellation work as for Daily trips.
+- **The requester records it** (`start_company_trip`,
+  `record_company_stop`, `end_company_trip`, 0055): anyone with a stop on
+  the trip, or an Admin for them (audited as an override). Start trip needs
+  the starting odometer and opens on the trip's date (0056); then Arrived and
+  Leaving at each stop but the last, in route order; End trip on arriving
+  at the last stop needs the ending odometer, never lower than the start.
+  Server time, optional phone position, flagged never refused; a repeat tap
+  returns the first. End trip submits the trip (a `trip_completions` row),
+  so it goes to Finished Trips like any other.
+- **Not in Attendance**: the Driver's Start/End trip refuses a Company trip
+  (trigger `trip_attendance_daily_only`), and the Driver only sees it.
+- On the Company Trip Form leg 1 TIME OUT is Start trip, leg N TIME IN is
+  Arrived at leg N (End trip for the last), leg N+1 TIME OUT is Leaving
+  leg N. `trip_times_missing` counts them the same way, so Done needs them
+  all.
 
 The completion rules:
 
@@ -131,7 +209,10 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
 
 ## Booking options
 
-- Only an Admin may create or edit Projects, Destinations or Purposes.
+- Only an Admin may create or edit Projects, Destinations or Purposes, or
+  the lists added for the new forms (0051): Urgent reasons, Starting
+  points, Departments / Sites, Suppliers, Immediate Supervisors and PM / CM
+  / Dept. Heads.
 - Inactive options remain visible on existing requests but must not be
   offered when creating a *new* one (an edit may keep an option the request
   already had).

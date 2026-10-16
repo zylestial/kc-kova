@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Role } from "@/lib/kova-api";
+import { DRIVER_TYPES, type Role } from "@/lib/kova-api";
 
 /**
  * Body schemas for the Admin-only routes (accounts, vehicles, booking
@@ -21,22 +21,51 @@ const optionalId = z
   .catch("")
   .transform((id) => id || null);
 
-export const createAccountBody = z.object({
-  name: required,
-  username: required,
-  role: z.enum(ROLES),
-  status: statusOrActive,
-  password: z.string().min(1),
-});
+/**
+ * Who may request what (0051). The Driver-only fields are dropped for
+ * other roles; a Truck driver with a switch on, or company trips without a
+ * Position, is refused by the database's constraints.
+ */
+const requestAccess = {
+  position: z.string().trim().catch(""),
+  driverType: z.enum(DRIVER_TYPES).catch("Truck"),
+  canRequestDaily: z.boolean().catch(false),
+  canRequestCompany: z.boolean().catch(false),
+};
+function forRole<T extends { role: Role; driverType: string; canRequestDaily: boolean }>(body: T) {
+  return body.role === "Driver" ? body : { ...body, driverType: null, canRequestDaily: false };
+}
 
-export const updateAccountBody = z.object({ name: required, username: required, role: z.enum(ROLES), status });
+export const createAccountBody = z
+  .object({
+    name: required,
+    username: required,
+    role: z.enum(ROLES),
+    status: statusOrActive,
+    password: z.string().min(1),
+    ...requestAccess,
+  })
+  .transform(forRole);
+
+export const updateAccountBody = z
+  .object({ name: required, username: required, role: z.enum(ROLES), status, ...requestAccess })
+  .transform(forRole);
 
 /** Any string; the password policy gives the message for a bad one. */
 export const passwordBody = z.object({ password: z.string() }).catch({ password: "" });
 
-export const createVehicleBody = z.object({ plate: required, name: required, status: statusOrActive, assignedDriverId: optionalId });
+/** "Can be requested for company trips"; off unless sent (0051). */
+const companyTrips = z.boolean().catch(false);
 
-export const updateVehicleBody = z.object({ plate: required, name: required, status, assignedDriverId: optionalId });
+export const createVehicleBody = z.object({
+  plate: required,
+  name: required,
+  status: statusOrActive,
+  assignedDriverId: optionalId,
+  companyTrips,
+});
+
+export const updateVehicleBody = z.object({ plate: required, name: required, status, assignedDriverId: optionalId, companyTrips });
 
 export const bookingOptionBody = z.object({
   name: required,

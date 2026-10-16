@@ -42,20 +42,20 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000002a');
 
 select throws_ok(
   $$ select create_request(pg_temp.d(), 'REGULAR', null, null,
-       '[{"destinationId":"d10","destinationOther":"Warehouse X","purposeId":"p10"}]') $$,
+       '[{"destinationId":"d10","destinationOther":"Warehouse X","purposeId":"p10"}]', null) $$,
   '22023', null, 'A destination id and Other text together are rejected');
 select throws_ok(
   $$ select create_request(pg_temp.d(), 'REGULAR', null, null,
-       '[{"destinationId":"d10","purposeId":"p10","purposeOther":"Deliver parts"}]') $$,
+       '[{"destinationId":"d10","purposeId":"p10","purposeOther":"Deliver parts"}]', null) $$,
   '22023', null, 'A purpose id and Other text together are rejected');
 select throws_ok(
   $$ select create_request(pg_temp.d(), 'REGULAR', null, null,
-       '[{"purposeId":"p10"}]') $$,
+       '[{"purposeId":"p10"}]', null) $$,
   '22023', null, 'No destination id and no Other text is rejected');
 
 select lives_ok(
   $$ select create_request(pg_temp.d(), 'REGULAR', null, null,
-       '[{"destinationOther":"Warehouse X","purposeOther":"Deliver parts"}]') $$,
+       '[{"destinationOther":"Warehouse X","purposeOther":"Deliver parts"}]', null) $$,
   'Other destination and Other purpose together are accepted');
 
 create temp table ids (k text primary key, v uuid);
@@ -114,7 +114,7 @@ select is(
 -- A second Requester's differently-named Other stop cannot share that leg.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000002a');
 select create_request(pg_temp.d(), 'REGULAR', null, null,
-  '[{"destinationOther":"Different Site","purposeOther":"Other errand"}]');
+  '[{"destinationOther":"Different Site","purposeOther":"Other errand"}]', null);
 reset role;
 insert into ids select 'rosa2', id from requests
   where owner_account_id = '00000000-0000-0000-0000-00000000002a' and id <> pg_temp.id('rosa');
@@ -136,7 +136,7 @@ select throws_ok(
 -- Typed names become choices (0049) ---------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000002a');
 insert into ids select 'w1', id from create_request(pg_temp.d(), 'REGULAR', null, null,
-  '[{"destinationOther":"  Wilcon   Calasiao ","purposeOther":"Pick up tiles"}]');
+  '[{"destinationOther":"  Wilcon   Calasiao ","purposeOther":"Pick up tiles"}]', null);
 reset role;
 select is((select count(*)::int from booking_options where "group" = 'destinations' and name = 'Wilcon Calasiao'), 1,
   'A new typed destination becomes a choice, tidied');
@@ -147,7 +147,7 @@ select is((select purpose_is_other from request_destinations where request_id = 
   'A new typed purpose becomes a choice too');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000002a');
 insert into ids select 'w2', id from create_request(pg_temp.d(), 'REGULAR', null, null,
-  '[{"destinationOther":"WILCON calasiao","purposeId":"p10"}]');
+  '[{"destinationOther":"WILCON calasiao","purposeId":"p10"}]', null);
 reset role;
 select is((select count(*)::int from booking_options where "group" = 'destinations' and option_name_key(name) = 'wilcon calasiao'), 1,
   'Typing it again, in other capitals, adds no duplicate');

@@ -7,6 +7,7 @@ import { requestProgressLabel } from "@/lib/status-text";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
+import { canRequestTransport } from "@/lib/request-access";
 
 export default function RequestsGate() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function RequestsGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <RequireRole allow={account.role === "Requester" || account.role === "Admin"}>
+    <RequireRole allow={canRequestTransport(account)}>
       <MyRequests notice={notice} openRequestId={openRequestId} initialProgress={progress} />
     </RequireRole>
   );

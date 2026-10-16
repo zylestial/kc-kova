@@ -42,10 +42,10 @@ $$;
 -- Juan: City Hall / Inspection. Maria: City Hall / Document delivery, and a
 -- second request for the Port Office. All on the same date.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
-select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
-select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p2"}]');
-select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]');
+select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p2"}]', null);
+select create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', null);
 reset role;
 
 create temp table ids (k text primary key, v uuid);
@@ -150,7 +150,7 @@ select is((select progress from request_progress where request_id = pg_temp.id('
   'Requester sees SCHEDULING progress without seeing the draft itself');
 select throws_ok(
   $$ select update_request(pg_temp.id('juan'), 1, pg_temp.d(), 'REGULAR', null, null,
-       '[{"destinationId":"d2","purposeId":"p1"}]') $$,
+       '[{"destinationId":"d2","purposeId":"p1"}]', null) $$,
   '22023', null, 'An included request can no longer be edited by its owner');
 
 -- Conflicts ------------------------------------------------------------------
@@ -305,7 +305,7 @@ select is(
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select lives_ok(
   $$ select create_request((now() at time zone 'Asia/Manila')::date - 3, 'REGULAR', null, null,
-       '[{"destinationId":"d2","purposeId":"p2"}]') $$,
+       '[{"destinationId":"d2","purposeId":"p2"}]', null) $$,
   'Admin requests transport for a trip that already happened');
 reset role;
 insert into ids

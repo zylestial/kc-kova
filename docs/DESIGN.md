@@ -144,6 +144,18 @@ hides the app chrome and dialogs are hidden in print, so `.print-form` is the
 only thing shown. This is a core, distinctive feature of the Admin review
 workflow, not an incidental print stylesheet.
 
+A Company trip prints the **Company Trip Form** instead
+(`app/company-trip-paper.tsx`, filled by `app/company-trip-print.tsx`, from
+the "KOVA Company Trip Flow" prototype): company header, an info grid (date,
+vehicle, plate, Driver, requested by, Position, department / site, both
+odometers, total distance, number of legs), the route and recording rule,
+an eight-row trip record (requester, purpose and details, leg, origin, Time
+Out, destination, Time In, site officer / supplier / contact), the
+signatories (requested by, Immediate Supervisor, site officer / supplier,
+PM / CM / Dept. Head) with blank signature lines, and For Finance Use. It
+uses the same portal and `.print-form`, inside `.company-print`. The same
+paper shows as a "Printed form preview" on the Company Trip request form.
+
 ## Empty and focus states (verified)
 
 - A shared "empty" pattern (icon + heading + paragraph, class `.empty`)
@@ -183,15 +195,17 @@ router/URL segments are used for in-app navigation.
 | Screen | Component | Shown to |
 | --- | --- | --- |
 | `*-home` | home buttons in `app/page.tsx` | All roles |
-| `new-request` | `app/request-flow.tsx` | Requester, Admin |
-| `my-requests` | `app/my-requests.tsx` | Requester, Admin |
+| `new-request` | `app/request-screen.tsx` with `app/request-form.tsx` (New Request prototype: a Daily / Company Trip choice for accounts allowed both; a date strip with Jump to date; one project or a different one per stop; stop cards, each Regular / Urgent with a reason, destination, purpose, Details, how flexible (any time that day / fixed time / any day that week), contact, and on a Company Trip a supplier; the Company Trip's fields and a printed form preview; a summary panel; also used to edit) | Requester, Admin, allowed Drivers |
+| `my-requests` | `app/my-requests.tsx` (one row per stop, numbered 52-A; details show the request's other stops and the Company Trip's fields) | Requester, Admin, allowed Drivers |
+| `my-trips` | `app/my-trips.tsx` (the requester's approved Company trips as folding cards: the steps in route order with their times, one big button for the next (Start trip at …, Arrived at …, Leaving …, Arrived at … · End trip), an odometer field on Start and End trip, the distance once ended) | Requesters with Company trips |
+| `company-planner` | `app/company-planner.tsx` at `/schedules/company` (Company Trip Flow prototype, "Plan": waiting stops most urgent first with 🔗 on stops requested together, Plan / Add / Send back / Move per stop; one timeline per vehicle that can be requested for company trips; a trip editor with Time Out / Time In per leg, warnings for overlaps and order; the day's trips with Edit / Discard / Submit) | Scheduler |
 | `create-schedule` | `app/schedule-planner.tsx` | Scheduler |
 | `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
 | `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short; no requester, distances or coordinates; then a big Complete trip) | Driver |
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
-| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are) | Driver, Admin |
-| `settings` | `app/settings.tsx` | Admin (accounts, vehicles, booking options) |
-| — | `app/booking-options.tsx` | Admin (projects/destinations/purposes; a destination's Location column and field take pasted coordinates or a Google Maps link) |
+| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily or the Company Trip Form) | Driver, Admin |
+| `settings` | `app/settings.tsx` | Admin (accounts with Position, Can request company trips, Driver type and a Company car Driver's request switches; vehicles with Can be requested for company trips; booking options) |
+| — | `app/booking-options.tsx` | Admin (projects/destinations/purposes, Urgent reasons, Starting points, Departments / Sites, Suppliers, Immediate Supervisors, PM / CM / Dept. Heads; a destination's Location column and field take pasted coordinates or a Google Maps link) |
 
 The Planner (`app/schedule-planner.tsx`) holds the state and the save, submit,
 discard and send-back logic, and composes its screen from `app/planner/`: day
@@ -219,6 +233,15 @@ buttons; on phones the bar is one row (an icon-only Discard, "Submit"). The
 only step numbers are the top stepper's. With nothing else held that day, the
 commitments panel is one line under the pool. A clash with another
 schedule's time blocks Save and Submit and shows on the checklist.
+
+Since the request groups (2026-10-14) the Planner also shows "Requests for
+this day" (`app/planner/pool-panel.tsx`): each stop as the requester sent
+it, numbered, Urgent and its reason, purpose, Details, how flexible it is
+and the contact, in pool order (Urgent, fixed times, any time that day, any
+day that week), with "On this route" or "Not placed". An "any day that
+week" stop not on the route gets a "Move to another day that week" picker.
+The vehicle list leaves out vehicles that can be requested for company
+trips; those are planned on the Company trip planner.
 
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.

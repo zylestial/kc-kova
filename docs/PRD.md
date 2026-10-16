@@ -17,22 +17,30 @@ A person has exactly one role; there is no multi-role account.
 
 | Role | Can do |
 | --- | --- |
-| **Requester** | Ask for transport (a date and one or more stops, each with a purpose). Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
-| **Scheduler** | Plan a day: take requests from the day's pool, pick a vehicle (its assigned Driver comes with it), build the route as a Trip Record, and submit it for approval. Send back requests that won't fit, or split a request across vehicles. The only role that creates schedules. |
-| **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers and times, handle problem reports, mark Done), check Drivers' attendance, and manage Accounts, Vehicles and request choices. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
-| **Driver** | See the approved trips assigned to them ("My Schedule"). Tap Start trip when leaving ANONANG and End trip on returning (their attendance), and Arrived and Leaving at each stop in between. After a trip ends, submit its odometer readings and final-return checks. Report a problem on a trip at any time. |
+| **Requester** | Ask for transport (a date and one or more stops, each with a purpose). If an Admin allows it, ask for a **Company trip** instead, picking the vehicle and its Company car Driver, and record that trip themselves on **My Trips**. Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
+| **Scheduler** | Plan a day: take requests from the day's pool, pick a vehicle (its assigned Driver comes with it), build the route as a Trip Record, and submit it for approval. Plan Company trips on each vehicle's timeline. Send back requests that won't fit, move an "any day that week" stop to another day, or split a request across vehicles. The only role that creates schedules. |
+| **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers and times, handle problem reports, mark Done, print the form), check Drivers' attendance, and manage Accounts, Vehicles and request choices, including who may request Company trips. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
+| **Driver** | Either a **Truck** or a **Company car** Driver. See the approved trips assigned to them ("My Schedule"). On Daily trips, tap Start trip when leaving ANONANG and End trip on returning (their attendance), and Arrived and Leaving at each stop in between; after the trip ends, submit its odometer readings and final-return checks. On Company trips the requester records the trip; the Driver only sees it. Report a problem on a trip at any time. An Admin may let a Company car Driver make requests; a Truck Driver never can. |
 
 ## Core workflows
 
-1. **Request a trip.** A Requester picks a date and adds each stop with its
-   purpose (a destination or purpose not on the list can be typed in). The
-   date decides the type: **Urgent** for today up to 6 days ahead, **Regular**
-   for 7 or more days ahead. An Admin may also log a past date for a trip
-   nobody requested at the time; that is recorded as Regular. No vehicle,
-   Driver or time is chosen at this stage.
+1. **Request a trip.** A Requester picks a date and the project(s), then adds
+   each stop: destination, purpose, and **Details** saying exactly what's
+   needed (required for Pick up, Delivery and Urgent stops). Each stop is
+   **Regular** or **Urgent**; an Urgent stop needs a reason from the Admin's
+   list. Each stop also says how flexible it is: any time that day, a fixed
+   time, or any day that week. Every stop becomes its own request, numbered
+   under the request (52-A, 52-B), so stops can go on different vehicles or
+   days. An Admin may also log a past date for a trip nobody requested at the
+   time. On a **Daily** request no vehicle, Driver or time is chosen at this
+   stage.
 2. **Plan the day.** A Scheduler opens a day and sees its request pool, Urgent
-   first and grouped by requester. They pick a vehicle (an Admin assigns each
-   vehicle a Driver) and build the **Trip Record**: legs in travel order,
+   first, then fixed times, any time that day and any day that week. An "any
+   day that week" stop can be moved to another day that week, and its
+   requester is told. They pick a vehicle (an Admin assigns each vehicle a
+   Driver; vehicles that can be requested for company trips aren't offered
+   here, and a vehicle has one Daily trip a day) and build the
+   **Trip Record**: legs in travel order,
    starting and ending at ANONANG (the home base), with times for each leg.
    Fuel or errand stops can be added without a request. Saving a draft
    reserves the time and locks the requests so nobody else plans them. A
@@ -57,25 +65,46 @@ A person has exactly one role; there is no multi-role account.
    answer the final-return checks (full tank, fleet card used, gas receipt
    attached). A Driver can report a problem on a trip at any time, even
    before submitting.
-5. **Review and close out.** An Admin reviews submitted trips in Finished
-   Trips: corrects the odometers if needed, fills in any Time Out or Time In
-   the Driver didn't tap (or corrects one), handles problem reports (a note,
-   and optionally the follow-up schedule), and marks the trip **Done**, which
-   locks it for everyone. A trip can't be Done until every time is there.
-   Trips with no open problem and no missing time can be marked Done in one
-   step. The Admin can print the official form for any submitted trip.
-6. **Cancel.** A Requester cancels an unplanned request directly. Once a
+5. **Company trips.** An account an Admin allows (with its Position set) can
+   choose **Company Trip** on the request form. It adds a starting point, the
+   department or site, the vehicle (one that can be requested for company
+   trips), its Company car Driver, the site officer, the Immediate Supervisor
+   and the PM / CM / Dept. Head, plus a supplier and contact per stop. A
+   Scheduler plans these on the Company trip planner: the requester's vehicle
+   and Driver are fixed, a vehicle can take several trips a day as long as
+   they don't overlap, a trip serves one department, and the route starts at
+   the starting point and ends at the last stop (no return to ANONANG).
+   Approval works as for Daily trips. The **requester** records the trip on
+   My Trips: Start trip with the odometer, Arrived and Leaving at each stop,
+   and End trip on reaching the last stop with the odometer again (never
+   lower than the start). End trip submits it. Nothing goes into the
+   Driver's Attendance.
+6. **Review and close out.** An Admin reviews submitted trips in Finished
+   Trips, filtered to Daily or Company trips if wanted: corrects the
+   odometers if needed, fills in any Time Out or Time In nobody tapped (or
+   corrects one), handles problem reports (a note, and optionally the
+   follow-up schedule), and marks the trip **Done**, which locks it for
+   everyone. A trip can't be Done until every time is there. Trips with no
+   open problem and no missing time can be marked Done in one step. The
+   Admin can print the official form for any submitted trip: the Daily
+   Vehicle Trip & Utilization Form, or the **Company Trip Form** for a
+   Company trip.
+7. **Cancel.** A Requester cancels an unplanned request directly. Once a
    schedule holds the request, they ask for a cancellation and an Admin
    confirms or declines it (a note is required to decline). Cancelling never
    deletes anything; history stays intact.
-7. **Administer reference data.** An Admin maintains Accounts, Vehicles (with
-   each vehicle's assigned Driver) and the request choices (Projects/Sites,
-   Destinations, Purposes, and which destinations are fuel/errand stops).
-   Nothing is ever hard-deleted; entries are marked Inactive so past records
-   keep displaying correctly.
-8. **Stay informed.** An in-app bell tells people what changed for them (a
-   request scheduled, returned or sent back; a schedule waiting for approval;
-   a trip published; a problem reported).
+8. **Administer reference data.** An Admin maintains Accounts (Position,
+   whether the account may request Company trips, each Driver's type and
+   whether a Company car Driver may make Daily or Company requests),
+   Vehicles (each vehicle's assigned Driver, and whether it can be requested
+   for company trips) and the request choices (Projects/Sites, Destinations,
+   Purposes, which destinations are fuel/errand stops, Urgent reasons,
+   Starting points, Departments / Sites, Suppliers, Immediate Supervisors and
+   PM / CM / Dept. Heads). Nothing is ever hard-deleted; entries are marked
+   Inactive so past records keep displaying correctly.
+9. **Stay informed.** An in-app bell tells people what changed for them (a
+   request scheduled, returned, sent back or moved to another day; a
+   schedule waiting for approval; a trip published; a problem reported).
 
 ## Non-goals
 
@@ -106,8 +135,13 @@ in `supabase/tests/` already check automatically.
 **Requests**
 - A Requester can file a request with a date and at least one stop with a
   purpose, and sees it in My requests as Not yet scheduled. (tested)
-- A request 0–6 days ahead is Urgent; 7 or more days ahead is Regular. Only
-  an Admin can file a past date.
+- Each stop of a request is its own numbered request (52-A, 52-B). A stop is
+  Urgent only when the Requester marks it and picks a reason; Pick up,
+  Delivery and Urgent stops need Details (at most 150 characters). Only an
+  Admin can file a past date. (tested)
+- Only an account an Admin allows, with a Position, can file a Company trip,
+  and it must name a vehicle that can be requested for company trips and a
+  Company car Driver. A Truck Driver can never make a request. (tested)
 - A Requester can edit or cancel their request until a Scheduler starts
   planning it, and only ask for a cancellation after that. (tested)
 - A Requester never sees or changes another person's requests.
@@ -117,6 +151,11 @@ in `supabase/tests/` already check automatically.
   has a Driver, and submit it. (tested)
 - The same vehicle, Driver or request can never be booked twice for
   overlapping time, even when two people save at once. (tested)
+- A Scheduler can move an "any day that week" stop to another day that week,
+  and its requester is told. (tested)
+- The Daily Planner doesn't offer vehicles that can be requested for company
+  trips. A Company trip uses the requester's vehicle and Driver, serves one
+  department, and never overlaps another trip on that vehicle. (tested)
 - An Admin can approve a submitted schedule, which shows it to its
   Requesters and Driver, or return it with a comment. (tested)
 - An Admin can cancel an approved schedule with a reason; its requests go
@@ -147,6 +186,11 @@ in `supabase/tests/` already check automatically.
   fields as the paper Daily Vehicle Trip & Utilization Form and the actual
   times from the taps (or the Admin's entries); a time nobody recorded
   prints blank.
+- Only the requester records a Company trip, in route order, from Start trip
+  to End trip at the last stop, with an ending odometer no lower than the
+  start; nothing goes into Attendance. An Admin can filter Finished Trips to
+  Company trips and print the Company Trip Form, with signatures and the For
+  Finance Use section blank. (tested)
 
 **Accounts and access**
 - Only an Admin can create accounts, set passwords, and change vehicles and

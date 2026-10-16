@@ -1,4 +1,4 @@
-import type { Schedule, ScheduleInput, ScheduleRevision, TransportRequest } from "@/lib/kova-api";
+import type { Schedule, ScheduleInput, ScheduleRevision, StopFlexibility, TransportRequest } from "@/lib/kova-api";
 
 /**
  * Trip Record planning rules the Scheduler's editor uses to guide input.
@@ -40,7 +40,17 @@ export type StopInfo = {
   purposeName: string;
   /** The request is Urgent, so the Scheduler places it before Regular ones. */
   urgent?: boolean;
+  /** "52-A" for a stop of a request group (0052); "" before groups. */
+  stopNumber?: string;
+  urgentReason?: string;
+  details?: string;
+  flexibility?: StopFlexibility;
+  fixedTime?: string;
+  contact?: string;
 };
+
+/** Daily requests only: Company Trips are planned on their own planner. */
+export const isDailyRequest = (request: TransportRequest) => request.group?.form !== "COMPANY";
 
 /**
  * What groups a stop or leg by destination: a booking_options id normally,
@@ -107,14 +117,27 @@ export function stopsFor(requests: TransportRequest[]): StopInfo[] {
       destinationIsOther: destination.destinationIsOther,
       purposeName: destination.purposeName,
       urgent: request.requestType === "URGENT",
+      stopNumber: request.group ? `${request.group.number}-${request.stopLetter}` : "",
+      urgentReason: request.urgentReason?.name,
+      details: request.details,
+      flexibility: request.flexibility,
+      fixedTime: request.fixedTime,
+      contact: request.contact,
     })),
   );
 }
 
-/** Request pool order: Urgent first, then by requester and when they asked. */
+const FLEXIBILITY_RANK: Record<StopFlexibility, number> = { FIXED: 0, DAY: 1, WEEK: 2 };
+
+/**
+ * Request pool order: Urgent first, then fixed times, then any time that
+ * day, then any day that week (prototype order), then by requester and
+ * when they asked.
+ */
 export function poolOrder(a: TransportRequest, b: TransportRequest): number {
   const urgency = Number(b.requestType === "URGENT") - Number(a.requestType === "URGENT");
-  return urgency || a.ownerName.localeCompare(b.ownerName) || a.createdAt.localeCompare(b.createdAt);
+  const flexibility = FLEXIBILITY_RANK[a.flexibility ?? "DAY"] - FLEXIBILITY_RANK[b.flexibility ?? "DAY"];
+  return urgency || flexibility || a.ownerName.localeCompare(b.ownerName) || a.createdAt.localeCompare(b.createdAt);
 }
 
 /** Leg 1 starts at ANONANG; every later leg starts where the previous one ended. */

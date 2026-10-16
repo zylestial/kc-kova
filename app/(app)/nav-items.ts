@@ -1,4 +1,5 @@
 import {
+  Car,
   CalendarDays,
   CalendarPlus,
   CheckCircle2,
@@ -13,25 +14,33 @@ import type { Account } from "@/lib/kova-api";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon };
 
+const requestItems: NavItem[] = [
+  { href: "/requests/new", label: "New request", icon: FilePlus2 },
+  { href: "/requests", label: "My requests", icon: ClipboardList },
+];
+
+const myTrips: NavItem = { href: "/my-trips", label: "My Trips", icon: Car };
+
 // The screens each role can open, in the same order as their home cards.
-export function navItems(viewRole: Account["role"]): NavItem[] {
+// canRequest adds the request screens for a Driver who doesn't drive a
+// Truck (canRequestTransport); canCompany adds My Trips, where a requester
+// records their Company trips (canRequestCompany).
+export function navItems(viewRole: Account["role"], canRequest = false, canCompany = false): NavItem[] {
+  const trips = canCompany ? [myTrips] : [];
   const home: NavItem = { href: "/home", label: "Dashboard", icon: LayoutDashboard };
   if (viewRole === "Driver")
     return [
       home,
       { href: "/my-schedule", label: "My Schedule", icon: CalendarDays },
       { href: "/finished/driver", label: "Finished Trips", icon: CheckCircle2 },
+      ...(canRequest ? [...requestItems, ...trips] : []),
     ];
-  if (viewRole === "Requester")
-    return [
-      home,
-      { href: "/requests/new", label: "New request", icon: FilePlus2 },
-      { href: "/requests", label: "My requests", icon: ClipboardList },
-    ];
+  if (viewRole === "Requester") return [home, ...requestItems, ...trips];
   if (viewRole === "Scheduler")
     return [
       home,
       { href: "/schedules/new", label: "Create schedule", icon: CalendarPlus },
+      { href: "/schedules/company", label: "Company trips", icon: Car },
       { href: "/schedules", label: "Schedules", icon: CalendarDays },
       { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
     ];
@@ -39,6 +48,7 @@ export function navItems(viewRole: Account["role"]): NavItem[] {
     home,
     { href: "/requests/new", label: "New request", icon: FilePlus2 },
     { href: "/requests", label: "My requests", icon: ClipboardList },
+    ...trips,
     { href: "/schedules", label: "Schedules", icon: CalendarDays },
     { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
     { href: "/attendance", label: "Attendance", icon: UserCheck },

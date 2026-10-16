@@ -5,6 +5,7 @@ import type {
   Schedule,
   TransportRequest,
   CancellationRequest,
+  CompanyTripRun,
   Notification,
   NotificationType,
   ProblemReport,
@@ -12,10 +13,21 @@ import type {
   TripTimeCorrection,
   TripAttendance,
   TripCompletion,
+  OptionGroup,
+  RequestForm,
+  RequestGroup,
+  StopFlexibility,
   Vehicle,
 } from "@/lib/kova-api";
+import { emptyOptions } from "@/lib/kova-api";
 
-type VehicleRow = { plate: string; name: string; status: "Active" | "Inactive"; assigned_driver_id: string | null };
+type VehicleRow = {
+  plate: string;
+  name: string;
+  status: "Active" | "Inactive";
+  assigned_driver_id: string | null;
+  company_trips: boolean;
+};
 
 export function toVehicle(row: VehicleRow): Vehicle {
   return {
@@ -23,11 +35,12 @@ export function toVehicle(row: VehicleRow): Vehicle {
     name: row.name,
     status: row.status,
     assignedDriverId: row.assigned_driver_id ?? undefined,
+    companyTrips: row.company_trips,
   };
 }
 
 type BookingOptionRow = {
-  group: "projects" | "destinations" | "purposes";
+  group: OptionGroup;
   id: string;
   name: string;
   status: "Active" | "Inactive";
@@ -38,7 +51,7 @@ type BookingOptionRow = {
 export type DestinationLocationRow = { destination_id: string; lat: number; lng: number };
 
 export function toBookingOptions(rows: BookingOptionRow[], locations: DestinationLocationRow[] = []): BookingOptions {
-  const options: BookingOptions = { projects: [], destinations: [], purposes: [] };
+  const options = emptyOptions();
   const locationOf = new Map(locations.map((row) => [row.destination_id, row]));
   for (const row of rows) {
     options[row.group].push(toBookingOption(row, row.group === "destinations" ? locationOf.get(row.id) : undefined));
@@ -73,20 +86,95 @@ type RequestRow = {
   project_id: string | null;
   project_name: string;
   project_is_other: boolean;
+  vehicle_plate: string | null;
   status: "ACTIVE" | "CANCELLED";
   row_version: number;
   created_at: string;
   updated_at: string;
   sent_back_at: string | null;
   sent_back_reason: string;
+  /** 0053: a Scheduler moved this "any day that week" stop to another day. */
+  moved_at?: string | null;
+  // 0052; older rows have no group and the defaults.
+  group_id?: string | null;
+  stop_letter?: string;
+  urgent_reason_id?: string | null;
+  urgent_reason_name?: string;
+  details?: string;
+  flexibility?: StopFlexibility;
+  fixed_time?: string | null;
+  contact?: string;
+  supplier_id?: string | null;
+  supplier_name?: string;
   // Embedded by the bootstrap select; absent on a bare RPC result.
   request_destinations?: RequestDestinationRow[];
+  request_groups?: RequestGroupRow | null;
 };
+
+export type RequestGroupRow = {
+  id: string;
+  number: number;
+  owner_account_id: string;
+  owner_name: string;
+  form_type: RequestForm;
+  requested_date: string;
+  starting_point_id: string | null;
+  starting_point_name: string;
+  department_id: string | null;
+  department_name: string;
+  vehicle_plate: string | null;
+  driver_id: string | null;
+  driver_name: string;
+  supervisor_id: string | null;
+  supervisor_name: string;
+  head_id: string | null;
+  head_name: string;
+  site_officer: string;
+  site_company: string;
+  row_version: number;
+  created_at: string;
+};
+
+/** An id + name snapshot pair, or undefined when there's no id. */
+const choice = (id: string | null | undefined, name: string | undefined) => (id ? { id, name: name ?? "" } : undefined);
+
+export function toRequestGroup(row: RequestGroupRow): RequestGroup {
+  return {
+    id: row.id,
+    number: row.number,
+    ownerAccountId: row.owner_account_id,
+    ownerName: row.owner_name,
+    form: row.form_type,
+    date: row.requested_date,
+    startingPoint: choice(row.starting_point_id, row.starting_point_name),
+    department: choice(row.department_id, row.department_name),
+    vehiclePlate: row.vehicle_plate ?? undefined,
+    driver: choice(row.driver_id, row.driver_name),
+    supervisor: choice(row.supervisor_id, row.supervisor_name),
+    head: choice(row.head_id, row.head_name),
+    siteOfficer: row.site_officer,
+    siteCompany: row.site_company,
+    rowVersion: row.row_version,
+    createdAt: row.created_at,
+  };
+}
+
+/** The select every request read uses, so a stop comes with its group (toTransportRequest). */
+export const REQUEST_SELECT = "*, request_destinations(*), request_groups(*)";
 
 type RequestProgressRow = { progress: RequestProgress | null; cancellation_pending: boolean | null };
 
 export function toTransportRequest(row: RequestRow, progressRow?: RequestProgressRow): TransportRequest {
   return {
+    group: row.request_groups ? toRequestGroup(row.request_groups) : undefined,
+    stopLetter: row.stop_letter ?? "",
+    urgentReason: row.urgent_reason_name ? { id: row.urgent_reason_id ?? undefined, name: row.urgent_reason_name } : undefined,
+    details: row.details ?? "",
+    flexibility: row.flexibility ?? "DAY",
+    // Postgres returns "08:30:00".
+    fixedTime: row.fixed_time ? row.fixed_time.slice(0, 5) : undefined,
+    contact: row.contact ?? "",
+    supplier: choice(row.supplier_id, row.supplier_name),
     id: row.id,
     ownerAccountId: row.owner_account_id,
     ownerName: row.owner_name,
@@ -95,6 +183,7 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
     projectId: row.project_id ?? undefined,
     projectName: row.project_name,
     projectIsOther: row.project_is_other,
+    vehiclePlate: row.vehicle_plate ?? undefined,
     status: row.status,
     rowVersion: row.row_version,
     createdAt: row.created_at,
@@ -114,6 +203,7 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
     progress: progressRow?.progress ?? (row.status === "CANCELLED" ? "CANCELLED" : row.sent_back_at ? "SENT_BACK" : "NOT_YET_SCHEDULED"),
     cancellationPending: progressRow?.cancellation_pending ?? false,
     sentBack: row.sent_back_at ? { at: row.sent_back_at, reason: row.sent_back_reason } : undefined,
+    movedAt: row.moved_at ?? undefined,
   };
 }
 
@@ -263,6 +353,27 @@ export function toStopTap(row: StopTapRow): StopTap {
   };
 }
 
+type CompanyTripRunRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  start_at: string;
+  start_odometer: number;
+  end_at: string | null;
+  end_odometer: number | null;
+};
+
+export function toCompanyTripRun(row: CompanyTripRunRow): CompanyTripRun {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    startAt: row.start_at,
+    startOdometer: row.start_odometer,
+    endAt: row.end_at ?? undefined,
+    endOdometer: row.end_odometer ?? undefined,
+  };
+}
 
 type TripTimeCorrectionRow = {
   id: string;
@@ -380,6 +491,8 @@ type ScheduleRow = {
   published_revision_id: string | null;
   created_at: string;
   updated_at: string;
+  /** 0054; missing on rows from before it. */
+  kind?: Schedule["kind"];
   schedule_revisions?: ScheduleRevisionRow[];
 };
 
@@ -390,6 +503,7 @@ export function toSchedule(row: ScheduleRow): Schedule {
   return {
     id: row.id,
     date: row.schedule_date,
+    kind: row.kind ?? "DAILY",
     createdByAccountId: row.created_by_account_id,
     status: row.status,
     publishedRevisionId: row.published_revision_id ?? undefined,

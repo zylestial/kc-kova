@@ -41,17 +41,17 @@ $$;
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select lives_ok(
   $$ select create_request(pg_temp.today() + 7, 'REGULAR', 'pr1', null,
-       '[{"destinationId":"d1","purposeId":"p1"},{"destinationId":"d2","purposeId":"p2"}]') $$,
+       '[{"destinationId":"d1","purposeId":"p1"},{"destinationId":"d2","purposeId":"p2"}]', null) $$,
   'Requester creates a Regular request 7 days ahead with two destinations');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 7, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() + 7, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   '42501', null, 'Driver cannot create requests');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 7, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() + 7, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   '42501', null, 'Scheduler cannot create requests');
 
 reset role;
@@ -62,36 +62,36 @@ select throws_ok(
 -- Date rules ---------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 6, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() + 6, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   '22023', null, 'Regular 6 days ahead is rejected');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 7, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() + 7, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   '22023', null, 'Urgent 7 days ahead is rejected (that is Regular)');
 select lives_ok(
-  $$ select create_request(pg_temp.today(), 'URGENT', null, 'Barangay 5 hall', '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today(), 'URGENT', null, 'Barangay 5 hall', '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   'Urgent today with Other project text is accepted');
 select lives_ok(
-  $$ select create_request(pg_temp.today() + 1, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() + 1, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   'Urgent tomorrow is accepted');
 select throws_ok(
-  $$ select create_request(pg_temp.today() - 1, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() - 1, 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   '22023', null, 'Requester cannot request a past date');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select lives_ok(
-  $$ select create_request(pg_temp.today() - 3, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() - 3, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   'Admin can request a past date');
 
 -- Options and snapshots ----------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 8, 'REGULAR', null, null, '[{"destinationId":"d3","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() + 8, 'REGULAR', null, null, '[{"destinationId":"d3","purposeId":"p1"}]', null) $$,
   '22023', null, 'Inactive destination is rejected');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 8, 'REGULAR', 'pr1', 'Other text', '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+  $$ select create_request(pg_temp.today() + 8, 'REGULAR', 'pr1', 'Other text', '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   '22023', null, 'Project option and Other text together are rejected');
 select throws_ok(
-  $$ select create_request(pg_temp.today() + 8, 'REGULAR', null, null, '[]') $$,
+  $$ select create_request(pg_temp.today() + 8, 'REGULAR', null, null, '[]', null) $$,
   '22023', null, 'At least one destination is required');
 
 reset role;
@@ -105,7 +105,7 @@ select is(
 -- Edits keep options that were deactivated after the request was made -----
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select lives_ok(
-  $$ select create_request(pg_temp.today() + 10, 'REGULAR', 'pr2', null, '[{"destinationId":"d4","purposeId":"p2"}]') $$,
+  $$ select create_request(pg_temp.today() + 10, 'REGULAR', 'pr2', null, '[{"destinationId":"d4","purposeId":"p2"}]', null) $$,
   'Admin creates a request using options that are still Active');
 
 reset role;
@@ -116,7 +116,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select lives_ok(
   $$ select update_request(
        (select id from requests where project_id = 'pr2'), 1, pg_temp.today() + 11, 'REGULAR', 'pr2', null,
-       '[{"destinationId":"d4","purposeId":"p2"}]') $$,
+       '[{"destinationId":"d4","purposeId":"p2"}]', null) $$,
   'An edit may keep a destination and Project / Site that are now Inactive');
 select is(
   (select destination_name from request_destinations rd join requests r on r.id = rd.request_id
@@ -128,7 +128,7 @@ select is(
 select throws_ok(
   $$ select update_request(
        (select id from requests where project_id = 'pr2'), 2, pg_temp.today() + 11, 'REGULAR', 'pr2', null,
-       '[{"destinationId":"d4","purposeId":"p2"},{"destinationId":"d3","purposeId":"p1"}]') $$,
+       '[{"destinationId":"d4","purposeId":"p2"},{"destinationId":"d3","purposeId":"p1"}]', null) $$,
   '22023', null, 'An edit cannot newly choose an Inactive destination');
 
 -- Edit lock and stale edits ------------------------------------------------
@@ -136,19 +136,19 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select lives_ok(
   $$ select update_request(
        (select id from requests where project_id = 'pr1'), 1, pg_temp.today() + 9, 'REGULAR', 'pr1', null,
-       '[{"destinationId":"d2","purposeId":"p2"}]') $$,
+       '[{"destinationId":"d2","purposeId":"p2"}]', null) $$,
   'Owner edits an unscheduled request');
 select throws_ok(
   $$ select update_request(
        (select id from requests where project_id = 'pr1'), 1, pg_temp.today() + 9, 'REGULAR', 'pr1', null,
-       '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+       '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   'PT409', null, 'A stale form (old row_version) cannot overwrite a newer edit');
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
 select throws_ok(
   $$ select update_request(
        (select id from requests where owner_account_id = '00000000-0000-0000-0000-00000000000b' limit 1),
-       2, pg_temp.today() + 9, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]') $$,
+       2, pg_temp.today() + 9, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null) $$,
   'P0002', null, 'Another Requester cannot edit the request');
 
 -- RLS reads ----------------------------------------------------------------

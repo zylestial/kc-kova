@@ -37,9 +37,9 @@ create function pg_temp.d(p_days int) returns date language sql as $$
 $$;
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000005a');
-select create_request(pg_temp.d(10), 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]');
+select create_request(pg_temp.d(10), 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]', null);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000005b');
-select create_request(pg_temp.d(10), 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]');
+select create_request(pg_temp.d(10), 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]', null);
 reset role;
 
 create temp table ids (k text primary key, v uuid);
@@ -114,7 +114,7 @@ select throws_ok(
 select pg_temp.act_as('00000000-0000-0000-0000-00000000005a');
 select update_request(
   pg_temp.id('juan'), (select row_version from requests where id = pg_temp.id('juan')),
-  pg_temp.d(12), 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]');
+  pg_temp.d(12), 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]', null);
 select is(
   (select progress from request_progress where request_id = pg_temp.id('juan')), 'NOT_YET_SCHEDULED',
   'A new date clears the send-back');

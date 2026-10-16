@@ -48,11 +48,11 @@ $$;
 -- past: Admin request for yesterday, V1 (Dan). future: Juan's request in
 -- 10 days, V2 (Dee).
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-insert into ids select 'past', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+insert into ids select 'past', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
-insert into ids select 'future', id from create_request(pg_temp.manila_today() + 10, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+insert into ids select 'future', id from create_request(pg_temp.manila_today() + 10, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-insert into ids select 'past2', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+insert into ids select 'past2', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 reset role;
 insert into ids select k || '_rd', (select id from request_destinations where request_id = v and active) from ids;
 
@@ -100,7 +100,7 @@ select throws_ok($$ select submit_completion(pg_temp.id('sf'), 100, 150) $$, '22
 -- Back at ANONANG early (0047): End trip is enough; the last planned Time In
 -- (23:59 today) needn't have passed.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-insert into ids select 'today', id from create_request(pg_temp.manila_today(), 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+insert into ids select 'today', id from create_request(pg_temp.manila_today(), 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 reset role;
 insert into ids select 'today_rd', id from request_destinations where request_id = pg_temp.id('today') and active;
 insert into ids values ('st', pg_temp.publish('V1', pg_temp.manila_today(), 'today', '23:59'));

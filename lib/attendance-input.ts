@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AttendanceInput, StopTapInput, TripTimeInput } from "@/lib/kova-api";
+import type { AttendanceInput, CompanyRunInput, StopTapInput, TripTimeInput } from "@/lib/kova-api";
 import { parseWith } from "@/lib/validation";
 
 const location = z.object({
@@ -21,6 +21,22 @@ const attendanceBody = z.object({
  */
 export function parseAttendanceInput(body: unknown): AttendanceInput | null {
   return parseWith(attendanceBody, body);
+}
+
+const companyRunBody = z.object({
+  kind: z.enum(["START", "END"]),
+  odometer: z.number().int().min(0).max(9_999_999),
+  location: location.nullable().default(null),
+});
+
+/**
+ * Shape-checks a Company trip's Start/End trip body (0055): the kind, a
+ * whole-number odometer reading and the optional position. Whether it may
+ * be recorded, and that the end isn't below the start, is checked in
+ * Postgres. Returns null when the body isn't usable.
+ */
+export function parseCompanyRunInput(body: unknown): CompanyRunInput | null {
+  return parseWith(companyRunBody, body);
 }
 
 const stopTapBody = z.object({

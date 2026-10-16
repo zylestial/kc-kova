@@ -13,8 +13,28 @@ describe("account bodies", () => {
   const account = { name: " Ana Cruz ", username: " ana ", role: "Driver", password: "drive2026" };
 
   it("trims names and defaults a new account to Active", () => {
-    expect(parseWith(createAccountBody, account)).toEqual({ name: "Ana Cruz", username: "ana", role: "Driver", status: "Active", password: "drive2026" });
+    expect(parseWith(createAccountBody, account)).toEqual({
+      name: "Ana Cruz",
+      username: "ana",
+      role: "Driver",
+      status: "Active",
+      password: "drive2026",
+      position: "",
+      driverType: "Truck",
+      canRequestDaily: false,
+      canRequestCompany: false,
+    });
     expect(parseWith(createAccountBody, { ...account, status: "Retired" })?.status).toBe("Active");
+  });
+
+  it("keeps the Driver-only fields for Drivers only", () => {
+    const driver = { ...account, driverType: "Company car", canRequestDaily: true, canRequestCompany: true, position: " Site Driver " };
+    expect(parseWith(createAccountBody, driver)).toMatchObject({ driverType: "Company car", canRequestDaily: true, position: "Site Driver" });
+    expect(parseWith(createAccountBody, { ...driver, role: "Requester" })).toMatchObject({
+      driverType: null,
+      canRequestDaily: false,
+      canRequestCompany: true,
+    });
   });
 
   it("rejects a blank name, an unknown role or a missing password", () => {
@@ -42,7 +62,14 @@ describe("vehicle bodies", () => {
       name: "Van",
       status: "Active",
       assignedDriverId: null,
+      companyTrips: false,
     });
+  });
+
+  it("reads 'Can be requested for company trips', off unless sent", () => {
+    const body = { plate: "ABC 123", name: "Mirage", status: "Active" };
+    expect(parseWith(updateVehicleBody, { ...body, companyTrips: true })?.companyTrips).toBe(true);
+    expect(parseWith(updateVehicleBody, { ...body, companyTrips: "yes" })?.companyTrips).toBe(false);
   });
 
   it("needs a known status when editing", () => {

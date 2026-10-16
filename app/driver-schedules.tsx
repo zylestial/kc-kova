@@ -28,6 +28,7 @@ import {
   type ProblemReport,
   type Schedule,
   type ScheduleRevision,
+  type CompanyTripRun,
   type StopTap,
   type TripAttendance,
   type TripCompletion,
@@ -52,6 +53,8 @@ type Trip = {
   attendance?: TripAttendance;
   /** Arrived/Leaving taps at the stops in between. */
   stopTaps: StopTap[];
+  /** A Company trip's Start/End trip, tapped by its requester (0055). */
+  run?: CompanyTripRun;
   problems: ProblemReport[];
   /** The trip's date has come, so Start trip is open. */
   startable: boolean;
@@ -64,6 +67,7 @@ function buildTrips(
   stopTaps: StopTap[],
   problems: ProblemReport[],
   driverId: string | null,
+  companyRuns: CompanyTripRun[],
 ): Trip[] {
   const today = manilaToday();
   return schedules
@@ -83,6 +87,7 @@ function buildTrips(
           completion,
           attendance: attendance.find((item) => item.scheduleId === schedule.id),
           stopTaps: stopTaps.filter((item) => item.scheduleId === schedule.id),
+          run: companyRuns.find((item) => item.scheduleId === schedule.id),
           problems: problems.filter((item) => item.scheduleId === schedule.id),
           startable: schedule.date <= today,
         },
@@ -108,7 +113,7 @@ function tripStatus(trip: Trip): TripStatus {
   if (trip.completion) return "SUBMITTED";
   // End trip at ANONANG is the proof it ended; Complete trip opens then (0047).
   if (trip.attendance?.end) return "READY_TO_COMPLETE";
-  if (trip.attendance) return "ON_THE_ROAD";
+  if (trip.attendance || trip.run) return "ON_THE_ROAD";
   return trip.startable ? "READY_TO_START" : "UPCOMING";
 }
 
@@ -123,10 +128,10 @@ type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
  * problem. The database enforces who and when; this only shapes the screen.
  */
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
-  const { schedules, completions, attendance, stopTaps, problems, requests, vehicles } = useKovaData();
+  const { schedules, completions, attendance, stopTaps, problems, requests, vehicles, companyRuns } = useKovaData();
   const trips = useMemo(
-    () => buildTrips(schedules, completions, attendance, stopTaps, problems, driverId),
-    [schedules, completions, attendance, stopTaps, problems, driverId],
+    () => buildTrips(schedules, completions, attendance, stopTaps, problems, driverId, companyRuns),
+    [schedules, completions, attendance, stopTaps, problems, driverId, companyRuns],
   );
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
@@ -153,6 +158,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   useAutoClear(notice, setNotice);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
+  const requesterNames = (trip: Trip) =>
+    [...new Set(requests.filter((request) => trip.revision.requestIds.includes(request.id)).map((request) => request.ownerName))].join(", ") ||
+    "the requester";
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
 
   function close() {
@@ -448,7 +456,28 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
             </DialogDescription>
           </DialogHeader>
-          {selected && mode === "view" && (
+          {selected && mode === "view" && selected.schedule.kind === "COMPANY" && (
+            <>
+              {/* A Company trip is recorded by its requester (0055), so the Driver only sees the route. */}
+              <p className="notice info">
+                Company trip for {requesterNames(selected)}. They tap Start trip, each stop and End trip on their phone, with the
+                odometer, so there&apos;s nothing for you to tap.
+              </p>
+              <ol className="request-review-list">
+                {selected.revision.legs.map((leg) => (
+                  <li key={leg.id}>
+                    {leg.origin} → <b>{leg.destinationName}</b> · {leg.plannedTimeOut}–{leg.plannedTimeIn}
+                  </li>
+                ))}
+              </ol>
+              <DialogFooter>
+                <Button variant="outline" disabled={busy} onClick={() => setMode("problem")}>
+                  Report a problem
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+          {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
               <DriverTripSteps
                 steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps))}

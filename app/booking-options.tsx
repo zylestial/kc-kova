@@ -20,12 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { saveBookingOption, type BookingOption } from "@/lib/kova-api";
+import { saveBookingOption, type BookingOption, type OptionGroup } from "@/lib/kova-api";
 import { coordinatesLabel, mapUrl } from "@/lib/attendance";
 import { parseCoordinates } from "@/lib/coordinates";
 import { useKovaData } from "@/lib/use-kova-data";
 
-type Group = "projects" | "destinations" | "purposes";
+type Group = OptionGroup;
 type Draft = {
   id: string;
   name: string;
@@ -38,6 +38,13 @@ const groups: [Group, string, string, string][] = [
   ["projects", "Projects / Sites", "Project / Site", "Add"],
   ["destinations", "Destinations", "Destination", "Add Destination"],
   ["purposes", "Purposes", "Purpose", "Add Purpose"],
+  // Per-stop Urgent and the Company Trip form (0051).
+  ["urgent_reasons", "Urgent reasons", "Urgent reason", "Add Reason"],
+  ["departments", "Departments / Sites", "Department / Site", "Add"],
+  ["starting_points", "Starting points", "Starting point", "Add"],
+  ["suppliers", "Suppliers", "Supplier", "Add Supplier"],
+  ["supervisors", "Immediate Supervisors", "Immediate Supervisor", "Add Supervisor"],
+  ["heads", "PM / CM / Dept. Heads", "PM / CM / Dept. Head", "Add"],
 ];
 export default function BookingOptions() {
   const { options } = useKovaData();

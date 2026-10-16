@@ -5,7 +5,16 @@ import type { Account, Schedule, ScheduleRevision, TransportRequest } from "@/li
 // 2026-09-25 12:00 in Asia/Manila.
 const NOW = new Date("2026-09-25T12:00:00+08:00");
 
-const account = (role: Account["role"], id = "u1"): Account => ({ id, name: role, username: role, role, status: "Active" });
+const account = (role: Account["role"], id = "u1"): Account => ({
+  id,
+  name: role,
+  username: role,
+  role,
+  status: "Active",
+  position: "",
+  canRequestDaily: false,
+  canRequestCompany: false,
+});
 const empty: HomeData = { requests: [], schedules: [], cancellations: [], completions: [], problems: [] };
 
 const request = (over: Partial<TransportRequest>): TransportRequest =>
@@ -31,6 +40,11 @@ describe("homeCounts", () => {
     };
     expect(homeCounts(account("Requester"), data, NOW)["my-requests"]).toBe("2 open · 1 not yet scheduled");
     expect(homeCounts(account("Requester"), empty, NOW)["my-requests"]).toBe("No open requests");
+  });
+
+  it("counts a Driver's own requests too", () => {
+    const data = { ...empty, requests: [request({ id: "a", ownerAccountId: "d1" }), request({ id: "b" })] };
+    expect(homeCounts(account("Driver", "d1"), data, NOW)["my-requests"]).toBe("1 open · 1 not yet scheduled");
   });
 
   it("tells a Requester how many requests were sent back, and keeps them out of the Scheduler's count", () => {

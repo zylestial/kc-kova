@@ -11,7 +11,7 @@ export const PUT = authed<{ plate: string }>(async ({ request, supabase, account
   if (!body) {
     return NextResponse.json({ message: "Plate, name, and status are required." }, { status: 422 });
   }
-  const { plate, name, status, assignedDriverId } = body;
+  const { plate, name, status, assignedDriverId, companyTrips } = body;
 
   const { data, error } = await supabase.rpc("rename_vehicle", {
     p_old_plate: decodeURIComponent(originalPlate),
@@ -30,5 +30,18 @@ export const PUT = authed<{ plate: string }>(async ({ request, supabase, account
     return NextResponse.json({ message: error.message || "Could not update the vehicle." }, { status: 422 });
   }
 
-  return NextResponse.json(toVehicle(data));
+  // rename_vehicle doesn't know "Can be requested for company trips" (0051),
+  // and a new plate starts with the column default, so set it afterwards.
+  // The vehicles_admin_update RLS policy keeps this Admin-only.
+  const { data: updated, error: updateError } = await supabase
+    .from("vehicles")
+    .update({ company_trips: companyTrips })
+    .eq("plate", data.plate)
+    .select("*")
+    .single();
+  if (updateError || !updated) {
+    return NextResponse.json({ message: updateError?.message || "Could not update the vehicle." }, { status: 422 });
+  }
+
+  return NextResponse.json(toVehicle(updated));
 });

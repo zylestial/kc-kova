@@ -48,8 +48,8 @@ $$;
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 insert into ids select 'r1', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null,
-  '[{"destinationId":"d1","purposeId":"p1"},{"destinationId":"d2","purposeId":"p1"}]');
-insert into ids select 'r2', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+  '[{"destinationId":"d1","purposeId":"p1"},{"destinationId":"d2","purposeId":"p1"}]', null);
+insert into ids select 'r2', id from create_request(pg_temp.manila_today() - 1, 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 reset role;
 insert into ids select 'r1_d1', id from request_destinations where request_id = pg_temp.id('r1') and position = 1;
 insert into ids select 'r1_d2', id from request_destinations where request_id = pg_temp.id('r1') and position = 2;

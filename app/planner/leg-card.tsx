@@ -205,7 +205,9 @@ export default function LegCard({
                 onCheckedChange={(value) => toggleStop(index, stop.id, value === true)}
               />
               <span>
-                <b>{stop.requester}</b> — {stop.purposeName}
+                {stop.stopNumber && <>{stop.stopNumber} · </>}
+                <b>{stop.requester}</b> — {stop.urgentReason ? `Urgent: ${stop.urgentReason}` : stop.purposeName}
+                {stop.details && <small>{stop.details}</small>}
               </span>
             </label>
           ))}

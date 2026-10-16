@@ -65,6 +65,8 @@ export function legTimes(
   taps: StopTap[],
   corrections: TripTimeCorrection[] = [],
   placeOf?: (leg: ScheduleLeg) => Place | null,
+  /** A Company trip ends at its last stop (0055): that stop's TIME IN is End trip. */
+  endsAtLastLeg = false,
 ): LegTimes[] {
   const tapFor = (kind: StopTap["kind"], legId: string) => {
     const tap = taps.find((item) => item.kind === kind && item.legId === legId) ?? null;
@@ -87,7 +89,7 @@ export function legTimes(
           correction: correctionFor(leg.id, "OUT"),
         }
       : { cell: outCell, source: { kind: "START" }, tap: attendance?.start ?? null, correction: correctionFor(leg.id, "OUT") };
-    const timeIn: FormTime = leg.isFinal
+    const timeIn: FormTime = leg.isFinal || (endsAtLastLeg && index === legs.length - 1)
       ? { cell: inCell, source: { kind: "END" }, tap: attendance?.end ?? null, correction: correctionFor(leg.id, "IN") }
       : {
           cell: inCell,

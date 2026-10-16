@@ -15,7 +15,7 @@ insert into booking_options ("group", id, name, status) values
 create function pg_temp.ask(p_days int, p_type text) returns void language sql as $$
   select null::void from create_request(
     (now() at time zone 'Asia/Manila')::date + p_days, p_type, null, null,
-    '[{"destinationId":"d77","purposeId":"p77"}]');
+    '[{"destinationId":"d77","purposeId":"p77"}]', null);
 $$;
 
 select set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-00000000007a', 'role', 'authenticated')::text, true);

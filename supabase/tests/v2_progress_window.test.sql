@@ -18,7 +18,7 @@ set local role authenticated;
 create temp table made (id uuid, days int);
 grant all on made to authenticated;
 insert into made select (create_request((now() at time zone 'Asia/Manila')::date + d, case when d < 7 then 'URGENT' else 'REGULAR' end, null, null,
-  '[{"destinationId":"d88","purposeId":"p88"}]')).id, d from unnest(array[1, 20]) as d;
+  '[{"destinationId":"d88","purposeId":"p88"}]', null)).id, d from unnest(array[1, 20]) as d;
 
 select is((select count(*)::int from request_progress p join made m on m.id = p.request_id), 2,
   'both new requests are in the view');

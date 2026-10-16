@@ -46,10 +46,10 @@ $$;
 create temp table ids (k text primary key, v uuid);
 grant select, insert on ids to authenticated;
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
-insert into ids select 'juan', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
+insert into ids select 'juan', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
-insert into ids select 'maria', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]');
-insert into ids select 'port', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]');
+insert into ids select 'maria', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'port', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', null);
 reset role;
 insert into ids select k || '_rd', (select id from request_destinations where request_id = v and active) from ids;
 
@@ -178,7 +178,7 @@ select is(pg_temp.count_for('00000000-0000-0000-0000-00000000000c', 'REQUEST_CAN
 -- cancel_schedule (direct Admin cancel, no pending cancellation) notifies
 -- each released Requester --------------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
-insert into ids select 'solo', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]');
+insert into ids select 'solo', id from create_request(pg_temp.d(), 'REGULAR', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', null);
 reset role;
 insert into ids select 'solo_rd', (select id from request_destinations where request_id = pg_temp.id('solo') and active);
 insert into ids values ('s3', pg_temp.publish('V2', array['solo'], pg_temp.legs('d2', array['solo_rd'], '13:00', '14:00', '14:30', '15:30')));

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import RequestFields, {
 } from "./request-fields";
 import { requestProgressLabel, requestProgressMeaning } from "@/lib/status-text";
 import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
+import { flexibilityShort, whenText } from "@/lib/request-draft";
 
 // Reuses the existing status-pill colours.
 const progressPill: Record<RequestProgress, string> = {
@@ -54,6 +56,8 @@ const dateLabel = (date: string) =>
 const submittedLabel = (iso: string) =>
   new Date(iso).toLocaleString("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const projectText = (request: TransportRequest) => request.projectName || "—";
+/** "52-A" for a stop of a request group; "" for a request made before groups. */
+const stopNumber = (request: TransportRequest) => (request.group ? `${request.group.number}-${request.stopLetter}` : "");
 const destinationsText = (request: TransportRequest) =>
   request.destinations.map((item) => item.destinationName).join(" → ");
 
@@ -77,6 +81,7 @@ export default function MyRequests({
   /** A progress to filter by from the start, e.g. from a Dashboard tile. */
   initialProgress?: RequestProgress;
 }) {
+  const router = useRouter();
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
   const { requests: allRequests, options, cancellations } = useKovaData();
@@ -124,6 +129,11 @@ export default function MyRequests({
   const shown = selected ? requests.find((item) => item.id === selected.id) ?? selected : null;
 
   function openEdit(request: TransportRequest) {
+    // A request made on the new form opens there, with all its stops.
+    if (request.group) {
+      router.push("/requests/new?edit=" + encodeURIComponent(request.group.id));
+      return;
+    }
     setEditing(request);
     setDraft(draftFromRequest(request));
     setSelected(null);
@@ -244,7 +254,7 @@ export default function MyRequests({
             <table>
               <thead>
                 <tr>
-                  {["DATE", "TYPE", "PROJECT / SITE", "DESTINATIONS", "PROGRESS", "SUBMITTED", ""].map((title) => (
+                  {["REQUEST", "DATE", "TYPE", "PROJECT / SITE", "DESTINATIONS", "PROGRESS", "SUBMITTED", ""].map((title) => (
                     <th key={title}>{title}</th>
                   ))}
                 </tr>
@@ -252,7 +262,14 @@ export default function MyRequests({
               <tbody>
                 {visible.map((request) => (
                   <tr key={request.id} onClick={() => { setSelected(request); setError(""); }}>
-                    <td>{dateLabel(request.date)}</td>
+                    <td>
+                      {stopNumber(request) || "—"}
+                      {request.group?.form === "COMPANY" && <small>Company trip</small>}
+                    </td>
+                    <td>
+                      {dateLabel(request.date)}
+                      {request.group && <small>{flexibilityShort(request.date, request.flexibility, request.fixedTime ?? "")}</small>}
+                    </td>
                     <td>
                       <span className={"badge " + (request.requestType === "URGENT" ? "urgent" : "")}>{request.requestType}</span>
                     </td>
@@ -296,13 +313,25 @@ export default function MyRequests({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request details</DialogTitle>
-            <DialogDescription className="dialog-context">{shown && dateLabel(shown.date)}</DialogDescription>
+            <DialogDescription className="dialog-context">
+              {shown && (stopNumber(shown) ? `Request ${stopNumber(shown)} · ` : "") + dateLabel(shown.date)}
+            </DialogDescription>
           </DialogHeader>
           {shown && (
             <>
               <div className="driver-trip-details">
                 {[
-                  ["Type", shown.requestType === "URGENT" ? "Urgent" : "Regular"],
+                  ["Type", shown.urgentReason ? `Urgent: ${shown.urgentReason.name}` : shown.requestType === "URGENT" ? "Urgent" : "Regular"],
+                  ...(shown.group ? [["When", whenText(shown.date, shown.flexibility, shown.fixedTime ?? "")]] : []),
+                  ...(shown.group?.form === "COMPANY"
+                    ? [
+                        ["Form", "Company Trip"],
+                        ["Vehicle", shown.group.vehiclePlate ?? "—"],
+                        ["Driver", shown.group.driver?.name ?? "—"],
+                        ["Starting point", shown.group.startingPoint?.name ?? "—"],
+                        ["Department / Site", shown.group.department?.name ?? "—"],
+                      ]
+                    : []),
                   ["Requested by", shown.ownerName],
                   ["Project / Site", projectText(shown)],
                   ["Progress", requestProgressLabel[shown.progress]],
@@ -328,6 +357,21 @@ export default function MyRequests({
                   </li>
                 ))}
               </ol>
+              {shown.details && (
+                <p className="helper">
+                  <b>Details:</b> {shown.details}
+                </p>
+              )}
+              {shown.supplier && (
+                <p className="helper">
+                  <b>Supplier:</b> {shown.supplier.name}
+                </p>
+              )}
+              {shown.contact && (
+                <p className="helper">
+                  <b>Contact:</b> {shown.contact}
+                </p>
+              )}
               {!editable(shown) && shown.status === "ACTIVE" && (
                 <p className="helper">This request is being scheduled, so it can no longer be edited.</p>
               )}

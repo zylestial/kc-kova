@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authed } from "@/lib/api-route";
-import { toTransportRequest } from "@/lib/supabase/mappers";
+import { REQUEST_SELECT, toTransportRequest } from "@/lib/supabase/mappers";
 import { cancellationErrorResponse } from "@/lib/supabase/cancellations";
 
 // The owner cancels a request no schedule holds. A request already in a
@@ -11,7 +11,7 @@ export const POST = authed<{ requestId: string }>(async ({ supabase, params: { r
 
   const { data: row } = await supabase
     .from("requests")
-    .select("*, request_destinations(*)")
+    .select(REQUEST_SELECT)
     .eq("id", requestId)
     .eq("request_destinations.active", true)
     .single();

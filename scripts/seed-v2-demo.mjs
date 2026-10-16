@@ -174,6 +174,7 @@ async function createRequest(username, { date, destinationId, purposeId }) {
     p_project_id: "uat-project",
     p_project_other: "",
     p_destinations: [{ destinationId, purposeId }],
+    p_vehicle_plate: null,
   });
 }
 

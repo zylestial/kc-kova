@@ -20,6 +20,7 @@ const revision = (id: string): ScheduleRevision => ({
 const schedule = (id: string, date: string, revisions: ScheduleRevision[], publishedRevisionId?: string): Schedule => ({
   id,
   date,
+  kind: "DAILY",
   createdByAccountId: "s1",
   status: "ACTIVE",
   publishedRevisionId,

@@ -100,7 +100,7 @@ DATE="(now() at time zone 'Asia/Manila')::date + 10"
 DESTS="[{\"destinationId\":\"$DEST\",\"purposeId\":\"$PURP\"}]"
 
 new_request() {
-  session "$REQ" 0 "select id from create_request($DATE, 'REGULAR', null, null, '$DESTS')" | head -1
+  session "$REQ" 0 "select id from create_request($DATE, 'REGULAR', null, null, '$DESTS', null)" | head -1
 }
 rd_of() { sql <<<"select id from request_destinations where request_id = '$1' and active"; }
 legs() { # legs <request_destination_id> <out> <in> <back_out> <back_in>
@@ -125,12 +125,12 @@ race "one trip per vehicle per day: two schedules on the same vehicle" \
   "$SCHED2" "$(draft "$P3" "$Q3" "$(legs "$(rd_of "$Q3")" 12:30 13:30 13:40 14:10)")"
 
 race "edit/include: owner edits while a Scheduler includes" \
-  "$REQ" "select update_request('$Q4', 1, $DATE, 'REGULAR', null, null, '$DESTS')" \
+  "$REQ" "select update_request('$Q4', 1, $DATE, 'REGULAR', null, null, '$DESTS', null)" \
   "$SCHED1" "$(draft "$P4" "$Q4" "$(legs "$(rd_of "$Q4")" 15:00 15:30 15:40 16:00)")"
 
 race "include/edit: Scheduler includes while the owner edits" \
   "$SCHED1" "$(draft "$P5" "$Q5" "$(legs "$(rd_of "$Q5")" 17:00 17:30 17:40 18:00)")" \
-  "$REQ" "select update_request('$Q5', 1, $DATE, 'REGULAR', null, null, '$DESTS')"
+  "$REQ" "select update_request('$Q5', 1, $DATE, 'REGULAR', null, null, '$DESTS', null)"
 
 # Approval race: one submitted schedule, two Admins approve at once.
 session "$SCHED1" 0 "$(draft "$P6" "$Q6" "$(legs "$(rd_of "$Q6")" 19:00 19:30 19:40 20:00)")" >/dev/null
