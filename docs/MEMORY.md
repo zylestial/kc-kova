@@ -711,7 +711,8 @@ The prototypes were the spec; these are the calls made on top of them.
   2026-10-15, from the owner's click-through): one Project / Site for all
   its stops (the "several projects" choice is hidden on Company Trips), no
   separate Department picker, and the Departments / Sites list is hidden
-  in Settings. Vehicle and Driver sit next to Project / Site in step 2.
+  in Settings. Vehicle and Driver sit next to Project / Site in step 2,
+  and the Starting point is a fixed "Start" card above stop A in step 3.
   The Position block, the Vehicle and Driver hints and (for requesters)
   the printed form preview are no longer shown on the form; Position still
   prints.
