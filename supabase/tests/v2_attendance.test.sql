@@ -142,8 +142,8 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select is((select count(*)::int from trip_attendance where schedule_id in (pg_temp.id('sp'), pg_temp.id('sp2'))), 1,
   'A Driver sees only their own attendance');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select is((select count(*)::int from trip_attendance where schedule_id in (pg_temp.id('sp'), pg_temp.id('sp2'))), 0,
-  'A Scheduler sees no attendance');
+select is((select count(*)::int from trip_attendance where schedule_id in (pg_temp.id('sp'), pg_temp.id('sp2'))), 2,
+  'A Scheduler sees every Driver''s attendance (0062)');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select is((select count(*)::int from trip_attendance where schedule_id in (pg_temp.id('sp'), pg_temp.id('sp2'))), 2,
   'Admin sees every Driver''s attendance');
