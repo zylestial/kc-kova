@@ -86,8 +86,10 @@ database stays the authority; these are the page's own rules:
 - **Warnings block Submit** (`tripChecks` in `lib/scheduling-edit.ts`): a
   leg whose Time In is too soon to drive there, a Time Out before the leg
   before it arrives, a fixed-time stop reached more than 5 minutes off its
-  time, more than 8 legs, an end after the Driver's day ends at 6 PM, and a
-  Daily trip that doesn't end at ANONANG.
+  time, more than 8 legs, and a Daily trip that doesn't end at ANONANG.
+  There's no end of day (owner's call 2026-10-16: vehicles run any hour,
+  Daily or Company); a trip still fits in one calendar day, since its
+  times are Time Out / Time In on that date.
 - **Adding a stop** (`planOn`): a Daily vehicle needs an assigned Driver and
   takes one trip a day, so a stop joins that trip (not once it's on the
   road). A Company stop goes only on the vehicle its requester picked,
