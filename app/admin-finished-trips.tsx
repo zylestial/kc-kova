@@ -40,7 +40,7 @@ import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import StopTimesTable from "./stop-times-table";
 import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
-import { missedLegs } from "@/lib/stop-reports";
+import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -515,7 +515,10 @@ export default function AdminFinishedTrips({
               )}
               {selected.problems.map((item) => (
                 <div className="helper" key={item.id}>
-                  <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong> {item.note}
+                  <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong>{" "}
+                  {item.legId &&
+                    `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}${item.note ? ": " : ""}`}
+                  {item.note}
                   {item.status === "HANDLED" && <div>Handled: {item.handlingNote}</div>}
                   {item.status === "OPEN" && (
                     <Button
