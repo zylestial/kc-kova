@@ -126,6 +126,8 @@ export type TransportRequest = {
   sentBack?: { at: string; reason: string };
   /** Set when a Scheduler moved this "any day that week" stop to another day of its week (0053). */
   movedAt?: string;
+  /** Set when it was missed on the road and taken off the trip (0065); it may then move to any day. */
+  missedAt?: string;
   cancellationPending: boolean;
 };
 /** A Requester's ask to cancel a request a schedule holds; an Admin decides. */

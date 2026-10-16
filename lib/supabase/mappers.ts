@@ -95,6 +95,8 @@ type RequestRow = {
   sent_back_reason: string;
   /** 0053: a Scheduler moved this "any day that week" stop to another day. */
   moved_at?: string | null;
+  /** 0065: missed on the road and taken off the trip. */
+  missed_at?: string | null;
   // 0052; older rows have no group and the defaults.
   group_id?: string | null;
   stop_letter?: string;
@@ -204,6 +206,7 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
     cancellationPending: progressRow?.cancellation_pending ?? false,
     sentBack: row.sent_back_at ? { at: row.sent_back_at, reason: row.sent_back_reason } : undefined,
     movedAt: row.moved_at ?? undefined,
+    missedAt: row.missed_at ?? undefined,
   };
 }
 
