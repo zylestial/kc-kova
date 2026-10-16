@@ -197,7 +197,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
         <div className="trip-steps-end">
           {confirmEnd ? (
             <>
-              <p>End the trip now and skip the stops left?</p>
+              <p>End the trip now? The stops left are marked not reached, and the Scheduler plans them again.</p>
               <Button variant="outline" disabled={busy} onClick={() => setConfirmEnd(false)}>
                 No
               </Button>
