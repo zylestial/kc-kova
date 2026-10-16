@@ -215,10 +215,10 @@ router/URL segments are used for in-app navigation.
 | `*-home` | home buttons in `app/page.tsx` | All roles |
 | `new-request` | `app/request-screen.tsx` with `app/request-form.tsx` (New Request prototype: a Daily / Company Trip choice for accounts allowed both; a date strip with Jump to date; one project or a different one per stop; stop cards, each Regular / Urgent with a reason, destination, purpose, Details, how flexible (any time that day / fixed time / any day that week), contact, and on a Company Trip a supplier; the Company Trip's fields and a printed form preview; a summary panel; also used to edit) | Requester, Admin, allowed Drivers |
 | `my-requests` | `app/my-requests.tsx` (one row per stop, numbered 52-A; details show the request's other stops and the Company Trip's fields) | Requester, Admin, allowed Drivers |
-| `my-trips` | `app/my-trips.tsx` (the requester's approved Company trips as folding cards: the steps in route order with their times, one big button for the next (Start trip at …, Arrived at …, Leaving …, Arrived at … · End trip), an odometer field on Start and End trip, the distance once ended) | Requesters with Company trips |
+| `my-trips` | `app/my-trips.tsx` (the requester's approved Company trips as folding cards: the steps in route order with their times, one big button for the next (Start trip at …, Arrived at …, Leaving …, Arrived at … · End trip), an odometer field on Start and End trip, the distance once ended; the same "Problem here?" stop report and Resume trip as the Driver) | Requesters with Company trips |
 | `scheduling` | `app/scheduling.tsx` with `app/scheduler/` at `/scheduling` (see below) | Scheduler |
 | `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
-| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short; no requester, distances or coordinates; then a big Complete trip) | Driver |
+| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short; "Problem here?" under the current stop opens the stop report (below); a missed stop shows as one warning line; a paused trip shows a red notice with Resume trip in place of the next button; a "Route changed" notice after an approved change; no requester, distances or coordinates; then a big Complete trip) | Driver |
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
 | `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily or the Company Trip Form) | Driver, Admin |
 | `settings` | `app/settings.tsx` | Admin (accounts with Position, Can request company trips, Driver type and a Company car Driver's request switches; vehicles with Can be requested for company trips; booking options) |
@@ -257,6 +257,18 @@ box says what the trip waits for, with **Submit / Resubmit for approval**
 and **Discard**, or **Propose changes** on an approved trip (its legs
 stay locked until pressed). Left out on purpose (owner, 2026-10-15):
 timeline bars and "Plan for me".
+
+A trip on the road (Start trip tapped) keeps its reached legs locked, shown
+as done; the legs after the last one reached can be edited, which opens
+draft changes for the Admin. Stop reports show as banners above the day
+banner: a missed stop (red) with **Plan again** and **Send back to
+requester** (a reason field, then Send back); any other report (amber)
+with **Got it**. A Vehicle problem adds "trip paused" or "trip resumed".
+
+**Stop report** (`app/stop-report-form.tsx`, shared by My Schedule and My
+Trips): "What happened at …?", then one big button per kind (label and a
+one-line hint) so it's one tap on a phone; Road blocked asks **Skip this
+stop** or **Wait** next; an optional note; Back and Send report.
 
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.
