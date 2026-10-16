@@ -219,16 +219,19 @@ async function main() {
   }
 
   // Today's trip: ANONANG -> Site Alpha -> Site Beta -> ANONANG, approved.
-  const { request, stops } = await urgentRequest(["uat-dest-a", "uat-dest-b"]);
+  // One stop per request, as the app makes them since 0052, so a missed
+  // stop can come off the trip on its own (release_missed_stop).
+  const alpha = await urgentRequest(["uat-dest-a"]);
+  const beta = await urgentRequest(["uat-dest-b"]);
   const draft = await rpc("sched1", "save_schedule_draft", {
     p_schedule_id: null,
     p_expected_row_version: null,
     p_schedule_date: TODAY,
     p_plate: PLATE,
-    p_request_ids: [request.id],
+    p_request_ids: [alpha.request.id, beta.request.id],
     p_legs: [
-      { destinationId: "uat-dest-a", plannedTimeOut: fromNext(0), plannedTimeIn: fromNext(30), contactName: "", contactNumber: "", stops: [stops[0].id] },
-      { destinationId: "uat-dest-b", plannedTimeOut: fromNext(60), plannedTimeIn: fromNext(90), contactName: "", contactNumber: "", stops: [stops[1].id] },
+      { destinationId: "uat-dest-a", plannedTimeOut: fromNext(0), plannedTimeIn: fromNext(30), contactName: "", contactNumber: "", stops: [alpha.stops[0].id] },
+      { destinationId: "uat-dest-b", plannedTimeOut: fromNext(60), plannedTimeIn: fromNext(90), contactName: "", contactNumber: "", stops: [beta.stops[0].id] },
       { isFinal: true, plannedTimeOut: fromNext(120), plannedTimeIn: fromNext(150) },
     ],
   });
