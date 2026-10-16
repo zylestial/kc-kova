@@ -488,7 +488,6 @@ export async function signOut() {
 }
 
 export const currentAccount = () => sessionAccount;
-export const getRequests = () => cache.requests;
 export const getSchedules = () => cache.schedules;
 
 // Lighter than hydrateKovaData(): used after marking a notification read and
@@ -530,7 +529,6 @@ export const updateRequest = (id: string, rowVersion: number, input: RequestInpu
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));
 export const moveRequestDay = (id: string, date: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/move`, { method: "POST", body: JSON.stringify({ date }) }));
-export const splitRequest = (id: string, destinationIds: string[]) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/split`, { method: "POST", body: JSON.stringify({ destinationIds }) }));
 export const requestCancellation =(id: string, reason: string) => refreshAfter(request<CancellationRequest>(`/api/requests/${encodeURIComponent(id)}/cancellation`, { method: "POST", body: JSON.stringify({ reason }) }));
 export const confirmCancellation = (id: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/confirm`, { method: "POST" }));
 export const declineCancellation = (id: string, note: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/decline`, { method: "POST", body: JSON.stringify({ note }) }));

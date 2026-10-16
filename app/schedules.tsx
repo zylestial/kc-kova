@@ -1,7 +1,7 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useState } from "react";
-import { CalendarDays, Car, ChevronLeft, ChevronRight, FilePlus2, User } from "lucide-react";
+import { CalendarClock, CalendarDays, Car, ChevronLeft, ChevronRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -233,7 +233,7 @@ export default function Schedules({
         </div>
         {onCreate && (
           <Button className="primary" onClick={onCreate}>
-            <FilePlus2 size={16} /> Create schedule
+            <CalendarClock size={16} /> Scheduling
           </Button>
         )}
       </div>

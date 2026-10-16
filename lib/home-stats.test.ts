@@ -62,7 +62,7 @@ describe("homeStats", () => {
       "Trips today": 1,
     });
     expect(homeStats("Scheduler", "u1", data, NOW).map((stat) => stat.href)).toEqual([
-      "/schedules/new",
+      "/scheduling",
       "/schedules?status=DRAFT",
       "/schedules?status=RETURNED",
       "/schedules?view=day",

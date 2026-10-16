@@ -2,11 +2,12 @@ import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { markAllNotificationsRead, markNotificationRead, type Notification } from "@/lib/kova-api";
+import { markAllNotificationsRead, markNotificationRead, type Notification, type Schedule } from "@/lib/kova-api";
+import { schedulingHref } from "@/lib/scheduling";
 import { useKovaData } from "@/lib/use-kova-data";
 
 /** Where clicking a notification should land, per its type. */
-function notificationTarget(notification: Notification): string | undefined {
+function notificationTarget(notification: Notification, schedules: Schedule[]): string | undefined {
   const { type, relatedRequestId, relatedScheduleId } = notification;
   switch (type) {
     case "REQUEST_SCHEDULED":
@@ -22,8 +23,12 @@ function notificationTarget(notification: Notification): string | undefined {
       return relatedScheduleId ? `/schedules?open=${encodeURIComponent(relatedScheduleId)}` : "/schedules";
     case "PROBLEM_REPORTED":
       return relatedScheduleId ? `/finished?open=${encodeURIComponent(relatedScheduleId)}` : "/finished";
-    case "SCHEDULE_RETURNED":
-      return relatedScheduleId ? `/schedules/new?scheduleId=${encodeURIComponent(relatedScheduleId)}` : "/schedules";
+    case "SCHEDULE_RETURNED": {
+      // Fixed on Scheduling, opened on the schedule's day and kind.
+      if (!relatedScheduleId) return "/schedules";
+      const schedule = schedules.find((item) => item.id === relatedScheduleId);
+      return schedulingHref(schedule?.date, schedule?.kind);
+    }
     case "TRIP_PUBLISHED":
       return relatedScheduleId ? `/my-schedule?open=${encodeURIComponent(relatedScheduleId)}` : "/my-schedule";
     default:
@@ -44,6 +49,7 @@ function timeAgo(iso: string) {
 
 function NotificationItem({ notification }: { notification: Notification }) {
   const router = useRouter();
+  const { schedules } = useKovaData();
   const unread = !notification.readAt;
   return (
     <button
@@ -51,7 +57,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
       className={`notif-item${unread ? " unread" : ""}`}
       onClick={() => {
         if (unread) void markNotificationRead(notification.id).catch(() => {});
-        const target = notificationTarget(notification);
+        const target = notificationTarget(notification, schedules);
         if (target) router.push(target);
       }}
     >

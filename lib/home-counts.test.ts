@@ -50,7 +50,7 @@ describe("homeCounts", () => {
   it("tells a Requester how many requests were sent back, and keeps them out of the Scheduler's count", () => {
     const data = { ...empty, requests: [request({ id: "a" }), request({ id: "b", progress: "SENT_BACK" })] };
     expect(homeCounts(account("Requester"), data, NOW)["my-requests"]).toBe("2 open · 1 not yet scheduled · 1 sent back");
-    expect(homeCounts(account("Scheduler"), data, NOW)["create-schedule"]).toBe("1 request waiting to be scheduled");
+    expect(homeCounts(account("Scheduler"), data, NOW)["scheduling"]).toBe("1 request waiting to be scheduled");
   });
 
   it("counts requests waiting for a Scheduler, skipping past dates and scheduled ones", () => {
@@ -58,8 +58,8 @@ describe("homeCounts", () => {
       ...empty,
       requests: [request({ id: "a" }), request({ id: "b", date: "2026-09-20" }), request({ id: "c", progress: "SCHEDULING" })],
     };
-    expect(homeCounts(account("Scheduler"), data, NOW)["create-schedule"]).toBe("1 request waiting to be scheduled");
-    expect(homeCounts(account("Scheduler"), empty, NOW)["create-schedule"]).toBe("No requests waiting");
+    expect(homeCounts(account("Scheduler"), data, NOW)["scheduling"]).toBe("1 request waiting to be scheduled");
+    expect(homeCounts(account("Scheduler"), empty, NOW)["scheduling"]).toBe("No requests waiting");
   });
 
   it("counts a Scheduler's drafts and returned schedules to finish", () => {

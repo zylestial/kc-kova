@@ -183,10 +183,12 @@ select throws_ok(
 select lives_ok(
   $$ select submit_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$,
   'Scheduler submits the draft for approval');
+-- Since 0057 a current save takes a waiting schedule back to DRAFT
+-- (v2_edit_waiting_trip.test.sql); a stale one still can't.
 select throws_ok(
-  $$ select save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')), null, 'V1',
+  $$ select save_schedule_draft(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')) - 1, null, 'V1',
        array[pg_temp.id('juan'), pg_temp.id('maria')], pg_temp.shared_legs('08:00', '09:00', '09:30', '10:30')) $$,
-  '22023', null, 'Scheduler cannot edit while it waits for approval');
+  'PT409', null, 'A stale Scheduler save cannot take back a schedule waiting for approval');
 select throws_ok(
   $$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1'))) $$,
   '42501', null, 'Scheduler cannot approve');

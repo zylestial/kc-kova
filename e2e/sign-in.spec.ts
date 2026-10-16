@@ -16,7 +16,7 @@ test("sends signed-out visitors to the sign-in page", async ({ page }) => {
 // element that proves the screen rendered its data rather than an error.
 const roles = [
   { user: "admin1", pages: [["/settings", "table"], ["/finished", "main"], ["/schedules", ".schedule-panel"]] },
-  { user: "sched1", pages: [["/schedules", ".schedule-panel"], ["/schedules/new", ".date-card"]] },
+  { user: "sched1", pages: [["/schedules", ".schedule-panel"], ["/scheduling", ".date-card"]] },
   { user: "req1", pages: [["/requests", "main"], ["/requests/new", ".date-card"]] },
   { user: "driver1", pages: [["/my-schedule", "main"]] },
 ] as const;

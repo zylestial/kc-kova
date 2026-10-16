@@ -95,6 +95,7 @@ before it was ever approved), `CANCELLED` (Phase 7).
 | — | `save_schedule_draft` with no schedule id | Scheduler only | `DRAFT` v1 |
 | `DRAFT` / `RETURNED` | `save_schedule_draft` | Scheduler | `DRAFT` |
 | `SUBMITTED` | `save_schedule_draft` (review edit) | Admin | `SUBMITTED` |
+| `SUBMITTED` | `save_schedule_draft` (takes it back, keeps `submitted_at`; 0057) | Scheduler | `DRAFT` |
 | approved, no open version | `save_schedule_draft` | Scheduler | new `DRAFT` v(n+1) (proposal) |
 | `DRAFT` / `RETURNED` | `submit_schedule` | Scheduler | `SUBMITTED` |
 | `SUBMITTED` | `return_schedule` (comment required) | Admin | `RETURNED` |

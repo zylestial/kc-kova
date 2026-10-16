@@ -1,17 +1,21 @@
 "use client";
-import { useSearchParams } from "next/navigation";
-import CompanyPlanner from "../../../company-planner";
-import { RequireRole } from "../../require-role";
-import { useAccount } from "../../providers";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { schedulingHref } from "@/lib/scheduling";
+import { useKovaData } from "@/lib/use-kova-data";
 
-/** /schedules/company?date=YYYY-MM-DD, or ?trip=<schedule id> to open one of its trips. */
+/**
+ * The old Company trips page (?date=YYYY-MM-DD, or ?trip=<schedule id>):
+ * retired for Scheduling's Company trips, opened on that day.
+ */
 export default function CompanyPlannerGate() {
-  const { viewRole } = useAccount();
+  const router = useRouter();
   const params = useSearchParams();
-  const tripId = params.get("trip") ?? undefined;
-  return (
-    <RequireRole allow={viewRole === "Scheduler"}>
-      <CompanyPlanner key={tripId ?? "day"} initialDate={params.get("date") ?? undefined} openTripId={tripId} />
-    </RequireRole>
-  );
+  const tripId = params.get("trip");
+  const trip = useKovaData().schedules.find((item) => item.id === tripId);
+  const date = trip?.date ?? params.get("date") ?? undefined;
+  useEffect(() => {
+    router.replace(schedulingHref(date, "COMPANY"));
+  }, [router, date]);
+  return null;
 }

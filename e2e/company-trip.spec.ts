@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { pageFor } from "./helpers";
 
 type Leg = { plannedTimeOut: string; plannedTimeIn: string };
-type Schedule = { id: string; kind: string; status: string; revisions: { plate: string; requestIds: string[]; legs: Leg[] }[] };
+type Schedule = { id: string; kind: string; status: string; date: string; revisions: { plate: string; requestIds: string[]; legs: Leg[] }[] };
 type Stop = { id: string; date: string; group?: { number: number; form: string } };
 
 const pick = async (scope: Page | Locator, page: Page, label: string | RegExp, option: string | RegExp) => {
@@ -15,18 +15,19 @@ const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.sl
 const hhmm = (total: number) => `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 
 /**
- * A start time today, 06:00 to 22:20 on a 40-minute grid, when the Mirage
- * has no Company trip in the 35 minutes after it. Earlier local runs leave
- * trips behind, and a vehicle's Company trips can't overlap.
+ * A start time today, from 06:00 on a 40-minute grid, with the Mirage free
+ * for the three hours after it (other than the trip with `stopIds`), so
+ * the trip ends before the Driver's day does at 6 PM. Earlier local runs
+ * leave trips behind, and a vehicle's Company trips can't overlap.
  */
-async function freeStart(page: Page, today: string) {
-  const { schedules } = (await (await page.request.get("/api/bootstrap")).json()) as { schedules: (Schedule & { date: string })[] };
+async function freeStart(page: Page, today: string, stopIds: string[]) {
+  const { schedules } = (await (await page.request.get("/api/bootstrap")).json()) as { schedules: Schedule[] };
   const busy = schedules
     .filter((s) => s.kind === "COMPANY" && s.status === "ACTIVE" && s.date === today)
-    .flatMap((s) => s.revisions.filter((r) => r.plate === "NBC-4821" && r.legs.length))
+    .flatMap((s) => s.revisions.filter((r) => r.plate === "NBC-4821" && r.legs.length && !stopIds.some((id) => r.requestIds.includes(id))))
     .map((r) => [minutes(r.legs[0].plannedTimeOut), minutes(r.legs.at(-1)!.plannedTimeIn)]);
-  for (let start = 6 * 60; start + 35 <= 23 * 60; start += 40) {
-    if (!busy.some(([a, b]) => start < b && a < start + 35)) return start;
+  for (let start = 6 * 60; start + 180 <= 18 * 60; start += 40) {
+    if (!busy.some(([a, b]) => start < b + 15 && a < start + 180)) return start;
   }
   throw new Error("The Mirage is booked all day today; reset the local database.");
 }
@@ -68,19 +69,24 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   const stopIds = mine.filter((r) => r.group!.number === number).map((r) => r.id);
   expect(stopIds).toHaveLength(2);
 
-  // sched1 plans both stops as one trip at a free time and submits it.
+  // sched1 adds both stops to the Mirage on Scheduling, A then B on the
+  // same trip, moves leg 1's Time Out to a free time (the rest follows) and submits.
   const scheduler = await pageFor(browser, "sched1");
-  const start = await freeStart(scheduler, today);
-  await scheduler.goto("/schedules/company");
-  await scheduler.locator(".cp-jump input").fill(today);
-  await scheduler.locator(".cp-card").filter({ hasText: `${number}-A` }).getByRole("button", { name: "Plan" }).click();
-  const times = scheduler.locator(".cp-legs input[type=time]");
-  await expect(times).toHaveCount(4);
-  for (const [index, time] of [start, start + 15, start + 20, start + 35].map(hhmm).entries()) {
-    await times.nth(index).fill(time);
+  await scheduler.goto(`/scheduling?date=${today}&type=COMPANY`);
+  for (const letter of ["A", "B"]) {
+    await scheduler.locator(".sc-panel .sc-stop").filter({ hasText: `${number}-${letter}` }).click();
+    await scheduler.locator(".sc-option").filter({ hasText: "Mirage" }).getByRole("button", { name: "Add" }).click();
+    await expect(scheduler.locator(".notice.success")).toContainText("Added to", saved);
   }
-  await scheduler.getByRole("button", { name: "Submit for approval" }).click();
-  await expect(scheduler.locator(".notice.success")).toContainText("Trip submitted", saved);
+  const card = scheduler.locator(".sc-vehicle").filter({ hasText: "NBC-4821" });
+  // The draft's time boxes; an earlier trip's are locked.
+  const times = card.locator("input[type=time]:enabled");
+  const start = await freeStart(scheduler, today, stopIds);
+  await times.first().fill(hhmm(start));
+  await times.first().press("Enter");
+  await expect(scheduler.locator(".notice.success")).toContainText("Leg 1: ", saved);
+  await card.getByRole("button", { name: "Submit for approval" }).click();
+  await expect(scheduler.locator(".notice.success")).toContainText("Submitted", saved);
   const { schedules } = (await (await scheduler.request.get("/api/bootstrap")).json()) as { schedules: Schedule[] };
   const trip = schedules.find((s) => s.revisions.some((r) => r.requestIds.includes(stopIds[0])))!;
 
