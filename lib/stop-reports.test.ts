@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProblemReport, Schedule, TransportRequest } from "@/lib/kova-api";
-import { missedLegs, openStopReports, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import { answerText, missedLegs, openStopReports, stopChoices, stopReportLabel, waitsForAnswer } from "@/lib/stop-reports";
 
 const report = (patch: Partial<ProblemReport>): ProblemReport => ({
   id: "p",
@@ -82,10 +82,30 @@ describe("open stop reports on Scheduling", () => {
     const other = { id: "q2", destinations: [{ id: "rd2" }] } as TransportRequest;
     const shared = trip("s1");
     shared.revisions[0].legs[0].stops = ["rd1", "rd2"];
-    const some = report({ id: "some", scheduleId: "s1", legId: "l1", kind: "NOT_AVAILABLE", requestIds: ["q2"] });
+    const some = report({ id: "some", scheduleId: "s1", legId: "l1", kind: "NOT_AVAILABLE", requestIds: ["q2"], decision: "SKIP" });
     const [open] = openStopReports([some], [shared], [waiting, other], "2026-10-16", "DAILY", "2026-10-16");
     expect(open.stops).toEqual([other]);
     expect(stopReportLabel(some)).toBe("Missed: Not available");
+    // Before the Scheduler says skip it, it isn't missed.
+    expect(stopReportLabel({ ...some, decision: undefined })).toBe("Not available");
     expect(stopChoices(shared.revisions[0].legs[0], [waiting, other]).map((item) => item.requestId)).toEqual(["q1", "q2"]);
+  });
+});
+
+describe("answers to stop reports (0068)", () => {
+  it("holds the trip until answered, or until a route change is approved", () => {
+    const base = report({ id: "a", scheduleId: "s1", legId: "l1", kind: "NOT_AVAILABLE" });
+    expect(waitsForAnswer(base)).toBe(true);
+    expect(waitsForAnswer({ ...base, decision: "CHANGE" })).toBe(true);
+    expect(waitsForAnswer({ ...base, decision: "SKIP" })).toBe(false);
+    expect(waitsForAnswer({ ...base, status: "HANDLED", decision: "WAIT" })).toBe(false);
+    expect(waitsForAnswer({ ...base, kind: "NOT_REACHED" })).toBe(false);
+    expect(waitsForAnswer({ ...base, legId: undefined })).toBe(false);
+  });
+
+  it("tells the Driver the answer", () => {
+    expect(answerText({ decision: "SKIP", kind: "NOT_AVAILABLE" }, "Site Alpha")).toBe("Skip Site Alpha and go on to the next stop.");
+    expect(answerText({ decision: "WAIT", kind: "VEHICLE_PROBLEM" }, "Site Alpha")).toBe("Go on once the vehicle is fixed.");
+    expect(answerText({ kind: "OTHER" }, "Site Alpha")).toBe("Wait for the Scheduler's answer.");
   });
 });

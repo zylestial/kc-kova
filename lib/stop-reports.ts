@@ -1,18 +1,61 @@
-import type { ProblemReport, Schedule, ScheduleLeg, StopReportKind, TransportRequest } from "@/lib/kova-api";
+import type { ProblemReport, Schedule, ScheduleLeg, StopDecision, StopReportKind, TransportRequest } from "@/lib/kova-api";
 import { publishedRevision } from "@/lib/trip-record";
 
 /**
  * Stop reports (0061): what can happen at a stop, in the order the report
- * sheet offers them, and what each does to the trip. The database decides
- * (report_stop); this is what the screens say.
+ * sheet offers them. Every report holds the trip until a Scheduler or Admin
+ * answers (0068); the database decides (report_stop, answer_stop_report),
+ * this is what the screens say.
  */
 export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; hint: string }> = [
-  { kind: "NOT_AVAILABLE", label: "Not available", hint: "Nobody or nothing there to pick up or drop off. The stop is missed; go on to the next." },
-  { kind: "WRONG_ADDRESS", label: "Wrong address or closed", hint: "Can't find it, can't get in, or it's closed. The stop is missed; go on to the next." },
-  { kind: "ROAD_BLOCKED", label: "Road blocked or bad weather", hint: "Flood, accident, road closed. Skip this stop, or wait it out." },
-  { kind: "VEHICLE_PROBLEM", label: "Vehicle problem", hint: "Breakdown, flat tire. The trip pauses until you tap Resume trip." },
-  { kind: "OTHER", label: "Something else", hint: "Tell the Scheduler what happened. The trip goes on as planned." },
+  { kind: "NOT_AVAILABLE", label: "Not available", hint: "Nobody or nothing there to pick up or drop off." },
+  { kind: "WRONG_ADDRESS", label: "Wrong address or closed", hint: "Can't find it, can't get in, or it's closed." },
+  { kind: "ROAD_BLOCKED", label: "Road blocked or bad weather", hint: "Flood, accident, road closed." },
+  { kind: "VEHICLE_PROBLEM", label: "Vehicle problem", hint: "Breakdown, flat tire." },
+  { kind: "OTHER", label: "Something else", hint: "Anything else the Scheduler should know." },
 ];
+
+/** The Scheduler's answers (0068), in the order the banner offers them. */
+export const STOP_ANSWERS: Array<{ decision: StopDecision; label: string }> = [
+  { decision: "SKIP", label: "Skip it, go to next" },
+  { decision: "WAIT", label: "Wait there" },
+  { decision: "END", label: "End the trip" },
+  { decision: "CHANGE", label: "Change the route" },
+];
+
+/** The trip is held for this report: not answered yet, or waiting on the route change it was answered with. */
+export const waitsForAnswer = (report: Pick<ProblemReport, "legId" | "status" | "kind" | "decision">) =>
+  !!report.legId && report.status === "OPEN" && report.kind !== "NOT_REACHED" && (!report.decision || report.decision === "CHANGE");
+
+/** What a held trip says instead of its next button: waiting for an answer, or for the route change. */
+export function holdText(problems: ProblemReport[]): string {
+  return problems.some((item) => waitsForAnswer(item) && item.decision === "CHANGE")
+    ? "Your route is being changed. Wait until it shows here."
+    : "Reported. Wait for the Scheduler's answer before going on.";
+}
+
+/** The trip's latest answered stop report, to show the Driver what to do. */
+export function latestAnswer(problems: ProblemReport[]): ProblemReport | undefined {
+  return problems
+    .filter((item) => item.legId && item.decidedAt && item.decision !== "CHANGE")
+    .sort((a, b) => b.decidedAt!.localeCompare(a.decidedAt!))[0];
+}
+
+/** What the Driver is told the answer was, as on their trip. */
+export function answerText(report: Pick<ProblemReport, "decision" | "kind">, place: string): string {
+  switch (report.decision) {
+    case "SKIP":
+      return `Skip ${place} and go on to the next stop.`;
+    case "WAIT":
+      return report.kind === "VEHICLE_PROBLEM" ? "Go on once the vehicle is fixed." : `Stay at ${place} and go on when it's ready.`;
+    case "END":
+      return "End the trip: tap End trip now and head back.";
+    case "CHANGE":
+      return "Your route is being changed. Wait until it shows here.";
+    default:
+      return "Wait for the Scheduler's answer.";
+  }
+}
 
 /**
  * The requests at a stop, for the report's "Which ones?" (0067): "52-A ·
@@ -35,11 +78,12 @@ export function stopChoices(leg: Pick<ScheduleLeg, "stops"> | undefined, request
     }));
 }
 
-/** The Scheduler plans its requests again: the whole stop missed, or some of the requests there (0067). */
-export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds">) => report.missed || !!report.requestIds?.length;
+/** The Scheduler plans its requests again: the whole stop missed, or some of the requests there once answered Skip (0067, 0068). */
+export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds" | "decision">) =>
+  report.missed || (!!report.requestIds?.length && report.decision === "SKIP");
 
 /** How a report reads on the trip, e.g. "Missed: Not available". */
-export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed" | "requestIds">): string {
+export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed" | "requestIds" | "decision">): string {
   const label =
     report.kind === "NOT_REACHED" ? "Not reached" : (STOP_REPORT_CHOICES.find((choice) => choice.kind === report.kind)?.label ?? "Problem");
   return plansAgain(report) ? `Missed: ${label}` : label;
