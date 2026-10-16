@@ -205,6 +205,8 @@ export type CompanyTripRun = {
 export type CompanyRunInput = { kind: "START" | "END"; odometer: number; location: AttendanceInput["location"] };
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"] };
+/** A problem at one stop (0061); `skip` skips a blocked road instead of waiting. */
+export type StopReportInput = { legId: string; kind: StopReportKind; note: string; skip: boolean; location: AttendanceInput["location"] };
 /** An Admin's TIME OUT or TIME IN for one leg of a submitted trip (0046); it prints in place of the tap. */
 export type TripTimeCorrection = {
   id: string;
@@ -561,6 +563,10 @@ export const recordCompanyRun = (id: string, input: CompanyRunInput) => refreshA
 export const recordCompanyStop = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/company-stops`, { method: "POST", body: JSON.stringify(input) }));
 export const recordStopTap = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/stop-taps`, { method: "POST", body: JSON.stringify(input) }));
 export const setTripTime = (id: string, input: TripTimeInput) => refreshAfter(request<TripTimeCorrection | null>(`/api/schedules/${encodeURIComponent(id)}/times`, { method: "PUT", body: JSON.stringify(input) }));
+export const reportStop = (id: string, input: StopReportInput) =>
+  refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/stop-reports`, { method: "POST", body: JSON.stringify(input) }));
+export const resumeTrip = (id: string) =>
+  refreshAfter(request<{ ok: true }>(`/api/schedules/${encodeURIComponent(id)}/resume`, { method: "POST", body: "{}" }));
 export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));
