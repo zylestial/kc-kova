@@ -7,6 +7,7 @@ import {
   CircleSlash,
   CircleX,
   CornerUpLeft,
+  MapPinX,
   Route,
   Send,
   Split,
@@ -39,6 +40,7 @@ const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "suc
   SCHEDULE_RETURNED: { icon: Undo2, tone: "warning" },
   TRIP_PUBLISHED: { icon: Truck, tone: "success" },
   TRIP_CHANGED: { icon: Route, tone: "warning" },
+  STOP_REPORTED: { icon: MapPinX, tone: "error" },
 };
 
 /** Where clicking a notification should land, per its type. */
@@ -68,6 +70,13 @@ function notificationTarget(notification: Notification, schedules: Schedule[], r
     }
     case "TRIP_PUBLISHED":
       return relatedScheduleId ? `/my-schedule?open=${encodeURIComponent(relatedScheduleId)}` : "/my-schedule";
+    case "STOP_REPORTED": {
+      // A Scheduler handles it on Scheduling; an Admin sees it with the trip's problems.
+      if (!relatedScheduleId) return role === "Scheduler" ? "/scheduling" : "/finished";
+      if (role !== "Scheduler") return `/finished?open=${encodeURIComponent(relatedScheduleId)}`;
+      const schedule = schedules.find((item) => item.id === relatedScheduleId);
+      return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
+    }
     case "TRIP_CHANGED": {
       // The Driver's trip, or the Company trip a requester records (0055).
       const page = role === "Driver" ? "/my-schedule" : "/my-trips";
