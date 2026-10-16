@@ -80,7 +80,10 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
   takes its status color only when its count is above zero; a zero is
-  neutral grey. A tile opens its screen filtered to what it counts, through
+  neutral grey. Each tile has its own icon for what it counts (the bell's
+  icon for that event where there is one), not one per color, so two
+  warning tiles side by side still look different. A tile opens its screen
+  filtered to what it counts, through
   query parameters the screen reads once and strips (`/schedules?status=`
   and `?view=`, `/requests?progress=`, `/finished?status=` and
   `?problems=`); "Cancellation requests" jumps to `/schedules#cancellations`.
