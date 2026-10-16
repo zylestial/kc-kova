@@ -247,6 +247,42 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   Complete trip doesn't need the stop taps. "Mark clean trips done" skips
   trips with a time missing. A time nobody recorded prints blank.
 
+The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
+and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
+2026-10-16):
+
+- **Changing a trip on the road still needs the Admin.** Once Start trip is
+  tapped (or a Company trip's run has begun), the Scheduler's changes are a
+  draft as usual and the Driver keeps the approved route until the Admin
+  approves them. Approval then writes the changes onto the version the
+  Driver follows, in place, so legs keep their ids and their taps; the
+  Driver sees "Route changed" and gets TRIP_CHANGED.
+- A reached leg (tapped, or reported missed) and every leg before it must
+  come through unchanged, and the vehicle and Driver can't change;
+  approval refuses otherwise. On Scheduling, legs after the last one
+  reached stay editable.
+- **Reporting a stop**: whoever records the trip (the Driver on a Daily
+  trip, the requester on a Company trip, or an Admin) can report the
+  current stop after Start trip and before End trip:
+  - Not available, or Wrong address / closed: the stop is **missed**.
+  - Road blocked / weather: missed with Skip this stop, or just a report
+    with Wait.
+  - Vehicle problem: **pauses the trip**. No Arrived / Leaving until Resume
+    trip; End trip still works.
+  - Other: a report only.
+  Schedulers and Admins get STOP_REPORTED. A report is a problem report
+  tied to a leg, so it shows wherever problems do.
+- A missed stop needs no Arrived / Leaving: `trip_times_missing` leaves out
+  its Time In and the next leg's Time Out, and a Company trip may pass it in
+  route order. One missed report per stop.
+- **Missed stops on Scheduling**: a Scheduler (or Admin) takes a missed
+  stop's requests off the trip, and off any draft changes to it, without
+  Admin approval, since the route the Driver drives doesn't change. The
+  missed leg stays on the route and the printed form, with no stops. The
+  banner offers **Plan again** (the requests wait to be fitted in, on any
+  day) or **Send back to requester**. Other reports have **Got it**, which
+  marks them handled; Schedulers may handle stop reports.
+
 ## Booking options
 
 - Only an Admin may create or edit Projects, Destinations or Purposes, or
