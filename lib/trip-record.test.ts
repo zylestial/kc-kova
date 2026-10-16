@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Schedule } from "@/lib/kova-api";
-import { scheduleState, tripWindow } from "@/lib/trip-record";
+import { routeChangedAt, scheduleState, tripWindow } from "@/lib/trip-record";
 
 describe("schedules", () => {
   const revision = (patch: object) => ({
@@ -42,5 +42,13 @@ describe("schedules", () => {
   it("measures the window from first Time Out to last Time In", () => {
     expect(tripWindow(revision({}).legs)).toEqual({ start: "08:00", end: "10:30" });
     expect(tripWindow([])).toBeNull();
+  });
+});
+
+describe("routeChangedAt", () => {
+  it("is when the route was saved after the trip started, if it was", () => {
+    expect(routeChangedAt({ updatedAt: "2026-10-16T02:30:00Z" }, "2026-10-16T01:00:00Z")).toBe("2026-10-16T02:30:00Z");
+    expect(routeChangedAt({ updatedAt: "2026-10-15T09:00:00Z" }, "2026-10-16T01:00:00Z")).toBeUndefined();
+    expect(routeChangedAt({ updatedAt: "2026-10-16T02:30:00Z" }, undefined)).toBeUndefined();
   });
 });
