@@ -689,8 +689,8 @@ The prototypes were the spec; these are the calls made on top of them.
 - **Truck / Company car is a Driver type** on the account, not a vehicle
   field (an early version of this branch put "Truck" on vehicles; 0051
   replaced it).
-- **Who may ask:** Company trips only for accounts an Admin allows, and
-  those need a Position (it prints). Drivers make requests only when
+- **Who may ask:** Company trips for every Admin (0059, 2026-10-16) and
+  for accounts an Admin allows, which need a Position (it prints). Drivers make requests only when
   allowed, with Daily and Company switched on separately; Truck Drivers
   never.
 - **Each stop is its own request** (52-A, 52-B under a `request_groups`

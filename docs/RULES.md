@@ -27,8 +27,10 @@ should be written, for both humans and AI agents.)
 - **Who may request what** (0051; `can_request_daily`,
   `can_request_company`, `can_request_transport`, mirrored for the menus in
   `lib/request-access.ts`): Requesters and Admins can always make Daily
-  requests. Company trips need "Can request company trips" on the account,
-  and that needs a Position (it prints on the Company Trip Form).
+  requests. Every Admin can make Company trips too (0059, owner's call
+  2026-10-16; its Position prints if set). Anyone else needs "Can request
+  company trips" on the account, and that needs a Position (it prints on
+  the Company Trip Form).
 - A Driver is a **Truck** or a **Company car** Driver (`driver_type`; a new
   Driver starts as Truck). A Driver can't make requests unless an Admin
   allows that account, with Daily requests and Company trips switched on

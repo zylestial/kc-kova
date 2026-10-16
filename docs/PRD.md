@@ -75,8 +75,8 @@ A person has exactly one role; there is no multi-role account.
    answer the final-return checks (full tank, fleet card used, gas receipt
    attached). A Driver can report a problem on a trip at any time, even
    before submitting.
-5. **Company trips.** An account an Admin allows (with its Position set) can
-   choose **Company Trip** on the request form. It is for one Project / Site
+5. **Company trips.** An Admin, or an account an Admin allows (with its
+   Position set), can choose **Company Trip** on the request form. It is for one Project / Site
    (which is also its department / site on the form) and adds a starting
    point, the vehicle (one that can be requested for company trips), its
    Company car Driver, the site officer, the Immediate Supervisor
@@ -151,7 +151,8 @@ in `supabase/tests/` already check automatically.
   Urgent only when the Requester marks it and picks a reason; Pick up,
   Delivery and Urgent stops need Details (at most 150 characters). Only an
   Admin can file a past date. (tested)
-- Only an account an Admin allows, with a Position, can file a Company trip,
+- Only an Admin, or an account an Admin allows with a Position, can file a
+  Company trip,
   and it must name a vehicle that can be requested for company trips and a
   Company car Driver. A Truck Driver can never make a request. (tested)
 - A Requester can edit or cancel their request until a Scheduler starts
