@@ -66,10 +66,10 @@ const two = (index: number) => String(index + 1).padStart(2, "0");
  * saves the draft. Below them, what the trip is waiting for and its
  * buttons: Submit (Resubmit once it has been sent), Discard, or Propose
  * changes on an approved trip. Changing one waiting for the Admin takes it
- * back to draft (0057), to resubmit. A trip on the road is changed with
- * Change route: the changes stay here until Send to Driver saves them all
- * at once, straight onto the route the Driver follows (0060); legs the
- * Driver has reached stay as they are.
+ * back to draft (0057), to resubmit. On a trip on the road, the legs after
+ * the last one the Driver reached can be changed right there: the changes
+ * stay here until Send to Driver saves them all at once, straight onto the
+ * route the Driver follows (0060).
  */
 export default function TripEditor({
   trip,
@@ -108,17 +108,17 @@ export default function TripEditor({
     () => editLegs(revision.legs, timer, revision.legs[0]?.plannedTimeOut || "08:00"),
     [revision.legs, timer],
   );
-  // Change route on a trip on the road: the route as changed so far, and
-  // what to do with stops once it's sent.
+  // Changes to a trip on the road not sent yet: the route as changed so far,
+  // and what to do with stops once it's sent.
   const [change, setChange] = useState<{ legs: EditLeg[]; moveIds: string[]; sendBack: Array<{ ids: string[]; reason: string }> } | null>(
     null,
   );
   const legs = change?.legs ?? saved;
   const open = openRevision(trip.schedule);
-  // An approved trip is changed through Propose changes, one on the road
-  // through Change route; any other can be edited, and one waiting for the
+  // An approved trip is changed through Propose changes; any other can be
+  // edited (on the road, past the legs reached), and one waiting for the
   // Admin goes back to draft to resubmit.
-  const editable = live ? !!change : state !== "APPROVED";
+  const editable = state !== "APPROVED";
   // Legs up to the last one reached can't change.
   const lastDone = legs.reduce((last, leg, index) => (doneLeg(leg.key, index === legs.length - 1) ? index : last), -1);
   const resubmitNote =
@@ -414,7 +414,6 @@ export default function TripEditor({
         problems={problems}
         requestIdOf={(stopId) => requestOf(stopId)?.id}
         changing={!!change}
-        onChangeRoute={() => setChange({ legs: saved, moveIds: [], sendBack: [] })}
         onSend={sendToDriver}
         onCancel={() => setChange(null)}
       />
@@ -453,7 +452,6 @@ function TripActions({
   problems,
   requestIdOf,
   changing,
-  onChangeRoute,
   onSend,
   onCancel,
 }: {
@@ -467,9 +465,8 @@ function TripActions({
   /** What's wrong with the trip (tripChecks): Submit waits until it's fixed. */
   problems: string[];
   requestIdOf: (stopId: string) => string | undefined;
-  /** On the road: Change route was pressed and the changes aren't sent yet. */
+  /** On the road: the route was changed here and isn't sent yet. */
   changing: boolean;
-  onChangeRoute: () => void;
   onSend: () => void;
   onCancel: () => void;
 }) {
@@ -503,8 +500,8 @@ function TripActions({
       {state === "APPROVED" && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
       {state === "ON_THE_ROAD" &&
         (changing
-          ? " · changing the route. Stops already reached stay. Nothing reaches the Driver until you send it."
-          : " · the Driver is following this route. Change route sends changes straight to the Driver; the Admin is told.")}
+          ? " · route changed, not sent yet. Nothing reaches the Driver until you send it."
+          : " · the Driver is following this route. Drag, change or remove the legs not reached yet, then send it straight to the Driver; the Admin is told.")}
       {state === "CHANGES" && " · only you can see these. The Driver still follows the approved times below until the Admin approves."}
       {state === "CHANGES_SUBMITTED" &&
         " · the changes are with the Admin. Changing them takes them back to you to resubmit; the approved times below stay in effect until approved."}
@@ -534,11 +531,6 @@ function TripActions({
         {state === "APPROVED" && (
           <Button size="sm" className="primary" disabled={busy} onClick={propose}>
             Propose changes
-          </Button>
-        )}
-        {state === "ON_THE_ROAD" && !changing && (
-          <Button size="sm" className="primary" disabled={busy} onClick={onChangeRoute}>
-            Change route
           </Button>
         )}
         {state === "ON_THE_ROAD" && changing && (
