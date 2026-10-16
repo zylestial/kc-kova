@@ -248,7 +248,7 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   trips with a time missing. A time nobody recorded prints blank.
 
 The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
-and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
+0061, `release_missed_stop` 0063, `answer_stop_report` 0068; owner's calls
 2026-10-16):
 
 - **Changing a trip on the road still needs the Admin.** Once Start trip is
@@ -263,22 +263,33 @@ and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
   reached stay editable.
 - **Reporting a stop**: whoever records the trip (the Driver on a Daily
   trip, the requester on a Company trip, or an Admin) can report the
-  current stop after Start trip and before End trip:
-  - Not available, or Wrong address / closed: the stop is **missed**.
-  - Road blocked / weather: missed with Skip this stop, or just a report
-    with Wait.
-  - Vehicle problem: **pauses the trip**. No Arrived / Leaving until Resume
-    trip; End trip still works.
-  - Other: a report only.
-  Schedulers and Admins get STOP_REPORTED, and when a stop is missed its
-  requesters get STOP_MISSED (not whoever reported it). A report is a
-  problem report tied to a leg, so it shows wherever problems do.
+  current stop after Start trip and before End trip: Not available, Wrong
+  address / closed, Road blocked / weather, Vehicle problem, or Other.
+  Schedulers and Admins get STOP_REPORTED. A report is a problem report
+  tied to a leg, so it shows wherever problems do.
+- **Every report holds the trip until it's answered** (0068, owner's call
+  2026-10-16): no Arrived / Leaving (`schedules.paused_at`) while any
+  report on the trip waits; End trip still works, and closes the reports
+  still waiting. A Scheduler or Admin answers on Scheduling, and the
+  reporter gets STOP_ANSWERED:
+  - **Skip it, go to next**: the stop is **missed** (then planned again,
+    moved or sent back, below), and its requesters get STOP_MISSED (not
+    whoever reported it).
+  - **Wait there**: the stop is kept; the Driver goes on when it's ready
+    (for a Vehicle problem, once it's fixed).
+  - **End the trip**: the Driver taps End trip now; the stops left are not
+    reached (below).
+  - **Change the route**: the trip stays held until the Admin approves the
+    Scheduler's change; until then another answer can still be given.
+  A stop isn't missed until the answer is Skip. Nothing is missed or
+  decided by the reporter alone.
 - **Some of the requests at a stop** (0067): where several requests share
   a stop, Not available or Wrong address can name some of them
-  (`problem_reports.request_ids`). The stop is still reached (not missed;
-  the Driver taps Arrived / Leaving as usual), only those requesters are
-  told, and the Scheduler plans just those again. Naming all of them is
-  the whole stop. Other kinds are always for the whole stop.
+  (`problem_reports.request_ids`). If the answer is Skip, the stop is
+  still reached (not missed; the Driver taps Arrived / Leaving as usual),
+  only those requesters are told, and the Scheduler plans just those
+  again. Naming all of them is the whole stop. Other kinds are always for
+  the whole stop.
 - **Stops not reached** (0066): End trip (in practice "End trip now")
   reports every non-final leg after the last one reached (tapped or
   reported missed) as missed, kind NOT_REACHED. A leg before one reached
@@ -295,9 +306,9 @@ and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
   missed leg stays on the route and the printed form, with no stops. The
   banner offers **Plan again** (the requests wait on their day),
   **Another day** (moved to the day picked) or **Send back to requester**.
-  Other reports have **Got it**, which marks them handled; Schedulers may
-  handle stop reports. A report not handled on its day stays on today's
-  Scheduling, with its day.
+  Reports from before 0068 that need no planning have **Got it**, which
+  marks them handled; Schedulers may handle stop reports. A report not
+  handled on its day stays on today's Scheduling, with its day.
 - **Missed or past due** (0065): a stop taken off a trip as missed
   (`requests.missed_at`), or one still waiting after its day passed, may be
   moved by a Scheduler to any day from today, Sundays included, whatever
