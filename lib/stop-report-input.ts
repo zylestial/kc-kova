@@ -6,7 +6,6 @@ const stopReportBody = z.object({
   legId: z.uuid(),
   kind: z.enum(["NOT_AVAILABLE", "WRONG_ADDRESS", "ROAD_BLOCKED", "VEHICLE_PROBLEM", "OTHER"]),
   note: z.string().trim().max(500).catch(""),
-  skip: z.boolean().catch(false),
   requestIds: z.array(z.uuid()).min(1).max(20).optional(),
   location: z
     .object({
@@ -20,7 +19,7 @@ const stopReportBody = z.object({
 
 /**
  * Shape-checks a stop report body before it reaches report_stop (0061): the
- * stop, what happened, the note, whether to skip a blocked road, which of
+ * stop, what happened, the note, which of
  * the requests there (0067; all when left out), and the optional position. Which kinds need a note, and who may report, are
  * enforced in Postgres. Returns null when the body isn't usable.
  */

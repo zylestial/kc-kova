@@ -8,6 +8,7 @@ import {
   CircleX,
   CornerUpLeft,
   MapPinX,
+  MessageSquareReply,
   Route,
   Send,
   Split,
@@ -42,6 +43,7 @@ const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "suc
   TRIP_CHANGED: { icon: Route, tone: "warning" },
   STOP_REPORTED: { icon: MapPinX, tone: "error" },
   STOP_MISSED: { icon: MapPinX, tone: "warning" },
+  STOP_ANSWERED: { icon: MessageSquareReply, tone: "info" },
 };
 
 /** Where clicking a notification should land, per its type. */
@@ -79,7 +81,8 @@ function notificationTarget(notification: Notification, schedules: Schedule[], r
       const schedule = schedules.find((item) => item.id === relatedScheduleId);
       return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
     }
-    case "TRIP_CHANGED": {
+    case "TRIP_CHANGED":
+    case "STOP_ANSWERED": {
       // The Driver's trip, or the Company trip a requester records (0055).
       const page = role === "Driver" ? "/my-schedule" : "/my-trips";
       return relatedScheduleId ? `${page}?open=${encodeURIComponent(relatedScheduleId)}` : page;

@@ -26,10 +26,10 @@ import {
   recordStopTap,
   reportProblem,
   reportStop,
-  resumeTrip,
   submitCompletion,
   type StopReportKind,
   type ProblemReport,
+  type ScheduleLeg,
   type Schedule,
   type ScheduleRevision,
   type CompanyTripRun,
@@ -46,7 +46,7 @@ import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import StopReportForm from "./stop-report-form";
-import { missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -191,37 +191,16 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   }
 
   // A problem at one stop (0061), with the phone's position when it shares one.
-  async function sendStopReport(report: { kind: StopReportKind; note: string; skip: boolean; requestIds?: string[] }) {
+  async function sendStopReport(report: { kind: StopReportKind; note: string; requestIds?: string[] }) {
     if (!selected || !reportAt) return;
     setBusy(true);
     setError("");
     try {
       const location = await getPhoneLocation();
       await reportStop(selected.schedule.id, { legId: reportAt.legId, ...report, location });
-      setNotice(
-        report.kind === "VEHICLE_PROBLEM"
-          ? "Reported. The trip is paused; the Scheduler has been told."
-          : report.requestIds
-            ? "Reported. The Scheduler plans those again; carry on with the rest here."
-            : report.kind === "NOT_AVAILABLE" || report.kind === "WRONG_ADDRESS" || report.skip
-              ? `Reported. ${reportAt.place} is missed; go on to the next stop.`
-              : "Reported. The Scheduler has been told.",
-      );
+      setNotice("Reported. The Scheduler has been told; wait for their answer.");
       setMode("view");
       setReportAt(null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
-    }
-    setBusy(false);
-  }
-
-  async function resume() {
-    if (!selected) return;
-    setBusy(true);
-    setError("");
-    try {
-      await resumeTrip(selected.schedule.id);
-      setNotice("Trip resumed.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
     }
@@ -544,6 +523,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               Route changed by the Scheduler at {hhmmLabel(manilaHhmm(changedAt(selected)!))}. Check your next stop.
             </p>
           )}
+          {selected && mode === "view" && !selected.attendance?.end && !selected.schedule.pausedAt && (
+            <AnswerNotice report={latestAnswer(selected.problems)} legs={selected.revision.legs} />
+          )}
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
               <DriverTripSteps
@@ -558,8 +540,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   setMode("stop");
                   setError("");
                 }}
-                paused={!!selected.schedule.pausedAt}
-                onResume={resume}
+                held={selected.schedule.pausedAt ? holdText(selected.problems) : undefined}
                 notYet={selected.startable ? undefined : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
               />
               {locationOff && (
@@ -729,5 +710,16 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** The Scheduler's latest answer to a stop report (0068), so the Driver knows what to do next. */
+function AnswerNotice({ report, legs }: { report?: ProblemReport; legs: ScheduleLeg[] }) {
+  if (!report) return null;
+  const place = legs.find((leg) => leg.id === report.legId)?.destinationName ?? "this stop";
+  return (
+    <p className="notice info" role="status">
+      <b>Scheduler&apos;s answer at {hhmmLabel(manilaHhmm(report.decidedAt!))}:</b> {answerText(report, place)}
+    </p>
   );
 }

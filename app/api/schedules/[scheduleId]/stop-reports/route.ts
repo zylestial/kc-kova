@@ -5,9 +5,8 @@ import { toProblemReport } from "@/lib/supabase/mappers";
 import { scheduleErrorResponse } from "@/lib/supabase/schedules";
 
 // Whoever records a trip on the road reports a problem at one stop
-// (report_stop, 0061): Not available or Wrong address misses the stop, a
-// blocked road is skipped or waited out, a Vehicle problem pauses the trip.
-// Schedulers and Admins are told.
+// (report_stop, 0061). The trip is held until a Scheduler or Admin answers
+// (0068); they are told.
 export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, params: { scheduleId } }) => {
   const input = parseStopReportInput(await readJson(request));
   if (!input) {
@@ -19,7 +18,6 @@ export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, p
     p_leg_id: input.legId,
     p_kind: input.kind,
     p_note: input.note,
-    p_skip: input.skip,
     p_lat: input.location?.lat ?? null,
     p_lng: input.location?.lng ?? null,
     p_accuracy_m: input.location?.accuracyM ?? null,
