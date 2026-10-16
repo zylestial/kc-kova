@@ -72,9 +72,6 @@ export type WorkLeg = {
   timeIn?: string;
 };
 
-/** After this a trip runs past the Driver's day (prototype WORK_END). */
-export const DAY_END = "18:00";
-
 /** A stop that can go any time doesn't share a fixed-time leg the vehicle would wait longer than this for. */
 const MAX_WAIT = 30;
 
@@ -125,7 +122,11 @@ export function legTimer(context: Pick<PlanContext, "requests" | "destinations">
   return { timed, lateIn, waitAt, requestOf };
 }
 
-/** Best first: vehicles that can take it, fewest late stops, ending by 6 PM, then the soonest (Urgent) or the fewest added minutes. */
+/**
+ * Best first: vehicles that can take it, fewest late stops, then the
+ * soonest (Urgent) or the fewest added minutes. Trips may run any hour
+ * (owner's call, 2026-10-16: no 6 PM end of day).
+ */
 export function planOptions(stops: TransportRequest[], rows: VehicleRow[], context: PlanContext): PlanOption[] {
   const urgent = stops.some((stop) => stop.requestType === "URGENT");
   return rows
@@ -134,7 +135,6 @@ export function planOptions(stops: TransportRequest[], rows: VehicleRow[], conte
       (a, b) =>
         Number(!!a.blocked) - Number(!!b.blocked) ||
         a.late.length - b.late.length ||
-        Number(a.end > DAY_END) - Number(b.end > DAY_END) ||
         (urgent ? a.arrive.localeCompare(b.arrive) : a.extra - b.extra),
     );
 }

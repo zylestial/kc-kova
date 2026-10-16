@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { hhmmLabel } from "@/lib/stop-times";
-import { DAY_END, type PlanOption } from "@/lib/scheduling-plan";
+import { type PlanOption } from "@/lib/scheduling-plan";
 import type { TransportRequest } from "@/lib/kova-api";
 import { stopNumber } from "@/lib/scheduling";
 
@@ -52,7 +52,6 @@ export default function PlanOptions({
                 </span>
               )}
               {option.blocked && <span className="sc-late">{option.blocked}</span>}
-              {option.end > DAY_END && <span className="sc-late">Ends {hhmmLabel(option.end)}, after the Driver&apos;s day ends at 6:00 PM</span>}
               {option.late.length > 0 && <span className="sc-late">Late: {option.late.map((id) => lateText(option, id)).join("; ")}</span>}
               {option.needsAdmin && <span className="sc-muted">Approved trip: goes into draft changes, then you resubmit</span>}
               {option.takesBack && <span className="sc-muted">Waiting for Admin: goes back to draft, then you resubmit</span>}

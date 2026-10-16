@@ -1,5 +1,5 @@
 import type { ScheduleInput, ScheduleLeg } from "@/lib/kova-api";
-import { DAY_END, type legTimer, type WorkLeg } from "@/lib/scheduling-plan";
+import { type legTimer, type WorkLeg } from "@/lib/scheduling-plan";
 import { MAX_LEGS } from "@/lib/trip-record";
 import { hhmmLabel } from "@/lib/stop-times";
 import { toHhmm, toMinutes } from "@/lib/trip-estimate";
@@ -149,8 +149,6 @@ export function tripChecks(legs: EditLeg[], timer: Timer, company: boolean, name
   const problems: string[] = [];
   if (!legs.length) return problems;
   if (legs.length > MAX_LEGS) problems.push(`Over ${MAX_LEGS} legs: this trip has ${legs.length}`);
-  const end = legs.at(-1)!.timeIn;
-  if (end > DAY_END) problems.push(`Ends ${hhmmLabel(end)}, after the Driver's day ends at 6:00 PM`);
   legs.forEach((_, index) => problems.push(...legProblems(legs, index, timer, nameOf).map((problem) => `Leg ${index + 1}: ${problem}`)));
   if (!company && !legs.at(-1)!.isFinal) problems.push(`Must end at ANONANG: the last leg goes to ${legs.at(-1)!.destinationName}`);
   return problems;
