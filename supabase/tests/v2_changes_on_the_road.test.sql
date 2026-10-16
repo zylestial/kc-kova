@@ -5,7 +5,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(23);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -126,6 +126,27 @@ select is((select count(*)::int from notifications where type = 'TRIP_PUBLISHED'
 
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select lives_ok($$ select record_stop_tap(pg_temp.id('s1'), pg_temp.leg(2), 'ARRIVE') $$, 'The Driver can tap the new stop');
+
+-- More changes after that: the new stop keeps its leg and tap (0064) -----------------
+reset role;
+select is((select source_leg_id from schedule_legs where id = pg_temp.leg(2)), null, 'A leg new to the Driver''s route comes from no other leg');
+insert into ids values ('port', pg_temp.leg(2));
+insert into ids select 'draft2', pg_temp.propose(array[pg_temp.id('r1'), pg_temp.id('r2')], jsonb_build_array(
+  jsonb_build_object('id', pg_temp.leg(1), 'destinationId', 'd1', 'plannedTimeOut', '08:00', 'plannedTimeIn', '09:00',
+    'stops', jsonb_build_array(pg_temp.id('r1_d1'))),
+  jsonb_build_object('id', pg_temp.leg(2), 'destinationId', 'd3', 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:30',
+    'stops', jsonb_build_array(pg_temp.id('r2_d3'))),
+  jsonb_build_object('id', pg_temp.leg(3), 'destinationId', 'd2', 'plannedTimeOut', '11:00', 'plannedTimeIn', '12:00',
+    'stops', jsonb_build_array(pg_temp.id('r1_d2'))),
+  jsonb_build_object('id', pg_temp.leg(4), 'isFinal', true, 'plannedTimeOut', '12:30', 'plannedTimeIn', '13:45')));
+reset role;
+select is((select source_leg_id from schedule_legs where revision_id = pg_temp.id('draft2') and leg_no = 2), pg_temp.id('port'),
+  'Its draft leg points at it');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select approve_schedule(pg_temp.id('s1'), pg_temp.rv(pg_temp.id('s1')));
+reset role;
+select is(pg_temp.leg(2), pg_temp.id('port'), 'Approving more changes keeps its leg');
+select is((select count(*)::int from stop_taps where leg_id = pg_temp.id('port')), 1, 'and its tap');
 
 -- Changes that move a stop the Driver has reached ----------------------------------
 select pg_temp.propose(array[pg_temp.id('r1'), pg_temp.id('r2')], jsonb_build_array(
