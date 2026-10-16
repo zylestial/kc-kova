@@ -572,6 +572,9 @@ export const reportProblem = (id: string, note: string) => refreshAfter(request<
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));
 export const handleProblem = (id: string, handlingNote: string, followUpScheduleId?: string) => refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/handle`, { method: "POST", body: JSON.stringify({ handlingNote, followUpScheduleId }) }));
+/** Takes a missed stop's requests off its trip (0063): to plan again, or sent back with `reason`. */
+export const releaseMissedStop = (id: string, sendBack: boolean, reason = "") =>
+  refreshAfter(request<{ requestIds: string[] }>(`/api/problems/${encodeURIComponent(id)}/missed`, { method: "POST", body: JSON.stringify({ sendBack, reason }) }));
 
 /**
  * Marks several trips done, one at a time through the same endpoint as a
