@@ -35,12 +35,12 @@ import {
   type TripCompletion,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
-import { stopsFor } from "@/lib/trip-record";
+import { routeChangedAt, stopsFor } from "@/lib/trip-record";
 import { manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
 import { getPhoneLocation } from "@/lib/phone-location";
-import { legTimes, tripSteps, type TimeSource } from "@/lib/stop-times";
+import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 
 const dateLabel = (date: string) =>
@@ -119,6 +119,8 @@ function tripStatus(trip: Trip): TripStatus {
 }
 
 const routeLabel = (trip: Trip) => trip.revision.legs.map((leg) => leg.destinationName).join(" → ");
+/** When the Scheduler changed the route since the trip started (0060). */
+const changedAt = (trip: Trip) => routeChangedAt(trip.revision, trip.attendance?.start.at ?? trip.run?.startAt);
 
 type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
 
@@ -490,6 +492,11 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                 </Button>
               </DialogFooter>
             </>
+          )}
+          {selected && mode === "view" && changedAt(selected) && (
+            <p className="notice" role="status">
+              Route changed by the Scheduler at {hhmmLabel(manilaHhmm(changedAt(selected)!))}. Check your next stop.
+            </p>
           )}
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>

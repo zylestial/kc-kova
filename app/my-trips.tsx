@@ -9,6 +9,7 @@ import { useAutoClear } from "@/lib/use-auto-clear";
 import { manilaToday } from "@/lib/timezone";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
+import { routeChangedAt } from "@/lib/trip-record";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -143,6 +144,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                   </button>
                   {isOpen && (
                     <div className="my-trip-body">
+                      {routeChangedAt(trip.revision, run?.startAt) && (
+                        <p className="notice" role="status">
+                          Route changed by the Scheduler at {timeLabel(routeChangedAt(trip.revision, run?.startAt)!)}. Check your next stop.
+                        </p>
+                      )}
                       <ol className="my-trip-steps">
                         {steps.map((step) => (
                           <li key={step.key} className={step.at ? "done" : step === next ? "next" : ""}>
