@@ -3,13 +3,14 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(31);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000da', 'rhea@test.local'),
   ('00000000-0000-0000-0000-0000000000db', 'liza@test.local'),
   ('00000000-0000-0000-0000-0000000000dd', 'schedd@test.local'),
+  ('00000000-0000-0000-0000-0000000000de', 'adele@test.local'),
   ('00000000-0000-0000-0000-0000000000d1', 'jun@test.local'),
   ('00000000-0000-0000-0000-0000000000d2', 'mark@test.local');
 insert into accounts (id, username, name, role, position, can_request_company) values
@@ -17,6 +18,7 @@ insert into accounts (id, username, name, role, position, can_request_company) v
   ('00000000-0000-0000-0000-0000000000db', 'liza', 'Liza Mendoza', 'Requester', '', false);
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-0000000000dd', 'schedd', 'Sam D', 'Scheduler'),
+  ('00000000-0000-0000-0000-0000000000de', 'adele', 'Adele Admin', 'Admin'),
   ('00000000-0000-0000-0000-0000000000d2', 'mark', 'Mark Dizon', 'Driver');
 insert into accounts (id, username, name, role, driver_type) values
   ('00000000-0000-0000-0000-0000000000d1', 'jun', 'Jun Reyes', 'Driver', 'Company car');
@@ -106,6 +108,9 @@ select lives_ok(
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000db');
 select throws_ok($$ select create_request_group('COMPANY', pg_temp.company()) $$, '42501', 'Not authorized to create requests',
   'Only accounts an Admin allows can request company trips');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000de');
+select lives_ok($$ select create_request_group('COMPANY', pg_temp.company()) $$,
+  'An Admin can, without the switch or a Position (0059)');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000da');
 select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"vehiclePlate":""}')) $$, '22023', 'Select a vehicle',
   'A Company Trip needs a vehicle');
