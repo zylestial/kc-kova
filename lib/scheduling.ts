@@ -57,6 +57,23 @@ export const weekStops = (requests: TransportRequest[], day: string, kind?: Trip
     )
     .sort((a, b) => a.date.localeCompare(b.date) || byRank(a, b));
 
+/**
+ * Stops that may go on any day from today (0065): missed on the road, or
+ * still waiting after their day passed. Listed on every other day, so they
+ * don't drop off Scheduling; adding one to a trip moves it to that day.
+ */
+export const carriedStops = (requests: TransportRequest[], day: string, today: string, kind?: TripKind) =>
+  requests
+    .filter(
+      (request) =>
+        waiting(request) &&
+        ofKind(request, kind) &&
+        (!!request.missedAt || request.date < today) &&
+        request.date !== day &&
+        !(request.flexibility === "WEEK" && mondayOf(request.date) === mondayOf(day)),
+    )
+    .sort((a, b) => a.date.localeCompare(b.date) || byRank(a, b));
+
 /** What the day strip shows under each day. */
 export function dayCounts(requests: TransportRequest[], day: string, kind?: TripKind) {
   const stops = toPlan(requests, day, kind);
@@ -124,7 +141,8 @@ export type TripState = "DRAFT" | "RETURNED" | "SUBMITTED" | "APPROVED" | "CHANG
 /**
  * Where a trip stands, as the prototype names it. An approved trip with an
  * open version has changes on the way: a draft only the Scheduler sees, or
- * submitted for the Admin.
+ * submitted for the Admin (on a trip on the road too: approved changes are
+ * written onto the route the Driver follows, 0060).
  */
 export function tripState(schedule: Schedule, started: boolean): TripState {
   const open = openRevision(schedule);

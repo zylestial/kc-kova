@@ -126,6 +126,8 @@ export type TransportRequest = {
   sentBack?: { at: string; reason: string };
   /** Set when a Scheduler moved this "any day that week" stop to another day of its week (0053). */
   movedAt?: string;
+  /** Set when it was missed on the road and taken off the trip (0065); it may then move to any day. */
+  missedAt?: string;
   cancellationPending: boolean;
 };
 /** A Requester's ask to cancel a request a schedule holds; an Admin decides. */
@@ -205,6 +207,15 @@ export type CompanyTripRun = {
 export type CompanyRunInput = { kind: "START" | "END"; odometer: number; location: AttendanceInput["location"] };
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"] };
+/** A problem at one stop (0061); `skip` skips a blocked road instead of waiting. */
+/** requestIds: some of the requests at the stop, for Not available or Wrong address (0067); left out for all of them. */
+export type StopReportInput = {
+  legId: string;
+  kind: StopReportKind;
+  note: string;
+  location: AttendanceInput["location"];
+  requestIds?: string[];
+};
 /** An Admin's TIME OUT or TIME IN for one leg of a submitted trip (0046); it prints in place of the tap. */
 export type TripTimeCorrection = {
   id: string;
@@ -232,7 +243,22 @@ export type ProblemReport = {
   handledByAccountId?: string;
   handlingNote: string;
   followUpScheduleId?: string;
+  /** A stop report (0061): the stop, what happened, and whether the stop was missed. */
+  legId?: string;
+  kind: StopReportKind;
+  missed: boolean;
+  /** Missed for just these requests at the stop (0067); the stop itself was reached. */
+  requestIds?: string[];
+  /** The Scheduler's or Admin's answer (0068); none yet while the trip is held for it. */
+  decision?: StopDecision;
+  decidedAt?: string;
+  reportedByAccountId?: string;
 };
+/** What can happen at a stop (0061); OTHER is also every whole-trip problem report. */
+/** A Scheduler's answer to a stop report (0068): skip it, wait there, end the trip, change the route. */
+export type StopDecision = "SKIP" | "WAIT" | "END" | "CHANGE";
+/** NOT_REACHED is never chosen: End trip files it for the stops left (0066). */
+export type StopReportKind = "NOT_AVAILABLE" | "WRONG_ADDRESS" | "ROAD_BLOCKED" | "VEHICLE_PROBLEM" | "OTHER" | "NOT_REACHED";
 /** An in-app notification of one event for one recipient (0035). */
 export type NotificationType =
   | "REQUEST_SCHEDULED"
@@ -246,7 +272,11 @@ export type NotificationType =
   | "PROBLEM_REPORTED"
   | "SCHEDULE_SUBMITTED"
   | "SCHEDULE_RETURNED"
-  | "TRIP_PUBLISHED";
+  | "TRIP_PUBLISHED"
+  | "TRIP_CHANGED"
+  | "STOP_REPORTED"
+  | "STOP_MISSED"
+  | "STOP_ANSWERED";
 export type Notification = {
   id: string;
   type: NotificationType;
@@ -306,6 +336,8 @@ export type ScheduleLeg = {
   contactName: string;
   contactNumber: string;
   isFinal: boolean;
+  /** Draft changes to a trip on the road: the leg of the Driver's route this one came from (0060). */
+  sourceLegId?: string;
   /** Request destination ids this leg serves; two or more is a shared stop. */
   stops: string[];
 };
@@ -335,6 +367,8 @@ export type Schedule = {
   createdByAccountId: string;
   status: "ACTIVE" | "DISCARDED" | "CANCELLED";
   publishedRevisionId?: string;
+  /** Paused for a Vehicle problem until Resume trip (0061). */
+  pausedAt?: string;
   createdAt: string;
   updatedAt: string;
   /** Live versions only: the published one and any open draft. */
@@ -346,6 +380,8 @@ export type ScheduleInput = {
   plate: string;
   requestIds: string[];
   legs: Array<{
+    /** A leg already saved keeps its id (0060); a new leg has none. */
+    id?: string;
     destinationId?: string;
     plannedTimeOut: string;
     plannedTimeIn: string;
@@ -547,10 +583,17 @@ export const recordCompanyRun = (id: string, input: CompanyRunInput) => refreshA
 export const recordCompanyStop = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/company-stops`, { method: "POST", body: JSON.stringify(input) }));
 export const recordStopTap = (id: string, input: StopTapInput) => refreshAfter(request<StopTap>(`/api/schedules/${encodeURIComponent(id)}/stop-taps`, { method: "POST", body: JSON.stringify(input) }));
 export const setTripTime = (id: string, input: TripTimeInput) => refreshAfter(request<TripTimeCorrection | null>(`/api/schedules/${encodeURIComponent(id)}/times`, { method: "PUT", body: JSON.stringify(input) }));
+export const reportStop = (id: string, input: StopReportInput) =>
+  refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/stop-reports`, { method: "POST", body: JSON.stringify(input) }));
 export const reportProblem = (id: string, note: string) => refreshAfter(request<ProblemReport>(`/api/schedules/${encodeURIComponent(id)}/problems`, { method: "POST", body: JSON.stringify({ note }) }));
 export const correctCompletion = (id: string, startOdometer: number, endOdometer: number) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "PATCH", body: JSON.stringify({ startOdometer, endOdometer }) }));
 export const markCompletionDone = (id: string) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion/done`, { method: "POST" }));
 export const handleProblem = (id: string, handlingNote: string, followUpScheduleId?: string) => refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/handle`, { method: "POST", body: JSON.stringify({ handlingNote, followUpScheduleId }) }));
+/** Takes a missed stop's requests off its trip (0063): to plan again, or sent back with `reason`. */
+export const answerStopReport = (id: string, decision: StopDecision) =>
+  refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/answer`, { method: "POST", body: JSON.stringify({ decision }) }));
+export const releaseMissedStop = (id: string, sendBack: boolean, reason = "") =>
+  refreshAfter(request<{ requestIds: string[] }>(`/api/problems/${encodeURIComponent(id)}/missed`, { method: "POST", body: JSON.stringify({ sendBack, reason }) }));
 
 /**
  * Marks several trips done, one at a time through the same endpoint as a

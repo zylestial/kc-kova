@@ -40,9 +40,9 @@ A person has exactly one role; there is no multi-role account.
    then fixed times, any time that day, and the week's "any day that week"
    stops; each vehicle is listed with its trips. A stop is added to a
    vehicle by dragging it there or by picking from the options KOVA
-   suggests, best first (no other stop made late, no end after the Driver's
-   6 PM end of day, then the least added time, or for an Urgent stop the
-   soonest arrival). Adding an "any day that week"
+   suggests, best first (no other stop made late, then the least added
+   time, or for an Urgent stop the soonest arrival). Trips may run at any
+   hour of the day. Adding an "any day that week"
    stop to another day moves it there, and its requester is told. Each
    vehicle's legs form its **Trip Record**: legs in travel order, a Daily
    trip starting and ending at ANONANG (the home base), with times for each
@@ -51,7 +51,7 @@ A person has exactly one role; there is no multi-role account.
    day, and a vehicle that can be requested for company trips takes only
    Company trips. Saving reserves the time and locks the requests so nobody
    else plans them. A trip with a warning (too little time to drive a leg,
-   a fixed-time stop reached late, an end after 6 PM) can't be submitted
+   a fixed-time stop reached late) can't be submitted
    until it's fixed. A stop that won't fit is taken off its leg and goes
    back to the waiting list, or back to its requester with a reason so they
    can pick another day. **Undo** reverses the Scheduler's last change.
@@ -75,6 +75,19 @@ A person has exactly one role; there is no multi-role account.
    answer the final-return checks (full tank, fleet card used, gas receipt
    attached). A Driver can report a problem on a trip at any time, even
    before submitting.
+   **On the road**, the Driver can report a problem at the current stop:
+   nobody there, wrong address or closed, road blocked, a vehicle problem,
+   or something else. The trip then waits: the Scheduler (or an Admin)
+   answers skip it, wait there, end the trip, or change the route, and the
+   Driver goes on only after that. A skipped stop is missed, and the
+   Scheduler plans it again, moves it, or sends it back to its requester.
+   A Scheduler
+   can also change a trip already on the road; once an Admin approves, the
+   Driver sees the route changed, with the stops already done kept as they
+   were. A Company trip's requester reports stops the same way. If the
+   trip ends early, the stops left go back to the Scheduler as not
+   reached. A requester is told when their stop is missed, and the
+   Scheduler can move it to another day.
 5. **Company trips.** An Admin, or an account an Admin allows (with its
    Position set), can choose **Company Trip** on the request form. It is for one Project / Site
    (which is also its department / site on the form) and adds a starting
@@ -169,7 +182,7 @@ in `supabase/tests/` already check automatically.
 - A Scheduler can change a trip waiting for Admin approval; it goes back to
   a draft and must be resubmitted. (tested)
 - A trip with a warning (a leg too short to drive, a fixed-time stop reached
-  late, an end after 6 PM) can't be submitted.
+  late) can't be submitted. A trip may end at any hour.
 - Daily trips on the Scheduling page don't offer vehicles that can be
   requested for company trips. A Company trip uses the requester's vehicle
   and Driver, serves one department, and never overlaps another trip on that

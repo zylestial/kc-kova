@@ -34,17 +34,20 @@ export type CompanyStep = {
   label: string;
   /** When it was tapped, if it has been. */
   at?: string;
+  /** Arrived or Leaving at a stop reported missed (0061): passed over, never tapped. */
+  missed?: boolean;
 };
 
 /**
  * A Company trip's taps in route order (0055): Start trip at the starting
  * point, Arrived and Leaving at each stop but the last, then End trip on
- * arriving at the last stop.
+ * arriving at the last stop. A stop reported missed (0061) is passed over.
  */
 export function companyTripSteps(
   legs: Array<{ id: string; origin: string; destinationName: string }>,
   run: { startAt: string; endAt?: string } | undefined,
   taps: Array<{ legId: string; kind: "ARRIVE" | "LEAVE"; at: string }>,
+  missed: ReadonlySet<string> = new Set(),
 ): CompanyStep[] {
   if (!legs.length) return [];
   const tapAt = (legId: string, kind: "ARRIVE" | "LEAVE") => taps.find((tap) => tap.legId === legId && tap.kind === kind)?.at;
@@ -52,8 +55,8 @@ export function companyTripSteps(
   return [
     { key: "START", kind: "START", label: `Start trip at ${legs[0].origin}`, at: run?.startAt },
     ...legs.slice(0, -1).flatMap((leg) => [
-      { key: `ARRIVE:${leg.id}`, kind: "ARRIVE" as const, legId: leg.id, label: `Arrived at ${leg.destinationName}`, at: tapAt(leg.id, "ARRIVE") },
-      { key: `LEAVE:${leg.id}`, kind: "LEAVE" as const, legId: leg.id, label: `Leaving ${leg.destinationName}`, at: tapAt(leg.id, "LEAVE") },
+      { key: `ARRIVE:${leg.id}`, kind: "ARRIVE" as const, legId: leg.id, label: `Arrived at ${leg.destinationName}`, at: tapAt(leg.id, "ARRIVE"), missed: missed.has(leg.id) },
+      { key: `LEAVE:${leg.id}`, kind: "LEAVE" as const, legId: leg.id, label: `Leaving ${leg.destinationName}`, at: tapAt(leg.id, "LEAVE"), missed: missed.has(leg.id) },
     ]),
     { key: "END", kind: "END", label: `Arrived at ${last.destinationName} · End trip`, at: run?.endAt },
   ];

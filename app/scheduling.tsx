@@ -2,25 +2,32 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
+  answerStopReport,
   createCompanyTrip,
   createSchedule,
   discardScheduleDraft,
   getSchedules,
+  handleProblem,
   hydrateKovaData,
   moveRequestDay,
+  releaseMissedStop,
   saveScheduleDraft,
   submitSchedule,
+  type StopDecision,
   type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { planOn, planOptions, type PlanContext, type PlanOption } from "@/lib/scheduling-plan";
 import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
-import { currentRevision, openRevision } from "@/lib/trip-record";
+import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
+import { missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
 import {
+  carriedStops,
   dayCounts,
   isWaiting,
   placeGroups,
@@ -64,7 +71,7 @@ export default function Scheduling({
   /** Keeps the address in step, so a refresh or a link opens the same day and kind. */
   onChange: (date: string, kind: TripKind) => void;
 }) {
-  const { requests, schedules, vehicles, accounts, attendance, companyRuns, stopTaps, options } = useKovaData();
+  const { requests, schedules, vehicles, accounts, attendance, companyRuns, stopTaps, problems, options } = useKovaData();
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
@@ -85,6 +92,10 @@ export default function Scheduling({
   const [error, setError] = useState("");
   // Changes that can be undone, the last one last.
   const [undos, setUndos] = useState<UndoEntry[]>([]);
+  // A missed stop being sent back to its requester, with the reason.
+  const [sendingBack, setSendingBack] = useState<{ id: string; reason: string } | null>(null);
+  // A missed stop being moved to another day, with the day picked.
+  const [movingTo, setMovingTo] = useState<{ id: string; date: string } | null>(null);
   useAutoClear(notice, setNotice);
   const strip = useRef<HTMLDivElement>(null);
   // On phones the strip scrolls; keep the chosen day in view.
@@ -104,6 +115,7 @@ export default function Scheduling({
   const rows = vehicleRows(vehicles, accounts, schedules, day).filter((row) => row.kind === kind);
   const stops = toPlan(requests, day, kind);
   const week = weekStops(requests, day, kind);
+  const carried = carriedStops(requests, day, today, kind);
   const urgent = stops.filter((stop) => stop.requestType === "URGENT");
   const trips = rows.flatMap((row) => row.trips);
   const started = (scheduleId: string) =>
@@ -126,7 +138,16 @@ export default function Scheduling({
   const sheetStops = stopsOf(sheetIds);
   const dragStops = dragIds ? stopsOf(dragIds) : [];
   const now = manilaHhmm(new Date().toISOString());
-  const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started };
+  // Stops reported missed (0061), by leg: reached, like a tapped one (0063).
+  const missed = missedLegs(problems);
+  // Legs of a trip on the road up to the last one the Driver tapped or missed (0060).
+  const reached = (scheduleId: string) => {
+    const schedule = schedules.find((item) => item.id === scheduleId);
+    const legs = (schedule && publishedRevision(schedule)?.legs) || [];
+    return legs.reduce((count, leg, index) => (stopTaps.some((tap) => tap.legId === leg.id) || missed.has(leg.id) ? index + 1 : count), 0);
+  };
+  const reports = openStopReports(problems, schedules, requests, day, kind, today);
+  const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started, reached };
 
   /**
    * Saves the stops onto a vehicle as the option says: a new trip, or the
@@ -145,7 +166,8 @@ export default function Scheduling({
     setNotice("");
     try {
       const moved = stops.filter((stop) => stop.date !== day);
-      const moves = moved.map((stop) => ({ id: stop.id, from: stop.date }));
+      // Undo puts a stop back on its day, unless that day has passed.
+      const moves = moved.filter((stop) => stop.date >= today).map((stop) => ({ id: stop.id, from: stop.date }));
       for (const stop of moved) await moveRequestDay(stop.id, day);
       if (option.trip) {
         const before = undoEntry(option.trip.schedule, kind, moves);
@@ -217,6 +239,48 @@ export default function Scheduling({
       for (const move of entry.moves) await moveRequestDay(move.id, move.from);
       return "Undone." + (entry.moves.length ? " Requester notified of the day." : "");
     });
+  }
+  /** Takes a missed stop's requests off the trip (0063), then shows where they could go. */
+  function planAgain(item: OpenStopReport) {
+    void run(async () => {
+      const { requestIds } = await releaseMissedStop(item.report.id, false);
+      setSheetIds(requestIds);
+      return `${item.place} is waiting again. Fit it in on a trip.`;
+    }, "clear");
+  }
+  /** Takes a missed stop's requests off the trip and onto another day (0065), then shows that day. */
+  function moveTo(item: OpenStopReport, date: string) {
+    void run(async () => {
+      const { requestIds } = await releaseMissedStop(item.report.id, false);
+      for (const id of requestIds) await moveRequestDay(id, date);
+      setMovingTo(null);
+      pickDay(date);
+      setSheetIds(requestIds);
+      return `${item.place} moved to ${shortDay(date)}; the requester is told. Fit it in on a trip.`;
+    }, "clear");
+  }
+  /** Answers a stop report the Driver waits on (0068). Change the route opens the trip to edit. */
+  function answerReport(item: OpenStopReport, decision: StopDecision) {
+    void run(async () => {
+      await answerStopReport(item.report.id, decision);
+      if (decision === "CHANGE") {
+        setOpenPlates((plates) => new Set([...plates, item.plate]));
+        setFlashPlate(item.plate);
+        return "Change the route below, then submit it. The Driver waits until the Admin approves it.";
+      }
+      return decision === "SKIP"
+        ? `The Driver is told to skip ${item.place}.` + (item.stops.length ? " Plan its stops below." : "")
+        : decision === "WAIT"
+          ? "The Driver is told to wait there."
+          : "The Driver is told to end the trip.";
+    });
+  }
+  function sendBack(item: OpenStopReport, reason: string) {
+    void run(async () => {
+      await releaseMissedStop(item.report.id, true, reason);
+      setSendingBack(null);
+      return `${item.place} sent back to the requester.`;
+    }, "clear");
   }
   const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
@@ -331,6 +395,99 @@ export default function Scheduling({
           </Button>
         </div>
       ))}
+      {reports.map((item) => {
+        const { report } = item;
+        // Waiting for an answer (0068); "Change the route" waits on the Admin's approval and can still be answered otherwise.
+        const waiting = waitsForAnswer(report);
+        const changing = waiting && report.decision === "CHANGE";
+        const stops = item.stops.map((stop) => stopNumber(stop) || stop.ownerName).join(", ");
+        const reason = sendingBack?.id === report.id ? sendingBack.reason : null;
+        const moveDate = movingTo?.id === report.id ? movingTo.date : null;
+        return (
+          <div key={report.id} className={"sc-banner" + (changing ? " wait" : waiting || plansAgain(report) ? "" : " wait")}>
+            <span>
+              <b>{stopReportLabel(report)}</b> at {item.place}
+              {stops && ` (${stops})`} · {vehicleName(item.plate)}
+              {item.schedule.date !== day && ` · ${shortDay(item.schedule.date)}`}
+              {report.note && ` · "${report.note}"`}
+              {changing
+                ? " · The Driver waits until the Admin approves your route change."
+                : waiting && " · The Driver is waiting for your answer."}
+            </span>
+            {reason !== null ? (
+              <span className="sc-banner-form">
+                <Input
+                  aria-label="Reason for the requester"
+                  placeholder="Reason for the requester (optional)"
+                  value={reason}
+                  maxLength={500}
+                  disabled={busy}
+                  onChange={(event) => setSendingBack({ id: report.id, reason: event.target.value })}
+                />
+                <Button className="danger" disabled={busy} onClick={() => sendBack(item, reason)}>
+                  Send back
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={() => setSendingBack(null)}>
+                  Cancel
+                </Button>
+              </span>
+            ) : moveDate !== null ? (
+              <span className="sc-banner-form">
+                <Input
+                  type="date"
+                  aria-label="Move to"
+                  value={moveDate}
+                  min={today}
+                  disabled={busy}
+                  onChange={(event) => setMovingTo({ id: report.id, date: event.target.value })}
+                />
+                <Button className="danger" disabled={busy || !moveDate || moveDate < today} onClick={() => moveTo(item, moveDate)}>
+                  Move
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={() => setMovingTo(null)}>
+                  Cancel
+                </Button>
+              </span>
+            ) : waiting ? (
+              STOP_ANSWERS.filter((answer) => !(changing && answer.decision === "CHANGE")).map((answer, index) => (
+                <Button
+                  key={answer.decision}
+                  className={index === 0 ? "danger" : undefined}
+                  variant={index === 0 ? undefined : "outline"}
+                  disabled={busy}
+                  onClick={() => answerReport(item, answer.decision)}
+                >
+                  {answer.label}
+                </Button>
+              ))
+            ) : plansAgain(report) ? (
+              <>
+                <Button className="danger" disabled={busy} onClick={() => planAgain(item)}>
+                  Plan again
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={() => setMovingTo({ id: report.id, date: addDays(today, 1) })}>
+                  Another day
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setSendingBack({ id: report.id, reason: `${stopReportLabel(report)} at ${item.place}` })}
+                >
+                  Send back to requester
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void run(async () => (await handleProblem(report.id, "Seen on Scheduling"), "Marked handled."))}
+              >
+                Got it
+              </Button>
+            )}
+          </div>
+        );
+      })}
       {waitingForAdmin.map((trip) => (
         <div key={trip.schedule.id} className="sc-banner wait">
           <span>
@@ -404,6 +561,16 @@ export default function Scheduling({
             ))}
             {!week.length && <p className="sc-empty">None.</p>}
           </div>
+          {carried.length > 0 && (
+            <>
+              <div className="sc-section">Missed or past due ({carried.length})</div>
+              <div className="sc-list">
+                {carried.map((stop) => (
+                  <StopCard key={stop.id} stop={stop} carried onOpen={setSheetIds} onDrag={setDragIds} />
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         <section className="sc-vehicles" aria-label="Vehicles">
@@ -425,12 +592,13 @@ export default function Scheduling({
                   kind={kind}
                   day={day}
                   context={context}
-                  waiting={[...stops, ...week]}
+                  waiting={[...stops, ...week, ...carried]}
                   fuel={fuel}
                   busy={busy}
                   run={run}
+                  missedLeg={(legId) => missed.get(legId) && stopReportLabel(missed.get(legId)!)}
                   doneLeg={(legId, isLast) =>
-                    stopTaps.some((tap) => tap.legId === legId && tap.kind === "ARRIVE") ||
+                    stopTaps.some((tap) => tap.legId === legId) ||
                     (isLast &&
                       (attendance.some((item) => item.scheduleId === trip.schedule.id && item.end) ||
                         companyRuns.some((item) => item.scheduleId === trip.schedule.id && item.endAt)))

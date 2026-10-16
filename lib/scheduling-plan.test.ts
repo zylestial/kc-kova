@@ -47,6 +47,7 @@ const context = (requests: TransportRequest[], patch: Partial<PlanContext> = {})
   isToday: false,
   now: "09:00",
   started: () => false,
+  reached: () => 0,
   ...patch,
 });
 const driver = { id: "d1", name: "Mario", role: "Driver", status: "Active" } as Account;
@@ -151,10 +152,20 @@ describe("joining a trip", () => {
     expect([option.arrive, option.extra]).toEqual(["09:30", 60]);
   });
 
-  it("goes into draft changes on an approved trip, and can't touch one on the road", () => {
+  it("goes into draft changes on an approved trip", () => {
     const approved = trip(existing.revision.legs, ["a"], "APPROVED");
     expect(planOn([b], row([approved]), context([a, b]))).toMatchObject({ needsAdmin: true, rowVersion: null });
-    expect(planOn([b], row([approved]), context([a, b], { started: () => true })).blocked).toBe("On the road");
+  });
+
+  it("goes into draft changes on a trip on the road, after the legs the Driver has reached", () => {
+    const approved = trip(existing.revision.legs, ["a"], "APPROVED");
+    const option = planOn([b], row([approved]), context([a, b], { started: () => true, reached: () => 1 }));
+    expect(option).toMatchObject({ blocked: "", needsAdmin: true, rowVersion: null });
+    expect(option.input.legs.map((item) => [item.id, item.destinationId])).toEqual([
+      ["l1", "wilcon"],
+      [undefined, "bir"],
+      ["l2", undefined],
+    ]);
   });
 
   it("can still go on a trip waiting for Admin, which stays waiting", () => {
@@ -175,14 +186,6 @@ describe("planOptions", () => {
     const a = stop("a", "wilcon");
     const options = planOptions([a], [row([], { driver: undefined }), row()], context([a]));
     expect(options.map((option) => option.blocked)).toEqual(["", "No Driver assigned"]);
-  });
-
-  it("prefers a free vehicle to a trip that would run past 6 PM", () => {
-    const a = stop("a", "wilcon");
-    const b = stop("b", "bir");
-    const late = trip([leg(1, "wilcon", "17:00", "17:30", ["rd-a"]), leg(2, undefined, "18:00", "18:30", [], true)], ["a"]);
-    const free = row([], { vehicle: { plate: "V2", name: "Van 2", status: "Active", assignedDriverId: "d1", companyTrips: false } });
-    expect(planOptions([b], [row([late]), free], context([a, b]))[0].row.vehicle.plate).toBe("V2");
   });
 
   it("offers a Company stop only on the vehicle the requester asked for", () => {

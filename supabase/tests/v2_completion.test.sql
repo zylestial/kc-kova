@@ -173,7 +173,7 @@ select throws_ok(format($$ select save_schedule_draft(%L, null, null, null, null
 reset role;
 select is((select count(*)::int from audit_events where action in ('completion.submit', 'problem.report')), 6,
   'Completion and problem reports, Driver and Admin override alike, are in audit history');
-select is((select count(*)::int from problem_reports where status = 'OPEN'), 3, 'All three reports exist, still OPEN');
+select is((select count(*)::int from problem_reports where status = 'OPEN' and leg_id is null), 3, 'All three reports exist, still OPEN');
 
 select * from finish();
 rollback;

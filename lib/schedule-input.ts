@@ -4,6 +4,8 @@ import { ids, isoDate, parseWith, text, trimmedText } from "@/lib/validation";
 
 const leg = z
   .object({
+    /** A leg already on that version keeps its id, so the Driver's taps stay on it (0060). */
+    id: z.string().min(1).optional().catch(undefined),
     destinationId: text,
     plannedTimeOut: text,
     plannedTimeIn: text,
@@ -12,7 +14,8 @@ const leg = z
     stops: ids.nullish().transform((stops) => stops ?? []),
     isFinal: z.unknown().optional().transform((value) => value === true),
   })
-  .transform(({ destinationId, ...rest }) => ({
+  .transform(({ id, destinationId, ...rest }) => ({
+    ...(id ? { id } : {}),
     ...rest,
     destinationId: rest.isFinal ? undefined : destinationId || undefined,
   }));

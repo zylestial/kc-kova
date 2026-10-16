@@ -4,6 +4,7 @@ import type { TransportRequest } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import type { FinishedTrip } from "@/lib/finished-trips";
 import { formTimeValue, type LegTimes } from "@/lib/stop-times";
+import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
 import CompanyTripPaper from "./company-trip-paper";
 
 /**
@@ -28,6 +29,8 @@ export default function CompanyTripPrint({
   const stops = requests.filter((request) => revision.requestIds.includes(request.id));
   const group = stops[0]?.group;
   const stopOf = (stopId?: string) => stops.find((request) => request.destinations.some((item) => item.id === stopId));
+  // A stop reported missed (0061) has no Time In, and the leg after it no Time Out.
+  const missed = missedLegs(trip.problems);
   return createPortal(
     <div className="print-form company-print">
       <CompanyTripPaper
@@ -39,15 +42,17 @@ export default function CompanyTripPrint({
           requestedBy: [...new Set(stops.map((stop) => stop.ownerName))].join(", "),
           position: accounts.find((account) => account.id === group?.ownerAccountId)?.position ?? "",
           department: group?.department?.name ?? "",
-          legs: times.map(({ leg, out, in: timeIn }) => {
+          legs: times.map(({ leg, out, in: timeIn }, index) => {
+            const missedHere = missed.get(leg.id);
+            const missedBefore = index > 0 && missed.has(times[index - 1].leg.id);
             const stop = stopOf(leg.stops[0]);
             const purpose = stop?.urgentReason ? `Urgent: ${stop.urgentReason.name}` : (stop?.destinations[0]?.purposeName ?? "");
             return {
               purpose: [purpose, stop?.details].filter(Boolean).join(" – "),
               origin: leg.origin,
-              destination: leg.destinationName,
-              timeOut: formTimeValue(out) ?? "",
-              timeIn: formTimeValue(timeIn) ?? "",
+              destination: leg.destinationName + (missedHere ? ` (${stopReportLabel(missedHere)})` : ""),
+              timeOut: formTimeValue(out) ?? (missedBefore ? "—" : ""),
+              timeIn: formTimeValue(timeIn) ?? (missedHere ? "Missed" : ""),
               contact: stop?.contact ?? "",
               supplier: stop?.supplier?.name ?? "",
             };

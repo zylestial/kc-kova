@@ -310,7 +310,27 @@ describe("toTripCompletion and toProblemReport", () => {
       createdAt: "2026-10-05T08:30:00Z",
       status: "OPEN",
       handlingNote: "",
+      kind: "OTHER",
+      missed: false,
     });
+  });
+
+  it("maps a stop report (0061)", () => {
+    expect(
+      toProblemReport({
+        id: "p2",
+        schedule_id: "s1",
+        revision_id: "v1",
+        driver_id: "d1",
+        note: "Gate locked",
+        created_at: "2026-10-05T08:30:00Z",
+        status: "OPEN",
+        leg_id: "l2",
+        kind: "NOT_AVAILABLE",
+        missed: true,
+        reported_by_account_id: "d1",
+      }),
+    ).toMatchObject({ legId: "l2", kind: "NOT_AVAILABLE", missed: true, reportedByAccountId: "d1" });
   });
 
   it("maps the Done fields of a completion", () => {

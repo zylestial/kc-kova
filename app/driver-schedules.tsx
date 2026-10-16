@@ -25,8 +25,11 @@ import {
   recordAttendance,
   recordStopTap,
   reportProblem,
+  reportStop,
   submitCompletion,
+  type StopReportKind,
   type ProblemReport,
+  type ScheduleLeg,
   type Schedule,
   type ScheduleRevision,
   type CompanyTripRun,
@@ -35,13 +38,15 @@ import {
   type TripCompletion,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
-import { stopsFor } from "@/lib/trip-record";
+import { routeChangedAt, stopsFor } from "@/lib/trip-record";
 import { manilaToday } from "@/lib/timezone";
 import { lastEndReading, longTripWarning } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
 import { getPhoneLocation } from "@/lib/phone-location";
-import { legTimes, tripSteps, type TimeSource } from "@/lib/stop-times";
+import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
+import StopReportForm from "./stop-report-form";
+import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -119,6 +124,8 @@ function tripStatus(trip: Trip): TripStatus {
 }
 
 const routeLabel = (trip: Trip) => trip.revision.legs.map((leg) => leg.destinationName).join(" → ");
+/** When the Scheduler changed the route since the trip started (0060). */
+const changedAt = (trip: Trip) => routeChangedAt(trip.revision, trip.attendance?.start.at ?? trip.run?.startAt);
 
 type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
 
@@ -142,7 +149,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [status, setStatus] = useState("all");
   const [form, setForm] = useState<FormFilterValue>("all");
   const [sort, setSort] = useState<Sort<TripSortKey>>(null);
-  const [mode, setMode] = useState<"view" | "complete" | "problem">("view");
+  const [mode, setMode] = useState<"view" | "complete" | "problem" | "stop">("view");
+  /** The stop being reported (0061). */
+  const [reportAt, setReportAt] = useState<{ legId: string; place: string } | null>(null);
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -178,6 +187,24 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setNote("");
     setError("");
     setLocationOff(false);
+    setReportAt(null);
+  }
+
+  // A problem at one stop (0061), with the phone's position when it shares one.
+  async function sendStopReport(report: { kind: StopReportKind; note: string; requestIds?: string[] }) {
+    if (!selected || !reportAt) return;
+    setBusy(true);
+    setError("");
+    try {
+      const location = await getPhoneLocation();
+      await reportStop(selected.schedule.id, { legId: reportAt.legId, ...report, location });
+      setNotice("Reported. The Scheduler has been told; wait for their answer.");
+      setMode("view");
+      setReportAt(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
   }
 
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
@@ -464,7 +491,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {mode === "complete" ? "Complete this trip" : mode === "problem" ? "Report a problem" : "Your trip"}
+              {mode === "complete" ? "Complete this trip" : mode === "problem" || mode === "stop" ? "Report a problem" : "Your trip"}
             </DialogTitle>
             <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
@@ -491,14 +518,29 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               </DialogFooter>
             </>
           )}
+          {selected && mode === "view" && changedAt(selected) && (
+            <p className="notice" role="status">
+              Route changed by the Scheduler at {hhmmLabel(manilaHhmm(changedAt(selected)!))}. Check your next stop.
+            </p>
+          )}
+          {selected && mode === "view" && !selected.attendance?.end && !selected.schedule.pausedAt && (
+            <AnswerNotice report={latestAnswer(selected.problems)} legs={selected.revision.legs} />
+          )}
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
               <DriverTripSteps
-                steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps))}
+                steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps), new Set(missedLegs(selected.problems).keys()))}
                 legs={selected.revision.legs}
                 stopsById={stopsById}
                 onTap={tapStep}
                 busyKey={busyStop}
+                missed={new Map([...missedLegs(selected.problems)].map(([legId, report]) => [legId, stopReportLabel(report)]))}
+                onReport={(legId, place) => {
+                  setReportAt({ legId, place });
+                  setMode("stop");
+                  setError("");
+                }}
+                held={selected.schedule.pausedAt ? holdText(selected.problems) : undefined}
                 notYet={selected.startable ? undefined : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
               />
               {locationOff && (
@@ -526,7 +568,10 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               )}
               {selected.problems.map((item) => (
                 <p className="helper" key={item.id}>
-                  Problem reported: {item.note}
+                  {item.legId
+                    ? `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}`
+                    : "Problem reported"}
+                  {item.note && `: ${item.note}`}
                 </p>
               ))}
               <DialogFooter>
@@ -600,6 +645,19 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               </p>
             </>
           )}
+          {selected && mode === "stop" && reportAt && (
+            <StopReportForm
+              place={reportAt.place}
+              stops={stopChoices(selected.revision.legs.find((leg) => leg.id === reportAt.legId), requests)}
+              busy={busy}
+              onCancel={() => {
+                setMode("view");
+                setReportAt(null);
+                setError("");
+              }}
+              onSend={sendStopReport}
+            />
+          )}
           {selected && mode === "problem" && (
             <label className="field">
               <span>What went wrong *</span>
@@ -611,7 +669,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
               {error}
             </p>
           )}
-          {selected && mode !== "view" && (
+          {selected && mode !== "view" && mode !== "stop" && (
             <DialogFooter>
               <Button
                 variant="outline"
@@ -652,5 +710,16 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** The Scheduler's latest answer to a stop report (0068), so the Driver knows what to do next. */
+function AnswerNotice({ report, legs }: { report?: ProblemReport; legs: ScheduleLeg[] }) {
+  if (!report) return null;
+  const place = legs.find((leg) => leg.id === report.legId)?.destinationName ?? "this stop";
+  return (
+    <p className="notice info" role="status">
+      <b>Scheduler&apos;s answer at {hhmmLabel(manilaHhmm(report.decidedAt!))}:</b> {answerText(report, place)}
+    </p>
   );
 }

@@ -92,6 +92,8 @@ describe("formTimeValue and missingTimes", () => {
     expect(missingTimes(legTimes(legs, startedAt0802, []))).toBe(5);
     const times = legTimes(legs, startedAt0802, [], [correction("l2", "OUT", "09:40")]);
     expect(missingTimes(times)).toBe(4);
+    // City Hall missed (0061): its Time In and the Market leg's Time Out aren't missing.
+    expect(missingTimes(legTimes(legs, startedAt0802, []), new Set(["l1"]))).toBe(3);
     expect(formTimeValue(times[1].out)).toBe("09:40");
     expect(formTimeValue(times[0].out)).toBe("08:02");
   });
@@ -114,6 +116,11 @@ describe("tripSteps", () => {
     expect(states(legTimes(legs, started, [stop("ARRIVE", "l1")]))).toEqual([
       "START:done", "ARRIVE:done", "LEAVE:next", "ARRIVE:later", "LEAVE:later", "END:later",
     ]);
+  });
+
+  it("passes a stop reported missed: its next step is the next one (0061)", () => {
+    const steps = tripSteps(legTimes(legs, started, []), new Set(["l1"])).map((step) => `${step.time.source.kind}:${step.state}`);
+    expect(steps).toEqual(["START:done", "ARRIVE:missed", "LEAVE:missed", "ARRIVE:next", "LEAVE:later", "END:later"]);
   });
 
   it("marks a passed step as skipped", () => {

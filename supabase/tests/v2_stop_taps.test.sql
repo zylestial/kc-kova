@@ -4,7 +4,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -152,7 +152,8 @@ select ok(
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select is((select count(*)::int from stop_taps), 3, 'A Driver sees only their own taps');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select is((select count(*)::int from stop_taps), 0, 'A Scheduler sees no taps');
+select is((select count(*)::int from stop_taps), 4, 'A Scheduler sees every tap, to see where a trip on the road is (0062)');
+select is((select count(*)::int from trip_attendance), 2, 'and every Start / End trip');
 
 select * from finish();
 rollback;

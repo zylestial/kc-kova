@@ -53,6 +53,8 @@ const problem = (scheduleId: string, status: ProblemReport["status"]): ProblemRe
   createdAt: "",
   status,
   handlingNote: "",
+  kind: "OTHER",
+  missed: false,
 });
 
 describe("buildFinishedTrips", () => {

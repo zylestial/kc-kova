@@ -1,5 +1,5 @@
 import type { ScheduleInput, ScheduleLeg } from "@/lib/kova-api";
-import { DAY_END, type legTimer, type WorkLeg } from "@/lib/scheduling-plan";
+import { type legTimer, type WorkLeg } from "@/lib/scheduling-plan";
 import { MAX_LEGS } from "@/lib/trip-record";
 import { hhmmLabel } from "@/lib/stop-times";
 import { toHhmm, toMinutes } from "@/lib/trip-estimate";
@@ -16,6 +16,8 @@ type Timer = ReturnType<typeof legTimer>;
 
 export type EditLeg = WorkLeg & {
   key: string;
+  /** Draft changes to a trip on the road: the Driver's leg this came from (0060). */
+  source?: string;
   destinationName: string;
   timeOut: string;
   timeIn: string;
@@ -37,6 +39,7 @@ export function retime(legs: EditLeg[], timer: Timer): EditLeg[] {
 export function editLegs(legs: ScheduleLeg[], timer: Timer, start: string): EditLeg[] {
   const saved: EditLeg[] = legs.map((leg) => ({
     key: leg.id,
+    source: leg.sourceLegId,
     destinationId: leg.destinationId,
     destinationName: leg.isFinal ? "ANONANG" : leg.destinationName,
     stops: leg.stops,
@@ -118,13 +121,14 @@ export function changeDestination(
   );
 }
 
-/** What save_schedule_draft takes for these legs: every request with a stop on them. */
+/** What save_schedule_draft (or edit_live_trip) takes for these legs: every request with a stop on them. Each leg keeps its saved id (0060). */
 export function editInput(date: string, plate: string, legs: EditLeg[], requestIdOf: (stopId: string) => string | undefined): ScheduleInput {
   return {
     date,
     plate,
     requestIds: [...new Set(legs.flatMap((leg) => leg.stops.map(requestIdOf)).filter((id): id is string => !!id))],
     legs: legs.map((leg) => ({
+      id: leg.key,
       destinationId: leg.isFinal ? undefined : leg.destinationId,
       plannedTimeOut: leg.timeOut,
       plannedTimeIn: leg.timeIn,
@@ -145,8 +149,6 @@ export function tripChecks(legs: EditLeg[], timer: Timer, company: boolean, name
   const problems: string[] = [];
   if (!legs.length) return problems;
   if (legs.length > MAX_LEGS) problems.push(`Over ${MAX_LEGS} legs: this trip has ${legs.length}`);
-  const end = legs.at(-1)!.timeIn;
-  if (end > DAY_END) problems.push(`Ends ${hhmmLabel(end)}, after the Driver's day ends at 6:00 PM`);
   legs.forEach((_, index) => problems.push(...legProblems(legs, index, timer, nameOf).map((problem) => `Leg ${index + 1}: ${problem}`)));
   if (!company && !legs.at(-1)!.isFinal) problems.push(`Must end at ANONANG: the last leg goes to ${legs.at(-1)!.destinationName}`);
   return problems;

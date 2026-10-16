@@ -95,6 +95,8 @@ type RequestRow = {
   sent_back_reason: string;
   /** 0053: a Scheduler moved this "any day that week" stop to another day. */
   moved_at?: string | null;
+  /** 0065: missed on the road and taken off the trip. */
+  missed_at?: string | null;
   // 0052; older rows have no group and the defaults.
   group_id?: string | null;
   stop_letter?: string;
@@ -204,6 +206,7 @@ export function toTransportRequest(row: RequestRow, progressRow?: RequestProgres
     cancellationPending: progressRow?.cancellation_pending ?? false,
     sentBack: row.sent_back_at ? { at: row.sent_back_at, reason: row.sent_back_reason } : undefined,
     movedAt: row.moved_at ?? undefined,
+    missedAt: row.missed_at ?? undefined,
   };
 }
 
@@ -411,6 +414,14 @@ type ProblemRow = {
   handled_by_account_id?: string | null;
   handling_note?: string | null;
   follow_up_schedule_id?: string | null;
+  /** 0061; missing on rows from before it. */
+  leg_id?: string | null;
+  kind?: ProblemReport["kind"];
+  missed?: boolean;
+  request_ids?: string[] | null;
+  decision?: ProblemReport["decision"] | null;
+  decided_at?: string | null;
+  reported_by_account_id?: string | null;
 };
 
 export function toProblemReport(row: ProblemRow): ProblemReport {
@@ -426,6 +437,13 @@ export function toProblemReport(row: ProblemRow): ProblemReport {
     handledByAccountId: row.handled_by_account_id ?? undefined,
     handlingNote: row.handling_note ?? "",
     followUpScheduleId: row.follow_up_schedule_id ?? undefined,
+    legId: row.leg_id ?? undefined,
+    kind: row.kind ?? "OTHER",
+    missed: row.missed ?? false,
+    requestIds: row.request_ids ?? undefined,
+    decision: row.decision ?? undefined,
+    decidedAt: row.decided_at ?? undefined,
+    reportedByAccountId: row.reported_by_account_id ?? undefined,
   };
 }
 
@@ -463,6 +481,8 @@ type ScheduleLegRow = {
   contact_name: string;
   contact_number: string;
   is_final: boolean;
+  /** The leg of the Driver's route a draft leg came from (0060). */
+  source_leg_id?: string | null;
   leg_stops?: Array<{ request_destination_id: string }>;
 };
 
@@ -493,6 +513,8 @@ type ScheduleRow = {
   updated_at: string;
   /** 0054; missing on rows from before it. */
   kind?: Schedule["kind"];
+  /** 0061: paused for a Vehicle problem. */
+  paused_at?: string | null;
   schedule_revisions?: ScheduleRevisionRow[];
 };
 
@@ -507,6 +529,7 @@ export function toSchedule(row: ScheduleRow): Schedule {
     createdByAccountId: row.created_by_account_id,
     status: row.status,
     publishedRevisionId: row.published_revision_id ?? undefined,
+    pausedAt: row.paused_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     revisions: [...(row.schedule_revisions ?? [])]
@@ -538,6 +561,7 @@ export function toSchedule(row: ScheduleRow): Schedule {
             contactName: leg.contact_name,
             contactNumber: leg.contact_number,
             isFinal: leg.is_final,
+            sourceLegId: leg.source_leg_id ?? undefined,
             stops: (leg.leg_stops ?? []).map((stop) => stop.request_destination_id),
           })),
       })),

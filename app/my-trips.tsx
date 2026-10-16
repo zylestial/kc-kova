@@ -3,12 +3,22 @@ import { useMemo, useState } from "react";
 import { Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { recordCompanyRun, recordCompanyStop, type Schedule, type ScheduleRevision } from "@/lib/kova-api";
+import {
+  recordCompanyRun,
+  recordCompanyStop,
+  reportStop,
+  type Schedule,
+  type ScheduleRevision,
+  type StopReportKind,
+} from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { manilaToday } from "@/lib/timezone";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
+import { routeChangedAt } from "@/lib/trip-record";
+import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import StopReportForm from "./stop-report-form";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -22,10 +32,12 @@ type Trip = { schedule: Schedule; revision: ScheduleRevision };
  * Company trips. The requester taps Start trip at the starting point with
  * the odometer, Arrived and Leaving at each stop, and End trip on reaching
  * the last stop with the odometer again; End trip submits the trip. The
- * Driver drives; nothing goes into Attendance (0055).
+ * Driver drives; nothing goes into Attendance (0055). A problem at a stop
+ * is reported here too (0061): a missed stop is passed over, and a vehicle
+ * problem pauses the trip until Resume trip.
  */
 export default function MyTrips({ accountId, initialOpenId }: { accountId: string; initialOpenId?: string }) {
-  const { schedules, requests, vehicles, companyRuns, stopTaps, completions } = useKovaData();
+  const { schedules, requests, vehicles, companyRuns, stopTaps, completions, problems } = useKovaData();
   const today = manilaToday();
   const mine = useMemo(() => new Set(requests.filter((request) => request.ownerAccountId === accountId).map((request) => request.id)), [requests, accountId]);
   const trips: Trip[] = schedules
@@ -41,12 +53,20 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [locationOff, setLocationOff] = useState(false);
+  /** The stop being reported (0061). */
+  const [reportAt, setReportAt] = useState<{ legId: string; place: string } | null>(null);
   useAutoClear(notice, setNotice);
 
   const open = trips.find((trip) => trip.schedule.id === openId);
   const runOf = (trip: Trip) => companyRuns.find((run) => run.scheduleId === trip.schedule.id);
+  const problemsOf = (trip: Trip) => problems.filter((item) => item.scheduleId === trip.schedule.id);
   const stepsOf = (trip: Trip) =>
-    companyTripSteps(trip.revision.legs, runOf(trip), stopTaps.filter((tap) => tap.scheduleId === trip.schedule.id));
+    companyTripSteps(
+      trip.revision.legs,
+      runOf(trip),
+      stopTaps.filter((tap) => tap.scheduleId === trip.schedule.id),
+      new Set(missedLegs(problemsOf(trip)).keys()),
+    );
   const vehicleName = (plate: string) => vehicles.find((vehicle) => vehicle.plate === plate)?.name ?? plate;
 
   function status(trip: Trip): [string, string] {
@@ -88,6 +108,21 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     setBusy(false);
   }
 
+  async function sendStopReport(trip: Trip, report: { kind: StopReportKind; note: string; requestIds?: string[] }) {
+    if (!reportAt) return;
+    setBusy(true);
+    setError("");
+    try {
+      const location = await getPhoneLocation();
+      await reportStop(trip.schedule.id, { legId: reportAt.legId, ...report, location });
+      setNotice("Reported. The Scheduler has been told; wait for their answer.");
+      setReportAt(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
+  }
+
   return (
     <>
       <div className="page-heading">
@@ -118,8 +153,14 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
               const [label, pill] = status(trip);
               const isOpen = open?.schedule.id === trip.schedule.id;
               const steps = stepsOf(trip);
-              const next = steps.find((step) => !step.at);
+              const next = steps.find((step) => !step.at && !step.missed);
               const run = runOf(trip);
+              const missed = missedLegs(problemsOf(trip));
+              // The stop the next step is at (End trip is the last stop's arrival).
+              const nextLeg = next?.legId ?? (next?.kind === "END" ? trip.revision.legs.at(-1)?.id : undefined);
+              const onTheRoad = !!run && !run.endAt;
+              // The Scheduler's latest answer to a stop report (0068).
+              const answer = onTheRoad && !trip.schedule.pausedAt ? latestAnswer(problemsOf(trip)) : undefined;
               return (
                 <article key={trip.schedule.id} className={"my-trip" + (isOpen ? " open" : "")}>
                   <button
@@ -130,6 +171,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       setOpenId(isOpen ? null : trip.schedule.id);
                       setError("");
                       setOdometer("");
+                      setReportAt(null);
                     }}
                   >
                     <span>
@@ -143,13 +185,33 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                   </button>
                   {isOpen && (
                     <div className="my-trip-body">
+                      {routeChangedAt(trip.revision, run?.startAt) && (
+                        <p className="notice" role="status">
+                          Route changed by the Scheduler at {timeLabel(routeChangedAt(trip.revision, run?.startAt)!)}. Check your next stop.
+                        </p>
+                      )}
+                      {answer && (
+                        <p className="notice info" role="status">
+                          <b>Scheduler&apos;s answer at {timeLabel(answer.decidedAt!)}:</b>{" "}
+                          {answerText(answer, trip.revision.legs.find((leg) => leg.id === answer.legId)?.destinationName ?? "this stop")}
+                        </p>
+                      )}
                       <ol className="my-trip-steps">
-                        {steps.map((step) => (
-                          <li key={step.key} className={step.at ? "done" : step === next ? "next" : ""}>
-                            <span>{step.label}</span>
-                            <small>{step.at ? timeLabel(step.at) : ""}</small>
-                          </li>
-                        ))}
+                        {steps
+                          .filter((step) => !(step.missed && step.kind === "LEAVE"))
+                          .map((step) =>
+                            step.missed ? (
+                              <li key={step.key} className="missed">
+                                <span>{step.label.replace("Arrived at ", "")}</span>
+                                <small>{stopReportLabel(missed.get(step.legId!)!)}</small>
+                              </li>
+                            ) : (
+                              <li key={step.key} className={step.at ? "done" : step === next ? "next" : ""}>
+                                <span>{step.label}</span>
+                                <small>{step.at ? timeLabel(step.at) : ""}</small>
+                              </li>
+                            ),
+                          )}
                       </ol>
                       {run && (
                         <p className="helper">
@@ -163,7 +225,24 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                         </p>
                       )}
                       {next && trip.schedule.date > today && <p className="helper">Start trip opens on {dateLabel(trip.schedule.date)}.</p>}
-                      {next && trip.schedule.date <= today && (
+                      {reportAt && (
+                        <StopReportForm
+                          place={reportAt.place}
+                          stops={stopChoices(trip.revision.legs.find((leg) => leg.id === reportAt.legId), requests)}
+                          busy={busy}
+                          onCancel={() => {
+                            setReportAt(null);
+                            setError("");
+                          }}
+                          onSend={(report) => sendStopReport(trip, report)}
+                        />
+                      )}
+                      {!reportAt && next && onTheRoad && trip.schedule.pausedAt && (
+                        <p className="notice error trip-held" role="status">
+                          {holdText(problemsOf(trip))}
+                        </p>
+                      )}
+                      {!reportAt && next && trip.schedule.date <= today && !(onTheRoad && trip.schedule.pausedAt) && (
                         <div className="my-trip-action">
                           {(next.kind === "START" || next.kind === "END") && (
                             <label className="field">
@@ -179,6 +258,19 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                           <Button className="primary trip-step-button" disabled={busy} onClick={() => tap(trip, next)}>
                             {busy ? "Saving…" : next.label}
                           </Button>
+                          {onTheRoad && nextLeg && (
+                            <button
+                              type="button"
+                              className="trip-step-report"
+                              disabled={busy}
+                              onClick={() => {
+                                setReportAt({ legId: nextLeg, place: trip.revision.legs.find((leg) => leg.id === nextLeg)?.destinationName ?? "this stop" });
+                                setError("");
+                              }}
+                            >
+                              Problem here? Report it
+                            </button>
+                          )}
                         </div>
                       )}
                       {locationOff && next && (

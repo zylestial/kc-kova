@@ -17,17 +17,21 @@ export const whatText = (stop: TransportRequest) => stop.urgentReason?.name ?? s
 /**
  * One waiting stop in "To plan" (prototype stop card): number, Urgent,
  * requester, where, what and when. Tapping it opens its details and where
- * it can go; it can also be dragged onto a vehicle.
+ * it can go; it can also be dragged onto a vehicle. A stop missed on the
+ * road is tagged Missed; one shown on another day says which day it was for.
  */
 export default function StopCard({
   stop,
   inGroup = false,
+  carried = false,
   onOpen,
   onDrag,
 }: {
   stop: TransportRequest;
   /** In a place group, which already names the place. */
   inGroup?: boolean;
+  /** Missed or past due, shown on a day other than its own (0065). */
+  carried?: boolean;
   onOpen: (ids: string[]) => void;
   /** Dragging starts (the stop ids) or ends (null). */
   onDrag?: (ids: string[] | null) => void;
@@ -52,6 +56,7 @@ export default function StopCard({
         <span>
           <b className="sc-id">{stopNumber(stop) || "Request"}</b>
           {urgent && <span className="sc-tag error">Urgent</span>}
+          {stop.missedAt && <span className="sc-tag warn">Missed</span>}
           {stop.group?.form === "COMPANY" && <span className="sc-tag info">Company · {stop.group.vehiclePlate}</span>}
         </span>
         <span className="sc-who">{stop.ownerName}</span>
@@ -59,6 +64,7 @@ export default function StopCard({
       {!inGroup && <span className="sc-dest">{stop.destinations.map((item) => item.destinationName).join(" → ")}</span>}
       <span className="sc-meta">
         {whatText(stop)} · {whenText(stop)}
+        {carried && ` · was for ${dateLabel(stop.date, { weekday: "short", month: "short", day: "numeric" })}`}
       </span>
       <span className="sc-meta">{stop.projectName}</span>
     </button>

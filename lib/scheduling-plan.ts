@@ -1,7 +1,7 @@
 import type { BookingOption, ScheduleInput, ScheduleLeg, TransportRequest } from "@/lib/kova-api";
 import { canShareTrip, MAX_TRIP_LEGS } from "@/lib/company-trips";
 import { MAX_LEGS, openRevision } from "@/lib/trip-record";
-import { tripState, type Trip, type VehicleRow } from "@/lib/scheduling";
+import type { Trip, VehicleRow } from "@/lib/scheduling";
 import {
   BASE_PLACE,
   driveMinutes,
@@ -30,6 +30,8 @@ export type PlanContext = {
   /** "HH:MM" in Manila. */
   now: string;
   started: (scheduleId: string) => boolean;
+  /** How many legs from the start of a trip on the road the Driver has reached: they can't change (0060). */
+  reached: (scheduleId: string) => number;
 };
 
 export type PlanOption = {
@@ -59,6 +61,8 @@ export type PlanOption = {
 
 /** A leg being worked on: what save_schedule_draft takes, with the times the Scheduler set. */
 export type WorkLeg = {
+  /** A saved leg's id, kept so the Driver's taps stay on it (0060). */
+  id?: string;
   destinationId?: string;
   stops: string[];
   isFinal: boolean;
@@ -67,9 +71,6 @@ export type WorkLeg = {
   timeOut?: string;
   timeIn?: string;
 };
-
-/** After this a trip runs past the Driver's day (prototype WORK_END). */
-export const DAY_END = "18:00";
 
 /** A stop that can go any time doesn't share a fixed-time leg the vehicle would wait longer than this for. */
 const MAX_WAIT = 30;
@@ -121,7 +122,11 @@ export function legTimer(context: Pick<PlanContext, "requests" | "destinations">
   return { timed, lateIn, waitAt, requestOf };
 }
 
-/** Best first: vehicles that can take it, fewest late stops, ending by 6 PM, then the soonest (Urgent) or the fewest added minutes. */
+/**
+ * Best first: vehicles that can take it, fewest late stops, then the
+ * soonest (Urgent) or the fewest added minutes. Trips may run any hour
+ * (owner's call, 2026-10-16: no 6 PM end of day).
+ */
 export function planOptions(stops: TransportRequest[], rows: VehicleRow[], context: PlanContext): PlanOption[] {
   const urgent = stops.some((stop) => stop.requestType === "URGENT");
   return rows
@@ -130,7 +135,6 @@ export function planOptions(stops: TransportRequest[], rows: VehicleRow[], conte
       (a, b) =>
         Number(!!a.blocked) - Number(!!b.blocked) ||
         a.late.length - b.late.length ||
-        Number(a.end > DAY_END) - Number(b.end > DAY_END) ||
         (urgent ? a.arrive.localeCompare(b.arrive) : a.extra - b.extra),
     );
 }
@@ -153,6 +157,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     plate: row.vehicle.plate,
     requestIds,
     legs: legs.map((leg) => ({
+      ...(leg.id ? { id: leg.id } : {}),
       destinationId: leg.isFinal ? undefined : leg.destinationId,
       plannedTimeOut: leg.timeOut,
       plannedTimeIn: leg.timeIn,
@@ -228,9 +233,12 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     return fresh(`${String(Math.floor(after / 60)).padStart(2, "0")}:${String(after % 60).padStart(2, "0")}`);
   }
 
-  const state = tripState(joinable.schedule, context.started(joinable.schedule.id));
-  if (state === "ON_THE_ROAD") return fail("On the road");
-  const base: WorkLeg[] = joinable.revision.legs.map((leg: ScheduleLeg) => ({
+  // On the road, the stops go in after the legs the Driver has reached
+  // (draft changes for the Admin, applied to the Driver's route, 0060).
+  const revision = joinable.revision;
+  const reached = context.started(joinable.schedule.id) ? context.reached(joinable.schedule.id) : 0;
+  const base: WorkLeg[] = revision.legs.map((leg: ScheduleLeg) => ({
+    id: leg.id,
     destinationId: leg.destinationId,
     stops: leg.stops,
     isFinal: leg.isFinal,
@@ -248,7 +256,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     legs.map((leg, index) => (index < from ? leg : index === 0 ? { ...leg, timeIn: undefined } : { ...leg, timeOut: undefined, timeIn: undefined }));
 
   const last = base.findIndex((leg) => leg.isFinal);
-  const every = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index);
+  const every = Array.from({ length: (last === -1 ? base.length : last) + 1 }, (_, index) => index).filter((at) => at >= reached);
   // A Company trip keeps the requester's order: 52-A before 52-B.
   const inOrder = (at: number) =>
     base.every((leg, index) =>
@@ -271,12 +279,12 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
       best = { legs: candidate, at, late };
   }
   let legs = best!.legs;
-  let label = best!.at === 0 ? (company ? "First stop" : "First stop after ANONANG") : `After ${joinable.revision.legs[best!.at - 1].destinationName}`;
+  let label = best!.at === 0 ? (company ? "First stop" : "First stop after ANONANG") : `After ${revision.legs[best!.at - 1].destinationName}`;
   // Sharing a leg the trip already has at that place is better, unless it
   // makes more stops late, or mixes fixed-time and any-time stops on a leg
   // the vehicle would wait at: then the any-time stop goes in its own leg.
   const same = base.findIndex((leg) => !leg.isFinal && leg.destinationId && leg.destinationId === newLeg.destinationId);
-  if (same >= 0) {
+  if (same >= reached) {
     const merged = timed(
       unpinFrom(
         base.map((leg, index) => (index === same ? { ...leg, stops: [...leg.stops, ...stopIds] } : leg)),
@@ -288,7 +296,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     const mixed = fixed.length > 0 && fixed.length < merged[same].stops.length;
     if (lateIn(merged).length <= best!.late && !(mixed && waitAt(merged, same) > MAX_WAIT)) {
       legs = merged;
-      label = `Combine with the ${joinable.revision.legs[same].destinationName} stop`;
+      label = `Combine with the ${revision.legs[same].destinationName} stop`;
     }
   }
   const index = legs.findIndex((leg) => stopIds.some((id) => leg.stops.includes(id)));
@@ -298,7 +306,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     row,
     trip: joinable,
     rowVersion: open ? open.rowVersion : null,
-    input: toInput(legs, [...new Set([...joinable.revision.requestIds, ...ids])]),
+    input: toInput(legs, [...new Set([...revision.requestIds, ...ids])]),
     arrive: legs[index].timeIn,
     end,
     extra: toMinutes(end) - toMinutes(baseEnd),

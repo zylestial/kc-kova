@@ -1,4 +1,4 @@
-import type { Schedule, StopFlexibility, TransportRequest } from "@/lib/kova-api";
+import type { Schedule, ScheduleRevision, StopFlexibility, TransportRequest } from "@/lib/kova-api";
 
 /**
  * Trip Record basics the screens share: limits, a schedule's versions and
@@ -82,6 +82,13 @@ export const openRevision = (schedule: Schedule) =>
   schedule.revisions.find((revision) => ["DRAFT", "SUBMITTED", "RETURNED"].includes(revision.status));
 export const publishedRevision = (schedule: Schedule) =>
   schedule.revisions.find((revision) => revision.id === schedule.publishedRevisionId);
+/**
+ * When the Scheduler last changed a trip's route after it started (0060),
+ * for the Driver's "Route changed" notice; undefined if it hasn't changed
+ * since. The published version is only saved again by a change on the road then.
+ */
+export const routeChangedAt = (revision: Pick<ScheduleRevision, "updatedAt">, startedAt: string | undefined) =>
+  startedAt && revision.updatedAt > startedAt ? revision.updatedAt : undefined;
 /** The version a Scheduler works from: the open one if any, else the published one. */
 export const currentRevision = (schedule: Schedule) => openRevision(schedule) ?? publishedRevision(schedule);
 

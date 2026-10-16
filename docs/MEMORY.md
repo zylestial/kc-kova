@@ -774,8 +774,10 @@ page"; the owner's calls:
 - **Warnings block Submit** and name the stop and times, without minute
   counts.
 - **Planner:** an any-time stop doesn't go on a leg where the vehicle would
-  wait more than 30 minutes for a fixed-time stop; a trip ending by 6 PM is
-  preferred.
+  wait more than 30 minutes for a fixed-time stop. A trip ending by 6 PM
+  was preferred, and an end after 6 PM blocked Submit, until the owner
+  dropped the end of day (2026-10-16): "open 24 hours, Daily or Company".
+  It had started as a warning only; "Warnings block Submit" swept it in.
 - **Editing a trip waiting for the Admin takes it back** to a draft
   ("Resubmit for approval", 0057). An approved trip keeps "Propose
   changes", its legs locked until pressed.
@@ -790,9 +792,9 @@ page"; the owner's calls:
   stop. `split_request` and its route stay for older requests.
 
 Gotchas:
-- **Times are estimated from now.** On today, a trip planned late in the
-  afternoon ends after 6 PM and can't be submitted until the Scheduler
-  moves it earlier. The Company e2e test sets its start for this reason.
+- **Times are estimated from now.** On today, a trip planned late runs into
+  the evening (fine since 2026-10-16), but it can't pass midnight: its times
+  are on one date. The Company e2e test still picks a start from 06:00.
 - **A Company stop joined any trip of the same requester setup**, even one
   already on the road, and was then blocked ("On the road"); fixed
   2026-10-15 so it starts a new trip after it.
@@ -802,3 +804,73 @@ Gotchas:
 - **Some docs use CRLF line endings** (PRD, for one; TASKS doesn't), and
   Git Bash's `grep` hides the `\r`. Scripts that match multi-line text in
   them must allow for either.
+
+## On the road: stop reports and route changes (2026-10-16)
+
+Built on `feat/driver-stop-reports`, migrations 0060–0064. The rules are
+in `docs/RULES.md` "on-the-road rules". The owner's calls:
+
+- **Report types:** Not available, Wrong address / closed, Road blocked /
+  weather, Vehicle problem, Other. Company trips (the requester on My
+  Trips) report the same way.
+- **The Scheduler decides what happens next** (0068, owner's call
+  2026-10-16): at first a report acted at once (Not available made the
+  stop missed and the Driver went on; the Driver chose Skip or Wait on a
+  blocked road; a vehicle problem paused the trip until the Driver tapped
+  Resume). The owner said the Driver must not go on before the Scheduler
+  knows what to do. Every report now holds the trip until a Scheduler or
+  Admin answers: Skip it, Wait there, End the trip, or Change the route
+  (held until the Admin approves). No time limit; End trip now stays for
+  emergencies. Resume trip is gone. An Admin answers from Scheduling by
+  viewing as Scheduler.
+- **A change to a trip on the road needs the Admin.** It first went
+  straight to the Driver (`edit_live_trip`, a `/live` route,
+  LIVE_TRIP_CHANGED); the owner reversed that the same day, and that code
+  was removed. Approval applies the change in place
+  (`apply_changes_on_road`), so the taps stay.
+- **A missed stop is handled on Scheduling, not by the Admin:** Plan again
+  (it waits to be fitted in on any day; there is no separate "Move to
+  another day" button) or Send back to requester. Taking it off the trip
+  needs no approval, since the Driver's route doesn't change; the empty
+  leg stays and prints.
+- **A missed stop can go on any day** (0065, owner's call 2026-10-16):
+  Plan again first kept it on its asked-for day, and only "any day that
+  week" stops could move, so the Scheduler had to send it back for the
+  requester to change the date. Now the banner has Another day, and missed
+  or past-due stops show under "Missed or past due" on every day. A
+  waiting stop whose day passed used to drop off Scheduling (it shows
+  today on); it now shows there too.
+- **End trip now leaves stops "Not reached"** (0066, owner's call
+  2026-10-16): they used to count as served, nobody was told, and the
+  Admin had to make up their times to mark the trip Done. Only legs after
+  the last one reached count, so a forgotten tap isn't mistaken for a
+  missed stop. The catch: a Driver who taps none of the stops and uses End
+  trip now marks them all not reached; the confirm says so.
+- **The requester is told when their stop is missed** (STOP_MISSED,
+  0066), not only when it's moved or sent back.
+- **A report can name some of the requests at a stop** (0067, owner's call
+  2026-10-16): with two requesters at one place, Not available took both
+  off the trip. The Driver now ticks which ones ("Which ones?", all
+  ticked by default), seeing stop number, purpose and details, never the
+  requester. The demo seed has two stops at Site Alpha for this; it also
+  had one old two-stop request, which made release_missed_stop refuse
+  ("A request at this stop has other stops on the trip"). Real requests
+  since 0052 have one stop each.
+- **An unhandled stop report stays on today's Scheduling** after its day,
+  with the day named; before, it disappeared once the day passed.
+
+Gotchas:
+- **Approving a new version used to lose taps.** Each approval made legs
+  with new ids, so `stop_taps` and time corrections pointed at the old
+  version. Now draft legs carry `source_leg_id`. It must point at a leg of
+  the route the Driver follows (0064). Before that, a second approved
+  change re-created legs and lost their taps. Local data from before 0064
+  needs `seed-live-trip-demo.mjs --fresh`.
+- **Schedulers couldn't see taps** (0062), so Scheduling showed reached
+  legs as editable and Fit it in could put a stop before them.
+- **`e2e/on-the-road.spec.ts` reseeds UAT-004** (`--fresh`), replacing the
+  owner's test trip, so ask before running it. Until the 6 PM end of day
+  was dropped (2026-10-16) it failed after about 2 PM ("Fix the warnings"
+  on Resubmit); late at night the trip may still not fit before midnight.
+  Demo:
+  `node scripts/seed-live-trip-demo.mjs` (driver4 / UAT-004).

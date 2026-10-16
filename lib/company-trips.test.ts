@@ -71,4 +71,9 @@ describe("companyTripSteps", () => {
     const steps = companyTripSteps(legs, { startAt: "t0" }, [{ legId: "l1", kind: "ARRIVE", at: "t1" }]);
     expect(steps.map((step) => step.at)).toEqual(["t0", "t1", undefined, undefined]);
   });
+
+  it("passes over a stop reported missed (0061)", () => {
+    const steps = companyTripSteps(legs, { startAt: "t0" }, [], new Set(["l1"]));
+    expect(steps.map((step) => !!step.missed)).toEqual([false, true, true, false]);
+  });
 });

@@ -65,7 +65,10 @@ const two = (index: number) => String(index + 1).padStart(2, "0");
  * saves the draft. Below them, what the trip is waiting for and its
  * buttons: Submit (Resubmit once it has been sent), Discard, or Propose
  * changes on an approved trip. Changing one waiting for the Admin takes it
- * back to draft (0057), to resubmit.
+ * back to draft (0057), to resubmit. On a trip on the road, the legs after
+ * the last one the Driver reached can be changed right there: that saves
+ * draft changes for the Admin, written onto the route the Driver follows
+ * once approved (0060).
  */
 export default function TripEditor({
   trip,
@@ -76,6 +79,7 @@ export default function TripEditor({
   waiting,
   fuel,
   doneLeg,
+  missedLeg,
   busy,
   run,
 }: {
@@ -88,8 +92,10 @@ export default function TripEditor({
   waiting: TransportRequest[];
   /** Fuel or errand stops an Admin set up (Daily trips only). */
   fuel: BookingOption[];
-  /** The Driver (or requester) has reached this leg: Arrived, or End trip on the last. */
+  /** The Driver (or requester) has reached this leg: a tap there, or End trip on the last. */
   doneLeg: (legId: string, isLast: boolean) => boolean;
+  /** The stop was reported missed (0061): what happened. It's reached, like a done one. */
+  missedLeg: (legId: string) => string | undefined;
   busy: boolean;
   /** Runs a save; the message it returns is shown when it works. `undo`: the trip before it, or "clear". */
   run: (action: () => Promise<string>, undo?: UndoEntry | "clear") => Promise<void>;
@@ -97,14 +103,29 @@ export default function TripEditor({
   const company = kind === "COMPANY";
   const { requests } = context;
   const timer = useMemo(() => legTimer(context, company), [context, company]);
+  // Only a draft leg comes from a leg of the Driver's route; the route's own
+  // legs may still point at an earlier version's (0064).
+  const draft = trip.revision.id !== trip.schedule.publishedRevisionId;
   const legs = useMemo(
-    () => editLegs(trip.revision.legs, timer, trip.revision.legs[0]?.plannedTimeOut || "08:00"),
-    [trip.revision.legs, timer],
+    () =>
+      editLegs(
+        draft ? trip.revision.legs : trip.revision.legs.map((leg) => ({ ...leg, sourceLegId: undefined })),
+        timer,
+        trip.revision.legs[0]?.plannedTimeOut || "08:00",
+      ),
+    [trip.revision.legs, draft, timer],
   );
   const open = openRevision(trip.schedule);
   // An approved trip is changed through Propose changes; any other can be
-  // edited, and one waiting for the Admin goes back to draft to resubmit.
-  const editable = state !== "APPROVED" && state !== "ON_THE_ROAD";
+  // edited (on the road, past the legs reached, into draft changes), and
+  // one waiting for the Admin goes back to draft to resubmit.
+  const editable = state !== "APPROVED";
+  // Legs up to the last one reached can't change; a draft leg is reached
+  // when the leg of the Driver's route it came from is.
+  const lastDone = legs.reduce(
+    (last, leg, index) => (doneLeg(leg.source ?? leg.key, index === legs.length - 1) || missedLeg(leg.source ?? leg.key) ? index : last),
+    -1,
+  );
   const resubmitNote =
     open?.status === "SUBMITTED" ? " Taken back from the Admin. Resubmit when ready." : !open ? " Saved as draft changes. Resubmit when ready." : "";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
@@ -217,16 +238,17 @@ export default function TripEditor({
         </div>
       ))}
       {legs.map((leg, index) => {
-        const done = doneLeg(trip.revision.legs[index]?.id ?? "", index === legs.length - 1);
-        const locked = !editable || done || busy;
-        const movable = editable && !done && !leg.isFinal;
+        const done = doneLeg(leg.source ?? leg.key, index === legs.length - 1);
+        const missed = missedLeg(leg.source ?? leg.key);
+        const locked = !editable || index <= lastDone || busy;
+        const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
         const lastMovable = legs.length - (legs.at(-1)?.isFinal ? 2 : 1);
         const warnings = legProblems(legs, index, timer, nameOf).map((problem) => problem + ".");
         return (
           <div
             key={leg.key}
-            className={"sc-leg" + (done ? " done" : "") + (dragOver === index && dragFrom !== index ? " over" : "") + (dragFrom === index ? " src" : "")}
+            className={"sc-leg" + (done || missed ? " done" : "") + (dragOver === index && dragFrom !== index ? " over" : "") + (dragFrom === index ? " src" : "")}
             onDragOver={(event) => {
               if (dragFrom === null || !movable) return;
               event.preventDefault();
@@ -266,6 +288,7 @@ export default function TripEditor({
                 LEG {two(index)}
                 {leg.isFinal && " · RETURN TO ANONANG"}
                 {done && " · DONE ✓"}
+                {missed && ` · ${missed.toUpperCase()}`}
               </b>
               <span className="sc-stop-tags">
                 {leg.stops.map((stopId) => {
@@ -281,7 +304,7 @@ export default function TripEditor({
               <span className="sc-space" />
               {movable && (
                 <>
-                  <button type="button" className="sc-icon" aria-label={`Move leg ${index + 1} up`} disabled={busy || index === 0} onClick={() => reorder(index, index - 1)}>
+                  <button type="button" className="sc-icon" aria-label={`Move leg ${index + 1} up`} disabled={busy || index - 1 <= lastDone} onClick={() => reorder(index, index - 1)}>
                     <ArrowUp size={15} />
                   </button>
                   <button
@@ -447,7 +470,9 @@ function TripActions({
       {state === "DRAFT" && (open?.submittedAt ? " · taken back from the Admin. Resubmit when ready." : " · only you can see it. Submit when the trip is ready.")}
       {state === "RETURNED" && <> · the Admin sent it back{open?.decisionComment ? `: “${open.decisionComment}”` : ""}. Fix it, then resubmit.</>}
       {state === "SUBMITTED" && " · the Admin can see it. Changing it takes it back to you to resubmit."}
-      {(state === "APPROVED" || state === "ON_THE_ROAD") && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
+      {state === "APPROVED" && " · the Driver follows these times. To change them, propose changes for the Admin to approve."}
+      {state === "ON_THE_ROAD" &&
+        " · the Driver is following this route. Drag, change or remove the legs not reached yet: that makes draft changes for the Admin to approve before the Driver sees them."}
       {state === "CHANGES" && " · only you can see these. The Driver still follows the approved times below until the Admin approves."}
       {state === "CHANGES_SUBMITTED" &&
         " · the changes are with the Admin. Changing them takes them back to you to resubmit; the approved times below stay in effect until approved."}
@@ -474,7 +499,7 @@ function TripActions({
             </Button>
           </>
         )}
-        {(state === "APPROVED" || state === "ON_THE_ROAD") && (
+        {state === "APPROVED" && (
           <Button size="sm" className="primary" disabled={busy} onClick={propose}>
             Propose changes
           </Button>

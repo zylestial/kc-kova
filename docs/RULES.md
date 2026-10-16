@@ -86,8 +86,10 @@ database stays the authority; these are the page's own rules:
 - **Warnings block Submit** (`tripChecks` in `lib/scheduling-edit.ts`): a
   leg whose Time In is too soon to drive there, a Time Out before the leg
   before it arrives, a fixed-time stop reached more than 5 minutes off its
-  time, more than 8 legs, an end after the Driver's day ends at 6 PM, and a
-  Daily trip that doesn't end at ANONANG.
+  time, more than 8 legs, and a Daily trip that doesn't end at ANONANG.
+  There's no end of day (owner's call 2026-10-16: vehicles run any hour,
+  Daily or Company); a trip still fits in one calendar day, since its
+  times are Time Out / Time In on that date.
 - **Adding a stop** (`planOn`): a Daily vehicle needs an assigned Driver and
   takes one trip a day, so a stop joins that trip (not once it's on the
   road). A Company stop goes only on the vehicle its requester picked,
@@ -246,6 +248,75 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   tapped or filled in (`trip_times_missing`). The Driver is never blocked:
   Complete trip doesn't need the stop taps. "Mark clean trips done" skips
   trips with a time missing. A time nobody recorded prints blank.
+
+The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
+0061, `release_missed_stop` 0063, `answer_stop_report` 0068; owner's calls
+2026-10-16):
+
+- **Changing a trip on the road still needs the Admin.** Once Start trip is
+  tapped (or a Company trip's run has begun), the Scheduler's changes are a
+  draft as usual and the Driver keeps the approved route until the Admin
+  approves them. Approval then writes the changes onto the version the
+  Driver follows, in place, so legs keep their ids and their taps; the
+  Driver sees "Route changed" and gets TRIP_CHANGED.
+- A reached leg (tapped, or reported missed) and every leg before it must
+  come through unchanged, and the vehicle and Driver can't change;
+  approval refuses otherwise. On Scheduling, legs after the last one
+  reached stay editable.
+- **Reporting a stop**: whoever records the trip (the Driver on a Daily
+  trip, the requester on a Company trip, or an Admin) can report the
+  current stop after Start trip and before End trip: Not available, Wrong
+  address / closed, Road blocked / weather, Vehicle problem, or Other.
+  Schedulers and Admins get STOP_REPORTED. A report is a problem report
+  tied to a leg, so it shows wherever problems do.
+- **Every report holds the trip until it's answered** (0068, owner's call
+  2026-10-16): no Arrived / Leaving (`schedules.paused_at`) while any
+  report on the trip waits; End trip still works, and closes the reports
+  still waiting. A Scheduler or Admin answers on Scheduling, and the
+  reporter gets STOP_ANSWERED:
+  - **Skip it, go to next**: the stop is **missed** (then planned again,
+    moved or sent back, below), and its requesters get STOP_MISSED (not
+    whoever reported it).
+  - **Wait there**: the stop is kept; the Driver goes on when it's ready
+    (for a Vehicle problem, once it's fixed).
+  - **End the trip**: the Driver taps End trip now; the stops left are not
+    reached (below).
+  - **Change the route**: the trip stays held until the Admin approves the
+    Scheduler's change; until then another answer can still be given.
+  A stop isn't missed until the answer is Skip. Nothing is missed or
+  decided by the reporter alone.
+- **Some of the requests at a stop** (0067): where several requests share
+  a stop, Not available or Wrong address can name some of them
+  (`problem_reports.request_ids`). If the answer is Skip, the stop is
+  still reached (not missed; the Driver taps Arrived / Leaving as usual),
+  only those requesters are told, and the Scheduler plans just those
+  again. Naming all of them is the whole stop. Other kinds are always for
+  the whole stop.
+- **Stops not reached** (0066): End trip (in practice "End trip now")
+  reports every non-final leg after the last one reached (tapped or
+  reported missed) as missed, kind NOT_REACHED. A leg before one reached
+  is a forgotten tap, not a missed stop, and still needs the Admin's time.
+  A fuel / errand stop is handled at once; one with requests shows on
+  Scheduling like any missed stop. Its requesters get STOP_MISSED, and
+  Schedulers and Admins one STOP_REPORTED naming the stops.
+- A missed stop needs no Arrived / Leaving: `trip_times_missing` leaves out
+  its Time In and the next leg's Time Out, and a Company trip may pass it in
+  route order. One missed report per stop.
+- **Missed stops on Scheduling**: a Scheduler (or Admin) takes a missed
+  stop's requests off the trip, and off any draft changes to it, without
+  Admin approval, since the route the Driver drives doesn't change. The
+  missed leg stays on the route and the printed form, with no stops. The
+  banner offers **Plan again** (the requests wait on their day),
+  **Another day** (moved to the day picked) or **Send back to requester**.
+  Reports from before 0068 that need no planning have **Got it**, which
+  marks them handled; Schedulers may handle stop reports. A report not
+  handled on its day stays on today's Scheduling, with its day.
+- **Missed or past due** (0065): a stop taken off a trip as missed
+  (`requests.missed_at`), or one still waiting after its day passed, may be
+  moved by a Scheduler to any day from today, Sundays included, whatever
+  its flexibility; the requester gets REQUEST_MOVED saying why. Scheduling
+  lists these stops on every other day, and adding one to a trip moves it
+  to that day. Other stops keep the "any day that week" rule.
 
 ## Booking options
 

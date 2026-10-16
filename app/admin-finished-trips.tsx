@@ -26,6 +26,7 @@ import {
   markCompletionDone,
   markCompletionsDone,
   setTripTime,
+  type ProblemReport,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
@@ -39,6 +40,7 @@ import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import StopTimesTable from "./stop-times-table";
 import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
+import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -153,13 +155,17 @@ export default function AdminFinishedTrips({
     },
   );
 
+  // Empty Time Out / Time In cells; a stop reported missed (0061) needs none.
+  const missingFor = (trip: Parameters<typeof timesFor>[0] & { problems: ProblemReport[] }) =>
+    missingTimes(timesFor(trip), new Set(missedLegs(trip.problems).keys()));
+
   // "Mark all clean trips done" only ever touches what the filters show, and
   // skips trips still missing a Time Out or Time In (Done would refuse them).
-  const clean = cleanTrips(visible).filter((trip) => missingTimes(timesFor(trip)) === 0);
+  const clean = cleanTrips(visible).filter((trip) => missingFor(trip) === 0);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
   const selectedTimes = selected ? timesFor(selected) : [];
-  const selectedMissing = missingTimes(selectedTimes);
+  const selectedMissing = selected ? missingFor(selected) : 0;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const isDone = selected?.completion?.status === "DONE";
   // Any other published, active schedule can follow up on a problem.
@@ -377,9 +383,9 @@ export default function AdminFinishedTrips({
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
                       {hasOpenProblem(trip) && <small>Open problem</small>}
-                      {trip.completion?.status === "SUBMITTED" && missingTimes(timesFor(trip)) > 0 && (
+                      {trip.completion?.status === "SUBMITTED" && missingFor(trip) > 0 && (
                         <small>
-                          {missingTimes(timesFor(trip))} {missingTimes(timesFor(trip)) === 1 ? "time" : "times"} missing
+                          {missingFor(trip)} {missingFor(trip) === 1 ? "time" : "times"} missing
                         </small>
                       )}
                     </td>
@@ -509,7 +515,10 @@ export default function AdminFinishedTrips({
               )}
               {selected.problems.map((item) => (
                 <div className="helper" key={item.id}>
-                  <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong> {item.note}
+                  <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong>{" "}
+                  {item.legId &&
+                    `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}${item.note ? ": " : ""}`}
+                  {item.note}
                   {item.status === "HANDLED" && <div>Handled: {item.handlingNote}</div>}
                   {item.status === "OPEN" && (
                     <Button
