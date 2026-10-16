@@ -273,6 +273,12 @@ and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
   Schedulers and Admins get STOP_REPORTED, and when a stop is missed its
   requesters get STOP_MISSED (not whoever reported it). A report is a
   problem report tied to a leg, so it shows wherever problems do.
+- **Some of the requests at a stop** (0067): where several requests share
+  a stop, Not available or Wrong address can name some of them
+  (`problem_reports.request_ids`). The stop is still reached (not missed;
+  the Driver taps Arrived / Leaving as usual), only those requesters are
+  told, and the Scheduler plans just those again. Naming all of them is
+  the whole stop. Other kinds are always for the whole stop.
 - **Stops not reached** (0066): End trip (in practice "End trip now")
   reports every non-final leg after the last one reached (tapped or
   reported missed) as missed, kind NOT_REACHED. A leg before one reached
