@@ -279,9 +279,16 @@ and `resume_trip` 0061, `release_missed_stop` 0063; owner's calls
   stop's requests off the trip, and off any draft changes to it, without
   Admin approval, since the route the Driver drives doesn't change. The
   missed leg stays on the route and the printed form, with no stops. The
-  banner offers **Plan again** (the requests wait to be fitted in, on any
-  day) or **Send back to requester**. Other reports have **Got it**, which
-  marks them handled; Schedulers may handle stop reports.
+  banner offers **Plan again** (the requests wait on their day),
+  **Another day** (moved to the day picked) or **Send back to requester**.
+  Other reports have **Got it**, which marks them handled; Schedulers may
+  handle stop reports.
+- **Missed or past due** (0065): a stop taken off a trip as missed
+  (`requests.missed_at`), or one still waiting after its day passed, may be
+  moved by a Scheduler to any day from today, Sundays included, whatever
+  its flexibility; the requester gets REQUEST_MOVED saying why. Scheduling
+  lists these stops on every other day, and adding one to a trip moves it
+  to that day. Other stops keep the "any day that week" rule.
 
 ## Booking options
 
