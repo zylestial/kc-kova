@@ -6,6 +6,7 @@ import type { FinishedTrip } from "@/lib/finished-trips";
 import { dateInBusinessTimezone } from "@/lib/timezone";
 import { BASE, MAX_LEGS, type StopInfo } from "@/lib/trip-record";
 import { formTimeValue, type LegTimes } from "@/lib/stop-times";
+import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
 
 const blank = "________________";
 
@@ -32,6 +33,8 @@ export default function FinishedTripPrint({
 }) {
   const { schedule, revision, completion } = trip;
   const { vehicles } = useKovaData();
+  // A stop reported missed (0061) has no Time In, and the leg after it no Time Out.
+  const missed = missedLegs(trip.problems);
   const vehicle = vehicles.find((item) => item.plate === revision.plate)?.name ?? "";
   const projects = [
     ...new Set(
@@ -103,6 +106,8 @@ export default function FinishedTripPrint({
           {Array.from({ length: MAX_LEGS }, (_, i) => {
             const leg = revision.legs[i];
             const legTimes = times.find((item) => item.leg.id === leg?.id);
+            const missedHere = leg ? missed.get(leg.id) : undefined;
+            const missedBefore = i > 0 && missed.has(revision.legs[i - 1]?.id ?? "");
             const served = (leg?.stops ?? []).map((id) => stopsById.get(id)).filter((stop): stop is StopInfo => !!stop);
             return (
               <tr key={i}>
@@ -113,9 +118,12 @@ export default function FinishedTripPrint({
                 <td>{served.map((stop) => stop.purposeName).join(", ")}</td>
                 <td>{i + 1}</td>
                 <td>{leg?.origin || (i === 0 ? BASE : "")}</td>
-                <td>{legTimes && formTimeValue(legTimes.out)}</td>
-                <td>{leg?.destinationName || (!leg && i === MAX_LEGS - 1 ? BASE : "")}</td>
-                <td>{legTimes && formTimeValue(legTimes.in)}</td>
+                <td>{legTimes && (formTimeValue(legTimes.out) ?? (missedBefore ? "—" : null))}</td>
+                <td>
+                  {leg?.destinationName || (!leg && i === MAX_LEGS - 1 ? BASE : "")}
+                  {missedHere && ` (${stopReportLabel(missedHere)})`}
+                </td>
+                <td>{legTimes && (formTimeValue(legTimes.in) ?? (missedHere ? "Missed" : null))}</td>
                 <td>
                   Name: {leg?.contactName || "________________"}
                   <div className="sign-line">Contact: {leg?.contactNumber || "______________"}</div>
