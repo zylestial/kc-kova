@@ -77,4 +77,14 @@ describe("open stop reports on Scheduling", () => {
     expect(openStopReports(problems, schedules, [waiting], "2026-10-17", "DAILY", "2026-10-16").map((item) => item.report.id)).toEqual(["other day"]);
     expect(open[0]).toMatchObject({ plate: "UAT-004", place: "Site Beta", stops: [waiting] });
   });
+
+  it("names just the requests a report for some of the stops is about", () => {
+    const other = { id: "q2", destinations: [{ id: "rd2" }] } as TransportRequest;
+    const shared = trip("s1");
+    shared.revisions[0].legs[0].stops = ["rd1", "rd2"];
+    const some = report({ id: "some", scheduleId: "s1", legId: "l1", kind: "NOT_AVAILABLE", requestIds: ["q2"] });
+    const [open] = openStopReports([some], [shared], [waiting, other], "2026-10-16", "DAILY", "2026-10-16");
+    expect(open.stops).toEqual([other]);
+    expect(stopReportLabel(some)).toBe("Missed: Not available");
+  });
 });

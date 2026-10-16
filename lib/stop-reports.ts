@@ -14,11 +14,14 @@ export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; h
   { kind: "OTHER", label: "Something else", hint: "Tell the Scheduler what happened. The trip goes on as planned." },
 ];
 
+/** The Scheduler plans its requests again: the whole stop missed, or some of the requests there (0067). */
+export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds">) => report.missed || !!report.requestIds?.length;
+
 /** How a report reads on the trip, e.g. "Missed: Not available". */
-export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed">): string {
+export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed" | "requestIds">): string {
   const label =
     report.kind === "NOT_REACHED" ? "Not reached" : (STOP_REPORT_CHOICES.find((choice) => choice.kind === report.kind)?.label ?? "Problem");
-  return report.missed ? `Missed: ${label}` : label;
+  return plansAgain(report) ? `Missed: ${label}` : label;
 }
 
 /** The stops reported missed on a trip, by leg: they need no Arrived or Leaving. */
@@ -56,7 +59,11 @@ export function openStopReports(
       const onDay = schedule?.date === day || (day === today && !!schedule && schedule.date < today);
       if (!schedule || !revision || schedule.status !== "ACTIVE" || !onDay || schedule.kind !== kind) return [];
       const leg = revision.legs.find((item) => item.id === report.legId);
-      const stops = requests.filter((request) => request.destinations.some((item) => leg?.stops.includes(item.id)));
+      // A report for some of the requests there names just those.
+      const stops = requests.filter(
+        (request) =>
+          request.destinations.some((item) => leg?.stops.includes(item.id)) && (!report.requestIds || report.requestIds.includes(request.id)),
+      );
       return [{ report, schedule, plate: revision.plate, place: leg?.destinationName ?? "a stop", stops }];
     })
     .sort((a, b) => a.report.createdAt.localeCompare(b.report.createdAt));

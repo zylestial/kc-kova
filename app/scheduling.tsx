@@ -23,7 +23,7 @@ import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
 import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
-import { missedLegs, openStopReports, stopReportLabel, type OpenStopReport } from "@/lib/stop-reports";
+import { missedLegs, openStopReports, plansAgain, stopReportLabel, type OpenStopReport } from "@/lib/stop-reports";
 import {
   carriedStops,
   dayCounts,
@@ -384,7 +384,7 @@ export default function Scheduling({
         const reason = sendingBack?.id === report.id ? sendingBack.reason : null;
         const moveDate = movingTo?.id === report.id ? movingTo.date : null;
         return (
-          <div key={report.id} className={"sc-banner" + (report.missed ? "" : " wait")}>
+          <div key={report.id} className={"sc-banner" + (plansAgain(report) ? "" : " wait")}>
             <span>
               <b>{stopReportLabel(report)}</b> at {item.place}
               {stops && ` (${stops})`} · {vehicleName(item.plate)}
@@ -426,7 +426,7 @@ export default function Scheduling({
                   Cancel
                 </Button>
               </span>
-            ) : report.missed ? (
+            ) : plansAgain(report) ? (
               <>
                 <Button className="danger" disabled={busy} onClick={() => planAgain(item)}>
                   Plan again
