@@ -1,4 +1,5 @@
-import type { ProblemReport, StopReportKind } from "@/lib/kova-api";
+import type { ProblemReport, Schedule, StopReportKind, TransportRequest } from "@/lib/kova-api";
+import { publishedRevision } from "@/lib/trip-record";
 
 /**
  * Stop reports (0061): what can happen at a stop, in the order the report
@@ -22,4 +23,34 @@ export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed">):
 /** The stops reported missed on a trip, by leg: they need no Arrived or Leaving. */
 export function missedLegs(problems: ProblemReport[]): Map<string, ProblemReport> {
   return new Map(problems.filter((item) => item.missed && item.legId).map((item) => [item.legId!, item]));
+}
+
+/** An open stop report on Scheduling (0063): where, on which vehicle, and the requests still at that stop. */
+export type OpenStopReport = {
+  report: ProblemReport;
+  schedule: Schedule;
+  plate: string;
+  place: string;
+  stops: TransportRequest[];
+};
+
+/** The open stop reports on a day's trips of one kind, oldest first: the Scheduler handles each. */
+export function openStopReports(
+  problems: ProblemReport[],
+  schedules: Schedule[],
+  requests: TransportRequest[],
+  day: string,
+  kind: Schedule["kind"],
+): OpenStopReport[] {
+  return problems
+    .filter((report) => report.status === "OPEN" && report.legId)
+    .flatMap((report) => {
+      const schedule = schedules.find((item) => item.id === report.scheduleId);
+      const revision = schedule && publishedRevision(schedule);
+      if (!schedule || !revision || schedule.status !== "ACTIVE" || schedule.date !== day || schedule.kind !== kind) return [];
+      const leg = revision.legs.find((item) => item.id === report.legId);
+      const stops = requests.filter((request) => request.destinations.some((item) => leg?.stops.includes(item.id)));
+      return [{ report, schedule, plate: revision.plate, place: leg?.destinationName ?? "a stop", stops }];
+    })
+    .sort((a, b) => a.report.createdAt.localeCompare(b.report.createdAt));
 }
