@@ -18,5 +18,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.svg|images/).*)"],
+  // The manifest, service worker and app icons load before sign-in.
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.svg|images/|manifest.webmanifest|sw.js|icon-|apple-touch-icon.png|notification-badge.png).*)",
+  ],
 };
