@@ -100,9 +100,17 @@ export default function TripEditor({
   const company = kind === "COMPANY";
   const { requests } = context;
   const timer = useMemo(() => legTimer(context, company), [context, company]);
+  // Only a draft leg comes from a leg of the Driver's route; the route's own
+  // legs may still point at an earlier version's (0064).
+  const draft = trip.revision.id !== trip.schedule.publishedRevisionId;
   const legs = useMemo(
-    () => editLegs(trip.revision.legs, timer, trip.revision.legs[0]?.plannedTimeOut || "08:00"),
-    [trip.revision.legs, timer],
+    () =>
+      editLegs(
+        draft ? trip.revision.legs : trip.revision.legs.map((leg) => ({ ...leg, sourceLegId: undefined })),
+        timer,
+        trip.revision.legs[0]?.plannedTimeOut || "08:00",
+      ),
+    [trip.revision.legs, draft, timer],
   );
   const open = openRevision(trip.schedule);
   // An approved trip is changed through Propose changes; any other can be
