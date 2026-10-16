@@ -39,7 +39,6 @@ const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "suc
   SCHEDULE_RETURNED: { icon: Undo2, tone: "warning" },
   TRIP_PUBLISHED: { icon: Truck, tone: "success" },
   TRIP_CHANGED: { icon: Route, tone: "warning" },
-  LIVE_TRIP_CHANGED: { icon: Route, tone: "info" },
 };
 
 /** Where clicking a notification should land, per its type. */
@@ -74,8 +73,6 @@ function notificationTarget(notification: Notification, schedules: Schedule[], r
       const page = role === "Driver" ? "/my-schedule" : "/my-trips";
       return relatedScheduleId ? `${page}?open=${encodeURIComponent(relatedScheduleId)}` : page;
     }
-    case "LIVE_TRIP_CHANGED":
-      return relatedScheduleId ? `/schedules?open=${encodeURIComponent(relatedScheduleId)}` : "/schedules";
     default:
       return undefined;
   }

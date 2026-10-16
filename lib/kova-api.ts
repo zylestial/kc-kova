@@ -247,8 +247,7 @@ export type NotificationType =
   | "SCHEDULE_SUBMITTED"
   | "SCHEDULE_RETURNED"
   | "TRIP_PUBLISHED"
-  | "TRIP_CHANGED"
-  | "LIVE_TRIP_CHANGED";
+  | "TRIP_CHANGED";
 export type Notification = {
   id: string;
   type: NotificationType;
@@ -543,9 +542,6 @@ export const createSchedule = (input: ScheduleInput) => refreshAfter(request<Sch
 export const createCompanyTrip = (input: ScheduleInput) =>
   refreshAfter(request<Schedule>("/api/schedules", { method: "POST", body: JSON.stringify({ ...input, kind: "COMPANY" }) }));
 export const saveScheduleDraft = (id: string, rowVersion: number | null, input: ScheduleInput) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
-/** Changes a trip on the road in place, straight to the Driver (0060). rowVersion is the published version's. */
-export const editLiveTrip = (id: string, rowVersion: number, input: ScheduleInput) =>
-  refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/live`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const submitSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/submit`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const approveSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const returnSchedule = (id: string, rowVersion: number, comment: string) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/return`, { method: "POST", body: JSON.stringify({ rowVersion, comment }) }));
