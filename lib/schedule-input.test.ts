@@ -34,6 +34,12 @@ describe("parseScheduleInput", () => {
     expect(input?.legs[0]).not.toHaveProperty("origin");
   });
 
+  it("keeps a saved leg's id, and drops a blank one", () => {
+    const input = parseScheduleInput({ ...body, legs: [{ ...body.legs[0], id: "leg1" }, { ...body.legs[1], id: "" }] });
+    expect(input?.legs[0].id).toBe("leg1");
+    expect(input?.legs[1]).not.toHaveProperty("id");
+  });
+
   it("leaves time and route rules to the server", () => {
     const input = parseScheduleInput({ ...body, legs: [{ destinationId: "d1", plannedTimeOut: "", plannedTimeIn: "7pm" }] });
     expect(input?.legs[0]).toMatchObject({ plannedTimeOut: "", plannedTimeIn: "7pm", stops: [] });

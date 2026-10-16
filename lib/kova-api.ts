@@ -346,6 +346,8 @@ export type ScheduleInput = {
   plate: string;
   requestIds: string[];
   legs: Array<{
+    /** A leg already saved keeps its id (0060); a new leg has none. */
+    id?: string;
     destinationId?: string;
     plannedTimeOut: string;
     plannedTimeIn: string;
