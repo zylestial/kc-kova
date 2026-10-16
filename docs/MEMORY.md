@@ -821,6 +821,13 @@ in `docs/RULES.md` "on-the-road rules". The owner's calls:
   another day" button) or Send back to requester. Taking it off the trip
   needs no approval, since the Driver's route doesn't change; the empty
   leg stays and prints.
+- **A missed stop can go on any day** (0065, owner's call 2026-10-16):
+  Plan again first kept it on its asked-for day, and only "any day that
+  week" stops could move, so the Scheduler had to send it back for the
+  requester to change the date. Now the banner has Another day, and missed
+  or past-due stops show under "Missed or past due" on every day. A
+  waiting stop whose day passed used to drop off Scheduling (it shows
+  today on); it now shows there too.
 
 Gotchas:
 - **Approving a new version used to lose taps.** Each approval made legs
