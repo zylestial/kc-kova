@@ -118,13 +118,14 @@ export function changeDestination(
   );
 }
 
-/** What save_schedule_draft takes for these legs: every request with a stop on them. */
+/** What save_schedule_draft (or edit_live_trip) takes for these legs: every request with a stop on them. Each leg keeps its saved id (0060). */
 export function editInput(date: string, plate: string, legs: EditLeg[], requestIdOf: (stopId: string) => string | undefined): ScheduleInput {
   return {
     date,
     plate,
     requestIds: [...new Set(legs.flatMap((leg) => leg.stops.map(requestIdOf)).filter((id): id is string => !!id))],
     legs: legs.map((leg) => ({
+      id: leg.key,
       destinationId: leg.isFinal ? undefined : leg.destinationId,
       plannedTimeOut: leg.timeOut,
       plannedTimeIn: leg.timeIn,

@@ -70,6 +70,7 @@ describe("edits", () => {
     const input = editInput("2026-10-20", "V1", changed, (stopId) => stopId.slice(3));
     expect(input.requestIds).toEqual(["a", "c"]);
     expect(input.legs[1]).toMatchObject({ destinationId: "c", stops: ["rd-c"], plannedTimeOut: "09:00" });
+    expect(input.legs.map((leg) => leg.id)).toEqual(changed.map((leg) => leg.key));
     expect(input.legs[2]).toMatchObject({ destinationId: undefined, stops: [], isFinal: true });
   });
 });
