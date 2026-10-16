@@ -17,10 +17,11 @@ export function canRequestDaily(account: Who): boolean {
   return account.role === "Requester" || account.role === "Admin" || (companyCarDriver(account) && account.canRequestDaily);
 }
 
-/** Company Trip requests: accounts an Admin allowed; never a Scheduler or a Truck driver. */
+/** Company Trip requests: every Admin (0059), and accounts an Admin allowed; never a Scheduler or a Truck driver. */
 export function canRequestCompany(account: Who): boolean {
-  if (account.status !== "Active" || !account.canRequestCompany) return false;
-  return account.role === "Requester" || account.role === "Admin" || companyCarDriver(account);
+  if (account.status !== "Active") return false;
+  if (account.role === "Admin") return true;
+  return account.canRequestCompany && (account.role === "Requester" || companyCarDriver(account));
 }
 
 /** Either kind, so the request screens (New request, My requests) show. */

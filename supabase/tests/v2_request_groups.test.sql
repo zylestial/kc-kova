@@ -3,13 +3,14 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(31);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000da', 'rhea@test.local'),
   ('00000000-0000-0000-0000-0000000000db', 'liza@test.local'),
   ('00000000-0000-0000-0000-0000000000dd', 'schedd@test.local'),
+  ('00000000-0000-0000-0000-0000000000de', 'adele@test.local'),
   ('00000000-0000-0000-0000-0000000000d1', 'jun@test.local'),
   ('00000000-0000-0000-0000-0000000000d2', 'mark@test.local');
 insert into accounts (id, username, name, role, position, can_request_company) values
@@ -17,6 +18,7 @@ insert into accounts (id, username, name, role, position, can_request_company) v
   ('00000000-0000-0000-0000-0000000000db', 'liza', 'Liza Mendoza', 'Requester', '', false);
 insert into accounts (id, username, name, role) values
   ('00000000-0000-0000-0000-0000000000dd', 'schedd', 'Sam D', 'Scheduler'),
+  ('00000000-0000-0000-0000-0000000000de', 'adele', 'Adele Admin', 'Admin'),
   ('00000000-0000-0000-0000-0000000000d2', 'mark', 'Mark Dizon', 'Driver');
 insert into accounts (id, username, name, role, driver_type) values
   ('00000000-0000-0000-0000-0000000000d1', 'jun', 'Jun Reyes', 'Driver', 'Company car');
@@ -25,6 +27,7 @@ insert into vehicles (plate, name, company_trips, assigned_driver_id) values
   ('VD', 'Hilux', false, '00000000-0000-0000-0000-0000000000d2');
 insert into booking_options ("group", id, name, status) values
   ('projects', 'p1', 'Riverside Townhomes', 'Active'),
+  ('projects', 'p2', 'Harbor View Mall', 'Active'),
   ('destinations', 'd1', 'Wilcon Depot', 'Active'),
   ('destinations', 'd2', 'Site A Warehouse', 'Active'),
   ('purposes', 'pu', 'Pick up', 'Active'),
@@ -105,6 +108,9 @@ select lives_ok(
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000db');
 select throws_ok($$ select create_request_group('COMPANY', pg_temp.company()) $$, '42501', 'Not authorized to create requests',
   'Only accounts an Admin allows can request company trips');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000de');
+select lives_ok($$ select create_request_group('COMPANY', pg_temp.company()) $$,
+  'An Admin can, without the switch or a Position (0059)');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000da');
 select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"vehiclePlate":""}')) $$, '22023', 'Select a vehicle',
   'A Company Trip needs a vehicle');
@@ -119,12 +125,19 @@ select throws_ok(
   $$ select create_request_group('COMPANY', pg_temp.company(jsonb_build_object('stops', jsonb_build_array(
        pg_temp.stop('{"destinationId":"","destinationOther":"Somewhere new"}'))))) $$,
   '22023', 'Stop A: choose the destination from the list', 'A Company Trip has no typed destinations');
+select throws_ok(
+  $$ select create_request_group('COMPANY', pg_temp.company(jsonb_build_object('stops', jsonb_build_array(
+       pg_temp.stop('{"destinationId":"d1"}'), pg_temp.stop('{"projectId":"p2"}'))))) $$,
+  '22023', 'A company trip is for one Project / Site. Pick the same one for every stop',
+  'A Company Trip''s stops share one Project / Site (0058)');
 select lives_ok($$ insert into ids select 'g2', id from create_request_group('COMPANY', pg_temp.company()) $$,
   'A complete Company Trip');
 reset role;
 select is((select vehicle_plate || ' / ' || supplier_name from requests where group_id = pg_temp.id('g2')),
   'VM / Wilcon Depot – Mandaue', 'Its stops carry the chosen vehicle and their supplier');
 select is((select driver_name from request_groups where id = pg_temp.id('g2')), 'Jun Reyes', 'and the group the chosen Driver');
+select is((select department_id || ' / ' || department_name from request_groups where id = pg_temp.id('g2')),
+  'p1 / Riverside Townhomes', 'Its Department / Site is its Project / Site (0058)');
 
 -- Editing -------------------------------------------------------------------
 insert into ids select 'a', id from requests where group_id = pg_temp.id('g1') and stop_letter = 'A';

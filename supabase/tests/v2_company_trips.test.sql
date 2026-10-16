@@ -27,8 +27,9 @@ insert into booking_options ("group", id, name, status) values
   ('destinations', 'cd1', 'BIR RDO 43', 'Active'),
   ('destinations', 'cd2', 'BDO Ortigas', 'Active'),
   ('purposes', 'cpu', 'Submission', 'Active'),
-  ('departments', 'cdep1', 'Accounting', 'Active'),
-  ('departments', 'cdep2', 'Procurement', 'Active'),
+  -- Since 0058 a Company Trip's Department / Site is its Project / Site.
+  ('projects', 'cdep1', 'Accounting', 'Active'),
+  ('projects', 'cdep2', 'Procurement', 'Active'),
   ('starting_points', 'csp', 'Main Office', 'Active'),
   ('supervisors', 'csup', 'Engr. Dante Villanueva', 'Active'),
   ('heads', 'ch', 'Engr. Carmela Ong', 'Active');
@@ -46,8 +47,9 @@ create function pg_temp.stop(p_dest text) returns jsonb language sql as $$
   select jsonb_build_object('projectId', 'cp', 'destinationId', p_dest, 'purposeId', 'cpu', 'flexibility', 'DAY');
 $$;
 create function pg_temp.company(p_dept text, p_stops jsonb) returns jsonb language sql as $$
-  select jsonb_build_object('date', pg_temp.d(), 'startingPointId', 'csp', 'departmentId', p_dept, 'vehiclePlate', 'CM',
-    'driverId', '00000000-0000-0000-0000-0000000000f1', 'supervisorId', 'csup', 'headId', 'ch', 'stops', p_stops);
+  select jsonb_build_object('date', pg_temp.d(), 'startingPointId', 'csp', 'vehiclePlate', 'CM',
+    'driverId', '00000000-0000-0000-0000-0000000000f1', 'supervisorId', 'csup', 'headId', 'ch',
+    'stops', (select jsonb_agg(s || jsonb_build_object('projectId', p_dept)) from jsonb_array_elements(p_stops) s));
 $$;
 create temp table ids (k text primary key, v uuid);
 grant select, insert on ids to authenticated;

@@ -84,6 +84,11 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   query parameters the screen reads once and strips (`/schedules?status=`
   and `?view=`, `/requests?progress=`, `/finished?status=` and
   `?problems=`); "Cancellation requests" jumps to `/schedules#cancellations`.
+- **Form filter: Daily Vehicle Trips / Company Trips** (`app/form-filter.tsx`,
+  2026-10-15) on Schedules, Finished Trips (Admin and Scheduler), My
+  Schedule (an Admin viewing as Driver; a Driver only when they have both
+  kinds of trip, next to Sort) and My requests (only when the account has
+  Company requests).
 - **Schedules has Day, Week and All dates views.** All dates lists every
   matching schedule with its date on each card; a status link with no view
   opens it, so the list shows everything the tile counted. Picking a date
@@ -163,8 +168,8 @@ an eight-row trip record (requester, purpose and details, leg, origin, Time
 Out, destination, Time In, site officer / supplier / contact), the
 signatories (requested by, Immediate Supervisor, site officer / supplier,
 PM / CM / Dept. Head) with blank signature lines, and For Finance Use. It
-uses the same portal and `.print-form`, inside `.company-print`. The same
-paper shows as a "Printed form preview" on the Company Trip request form.
+uses the same portal and `.print-form`, inside `.company-print`. It only
+appears when an Admin prints; the request form shows no preview.
 
 ## Empty and focus states (verified)
 
@@ -214,7 +219,7 @@ router/URL segments are used for in-app navigation.
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
 | `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily or the Company Trip Form) | Driver, Admin |
 | `settings` | `app/settings.tsx` | Admin (accounts with Position, Can request company trips, Driver type and a Company car Driver's request switches; vehicles with Can be requested for company trips; booking options) |
-| — | `app/booking-options.tsx` | Admin (projects/destinations/purposes, Urgent reasons, Starting points, Departments / Sites, Suppliers, Immediate Supervisors, PM / CM / Dept. Heads; a destination's Location column and field take pasted coordinates or a Google Maps link) |
+| — | `app/booking-options.tsx` | Admin (projects/destinations/purposes, Urgent reasons, Starting points, Suppliers, Immediate Supervisors, PM / CM / Dept. Heads; a destination's Location column and field take pasted coordinates or a Google Maps link) |
 
 **Scheduling** (`app/scheduling.tsx`, prototype "KOVA Scheduler",
 2026-10-14/15) is the Scheduler's one planning screen for Daily and Company

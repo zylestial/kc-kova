@@ -83,7 +83,7 @@ update accounts set role = 'Requester' where username = 'flipc';
 select is((select driver_type from accounts where username = 'flipc'), null, 'Someone who stops being a Driver loses the Driver type');
 
 select ok((select can_request_company(a) from accounts a where username = 'juanc'), 'A Requester with the switch can request company trips');
-select ok(not (select can_request_company(a) from accounts a where username = 'adminc'), 'An Admin without the switch cannot');
+select ok((select can_request_company(a) from accounts a where username = 'adminc'), 'An Admin can, even without the switch (0059)');
 
 -- Drivers ask only when allowed ---------------------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');

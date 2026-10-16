@@ -19,7 +19,6 @@ const valid = {
   date: "2026-10-20",
   stops: [stop],
   startingPointId: "",
-  departmentId: "",
   vehiclePlate: "",
   driverId: "",
   supervisorId: "",

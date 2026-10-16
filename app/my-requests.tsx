@@ -18,6 +18,8 @@ import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import OlderRecordsNotice from "./older-records-notice";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
+import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
+import { kindOf } from "@/lib/scheduling";
 import {
   currentAccount,
   cancelRequest,
@@ -107,6 +109,7 @@ export default function MyRequests({
   const [dates, setDates] = useState<DateFilter>(anyDate);
   const [progress, setProgress] = useState<"all" | RequestProgress>(initialProgress ?? "all");
   const [type, setType] = useState<"all" | TransportRequest["requestType"]>("all");
+  const [form, setForm] = useState<FormFilterValue>("all");
 
   // Opens straight into a specific request when arriving from a notification.
   useEffect(() => {
@@ -122,7 +125,8 @@ export default function MyRequests({
     (request) =>
       inDateFilter(request.date, dates, today) &&
       (progress === "all" || request.progress === progress) &&
-      (type === "all" || request.requestType === type),
+      (type === "all" || request.requestType === type) &&
+      formMatches(form, kindOf(request)),
   );
 
   // Keep the details modal showing the latest copy after a refresh.
@@ -216,8 +220,9 @@ export default function MyRequests({
         </div>
         <OlderRecordsNotice />
         {requests.length > 0 && (
-          <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [progress, type].filter((value) => value !== "all").length}>
+          <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [progress, type, form].filter((value) => value !== "all").length}>
             <DateRangeFilter value={dates} onChange={setDates} />
+            {requests.some((request) => kindOf(request) === "COMPANY") && <FormFilter value={form} onChange={setForm} />}
             <label className="field">
               <span>Progress</span>
               <Select value={progress} onValueChange={(value) => setProgress(value as typeof progress)}>

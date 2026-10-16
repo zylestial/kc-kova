@@ -16,6 +16,8 @@ import { completionLabel, completionMeaning } from "@/lib/status-text";
 import { hasOpenProblem } from "@/lib/finished-trips";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
+import FilterFold from "./filter-fold";
+import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 
 const dateLabel = (date: string) =>
@@ -46,13 +48,18 @@ export default function SchedulerFinishedTrips() {
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort<SortKey>>(null);
-  const visible = sortRows(trips, sort, {
-    date: (trip) => trip.schedule.date,
-    plate: (trip) => trip.revision.plate,
-    driver: (trip) => trip.revision.driverName,
-    route: routeOf,
-    status: (trip) => completionLabel[trip.state],
-  });
+  const [form, setForm] = useState<FormFilterValue>("all");
+  const visible = sortRows(
+    trips.filter((trip) => formMatches(form, trip.schedule.kind)),
+    sort,
+    {
+      date: (trip) => trip.schedule.date,
+      plate: (trip) => trip.revision.plate,
+      driver: (trip) => trip.revision.driverName,
+      route: routeOf,
+      status: (trip) => completionLabel[trip.state],
+    },
+  );
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
@@ -73,13 +80,14 @@ export default function SchedulerFinishedTrips() {
           <div>
             <CheckCircle2 size={20} />
             <h2>Submitted trips</h2>
-            <span className="count">{trips.length}</span>
+            <span className="count">{visible.length}</span>
           </div>
         </div>
         {trips.length > 0 && (
-          <div className="admin-trip-filters sort-only">
+          <FilterFold active={(form !== "all" ? 1 : 0) + (sort ? 1 : 0)}>
+            <FormFilter value={form} onChange={setForm} />
             <SortSelect columns={columns} sort={sort} onSort={setSort} />
-          </div>
+          </FilterFold>
         )}
         {trips.length ? (
           <div className="schedule-table admin-trip-table">

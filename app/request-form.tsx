@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Account, BookingOption, BookingOptions, OptionGroup, RequestForm as FormType, StopFlexibility, Vehicle } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { stillNeeded } from "@/lib/missing-fields";
-import CompanyTripPaper from "./company-trip-paper";
 import {
   DETAILS_MAX,
   FLEXIBILITY,
@@ -20,6 +19,7 @@ import {
   stopLetter,
   stopPurpose,
   tripErrors,
+  type TripField,
   weekLabel,
   whenText,
   withForm,
@@ -154,7 +154,6 @@ export default function RequestForm({
   options,
   isAdmin,
   requestedBy,
-  position,
   forms,
   vehicles,
   accounts,
@@ -175,7 +174,6 @@ export default function RequestForm({
   isAdmin: boolean;
   requestedBy: string;
   /** The requester's Position, printed on a Company Trip Form. */
-  position: string;
   /** The forms this account may use; a choice shows when there are two. */
   forms: FormType[];
   vehicles: Vehicle[];
@@ -207,7 +205,6 @@ export default function RequestForm({
   const company = draft.form === "COMPANY";
   const suppliers = choices(options.suppliers, kept.suppliers);
   const startingPoints = choices(options.starting_points, kept.starting_points);
-  const departments = choices(options.departments, kept.departments);
   const supervisors = choices(options.supervisors, kept.supervisors);
   const heads = choices(options.heads, kept.heads);
   // Only vehicles that can be requested for company trips, and Company car Drivers (never Truck drivers).
@@ -241,6 +238,29 @@ export default function RequestForm({
   const stopDestination = (stop: StopDraft) =>
     stop.destinationOtherMode ? stop.destinationOther.trim() : (destinations.find((item) => item.id === stop.destinationId)?.name ?? "");
   const summaryProjects = [...new Set(draft.stops.map(stopProjectName).filter(Boolean))].join(", ");
+  /** One of a Company Trip's own pickers (list choices only). */
+  const tripChoice = (
+    field: TripField,
+    key: "startingPointId" | "vehiclePlate" | "driverId" | "supervisorId" | "headId",
+    label: string,
+    list: Array<{ id: string; name: string }>,
+    hint?: string,
+  ) => (
+    <ChoiceField
+      key={key}
+      label={label}
+      placeholder="Choose…"
+      list={list}
+      id={draft[key]}
+      other=""
+      otherMode={false}
+      allowOther={false}
+      hint={hint}
+      error={showErrors ? tripErrors(draft)[field] : undefined}
+      disabled={dateLocked}
+      onPick={(pick) => onChange({ ...draft, [key]: pick.id })}
+    />
+  );
 
   function send() {
     setShowErrors(true);
@@ -352,44 +372,47 @@ export default function RequestForm({
 
           <section className="request-panel">
             <div className="request-step">Step 2</div>
-            <h2>Is this for one project/site or several?</h2>
-            <div className="request-choice-cards" role="radiogroup" aria-label="Projects or sites">
-              {(
-                [
-                  ["one", "Single project/site", "Every destination is for the same project or site."],
-                  ["multi", "Multiple projects/sites", "Pick the project or site for each destination."],
-                ] as const
-              ).map(([value, title, hint]) => (
-                <label key={value} className={draft.projectMode === value ? "checked" : ""}>
-                  <input
-                    type="radio"
-                    name="project-mode"
-                    value={value}
-                    checked={draft.projectMode === value}
-                    onChange={() => {
-                      // Going to Multiple starts every stop on the single project, so nothing is lost.
-                      if (value === "multi" && draft.projectMode === "one")
-                        onChange({
-                          ...draft,
-                          projectMode: "multi",
-                          stops: draft.stops.map((stop) =>
-                            stop.locked || stop.projectId || stop.projectOther
-                              ? stop
-                              : { ...stop, projectId: draft.projectId, projectOther: draft.projectOther, projectOtherMode: draft.projectOtherMode },
-                          ),
-                        });
-                      else onChange({ ...draft, projectMode: value });
-                    }}
-                  />
-                  <span>
-                    {title}
-                    <small>{hint}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
+            <h2>{company ? "Project / Site, vehicle and Driver" : "Is this for one project/site or several?"}</h2>
+            {/* A Company Trip is for one Project / Site, which is also its Department / Site (0058). */}
+            {!company && (
+              <div className="request-choice-cards" role="radiogroup" aria-label="Projects or sites">
+                {(
+                  [
+                    ["one", "Single project/site", "Every destination is for the same project or site."],
+                    ["multi", "Multiple projects/sites", "Pick the project or site for each destination."],
+                  ] as const
+                ).map(([value, title, hint]) => (
+                  <label key={value} className={draft.projectMode === value ? "checked" : ""}>
+                    <input
+                      type="radio"
+                      name="project-mode"
+                      value={value}
+                      checked={draft.projectMode === value}
+                      onChange={() => {
+                        // Going to Multiple starts every stop on the single project, so nothing is lost.
+                        if (value === "multi" && draft.projectMode === "one")
+                          onChange({
+                            ...draft,
+                            projectMode: "multi",
+                            stops: draft.stops.map((stop) =>
+                              stop.locked || stop.projectId || stop.projectOther
+                                ? stop
+                                : { ...stop, projectId: draft.projectId, projectOther: draft.projectOther, projectOtherMode: draft.projectOtherMode },
+                            ),
+                          });
+                        else onChange({ ...draft, projectMode: value });
+                      }}
+                    />
+                    <span>
+                      {title}
+                      <small>{hint}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
             {draft.projectMode === "one" && (
-              <div className="request-project">
+              <div className={company ? "request-trip-fields" : "request-project"}>
                 <ChoiceField
                   label="Project / Site"
                   placeholder="Choose…"
@@ -401,6 +424,8 @@ export default function RequestForm({
                   error={showErrors && missing.includes("Project / Site") ? "Pick the project or site." : undefined}
                   onPick={(pick) => onChange({ ...draft, projectId: pick.id, projectOther: pick.other, projectOtherMode: pick.otherMode })}
                 />
+                {company && tripChoice("vehicle", "vehiclePlate", "Vehicle", tripVehicles)}
+                {company && tripChoice("driver", "driverId", "Driver", tripDrivers)}
               </div>
             )}
           </section>
@@ -409,6 +434,15 @@ export default function RequestForm({
             <div className="request-step">Step 3</div>
             <h2>Where should the vehicle go?</h2>
             <p>Add each destination. For each one, pick {draft.projectMode === "multi" ? "its project, " : ""}when you need it, and whether it&apos;s urgent.</p>
+            {/* A Company Trip starts at its starting point: always first, never moved. */}
+            {company && (
+              <div className="request-stop request-start">
+                <div className="request-stop-head">
+                  <b>Start</b>
+                </div>
+                {tripChoice("startingPoint", "startingPointId", "Starting point", startingPoints, "Leg 1 starts here.")}
+              </div>
+            )}
             {draft.stops.map((stop, index) => {
               const errors = showErrors ? stopErrors(draft, stop, options) : {};
               const name = `Stop ${letter(index)}`;
@@ -630,34 +664,10 @@ export default function RequestForm({
               <div className="request-trip-fields">
                 {(
                   [
-                    ["startingPoint", "startingPointId", "Starting point", startingPoints, "Leg 1 starts here. Company trips don't have to start or end at ANONANG."],
-                    ["department", "departmentId", "Department / Site", departments, undefined],
-                    ["vehicle", "vehiclePlate", "Vehicle", tripVehicles, "Only vehicles that can be requested for company trips."],
-                    ["driver", "driverId", "Driver", tripDrivers, "Company car drivers only. Truck drivers aren't listed."],
                     ["supervisor", "supervisorId", "Immediate Supervisor", supervisors, undefined],
                     ["head", "headId", "Project Manager / Construction Manager / Dept. Head", heads, undefined],
                   ] as const
-                ).map(([field, key, label, list, hint]) => (
-                  <ChoiceField
-                    key={key}
-                    label={label}
-                    placeholder="Choose…"
-                    list={list}
-                    id={draft[key]}
-                    other=""
-                    otherMode={false}
-                    allowOther={false}
-                    hint={hint}
-                    error={showErrors ? tripErrors(draft)[field] : undefined}
-                    disabled={dateLocked}
-                    onPick={(pick) => onChange({ ...draft, [key]: pick.id })}
-                  />
-                ))}
-                <label className="field">
-                  <span>Position</span>
-                  <Input readOnly value={position || "—"} aria-label="Position" />
-                  <small className="field-note">From your account. An Admin can change it.</small>
-                </label>
+                ).map(([field, key, label, list, hint]) => tripChoice(field, key, label, list, hint))}
                 <label className="field">
                   <span>Site Officer / Supplier (optional)</span>
                   <Input
@@ -739,38 +749,6 @@ export default function RequestForm({
           </p>
         </aside>
       </div>
-      {company && (
-        <section className="request-paper-preview">
-          <h2>Printed form preview</h2>
-          <div className="trip-paper-frame">
-            <CompanyTripPaper
-              data={{
-                date: draft.date,
-                vehicleName: vehicles.find((item) => item.plate === draft.vehiclePlate)?.name ?? "",
-                plate: draft.vehiclePlate,
-                driverName: nameOf(tripDrivers, draft.driverId),
-                requestedBy,
-                position,
-                department: nameOf(departments, draft.departmentId),
-                legs: draft.stops.map((stop, index) => {
-                  const purpose = stopPurpose(stop, options);
-                  return {
-                    purpose: [stop.urgent ? `Urgent: ${purpose}` : purpose, stop.details.trim()].filter(Boolean).join(" – "),
-                    origin: index ? stopDestination(draft.stops[index - 1]) : nameOf(startingPoints, draft.startingPointId),
-                    destination: stopDestination(stop),
-                    contact: stop.contact.trim(),
-                    supplier: nameOf(suppliers, stop.supplierId),
-                  };
-                }),
-                supervisor: nameOf(supervisors, draft.supervisorId),
-                head: nameOf(heads, draft.headId),
-                siteOfficer: draft.siteOfficer.trim(),
-                siteCompany: draft.siteCompany.trim(),
-              }}
-            />
-          </div>
-        </section>
-      )}
     </div>
   );
 }

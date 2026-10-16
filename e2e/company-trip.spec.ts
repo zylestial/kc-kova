@@ -49,11 +49,10 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   await pick(requester, requester, "Purpose", "UAT Purpose");
   await requester.getByPlaceholder("Name and number").fill("Liza 0917 555 0142");
   await requester.getByRole("button", { name: "Add another destination" }).click();
-  const second = requester.locator(".request-stop").nth(1);
+  const second = requester.locator(".request-stop:not(.request-start)").nth(1);
   await pick(second, requester, "Destination", "UAT Second Destination");
   await pick(second, requester, "Purpose", "UAT Purpose");
   await pick(requester, requester, "Starting point", "Main Office");
-  await pick(requester, requester, "Department / Site", /Procurement/);
   await pick(requester, requester, "Vehicle", /Mirage/);
   await pick(requester, requester, "Driver", "Jun Reyes");
   await pick(requester, requester, "Immediate Supervisor", /Dante/);
