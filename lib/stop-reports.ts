@@ -35,20 +35,26 @@ export type OpenStopReport = {
   stops: TransportRequest[];
 };
 
-/** The open stop reports on a day's trips of one kind, oldest first: the Scheduler handles each. */
+/**
+ * The open stop reports on a day's trips of one kind, oldest first: the
+ * Scheduler handles each. Today also shows those left from earlier days,
+ * since Scheduling starts at today.
+ */
 export function openStopReports(
   problems: ProblemReport[],
   schedules: Schedule[],
   requests: TransportRequest[],
   day: string,
   kind: Schedule["kind"],
+  today: string,
 ): OpenStopReport[] {
   return problems
     .filter((report) => report.status === "OPEN" && report.legId)
     .flatMap((report) => {
       const schedule = schedules.find((item) => item.id === report.scheduleId);
       const revision = schedule && publishedRevision(schedule);
-      if (!schedule || !revision || schedule.status !== "ACTIVE" || schedule.date !== day || schedule.kind !== kind) return [];
+      const onDay = schedule?.date === day || (day === today && !!schedule && schedule.date < today);
+      if (!schedule || !revision || schedule.status !== "ACTIVE" || !onDay || schedule.kind !== kind) return [];
       const leg = revision.legs.find((item) => item.id === report.legId);
       const stops = requests.filter((request) => request.destinations.some((item) => leg?.stops.includes(item.id)));
       return [{ report, schedule, plate: revision.plate, place: leg?.destinationName ?? "a stop", stops }];

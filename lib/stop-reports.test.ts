@@ -68,10 +68,13 @@ describe("open stop reports on Scheduling", () => {
       report({ id: "whole trip", scheduleId: "s1" }),
       report({ id: "other day", scheduleId: "s2", legId: "l1" }),
       report({ id: "company", scheduleId: "s3", legId: "l1" }),
+      report({ id: "yesterday", scheduleId: "s4", legId: "l1", createdAt: "2026-10-15T01:00:00Z" }),
     ];
-    const schedules = [trip("s1"), trip("s2", { date: "2026-10-17" }), trip("s3", { kind: "COMPANY" })];
-    const open = openStopReports(problems, schedules, [waiting], "2026-10-16", "DAILY");
-    expect(open.map((item) => item.report.id)).toEqual(["a", "b"]);
+    const schedules = [trip("s1"), trip("s2", { date: "2026-10-17" }), trip("s3", { kind: "COMPANY" }), trip("s4", { date: "2026-10-15" })];
+    const open = openStopReports(problems, schedules, [waiting], "2026-10-16", "DAILY", "2026-10-16");
+    // Today also shows one left from yesterday.
+    expect(open.map((item) => item.report.id)).toEqual(["yesterday", "a", "b"]);
+    expect(openStopReports(problems, schedules, [waiting], "2026-10-17", "DAILY", "2026-10-16").map((item) => item.report.id)).toEqual(["other day"]);
     expect(open[0]).toMatchObject({ plate: "UAT-004", place: "Site Beta", stops: [waiting] });
   });
 });

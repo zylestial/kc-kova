@@ -144,7 +144,7 @@ export default function Scheduling({
     const legs = (schedule && publishedRevision(schedule)?.legs) || [];
     return legs.reduce((count, leg, index) => (stopTaps.some((tap) => tap.legId === leg.id) || missed.has(leg.id) ? index + 1 : count), 0);
   };
-  const reports = openStopReports(problems, schedules, requests, day, kind);
+  const reports = openStopReports(problems, schedules, requests, day, kind, today);
   const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started, reached };
 
   /**
@@ -388,6 +388,7 @@ export default function Scheduling({
             <span>
               <b>{stopReportLabel(report)}</b> at {item.place}
               {stops && ` (${stops})`} · {vehicleName(item.plate)}
+              {item.schedule.date !== day && ` · ${shortDay(item.schedule.date)}`}
               {paused}
               {report.note && ` · "${report.note}"`}
             </span>
