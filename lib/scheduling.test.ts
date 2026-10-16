@@ -99,6 +99,7 @@ describe("trips", () => {
     expect(tripState(schedule([revision("APPROVED", "p")], "p"), true)).toBe("ON_THE_ROAD");
     expect(tripState(schedule([revision("APPROVED", "p"), revision("DRAFT")], "p"), false)).toBe("CHANGES");
     expect(tripState(schedule([revision("APPROVED", "p"), revision("SUBMITTED")], "p"), false)).toBe("CHANGES_SUBMITTED");
+    expect(tripState(schedule([revision("APPROVED", "p"), revision("SUBMITTED")], "p"), true)).toBe("ON_THE_ROAD");
   });
 
   it("lists Daily vehicles first with their Driver, then vehicles for company trips", () => {
