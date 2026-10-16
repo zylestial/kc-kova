@@ -4,7 +4,10 @@ import Scheduling from "../../scheduling";
 import { RequireRole } from "../require-role";
 import { useAccount } from "../providers";
 
-/** /scheduling, or ?date=YYYY-MM-DD&type=DAILY|COMPANY to open the planner for that day and type. */
+/**
+ * /scheduling, or ?date=YYYY-MM-DD&type=DAILY|COMPANY to open the planner for
+ * that day and type; &trip=<schedule id> also shows that trip's vehicle.
+ */
 export default function SchedulingGate() {
   const { viewRole } = useAccount();
   const params = useSearchParams();
@@ -15,6 +18,7 @@ export default function SchedulingGate() {
       <Scheduling
         initialDate={params.get("date") ?? undefined}
         initialKind={type === "DAILY" || type === "COMPANY" ? type : undefined}
+        initialTripId={params.get("trip") ?? undefined}
         onChange={(date, kind) =>
           router.replace(`/scheduling?date=${encodeURIComponent(date)}&type=${kind}`, { scroll: false })
         }

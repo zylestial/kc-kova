@@ -13,7 +13,7 @@ export default function CreateScheduleGate() {
   const scheduleId = useSearchParams().get("scheduleId");
   const schedule = useKovaData().schedules.find((item) => item.id === scheduleId);
   useEffect(() => {
-    router.replace(schedulingHref(schedule?.date, schedule?.kind));
+    router.replace(schedulingHref(schedule?.date, schedule?.kind, schedule?.id));
   }, [router, schedule]);
   return null;
 }

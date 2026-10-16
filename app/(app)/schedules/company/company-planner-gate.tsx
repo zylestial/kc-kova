@@ -15,7 +15,7 @@ export default function CompanyPlannerGate() {
   const trip = useKovaData().schedules.find((item) => item.id === tripId);
   const date = trip?.date ?? params.get("date") ?? undefined;
   useEffect(() => {
-    router.replace(schedulingHref(date, "COMPANY"));
-  }, [router, date]);
+    router.replace(schedulingHref(date, "COMPANY", trip?.id));
+  }, [router, date, trip?.id]);
   return null;
 }

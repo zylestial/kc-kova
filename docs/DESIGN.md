@@ -65,7 +65,18 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   Admin is viewing as another role, the menu is that role's.
 - **Top bar** (`app/(app)/topbar.tsx`): today's date (wide screens) or
   the menu button and logo (narrow), the refresh-failed warning, Refresh
-  and notifications.
+  and notifications. Each notification in the bell has an icon for its
+  type in a round badge of its status color (`notificationIcons` in
+  `app/notification-bell.tsx`): green for good news (scheduled, trip
+  published), blue for news (submitted, moved, split), amber for something
+  to look at (sent back, returned, cancellation asked or declined), red for
+  something wrong (cancelled, problem reported). A new type won't compile
+  until it has one. Clicking one closes the bell and opens the exact item
+  (`notificationTarget`): the request's details, the trip on My Schedule
+  or Finished Trips, a submitted schedule's details over its week, a
+  returned trip's vehicle on Scheduling (`?trip=`, opened, scrolled to and
+  highlighted), or a cancellation request's row on Schedules
+  (`?cancellation=`, highlighted).
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
   takes its status color only when its count is above zero; a zero is
