@@ -809,8 +809,18 @@ Built on `feat/driver-stop-reports`, migrations 0060–0064. The rules are
 in `docs/RULES.md` "on-the-road rules". The owner's calls:
 
 - **Report types:** Not available, Wrong address / closed, Road blocked /
-  weather (Skip this stop or Wait), Vehicle problem (pauses the trip),
-  Other. Company trips (the requester on My Trips) report the same way.
+  weather, Vehicle problem, Other. Company trips (the requester on My
+  Trips) report the same way.
+- **The Scheduler decides what happens next** (0068, owner's call
+  2026-10-16): at first a report acted at once (Not available made the
+  stop missed and the Driver went on; the Driver chose Skip or Wait on a
+  blocked road; a vehicle problem paused the trip until the Driver tapped
+  Resume). The owner said the Driver must not go on before the Scheduler
+  knows what to do. Every report now holds the trip until a Scheduler or
+  Admin answers: Skip it, Wait there, End the trip, or Change the route
+  (held until the Admin approves). No time limit; End trip now stays for
+  emergencies. Resume trip is gone. An Admin answers from Scheduling by
+  viewing as Scheduler.
 - **A change to a trip on the road needs the Admin.** It first went
   straight to the Driver (`edit_live_trip`, a `/live` route,
   LIVE_TRIP_CHANGED); the owner reversed that the same day, and that code
