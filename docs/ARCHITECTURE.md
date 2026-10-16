@@ -252,7 +252,10 @@ from today (also a waiting request whose day has passed). Schedulers can
 read taps since 0062. 0066 adds kind `NOT_REACHED`, filed by the trigger
 `trip_attendance_report_unreached` (`report_unreached_stops`) when End
 trip sets `end_at`, and notification type `STOP_MISSED` for the requesters
-of a missed stop (`notify_stop_missed`).
+of a missed stop (`notify_stop_missed`). 0067 adds
+`problem_reports.request_ids`: a report for some of the requests at a stop
+(`report_stop`'s `p_request_ids`; `missed` stays false), which
+`release_missed_stop` takes off the trip alone.
 
 ### `request_groups` (migration 0052)
 
@@ -393,7 +396,7 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/company-stops` | `app/api/schedules/[scheduleId]/company-stops/route.ts` | Same; `{ legId, kind: "ARRIVE" \| "LEAVE", location }` |
 | PUT | `/api/schedules/:scheduleId/times` | `app/api/schedules/[scheduleId]/times/route.ts` | Admin, submitted trip until Done; `{ legId, field: "OUT" \| "IN", time: "HH:MM" \| null }` |
 | POST | `/api/schedules/:scheduleId/problems` | `app/api/schedules/[scheduleId]/problems/route.ts` | Assigned Driver |
-| POST | `/api/schedules/:scheduleId/stop-reports` | `app/api/schedules/[scheduleId]/stop-reports/route.ts` | Whoever records the trip (Driver, Company trip requester, Admin), between Start and End; `{ legId, kind, note, skip, location }` |
+| POST | `/api/schedules/:scheduleId/stop-reports` | `app/api/schedules/[scheduleId]/stop-reports/route.ts` | Whoever records the trip (Driver, Company trip requester, Admin), between Start and End; `{ legId, kind, note, skip, location, requestIds? }` |
 | POST | `/api/schedules/:scheduleId/resume` | `app/api/schedules/[scheduleId]/resume/route.ts` | Same; clears a Vehicle problem pause |
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required); Scheduler for a stop report |
 | POST | `/api/problems/:problemId/missed` | `app/api/problems/[problemId]/missed/route.ts` | Scheduler, Admin; a missed stop, `{ sendBack, reason }` |
