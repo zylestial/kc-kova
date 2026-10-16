@@ -24,6 +24,11 @@ describe("request access", () => {
     expect(canRequestCompany(account("Scheduler", { canRequestCompany: true }))).toBe(false);
   });
 
+  it("lets every Admin request company trips, switch or not (0059)", () => {
+    expect(canRequestCompany(account("Admin"))).toBe(true);
+    expect(canRequestCompany(account("Admin", { status: "Inactive" }))).toBe(false);
+  });
+
   it("lets a Driver ask only when allowed, and only a Company car driver", () => {
     expect(canRequestTransport(account("Driver"))).toBe(false);
     expect(canRequestDaily(account("Driver", { driverType: "Company car" }))).toBe(false);
