@@ -76,10 +76,12 @@ A person has exactly one role; there is no multi-role account.
    attached). A Driver can report a problem on a trip at any time, even
    before submitting.
    **On the road**, the Driver can report a problem at the current stop:
-   nobody there, wrong address or closed, road blocked (skip it or wait),
-   a vehicle problem (which pauses the trip until Resume trip), or
-   something else. A missed stop is passed over, and the Scheduler sees it
-   on Scheduling to plan again or send back to its requester. A Scheduler
+   nobody there, wrong address or closed, road blocked, a vehicle problem,
+   or something else. The trip then waits: the Scheduler (or an Admin)
+   answers skip it, wait there, end the trip, or change the route, and the
+   Driver goes on only after that. A skipped stop is missed, and the
+   Scheduler plans it again, moves it, or sends it back to its requester.
+   A Scheduler
    can also change a trip already on the road; once an Admin approves, the
    Driver sees the route changed, with the stops already done kept as they
    were. A Company trip's requester reports stops the same way. If the
