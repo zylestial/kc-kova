@@ -10,7 +10,6 @@ import {
   hydrateKovaData,
   moveRequestDay,
   saveScheduleDraft,
-  editLiveTrip,
   submitSchedule,
   type TransportRequest,
 } from "@/lib/kova-api";
@@ -154,11 +153,7 @@ export default function Scheduling({
       const moved = stops.filter((stop) => stop.date !== day);
       const moves = moved.map((stop) => ({ id: stop.id, from: stop.date }));
       for (const stop of moved) await moveRequestDay(stop.id, day);
-      if (option.trip && option.live) {
-        // Straight to the Driver; Undo can't take it back.
-        await editLiveTrip(option.trip.schedule.id, option.rowVersion!, option.input);
-        setUndos([]);
-      } else if (option.trip) {
+      if (option.trip) {
         const before = undoEntry(option.trip.schedule, kind, moves);
         await saveScheduleDraft(option.trip.schedule.id, option.rowVersion, option.input);
         setUndos((list) => [...list, before]);
@@ -171,7 +166,6 @@ export default function Scheduling({
       setNotice(
         `Added to ${name}.` +
           (moved.length ? " Requester notified of the new day." : "") +
-          (option.live ? " The Driver sees the new route now." : "") +
           (option.needsAdmin ? " Saved as draft changes. Resubmit when ready." : "") +
           (option.takesBack ? " Taken back from the Admin. Resubmit when ready." : "") +
           (option.late.length ? ` ${option.late.length === 1 ? "1 stop" : `${option.late.length} stops`} will be late; change the times.` : ""),

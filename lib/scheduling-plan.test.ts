@@ -154,13 +154,13 @@ describe("joining a trip", () => {
 
   it("goes into draft changes on an approved trip", () => {
     const approved = trip(existing.revision.legs, ["a"], "APPROVED");
-    expect(planOn([b], row([approved]), context([a, b]))).toMatchObject({ needsAdmin: true, rowVersion: null, live: false });
+    expect(planOn([b], row([approved]), context([a, b]))).toMatchObject({ needsAdmin: true, rowVersion: null });
   });
 
-  it("changes a trip on the road straight away, after the legs the Driver has reached", () => {
+  it("goes into draft changes on a trip on the road, after the legs the Driver has reached", () => {
     const approved = trip(existing.revision.legs, ["a"], "APPROVED");
     const option = planOn([b], row([approved]), context([a, b], { started: () => true, reached: () => 1 }));
-    expect(option).toMatchObject({ blocked: "", live: true, needsAdmin: false, rowVersion: 3 });
+    expect(option).toMatchObject({ blocked: "", needsAdmin: true, rowVersion: null });
     expect(option.input.legs.map((item) => [item.id, item.destinationId])).toEqual([
       ["l1", "wilcon"],
       [undefined, "bir"],

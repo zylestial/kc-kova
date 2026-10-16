@@ -1,7 +1,7 @@
 import type { BookingOption, ScheduleInput, ScheduleLeg, TransportRequest } from "@/lib/kova-api";
 import { canShareTrip, MAX_TRIP_LEGS } from "@/lib/company-trips";
-import { MAX_LEGS, openRevision, publishedRevision } from "@/lib/trip-record";
-import { tripState, type Trip, type VehicleRow } from "@/lib/scheduling";
+import { MAX_LEGS, openRevision } from "@/lib/trip-record";
+import type { Trip, VehicleRow } from "@/lib/scheduling";
 import {
   BASE_PLACE,
   driveMinutes,
@@ -57,8 +57,6 @@ export type PlanOption = {
   needsAdmin: boolean;
   /** The trip is waiting for the Admin: this takes it back to draft, to resubmit. */
   takesBack: boolean;
-  /** The trip is on the road: this changes it straight away, for the Driver (0060). */
-  live: boolean;
 };
 
 /** A leg being worked on: what save_schedule_draft takes, with the times the Scheduler set. */
@@ -182,7 +180,6 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     label: "",
     needsAdmin: false,
     takesBack: false,
-    live: false,
   });
 
   if (company) {
@@ -219,7 +216,6 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
       label: `Free${context.isToday ? " now" : ""} · new trip`,
       needsAdmin: false,
       takesBack: false,
-      live: false,
     };
   };
 
@@ -237,12 +233,10 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     return fresh(`${String(Math.floor(after / 60)).padStart(2, "0")}:${String(after % 60).padStart(2, "0")}`);
   }
 
-  const state = tripState(joinable.schedule, context.started(joinable.schedule.id));
-  // On the road, the stops go in after the legs the Driver has reached,
-  // straight onto the route the Driver follows (0060).
-  const live = state === "ON_THE_ROAD";
-  const revision = (live && publishedRevision(joinable.schedule)) || joinable.revision;
-  const reached = live ? context.reached(joinable.schedule.id) : 0;
+  // On the road, the stops go in after the legs the Driver has reached
+  // (draft changes for the Admin, applied to the Driver's route, 0060).
+  const revision = joinable.revision;
+  const reached = context.started(joinable.schedule.id) ? context.reached(joinable.schedule.id) : 0;
   const base: WorkLeg[] = revision.legs.map((leg: ScheduleLeg) => ({
     id: leg.id,
     destinationId: leg.destinationId,
@@ -311,7 +305,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
   return {
     row,
     trip: joinable,
-    rowVersion: live ? revision.rowVersion : open ? open.rowVersion : null,
+    rowVersion: open ? open.rowVersion : null,
     input: toInput(legs, [...new Set([...revision.requestIds, ...ids])]),
     arrive: legs[index].timeIn,
     end,
@@ -319,8 +313,7 @@ export function planOn(stops: TransportRequest[], row: VehicleRow, context: Plan
     late: lateIn(legs).filter((id) => !wasLate.has(id)),
     blocked: legs.length > (company ? MAX_TRIP_LEGS : MAX_LEGS) ? `Over ${company ? MAX_TRIP_LEGS : MAX_LEGS} legs` : "",
     label,
-    needsAdmin: !live && !open,
-    takesBack: !live && open?.status === "SUBMITTED",
-    live,
+    needsAdmin: !open,
+    takesBack: open?.status === "SUBMITTED",
   };
 }

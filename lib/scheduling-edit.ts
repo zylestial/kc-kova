@@ -16,6 +16,8 @@ type Timer = ReturnType<typeof legTimer>;
 
 export type EditLeg = WorkLeg & {
   key: string;
+  /** Draft changes to a trip on the road: the Driver's leg this came from (0060). */
+  source?: string;
   destinationName: string;
   timeOut: string;
   timeIn: string;
@@ -37,6 +39,7 @@ export function retime(legs: EditLeg[], timer: Timer): EditLeg[] {
 export function editLegs(legs: ScheduleLeg[], timer: Timer, start: string): EditLeg[] {
   const saved: EditLeg[] = legs.map((leg) => ({
     key: leg.id,
+    source: leg.sourceLegId,
     destinationId: leg.destinationId,
     destinationName: leg.isFinal ? "ANONANG" : leg.destinationName,
     stops: leg.stops,
