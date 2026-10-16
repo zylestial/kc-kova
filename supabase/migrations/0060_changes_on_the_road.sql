@@ -1,20 +1,26 @@
 -- Changing a trip that's on the road (owner's request, 2026-10-16). Until
--- now every change went through a new revision whose legs
--- write_revision_content deleted and re-inserted with new ids, so approving
--- changes to a started trip left its stop_taps (0045) and time corrections
--- (0046) pointing at the old revision: the taps looked missing and the
--- Driver couldn't tap those stops again.
+-- now approving changes put in a new version whose legs had new ids, so
+-- approving changes to a started trip left its stop_taps (0045) and time
+-- corrections (0046) pointing at the old version: the taps looked missing
+-- and the Driver couldn't tap those stops again.
 --
--- Now a started trip (Start trip tapped, or a Company trip's run begun) is
--- changed in place on its published revision with edit_live_trip, straight
--- to the Driver with no Admin approval (Admins are told). Legs the Driver
--- has already tapped, and every leg before them, keep their ids and can't
--- change; later legs can be added, changed, moved or removed.
--- save_schedule_draft and approve_schedule now refuse a started trip.
+-- Changes to a started trip (Start trip tapped, or a Company trip's run
+-- begun) still go through draft changes and Admin approval, but approval
+-- writes them onto the version the Driver follows (apply_changes_on_road)
+-- instead of replacing it. Each draft leg remembers the leg it came from
+-- (schedule_legs.source_leg_id), which keeps that leg's id, and so its
+-- taps. Legs the Driver has already tapped, and every leg before them,
+-- must come through unchanged.
 --
--- write_revision_content: same as 0054, except a leg sent with the "id" of
--- a leg already in that revision is updated in place (keeping its id)
--- instead of deleted and inserted again.
+-- write_revision_content: same as 0054, except a leg sent with an "id":
+--   * of a leg already in that version is updated in place (keeping its
+--     id) instead of deleted and inserted again;
+--   * of a leg in another version of the same schedule is inserted with
+--     source_leg_id pointing at it (or at the leg that one came from).
+
+-- No foreign key: a leg it came from may later be removed from the
+-- version the Driver follows.
+alter table schedule_legs add column source_leg_id uuid;
 
 create or replace function write_revision_content(
   p_revision_id uuid,
@@ -52,6 +58,7 @@ declare
   v_kind text;
   v_kept uuid[];
   v_existing public.schedule_legs;
+  v_source uuid;
 begin
   select s.kind into v_kind
   from public.schedule_revisions sr join public.schedules s on s.id = sr.schedule_id
@@ -182,13 +189,19 @@ begin
       where id = v_existing.id
       returning id into v_leg_id;
     else
+      -- A leg of another version of this schedule: this one came from it.
+      select coalesce(l.source_leg_id, l.id) into v_source
+      from public.schedule_legs l
+      join public.schedule_revisions r on r.id = l.revision_id
+      where l.id::text = v_leg ->> 'id' and l.revision_id <> p_revision_id
+        and r.schedule_id = (select schedule_id from public.schedule_revisions where id = p_revision_id);
       insert into public.schedule_legs (
         revision_id, leg_no, origin, destination_id, destination_name,
-        planned_time_out, planned_time_in, contact_name, contact_number, is_final
+        planned_time_out, planned_time_in, contact_name, contact_number, is_final, source_leg_id
       ) values (
         p_revision_id, v_no, v_prev_destination, v_destination_id, v_destination_name,
         v_out, v_in, coalesce(trim(v_leg ->> 'contactName'), ''), coalesce(trim(v_leg ->> 'contactNumber'), ''),
-        v_is_final
+        v_is_final, v_source
       ) returning id into v_leg_id;
     end if;
 
@@ -240,9 +253,9 @@ end;
 $$;
 
 
--- Same as 0015, except edit_live_trip may change the published version it
--- names in kova.live_edit_revision (set only inside that RPC, for its own
--- transaction).
+-- Same as 0015, except apply_changes_on_road may change the published
+-- version it names in kova.live_edit_revision (set only inside it, for its
+-- own transaction).
 create or replace function prevent_closed_revision_changes()
 returns trigger
 language plpgsql
@@ -282,11 +295,10 @@ $$;
 revoke execute on function trip_started(uuid) from public, anon, authenticated;
 
 
--- Once a trip has started, no version other than the published one can be
--- saved, submitted or approved: approving one would swap in new legs and
--- strand the Driver's taps. A waiting version may still be returned or
--- discarded (edit_live_trip discards it). This covers save_schedule_draft,
--- submit_schedule and approve_schedule without restating them.
+-- Once a trip has started, no other version can become the approved one:
+-- swapping in new legs would strand the Driver's taps. approve_schedule
+-- applies changes in place instead (apply_changes_on_road); this is the
+-- backstop.
 create function refuse_revision_on_started_trip()
 returns trigger
 language plpgsql
@@ -294,10 +306,10 @@ security definer
 set search_path = ''
 as $$
 begin
-  if new.status in ('DRAFT', 'SUBMITTED', 'APPROVED')
+  if new.status = 'APPROVED'
      and new.id is distinct from (select published_revision_id from public.schedules where id = new.schedule_id)
      and public.trip_started(new.schedule_id) then
-    raise exception 'This trip is on the road; change it on Scheduling' using errcode = '22023';
+    raise exception 'This trip is on the road; its changes are applied in place' using errcode = '22023';
   end if;
   return new;
 end;
@@ -311,7 +323,7 @@ create trigger schedule_revisions_not_on_started_trip
 
 
 -- Internal: legs 1..p_through of a version as text (id, destination,
--- times, stops), to check a live edit left them alone.
+-- times, stops), to check approved changes left them alone.
 create function leg_snapshot(p_revision_id uuid, p_through int)
 returns text[]
 language sql
@@ -329,18 +341,11 @@ $$;
 revoke execute on function leg_snapshot(uuid, int) from public, anon, authenticated;
 
 
--- Changes a trip that's on the road, in place on its published version.
--- Scheduler (or Admin, as an override). Legs up to the last one the Driver
--- tapped stay exactly as they are; the rest can change. No Admin approval:
--- the Driver sees it straight away, and the Driver, Admins and any
--- requester newly on the trip are told. A version waiting for approval is
--- discarded: this one replaces it.
-create function edit_live_trip(
-  p_schedule_id uuid,
-  p_expected_row_version integer,
-  p_request_ids uuid[],
-  p_legs jsonb
-) returns public.schedule_revisions
+-- approve_schedule: same as 0035, except changes to a trip that has
+-- started are applied in place on the version the Driver follows (see
+-- apply_changes_on_road) instead of replacing it.
+create or replace function approve_schedule(p_schedule_id uuid, p_expected_row_version integer)
+returns public.schedule_revisions
 language plpgsql
 security definer
 set search_path = ''
@@ -349,149 +354,225 @@ declare
   v_actor public.accounts;
   v_schedule public.schedules;
   v_revision public.schedule_revisions;
-  v_request public.requests;
-  v_request_ids uuid[];
-  v_before_requests uuid[];
-  v_last_tapped smallint;
-  v_locked_before text[];
-  v_locked_after text[];
-  v_owner_id uuid;
-  v_date text;
+  v_requester_id uuid;
 begin
   select * into v_actor from public.accounts where id = auth.uid();
-  if v_actor is null or v_actor.status <> 'Active' or v_actor.role not in ('Scheduler', 'Admin') then
-    raise exception 'Not authorized to edit schedules' using errcode = '42501';
-  end if;
-
-  perform set_config('kova.audit_action', 'schedule.live_edit', true);
-  if v_actor.role = 'Admin' then
-    perform set_config('kova.audit_is_override', 'true', true);
+  if v_actor is null or v_actor.status <> 'Active' or v_actor.role <> 'Admin' then
+    raise exception 'Admin access required' using errcode = '42501';
   end if;
 
   select * into v_schedule from public.schedules where id = p_schedule_id for update;
   if v_schedule is null then
     raise exception 'Schedule not found' using errcode = 'P0002';
   end if;
-  if v_schedule.status <> 'ACTIVE' or v_schedule.published_revision_id is null then
+  if v_schedule.status <> 'ACTIVE' then
     raise exception 'This schedule is no longer active' using errcode = '22023';
   end if;
-  if not public.trip_started(p_schedule_id) then
-    raise exception 'This trip hasn''t started yet; propose changes instead' using errcode = '22023';
-  end if;
-  if exists (select 1 from public.trip_attendance where schedule_id = p_schedule_id and end_at is not null)
-     or exists (select 1 from public.company_trip_runs where schedule_id = p_schedule_id and end_at is not null)
-     or exists (select 1 from public.trip_completions where schedule_id = p_schedule_id) then
-    raise exception 'This trip has already ended' using errcode = '22023';
+  if exists (select 1 from public.trip_completions where schedule_id = p_schedule_id) then
+    raise exception 'This trip has already been submitted by the Driver and can''t be revised' using errcode = '22023';
   end if;
 
   select * into v_revision from public.schedule_revisions
-  where id = v_schedule.published_revision_id
+  where schedule_id = p_schedule_id and status = 'SUBMITTED'
   for update;
+  if v_revision is null then
+    raise exception 'There is no submitted schedule to approve' using errcode = '22023';
+  end if;
   if v_revision.row_version is distinct from p_expected_row_version then
-    raise exception 'This schedule was changed elsewhere. Reload it and try again' using errcode = 'PT409';
+    raise exception 'This schedule was changed elsewhere. Reload it and try again' using errcode = '40001';
   end if;
 
-  -- The legs that can't change: up to the last one tapped.
-  select max(l.leg_no) into v_last_tapped
-  from public.stop_taps t join public.schedule_legs l on l.id = t.leg_id
-  where t.revision_id = v_revision.id;
-  v_locked_before := public.leg_snapshot(v_revision.id, coalesce(v_last_tapped, 0));
-  if exists (
-    select 1 from public.schedule_legs l
-    where l.revision_id = v_revision.id and l.leg_no <= coalesce(v_last_tapped, 0)
-      and not exists (
-        select 1 from jsonb_array_elements(coalesce(p_legs, '[]'::jsonb)) leg where leg.value ->> 'id' = l.id::text
-      )
-  ) then
-    raise exception 'Stops the Driver has already reached can''t be changed' using errcode = '22023';
-  end if;
-
-  select coalesce(array_agg(request_id), '{}') into v_before_requests
-  from public.revision_requests where revision_id = v_revision.id;
-
-  select coalesce(array_agg(distinct id), '{}') into v_request_ids from unnest(p_request_ids) as ids (id);
-  if cardinality(v_request_ids) = 0 then
-    raise exception 'Include at least one request' using errcode = '22023';
-  end if;
-  perform 1 from public.requests where id = any(v_request_ids) order by id for update;
-  if (select count(*) from public.requests where id = any(v_request_ids)) <> cardinality(v_request_ids) then
-    raise exception 'Request not found' using errcode = 'P0002';
-  end if;
-  for v_request in select * from public.requests where id = any(v_request_ids) loop
-    if v_request.status <> 'ACTIVE' then
-      raise exception 'A selected request has been cancelled' using errcode = '22023';
-    end if;
-    if v_request.requested_date <> v_schedule.schedule_date then
-      raise exception 'A selected request is for a different date' using errcode = '22023';
-    end if;
-    if exists (
-      select 1 from public.schedule_requests
-      where request_id = v_request.id and active and schedule_id <> v_schedule.id
-    ) then
-      raise exception 'A selected request is already in another schedule' using errcode = '23505';
-    end if;
-  end loop;
-
-  -- A version waiting for approval would otherwise come back over this one.
-  delete from public.schedule_reservations
-  where revision_id in (
-    select id from public.schedule_revisions
-    where schedule_id = p_schedule_id and status in ('DRAFT', 'SUBMITTED', 'RETURNED')
-  );
-  update public.schedule_revisions set status = 'DISCARDED', updated_at = now()
-  where schedule_id = p_schedule_id and status in ('DRAFT', 'SUBMITTED', 'RETURNED');
-
-  perform set_config('kova.live_edit_revision', v_revision.id::text, true);
-  perform public.write_revision_content(v_revision.id, v_schedule.schedule_date, v_request_ids, p_legs);
-  perform set_config('kova.live_edit_revision', '', true);
   perform public.assert_revision_complete(v_revision.id);
-
-  v_locked_after := public.leg_snapshot(v_revision.id, coalesce(v_last_tapped, 0));
-  if v_locked_after is distinct from v_locked_before then
-    raise exception 'Stops the Driver has already reached can''t be changed' using errcode = '22023';
+  if exists (
+    select 1 from public.revision_requests rr
+    join public.request_cancellations rc on rc.request_id = rr.request_id and rc.status = 'PENDING'
+    where rr.revision_id = v_revision.id
+  ) then
+    raise exception 'Resolve the pending cancellation requests for this schedule first' using errcode = '22023';
+  end if;
+  if not exists (
+    select 1 from public.accounts
+    where id = v_revision.driver_id and role = 'Driver' and status = 'Active'
+  ) then
+    raise exception 'The assigned Driver is no longer active' using errcode = '22023';
+  end if;
+  if not exists (select 1 from public.vehicles where plate = v_revision.plate and status = 'Active') then
+    raise exception 'The vehicle is no longer active' using errcode = '22023';
   end if;
 
-  update public.schedule_revisions set row_version = row_version + 1, updated_at = now()
+  perform set_config('kova.audit_action', 'schedule.approve', true);
+
+  if v_schedule.published_revision_id is not null and public.trip_started(p_schedule_id) then
+    return public.apply_changes_on_road(v_schedule, v_revision, v_actor);
+  end if;
+
+  -- The version being replaced gives up its reservation in the same
+  -- transaction the new one takes effect, so there is never a moment with
+  -- neither (or both) in force.
+  if v_schedule.published_revision_id is not null then
+    delete from public.schedule_reservations where revision_id = v_schedule.published_revision_id;
+    update public.schedule_revisions set status = 'SUPERSEDED', updated_at = now()
+    where id = v_schedule.published_revision_id;
+  end if;
+
+  update public.schedule_revisions set
+    status = 'APPROVED',
+    decided_at = now(),
+    decided_by_account_id = v_actor.id,
+    decision_comment = '',
+    row_version = row_version + 1,
+    updated_at = now()
   where id = v_revision.id
   returning * into v_revision;
-  update public.schedules set updated_at = now() where id = p_schedule_id;
+
+  update public.schedules set published_revision_id = v_revision.id, updated_at = now()
+  where id = p_schedule_id;
+
   perform public.sync_schedule_inclusions(p_schedule_id);
 
-  v_date := to_char(v_schedule.schedule_date, 'FMMonth FMDD, YYYY');
-  perform public.notify(
-    v_revision.driver_id, 'TRIP_CHANGED',
-    format('Your trip on %s was changed. Check your next stop', v_date),
-    null, p_schedule_id
-  );
-  -- A Company trip is recorded by its requester (0055), so they're told
-  -- too; on a Daily trip, a requester newly on it is told it's scheduled.
-  for v_owner_id in
-    select distinct r.owner_account_id from public.requests r
-    where r.id = any(v_request_ids)
-      and (v_schedule.kind = 'COMPANY' or not (r.id = any(v_before_requests)))
-      and r.owner_account_id <> v_revision.driver_id
+  for v_requester_id in
+    select distinct r.owner_account_id
+    from public.revision_requests rr
+    join public.requests r on r.id = rr.request_id
+    where rr.revision_id = v_revision.id
   loop
     perform public.notify(
-      v_owner_id,
-      case when v_schedule.kind = 'COMPANY' then 'TRIP_CHANGED' else 'REQUEST_SCHEDULED' end,
-      case when v_schedule.kind = 'COMPANY'
-        then format('Your Company trip on %s was changed. Check your next stop', v_date)
-        else format('Your request for %s was scheduled', v_date) end,
-      null, p_schedule_id
+      v_requester_id,
+      'REQUEST_SCHEDULED',
+      format('Your request for %s was scheduled', to_char(v_schedule.schedule_date, 'FMMonth FMDD, YYYY')),
+      null,
+      p_schedule_id
     );
   end loop;
-  perform public.notify_admins(
-    'LIVE_TRIP_CHANGED',
-    format('%s changed %s''s trip on %s while it was on the road', v_actor.name, v_revision.plate, v_date),
-    null, p_schedule_id
+
+  perform public.notify(
+    v_revision.driver_id,
+    'TRIP_PUBLISHED',
+    format('A trip on %s was published to your schedule', to_char(v_schedule.schedule_date, 'FMMonth FMDD, YYYY')),
+    null,
+    p_schedule_id
   );
 
   return v_revision;
 end;
 $$;
 
-revoke execute on function edit_live_trip(uuid, integer, uuid[], jsonb) from public, anon;
-grant execute on function edit_live_trip(uuid, integer, uuid[], jsonb) to authenticated;
+
+-- Internal, from approve_schedule: approves changes to a trip on the road
+-- by writing them onto the version the Driver follows, keeping each leg the
+-- change came from (source_leg_id) under its id, so the Driver's taps stay
+-- on it. Legs up to the last one the Driver tapped must come through
+-- exactly as they are: if the Driver has reached a stop the change moves,
+-- it's refused, for the Admin to return. The approved draft is then
+-- SUPERSEDED (its content now lives in the published version).
+create function apply_changes_on_road(
+  p_schedule public.schedules,
+  p_draft public.schedule_revisions,
+  p_actor public.accounts
+) returns public.schedule_revisions
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_published public.schedule_revisions;
+  v_legs jsonb;
+  v_request_ids uuid[];
+  v_before_requests uuid[];
+  v_last_tapped smallint;
+  v_locked_before text[];
+  v_owner_id uuid;
+  v_date text := to_char(p_schedule.schedule_date, 'FMMonth FMDD, YYYY');
+  v_refused text := 'The Driver has already reached a stop this change moves. Return it to the Scheduler to redo';
+begin
+  select * into v_published from public.schedule_revisions where id = p_schedule.published_revision_id for update;
+  if exists (select 1 from public.trip_attendance where schedule_id = p_schedule.id and end_at is not null)
+     or exists (select 1 from public.company_trip_runs where schedule_id = p_schedule.id and end_at is not null) then
+    raise exception 'This trip has already ended' using errcode = '22023';
+  end if;
+  if p_draft.plate <> v_published.plate or p_draft.driver_id <> v_published.driver_id then
+    raise exception 'A trip on the road can''t change vehicle or Driver' using errcode = '22023';
+  end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'id', coalesce(l.source_leg_id, l.id),
+      'destinationId', l.destination_id,
+      'plannedTimeOut', to_char(l.planned_time_out, 'HH24:MI'),
+      'plannedTimeIn', to_char(l.planned_time_in, 'HH24:MI'),
+      'contactName', l.contact_name,
+      'contactNumber', l.contact_number,
+      'isFinal', l.is_final,
+      'stops', (select coalesce(jsonb_agg(ls.request_destination_id), '[]'::jsonb) from public.leg_stops ls where ls.leg_id = l.id)
+    ) order by l.leg_no), '[]'::jsonb)
+  into v_legs
+  from public.schedule_legs l where l.revision_id = p_draft.id;
+  select coalesce(array_agg(request_id), '{}') into v_request_ids from public.revision_requests where revision_id = p_draft.id;
+  select coalesce(array_agg(request_id), '{}') into v_before_requests from public.revision_requests where revision_id = v_published.id;
+
+  -- The legs that can't change: up to the last one tapped.
+  select max(l.leg_no) into v_last_tapped
+  from public.stop_taps t join public.schedule_legs l on l.id = t.leg_id
+  where t.revision_id = v_published.id;
+  v_locked_before := public.leg_snapshot(v_published.id, coalesce(v_last_tapped, 0));
+  if exists (
+    select 1 from public.schedule_legs l
+    where l.revision_id = v_published.id and l.leg_no <= coalesce(v_last_tapped, 0)
+      and not exists (select 1 from jsonb_array_elements(v_legs) leg where leg.value ->> 'id' = l.id::text)
+  ) then
+    raise exception '%', v_refused using errcode = '22023';
+  end if;
+
+  delete from public.schedule_reservations where revision_id = p_draft.id;
+  perform set_config('kova.live_edit_revision', v_published.id::text, true);
+  perform public.write_revision_content(v_published.id, p_schedule.schedule_date, v_request_ids, v_legs);
+  perform set_config('kova.live_edit_revision', '', true);
+  perform public.assert_revision_complete(v_published.id);
+  if public.leg_snapshot(v_published.id, coalesce(v_last_tapped, 0)) is distinct from v_locked_before then
+    raise exception '%', v_refused using errcode = '22023';
+  end if;
+
+  update public.schedule_revisions set
+    status = 'SUPERSEDED',
+    decided_at = now(),
+    decided_by_account_id = p_actor.id,
+    decision_comment = '',
+    row_version = row_version + 1,
+    updated_at = now()
+  where id = p_draft.id;
+  update public.schedule_revisions set row_version = row_version + 1, updated_at = now()
+  where id = v_published.id
+  returning * into v_published;
+  update public.schedules set updated_at = now() where id = p_schedule.id;
+  perform public.sync_schedule_inclusions(p_schedule.id);
+
+  perform public.notify(
+    v_published.driver_id, 'TRIP_CHANGED',
+    format('Your trip on %s was changed. Check your next stop', v_date),
+    null, p_schedule.id
+  );
+  -- A Company trip is recorded by its requester (0055), so they're told
+  -- too; on a Daily trip, a requester newly on it is told it's scheduled.
+  for v_owner_id in
+    select distinct r.owner_account_id from public.requests r
+    where r.id = any(v_request_ids)
+      and (p_schedule.kind = 'COMPANY' or not (r.id = any(v_before_requests)))
+      and r.owner_account_id <> v_published.driver_id
+  loop
+    perform public.notify(
+      v_owner_id,
+      case when p_schedule.kind = 'COMPANY' then 'TRIP_CHANGED' else 'REQUEST_SCHEDULED' end,
+      case when p_schedule.kind = 'COMPANY'
+        then format('Your Company trip on %s was changed. Check your next stop', v_date)
+        else format('Your request for %s was scheduled', v_date) end,
+      null, p_schedule.id
+    );
+  end loop;
+
+  return v_published;
+end;
+$$;
+
+revoke execute on function apply_changes_on_road(public.schedules, public.schedule_revisions, public.accounts) from public, anon, authenticated;
 
 
 alter table notifications drop constraint notifications_type_check;
@@ -508,6 +589,5 @@ alter table notifications add constraint notifications_type_check check (type in
   'SCHEDULE_SUBMITTED',
   'SCHEDULE_RETURNED',
   'TRIP_PUBLISHED',
-  'TRIP_CHANGED',
-  'LIVE_TRIP_CHANGED'
+  'TRIP_CHANGED'
 ));
