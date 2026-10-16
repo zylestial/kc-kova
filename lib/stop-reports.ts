@@ -1,4 +1,4 @@
-import type { ProblemReport, Schedule, StopReportKind, TransportRequest } from "@/lib/kova-api";
+import type { ProblemReport, Schedule, ScheduleLeg, StopReportKind, TransportRequest } from "@/lib/kova-api";
 import { publishedRevision } from "@/lib/trip-record";
 
 /**
@@ -13,6 +13,27 @@ export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; h
   { kind: "VEHICLE_PROBLEM", label: "Vehicle problem", hint: "Breakdown, flat tire. The trip pauses until you tap Resume trip." },
   { kind: "OTHER", label: "Something else", hint: "Tell the Scheduler what happened. The trip goes on as planned." },
 ];
+
+/**
+ * The requests at a stop, for the report's "Which ones?" (0067): "52-A ·
+ * Pick up · Cement". The Driver sees the stop number, purpose and details,
+ * never the requester.
+ */
+export function stopChoices(leg: Pick<ScheduleLeg, "stops"> | undefined, requests: TransportRequest[]) {
+  if (!leg) return [];
+  return requests
+    .filter((request) => request.destinations.some((item) => leg.stops.includes(item.id)))
+    .map((request) => ({
+      requestId: request.id,
+      label: [
+        request.group ? `${request.group.number}-${request.stopLetter}` : "",
+        request.urgentReason?.name ?? request.destinations[0]?.purposeName,
+        request.details,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    }));
+}
 
 /** The Scheduler plans its requests again: the whole stop missed, or some of the requests there (0067). */
 export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds">) => report.missed || !!report.requestIds?.length;

@@ -18,7 +18,7 @@ import { manilaToday } from "@/lib/timezone";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
 import { routeChangedAt } from "@/lib/trip-record";
-import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
+import { missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 import StopReportForm from "./stop-report-form";
 
 const dateLabel = (date: string) =>
@@ -109,7 +109,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     setBusy(false);
   }
 
-  async function sendStopReport(trip: Trip, report: { kind: StopReportKind; note: string; skip: boolean }) {
+  async function sendStopReport(trip: Trip, report: { kind: StopReportKind; note: string; skip: boolean; requestIds?: string[] }) {
     if (!reportAt) return;
     setBusy(true);
     setError("");
@@ -119,9 +119,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
       setNotice(
         report.kind === "VEHICLE_PROBLEM"
           ? "Reported. The trip is paused; the Scheduler has been told."
-          : report.kind === "NOT_AVAILABLE" || report.kind === "WRONG_ADDRESS" || report.skip
-            ? `Reported. ${reportAt.place} is missed; go on to the next stop.`
-            : "Reported. The Scheduler has been told.",
+          : report.requestIds
+            ? "Reported. The Scheduler plans those again; carry on with the rest here."
+            : report.kind === "NOT_AVAILABLE" || report.kind === "WRONG_ADDRESS" || report.skip
+              ? `Reported. ${reportAt.place} is missed; go on to the next stop.`
+              : "Reported. The Scheduler has been told.",
       );
       setReportAt(null);
     } catch (caught) {
@@ -239,6 +241,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       {reportAt && (
                         <StopReportForm
                           place={reportAt.place}
+                          stops={stopChoices(trip.revision.legs.find((leg) => leg.id === reportAt.legId), requests)}
                           busy={busy}
                           onCancel={() => {
                             setReportAt(null);

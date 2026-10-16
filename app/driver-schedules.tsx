@@ -46,7 +46,7 @@ import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import StopReportForm from "./stop-report-form";
-import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
+import { missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -191,7 +191,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   }
 
   // A problem at one stop (0061), with the phone's position when it shares one.
-  async function sendStopReport(report: { kind: StopReportKind; note: string; skip: boolean }) {
+  async function sendStopReport(report: { kind: StopReportKind; note: string; skip: boolean; requestIds?: string[] }) {
     if (!selected || !reportAt) return;
     setBusy(true);
     setError("");
@@ -201,9 +201,11 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
       setNotice(
         report.kind === "VEHICLE_PROBLEM"
           ? "Reported. The trip is paused; the Scheduler has been told."
-          : report.kind === "NOT_AVAILABLE" || report.kind === "WRONG_ADDRESS" || report.skip
-            ? `Reported. ${reportAt.place} is missed; go on to the next stop.`
-            : "Reported. The Scheduler has been told.",
+          : report.requestIds
+            ? "Reported. The Scheduler plans those again; carry on with the rest here."
+            : report.kind === "NOT_AVAILABLE" || report.kind === "WRONG_ADDRESS" || report.skip
+              ? `Reported. ${reportAt.place} is missed; go on to the next stop.`
+              : "Reported. The Scheduler has been told.",
       );
       setMode("view");
       setReportAt(null);
@@ -665,6 +667,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {selected && mode === "stop" && reportAt && (
             <StopReportForm
               place={reportAt.place}
+              stops={stopChoices(selected.revision.legs.find((leg) => leg.id === reportAt.legId), requests)}
               busy={busy}
               onCancel={() => {
                 setMode("view");

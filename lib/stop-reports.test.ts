@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProblemReport, Schedule, TransportRequest } from "@/lib/kova-api";
-import { missedLegs, openStopReports, stopReportLabel } from "@/lib/stop-reports";
+import { missedLegs, openStopReports, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 
 const report = (patch: Partial<ProblemReport>): ProblemReport => ({
   id: "p",
@@ -86,5 +86,6 @@ describe("open stop reports on Scheduling", () => {
     const [open] = openStopReports([some], [shared], [waiting, other], "2026-10-16", "DAILY", "2026-10-16");
     expect(open.stops).toEqual([other]);
     expect(stopReportLabel(some)).toBe("Missed: Not available");
+    expect(stopChoices(shared.revisions[0].legs[0], [waiting, other]).map((item) => item.requestId)).toEqual(["q1", "q2"]);
   });
 });
