@@ -519,18 +519,23 @@ export default function Settings() {
                     ) : (
                       <small>Can make Daily Vehicle Trip requests.</small>
                     )}
-                    <label>
-                      <Checkbox
-                        checked={account.canRequestCompany}
-                        onCheckedChange={(v) => setAccount({ ...account, canRequestCompany: v === true })}
-                      />
-                      Can request company trips
-                    </label>
+                    {account.role === "Admin" ? (
+                      // Every Admin may (0059); no switch needed.
+                      <small>Can request company trips.</small>
+                    ) : (
+                      <label>
+                        <Checkbox
+                          checked={account.canRequestCompany}
+                          onCheckedChange={(v) => setAccount({ ...account, canRequestCompany: v === true })}
+                        />
+                        Can request company trips
+                      </label>
+                    )}
                   </div>
                 )}
               </div>
             )}
-            {companyAllowed && account.canRequestCompany && (
+            {(account.role === "Admin" || (companyAllowed && account.canRequestCompany)) && (
               <TextField
                 label="Position"
                 hint="Prints on the Company Trip Form, e.g. Site Engineer."
