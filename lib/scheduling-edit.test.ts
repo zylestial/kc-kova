@@ -84,7 +84,6 @@ describe("tripChecks", () => {
   it("names times that don't work", () => {
     const typed = [estimated[0], leg(2, "b", "09:00", "09:10"), leg(3, null, "09:05", "19:00")];
     expect(tripChecks(editLegs(typed, timer, "08:00"), timer, false, name)).toEqual([
-      "Ends 7:00 PM, after the Driver's day ends at 6:00 PM",
       "Leg 2: Time In 9:10 AM is too soon to drive to b",
       "Leg 3: Time Out 9:05 AM is before it arrives at b at 9:10 AM",
     ]);

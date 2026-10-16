@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, RequestGroup, Schedule, ScheduleRevision, TransportRequest, Vehicle } from "@/lib/kova-api";
-import { dayCounts, placeGroups, schedulingHref, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
+import { carriedStops, dayCounts, placeGroups, schedulingHref, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
 
 const group = (patch: Partial<RequestGroup> = {}): RequestGroup => ({
   id: "g",
@@ -56,6 +56,21 @@ describe("what's to plan", () => {
     const company = stop("x", { group: group({ form: "COMPANY", vehiclePlate: "NBC-4821" }) });
     expect(toPlan([...requests, company], "2026-10-14", "COMPANY").map((item) => item.id)).toEqual(["x"]);
     expect(dayCounts([...requests, company], "2026-10-14", "DAILY")).toEqual({ toPlan: 3, urgent: 1 });
+  });
+
+  it("carries missed and past-due stops to every other day", () => {
+    const carried = [
+      stop("m", { missedAt: "2026-10-14T03:00:00Z" }),
+      stop("p", { date: "2026-10-13" }),
+      stop("w", { flexibility: "WEEK", date: "2026-10-13" }),
+      stop("s", { date: "2026-10-13", progress: "SCHEDULING" }),
+      stop("t"),
+    ];
+    // On its own day a missed stop is in To plan, not carried.
+    expect(carriedStops(carried, "2026-10-14", "2026-10-14").map((item) => item.id)).toEqual(["p"]);
+    // The week's list already has the "any day" stop.
+    expect(carriedStops(carried, "2026-10-15", "2026-10-14").map((item) => item.id)).toEqual(["p", "m"]);
+    expect(carriedStops(carried, "2026-10-20", "2026-10-14").map((item) => item.id)).toEqual(["p", "w", "m"]);
   });
 
   it("groups stops at the same place, but a Company stop only with its own vehicle's", () => {

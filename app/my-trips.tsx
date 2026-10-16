@@ -7,7 +7,6 @@ import {
   recordCompanyRun,
   recordCompanyStop,
   reportStop,
-  resumeTrip,
   type Schedule,
   type ScheduleRevision,
   type StopReportKind,
@@ -18,7 +17,7 @@ import { manilaToday } from "@/lib/timezone";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
 import { routeChangedAt } from "@/lib/trip-record";
-import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
+import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 import StopReportForm from "./stop-report-form";
 
 const dateLabel = (date: string) =>
@@ -109,33 +108,15 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     setBusy(false);
   }
 
-  async function sendStopReport(trip: Trip, report: { kind: StopReportKind; note: string; skip: boolean }) {
+  async function sendStopReport(trip: Trip, report: { kind: StopReportKind; note: string; requestIds?: string[] }) {
     if (!reportAt) return;
     setBusy(true);
     setError("");
     try {
       const location = await getPhoneLocation();
       await reportStop(trip.schedule.id, { legId: reportAt.legId, ...report, location });
-      setNotice(
-        report.kind === "VEHICLE_PROBLEM"
-          ? "Reported. The trip is paused; the Scheduler has been told."
-          : report.kind === "NOT_AVAILABLE" || report.kind === "WRONG_ADDRESS" || report.skip
-            ? `Reported. ${reportAt.place} is missed; go on to the next stop.`
-            : "Reported. The Scheduler has been told.",
-      );
+      setNotice("Reported. The Scheduler has been told; wait for their answer.");
       setReportAt(null);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
-    }
-    setBusy(false);
-  }
-
-  async function resume(trip: Trip) {
-    setBusy(true);
-    setError("");
-    try {
-      await resumeTrip(trip.schedule.id);
-      setNotice("Trip resumed.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
     }
@@ -178,6 +159,8 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
               // The stop the next step is at (End trip is the last stop's arrival).
               const nextLeg = next?.legId ?? (next?.kind === "END" ? trip.revision.legs.at(-1)?.id : undefined);
               const onTheRoad = !!run && !run.endAt;
+              // The Scheduler's latest answer to a stop report (0068).
+              const answer = onTheRoad && !trip.schedule.pausedAt ? latestAnswer(problemsOf(trip)) : undefined;
               return (
                 <article key={trip.schedule.id} className={"my-trip" + (isOpen ? " open" : "")}>
                   <button
@@ -205,6 +188,12 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       {routeChangedAt(trip.revision, run?.startAt) && (
                         <p className="notice" role="status">
                           Route changed by the Scheduler at {timeLabel(routeChangedAt(trip.revision, run?.startAt)!)}. Check your next stop.
+                        </p>
+                      )}
+                      {answer && (
+                        <p className="notice info" role="status">
+                          <b>Scheduler&apos;s answer at {timeLabel(answer.decidedAt!)}:</b>{" "}
+                          {answerText(answer, trip.revision.legs.find((leg) => leg.id === answer.legId)?.destinationName ?? "this stop")}
                         </p>
                       )}
                       <ol className="my-trip-steps">
@@ -239,6 +228,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       {reportAt && (
                         <StopReportForm
                           place={reportAt.place}
+                          stops={stopChoices(trip.revision.legs.find((leg) => leg.id === reportAt.legId), requests)}
                           busy={busy}
                           onCancel={() => {
                             setReportAt(null);
@@ -248,14 +238,9 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                         />
                       )}
                       {!reportAt && next && onTheRoad && trip.schedule.pausedAt && (
-                        <div className="trip-paused">
-                          <p className="notice error" role="status">
-                            Trip paused for a vehicle problem. The Scheduler knows. Tap Resume trip when you can go on.
-                          </p>
-                          <Button className="primary trip-step-button" disabled={busy} onClick={() => resume(trip)}>
-                            {busy ? "Saving…" : "Resume trip"}
-                          </Button>
-                        </div>
+                        <p className="notice error trip-held" role="status">
+                          {holdText(problemsOf(trip))}
+                        </p>
                       )}
                       {!reportAt && next && trip.schedule.date <= today && !(onTheRoad && trip.schedule.pausedAt) && (
                         <div className="my-trip-action">

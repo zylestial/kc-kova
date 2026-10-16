@@ -100,7 +100,7 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   await requester.context().grantPermissions(["geolocation"]);
   await requester.context().setGeolocation({ latitude: 16.103769, longitude: 120.436222, accuracy: 10 });
   await requester.goto(`/my-trips?open=${trip.id}`);
-  const action = requester.locator(".my-trip-action button");
+  const action = requester.locator(".my-trip-action .trip-step-button");
   await requester.getByLabel("Starting odometer (km)").fill("48215");
   await action.click();
   await expect(action).toHaveText("Arrived at UAT Destination", saved);

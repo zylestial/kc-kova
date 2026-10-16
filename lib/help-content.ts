@@ -15,6 +15,7 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Company trips", detail: "If an Admin allows it, pick Company Trip, then the vehicle and Driver." },
     { title: "Track progress", detail: "My requests shows Scheduler and Admin approval status." },
     { title: "Record your Company trip", detail: "On My Trips: Start trip with the odometer, tap each stop, End trip at the last one." },
+    { title: "Can't make a stop?", detail: "Tap Problem here? under it, then wait for the Scheduler's answer." },
     { title: "Change your mind", detail: "Edit before scheduling starts; after that, ask to cancel." },
   ],
   Scheduler: [
@@ -24,6 +25,9 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Check the legs", detail: "Open a vehicle to set each leg's Time Out/In or reorder legs. Fix any warning before you submit." },
     { title: "Take a stop off", detail: "Remove its leg: back to To plan, or back to the requester with a reason." },
     { title: "Submit for approval", detail: "Admin approves or sends it back. Undo reverses your last change; Propose changes edits an approved trip." },
+    { title: "Trips on the road", detail: "Change the stops not reached yet; the Driver sees it once the Admin approves." },
+    { title: "Answer the Driver", detail: "A Driver's report holds the trip: skip it, wait there, end the trip or change the route." },
+    { title: "Missed stops", detail: "Once skipped, a stop's banner offers Plan again, Another day or Send back." },
   ],
   Driver: [
     { title: "See your trips", detail: "My Schedule lists only your approved trips." },
@@ -31,6 +35,7 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Start and end at ANONANG", detail: "Tap Start trip before you leave and End trip when back. It is your attendance." },
     { title: "Tap at each stop", detail: "Tap Arrived when you reach a stop and Leaving as you go. These times print on the form." },
     { title: "Complete the trip", detail: "After End trip at ANONANG, log the start/end odometer." },
+    { title: "Problem at a stop?", detail: "Tap Problem here? under it, then wait: the Scheduler tells you to skip it, wait, end the trip, or a new route." },
     { title: "Something went wrong?", detail: "Report a problem — you can do this any time." },
     { title: "Company trips", detail: "The requester records these on their phone; you only drive." },
   ],

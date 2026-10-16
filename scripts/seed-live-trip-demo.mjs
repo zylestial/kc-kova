@@ -3,7 +3,9 @@
 //
 //   driver4 (on UAT-004, so it never overlaps the other demos) gets an
 //   approved, unstarted trip today: ANONANG -> Site Alpha -> Site Beta ->
-//   ANONANG, leaving at the next quarter hour.
+//   ANONANG, leaving at the next quarter hour. It serves one request of
+//   three stops: two at Site Alpha (cement, rebar), on one leg, so a stop
+//   report can name just one (0067), and one at Site Beta.
 //   A waiting Urgent stop at Site Gamma today, for sched1 to add to it once
 //   it's on the road (Fit it in, or drag it onto UAT-004).
 //
@@ -151,6 +153,30 @@ async function urgentRequest(destinationIds) {
   return { request, stops };
 }
 
+/** A Daily request of these stops for today, filed by admin1: one request per stop, A first. */
+async function groupRequest(stops) {
+  const group = await rpc("admin1", "create_request_group", {
+    p_form_type: "DAILY",
+    p_input: {
+      date: TODAY,
+      stops: stops.map(({ destinationId, details }) => ({
+        projectId: "uat-project",
+        destinationId,
+        purposeId: "uat-purpose-delivery",
+        details,
+        flexibility: "DAY",
+      })),
+    },
+  });
+  const { data, error } = await admin
+    .from("requests")
+    .select("id, stop_letter, request_destinations(id)")
+    .eq("group_id", group.id)
+    .order("stop_letter");
+  if (error) throw new Error(`request group lookup failed: ${error.message}`);
+  return data.map((request) => ({ id: request.id, stopId: request.request_destinations[0].id }));
+}
+
 /** --fresh: cancels today's UAT-004 trips and this demo's requests, as if they never ran. */
 async function clearToday(adminId) {
   const { data: trips, error } = await admin
@@ -164,10 +190,11 @@ async function clearToday(adminId) {
   const { data: waiting, error: waitingError } = await admin
     .from("requests")
     .select("id, request_destinations!inner(destination_id)")
-    .eq("requested_date", TODAY)
+    // Today's, and any a test moved to a later day (0065).
+    .gte("requested_date", TODAY)
     .eq("owner_account_id", adminId)
     .eq("status", "ACTIVE")
-    .eq("request_destinations.destination_id", "uat-dest-c");
+    .in("request_destinations.destination_id", ["uat-dest-a", "uat-dest-b", "uat-dest-c"]);
   if (waitingError) throw new Error(`request lookup failed: ${waitingError.message}`);
   const requestIds = [
     ...new Set([
@@ -219,16 +246,22 @@ async function main() {
   }
 
   // Today's trip: ANONANG -> Site Alpha -> Site Beta -> ANONANG, approved.
-  const { request, stops } = await urgentRequest(["uat-dest-a", "uat-dest-b"]);
+  // One request per stop, as the app makes them since 0052, so a missed
+  // stop can come off the trip on its own (release_missed_stop).
+  const [cement, rebar, beta] = await groupRequest([
+    { destinationId: "uat-dest-a", details: "Cement, 20 bags" },
+    { destinationId: "uat-dest-a", details: "Rebar, 10 pcs" },
+    { destinationId: "uat-dest-b", details: "Paint, 4 gallons" },
+  ]);
   const draft = await rpc("sched1", "save_schedule_draft", {
     p_schedule_id: null,
     p_expected_row_version: null,
     p_schedule_date: TODAY,
     p_plate: PLATE,
-    p_request_ids: [request.id],
+    p_request_ids: [cement.id, rebar.id, beta.id],
     p_legs: [
-      { destinationId: "uat-dest-a", plannedTimeOut: fromNext(0), plannedTimeIn: fromNext(30), contactName: "", contactNumber: "", stops: [stops[0].id] },
-      { destinationId: "uat-dest-b", plannedTimeOut: fromNext(60), plannedTimeIn: fromNext(90), contactName: "", contactNumber: "", stops: [stops[1].id] },
+      { destinationId: "uat-dest-a", plannedTimeOut: fromNext(0), plannedTimeIn: fromNext(30), contactName: "", contactNumber: "", stops: [cement.stopId, rebar.stopId] },
+      { destinationId: "uat-dest-b", plannedTimeOut: fromNext(60), plannedTimeIn: fromNext(90), contactName: "", contactNumber: "", stops: [beta.stopId] },
       { isFinal: true, plannedTimeOut: fromNext(120), plannedTimeIn: fromNext(150) },
     ],
   });

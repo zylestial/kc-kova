@@ -234,6 +234,35 @@ into a new request for the same requester and day. It's only for requests
 made before request groups (0052), which can hold several stops; the
 Scheduling page doesn't offer it.
 
+On the road (0060–0064): `schedule_legs.source_leg_id` (no foreign key)
+names the leg of the route the Driver follows that a draft leg came from.
+When the Admin approves changes to a started trip (`trip_started`),
+`approve_schedule` calls `apply_changes_on_road`, which writes the draft
+onto the published version in place, so legs keep their ids and their
+`stop_taps` and time corrections. `problem_reports` gains `leg_id`,
+`kind` (`NOT_AVAILABLE`, `WRONG_ADDRESS`, `ROAD_BLOCKED`,
+`VEHICLE_PROBLEM`, `OTHER`), `missed` (at most one per leg),
+`reported_by_account_id` and an optional position, written by
+`report_stop`. `schedules.paused_at` holds the trip while any of its stop
+reports waits for an answer (`refresh_trip_hold`, 0068; until then only a
+Vehicle problem set it); a trigger refuses stop taps while it's set.
+`answer_stop_report` (0068, `POST /api/problems/:id/answer`) records a
+Scheduler's or Admin's `decision` (`SKIP`, `WAIT`, `END`, `CHANGE`) and
+tells the reporter (STOP_ANSWERED); only Skip makes a stop missed.
+Approval of a started trip's change ends a `CHANGE` hold. `resume_trip` and
+its route are gone.
+`release_missed_stop` takes a missed stop's requests off the published
+version and open drafts without approval, and sets `requests.missed_at`
+(0065), after which `move_request_day` lets a Scheduler move it to any day
+from today (also a waiting request whose day has passed). Schedulers can
+read taps since 0062. 0066 adds kind `NOT_REACHED`, filed by the trigger
+`trip_attendance_report_unreached` (`report_unreached_stops`) when End
+trip sets `end_at`, and notification type `STOP_MISSED` for the requesters
+of a missed stop (`notify_stop_missed`). 0067 adds
+`problem_reports.request_ids`: a report for some of the requests at a stop
+(`report_stop`'s `p_request_ids`; `missed` stays false), which
+`release_missed_stop` takes off the trip alone.
+
 ### `request_groups` (migration 0052)
 
 What a request's stops share: `number` (the 52 in 52-A), the owner, the
@@ -323,7 +352,8 @@ no insert/update grant for clients at all: every row is written by
 `notify()`/`notify_admins()`, called from inside the existing RPC that
 causes the event (`submit_schedule`, `approve_schedule`, `return_schedule`,
 `request_cancellation`, `decline_cancellation`, `confirm_cancellation`,
-`cancel_schedule`, `report_problem`, `send_back_requests`, `split_request`) in the same transaction as the change
+`cancel_schedule`, `report_problem`, `send_back_requests`, `split_request`,
+`report_stop`, and End trip's trigger, 0066) in the same transaction as the change
 itself, and `read_at` is only ever set by the `mark_notification_read`/
 `mark_all_notifications_read` RPCs.
 
@@ -372,7 +402,10 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/company-stops` | `app/api/schedules/[scheduleId]/company-stops/route.ts` | Same; `{ legId, kind: "ARRIVE" \| "LEAVE", location }` |
 | PUT | `/api/schedules/:scheduleId/times` | `app/api/schedules/[scheduleId]/times/route.ts` | Admin, submitted trip until Done; `{ legId, field: "OUT" \| "IN", time: "HH:MM" \| null }` |
 | POST | `/api/schedules/:scheduleId/problems` | `app/api/schedules/[scheduleId]/problems/route.ts` | Assigned Driver |
-| POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required) |
+| POST | `/api/schedules/:scheduleId/stop-reports` | `app/api/schedules/[scheduleId]/stop-reports/route.ts` | Whoever records the trip (Driver, Company trip requester, Admin), between Start and End; `{ legId, kind, note, location, requestIds? }` |
+| POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required); Scheduler for a stop report |
+| POST | `/api/problems/:problemId/answer` | `app/api/problems/[problemId]/answer/route.ts` | Scheduler, Admin; a stop report the trip is held for, `{ decision: "SKIP" | "WAIT" | "END" | "CHANGE" }` |
+| POST | `/api/problems/:problemId/missed` | `app/api/problems/[problemId]/missed/route.ts` | Scheduler, Admin; a missed stop, `{ sendBack, reason }` |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | GET | `/api/notifications` | `app/api/notifications/route.ts` | any session (own rows only, RLS) |
 | POST | `/api/notifications/:id/read` | `app/api/notifications/[id]/read/route.ts` | any session, own notification |

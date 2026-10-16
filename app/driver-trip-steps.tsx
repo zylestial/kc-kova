@@ -96,8 +96,8 @@ type Props = {
   /** Opens the report sheet for a stop. */
   onReport?: (legId: string, place: string) => void;
   /** Paused for a vehicle problem: no taps until Resume trip. */
-  paused?: boolean;
-  onResume?: () => void;
+  /** The trip is held for the Scheduler's answer (0068): this says so instead of the next button. */
+  held?: string;
 };
 
 /**
@@ -107,10 +107,9 @@ type Props = {
  * only big button. No distances or flags (the Admin sees those); the
  * position is still recorded. "End trip now" covers a trip cut short, with
  * a second tap to confirm. "Problem here?" under the current stop reports
- * it (0061): a missed stop is passed over, and a vehicle problem pauses the
- * trip until Resume trip.
+ * it (0061), and the trip waits for the Scheduler's answer (0068).
  */
-export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, paused, onResume }: Props) {
+export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const busy = busyKey !== null;
   const end = steps[steps.length - 1];
@@ -132,16 +131,11 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
     }
     if (step.state === "next") {
       if (notYet) return <p className="trip-step-note">{notYet}</p>;
-      if (paused)
+      if (held)
         return (
-          <div className="trip-paused">
-            <p className="notice error" role="status">
-              Trip paused for a vehicle problem. The Scheduler knows. Tap Resume trip when you can go on.
-            </p>
-            <Button className="primary trip-step-button" disabled={busy} onClick={onResume}>
-              Resume trip
-            </Button>
-          </div>
+          <p className="notice error trip-held" role="status">
+            {held}
+          </p>
         );
       return (
         <Button className="primary trip-step-button" disabled={busy} onClick={() => onTap(step.time.source)}>
@@ -185,7 +179,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {card.rows.map((item) => (
               <div key={stepKey(item.step.time.source)}>{row(item)}</div>
             ))}
-            {current && started && !paused && card.legId && onReport && (
+            {current && started && !held && card.legId && onReport && (
               <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(card.legId!, card.place)}>
                 Problem here? Report it
               </button>
@@ -197,7 +191,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
         <div className="trip-steps-end">
           {confirmEnd ? (
             <>
-              <p>End the trip now and skip the stops left?</p>
+              <p>End the trip now? The stops left are marked not reached, and the Scheduler plans them again.</p>
               <Button variant="outline" disabled={busy} onClick={() => setConfirmEnd(false)}>
                 No
               </Button>
