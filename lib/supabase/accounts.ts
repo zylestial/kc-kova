@@ -113,6 +113,14 @@ export async function createAccount(
  * done, else why not. `admin` is the service-role client.
  */
 export async function renameAuthUser(admin: SupabaseClient, accountId: string, username: string) {
+  // Auth answers a taken email on update with a bare 500, so look first.
+  const { data: owner } = await admin
+    .from("accounts")
+    .select("id")
+    .ilike("username", username.trim().replace(/[\\%_]/g, (char) => `\\${char}`))
+    .neq("id", accountId)
+    .maybeSingle();
+  if (owner) return { status: 409, message: "Username already exists." };
   const { error } = await admin.auth.admin.updateUserById(accountId, { email: usernameToAuthEmail(username) });
   if (!error) return null;
   const isDuplicate = error.code === "email_exists" || /already been registered/i.test(error.message ?? "");
