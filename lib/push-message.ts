@@ -21,6 +21,26 @@ export function pushMessage(
   };
 }
 
+/** Catching up after sign-in: unread notifications from at most this long ago… */
+export const CATCH_UP_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** …and at most this many; more become one "You have N new notifications". */
+export const CATCH_UP_LIMIT = 3;
+
+type CatchUpNotification = Parameters<typeof pushMessage>[0] & { createdAt: string };
+
+/**
+ * What a device shows on signing back in for what arrived while it was
+ * paused (0071), oldest first so the newest ends up on top.
+ */
+export function catchUpMessages(unread: CatchUpNotification[], findSchedule: ScheduleLookup, role: string): PushMessage[] {
+  if (unread.length > CATCH_UP_LIMIT) {
+    return [{ title: "KOVA", body: `You have ${unread.length} new notifications.`, url: "/home", tag: "catch-up" }];
+  }
+  return [...unread]
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((notification) => pushMessage(notification, findSchedule, role));
+}
+
 /** The test a person sends themselves from the Phone notifications dialog. */
 export const testPushMessage: PushMessage = {
   title: "KOVA",
