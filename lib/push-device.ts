@@ -23,7 +23,12 @@ const isStandalone = () => window.matchMedia("(display-mode: standalone)").match
 const supported = () =>
   !!publicKey && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
-const registration = () => navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
+// register() can resolve while the worker is still installing, and subscribing
+// then fails ("no active Service Worker"), so wait until it's active.
+async function registration() {
+  await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
+  return navigator.serviceWorker.ready;
+}
 
 async function currentSubscription() {
   return (await registration()).pushManager.getSubscription();
