@@ -2,13 +2,16 @@
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { PASSWORD_HINT, passwordError } from "@/lib/password-policy";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Car, Plus } from "lucide-react";
 import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
   changeAccountPassword,
+  listAccountEmails,
+  resendEmailLink,
   DRIVER_TYPES,
+  type EmailStatus,
   type DriverType,
 } from "@/lib/kova-api";
 import { canRequestCompany, canRequestDaily } from "@/lib/request-access";
@@ -56,6 +59,7 @@ const blankAccount = () => ({
   name: "",
   username: "",
   password: "",
+  email: "",
   role: "Requester" as Account["role"],
   status: "Active" as Account["status"],
   position: "",
@@ -149,6 +153,26 @@ export default function Settings() {
   const [originalPlate, setOriginalPlate] = useState("");
   const [passwordFor, setPasswordFor] = useState<Account | null>(null);
   const [passwords, setPasswords] = useState({ next: "", confirm: "" });
+  // Every account's email (0072), by account id; loaded apart from the app's data.
+  const [emails, setEmails] = useState<Record<string, EmailStatus>>({});
+  const [resending, setResending] = useState("");
+  const loadEmails = useCallback(() => {
+    listAccountEmails()
+      .then((list) => setEmails(Object.fromEntries(list.map(({ accountId, ...status }) => [accountId, status]))))
+      .catch(() => undefined);
+  }, []);
+  useEffect(loadEmails, [loadEmails]);
+  async function resendLink(a: Account) {
+    setResending(a.id);
+    try {
+      await resendEmailLink(a.id);
+      setNotice(`Confirm link sent again to ${emails[a.id]?.pendingEmail}.`);
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setResending("");
+    }
+  }
   const drivers = accounts.filter(
     (a) => a.role === "Driver" && a.status === "Active",
   );
@@ -177,6 +201,7 @@ export default function Settings() {
       role: a.role,
       status: a.status,
       password: "",
+      email: emails[a.id]?.pendingEmail ?? emails[a.id]?.email ?? "",
       position: a.position,
       driverType: a.driverType ?? "Truck",
       canRequestDaily: a.canRequestDaily,
@@ -188,6 +213,7 @@ export default function Settings() {
   }
   async function saveAccount() {
     const missing = accountMissing(account, accountModal === "add");
+    if (accountModal === "add" && !account.email.trim()) missing.push("Email");
     if (companyAllowed && account.canRequestCompany && !account.position.trim()) missing.push("Position");
     if (missing.length) {
       setFormError(stillNeeded(missing));
@@ -203,6 +229,7 @@ export default function Settings() {
         role: account.role,
         status: account.status,
         password: accountModal === "add" ? account.password : undefined,
+        email: account.email.trim(),
         // Switches the role or Driver type can't have are sent off.
         position: account.position.trim(),
         driverType: isDriver ? account.driverType : undefined,
@@ -211,8 +238,9 @@ export default function Settings() {
       });
       setAccountModal(null);
       setAccount({ ...account, password: "" });
-      setNotice("Account saved.");
+      setNotice(accountModal === "add" ? "Account saved. A link to confirm the email is on its way." : "Account saved.");
       load();
+      loadEmails();
     } catch (e) {
       setFormError((e as Error).message);
     } finally {
@@ -341,6 +369,7 @@ export default function Settings() {
                 <tr>
                   <th>NAME</th>
                   <th>USERNAME</th>
+                  <th>EMAIL</th>
                   <th>ACCOUNT TYPE</th>
                   <th>CAN REQUEST</th>
                   <th>STATUS</th>
@@ -354,6 +383,17 @@ export default function Settings() {
                       <b>{a.name}</b>
                     </td>
                     <td>{a.username}</td>
+                    <td>
+                      {emails[a.id]?.email ?? "—"}
+                      {emails[a.id]?.pendingEmail && (
+                        <div className="account-email-pending">
+                          <span className="badge">Not confirmed</span> {emails[a.id]?.pendingEmail}{" "}
+                          <Button variant="ghost" disabled={!!resending} onClick={() => resendLink(a)}>
+                            {resending === a.id ? "Sending…" : "Resend"}
+                          </Button>
+                        </div>
+                      )}
+                    </td>
                     <td>{a.role === "Driver" ? `Driver · ${a.driverType ?? "Truck"}` : a.role}</td>
                     <td>{requestsLabel(a)}</td>
                     <td>
@@ -475,6 +515,21 @@ export default function Settings() {
               onChange={(v) => setAccount({ ...account, username: v })}
               autoComplete="off"
             />
+            <label className="field">
+              <span>Email{accountModal === "add" ? " *" : ""}</span>
+              <Input
+                type="email"
+                value={account.email}
+                onChange={(e) => setAccount({ ...account, email: e.target.value })}
+                autoComplete="off"
+                maxLength={254}
+              />
+              <small>
+                {accountModal === "add"
+                  ? "They get a link to confirm it. It lets them reset their own password."
+                  : "A new email gets a confirm link; the old one keeps working until then."}
+              </small>
+            </label>
             {accountModal === "add" && (
               <TextField
                 label="Password"
