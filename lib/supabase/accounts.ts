@@ -106,3 +106,15 @@ export async function createAccount(
   }
   return { account: toAccount(accountRow) };
 }
+
+/**
+ * Moves an account's Auth user to the made-up email for `username`, the
+ * first half of a rename (the `accounts` row is the caller's). Null when
+ * done, else why not. `admin` is the service-role client.
+ */
+export async function renameAuthUser(admin: SupabaseClient, accountId: string, username: string) {
+  const { error } = await admin.auth.admin.updateUserById(accountId, { email: usernameToAuthEmail(username) });
+  if (!error) return null;
+  const isDuplicate = error.code === "email_exists" || /already been registered/i.test(error.message ?? "");
+  return isDuplicate ? { status: 409, message: "Username already exists." } : { status: 422, message: "Could not update the account." };
+}

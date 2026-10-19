@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authed, readJson } from "@/lib/api-route";
 import { emailStatus, sendEmailConfirmation } from "@/lib/account-email";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { requestAccessError, toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
+import { renameAuthUser, requestAccessError, toAccount } from "@/lib/supabase/accounts";
 import { updateAccountBody } from "@/lib/admin-input";
 import { parseWith } from "@/lib/validation";
 
@@ -24,11 +24,8 @@ export const PUT = authed<{ accountId: string }>(async ({ request, account, para
   if (!existing) return NextResponse.json({ message: "Account not found." }, { status: 404 });
 
   if (username.toLowerCase() !== existing.username.toLowerCase()) {
-    const { error: emailError } = await admin.auth.admin.updateUserById(accountId, { email: usernameToAuthEmail(username) });
-    if (emailError) {
-      const isDuplicate = emailError.code === "email_exists" || /already been registered/i.test(emailError.message ?? "");
-      return NextResponse.json({ message: isDuplicate ? "Username already exists." : "Could not update the account." }, { status: isDuplicate ? 409 : 422 });
-    }
+    const refused = await renameAuthUser(admin, accountId, username);
+    if (refused) return NextResponse.json({ message: refused.message }, { status: refused.status });
   }
 
   const { data: accountRow, error: updateError } = await admin
