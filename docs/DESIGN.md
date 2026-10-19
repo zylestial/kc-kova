@@ -60,7 +60,8 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   the top bar's menu button and closed by the scrim, the X or Escape. It
   holds the logo, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
-  Help, the account and Sign out. Menu links are real links, but a plain
+  Phone notifications (only when push is set up), Help, the account and
+  Sign out. Menu links are real links, but a plain
   click goes through `leave()` so unsaved work still asks first. While an
   Admin is viewing as another role, the menu is that role's.
 - **Top bar** (`app/(app)/topbar.tsx`): today's date (wide screens) or
@@ -72,11 +73,19 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   to look at (sent back, returned, cancellation asked or declined), red for
   something wrong (cancelled, problem reported). A new type won't compile
   until it has one. Clicking one closes the bell and opens the exact item
-  (`notificationTarget`): the request's details, the trip on My Schedule
+  (`notificationTarget`, `lib/notification-target.ts`, which a phone
+  notification's tap uses too): the request's details, the trip on My Schedule
   or Finished Trips, a submitted schedule's details over its week, a
   returned trip's vehicle on Scheduling (`?trip=`, opened, scrolled to and
   highlighted), or a cancellation request's row on Schedules
   (`?cancellation=`, highlighted).
+- **Phone notifications** dialog (`app/push-dialog.tsx`, from the menu):
+  one line saying where this device stands (on, off, blocked in the
+  browser, can't, or, on an iPhone or iPad not opened from the Home
+  Screen, how to add it there first), with **Turn on**, or **Turn off**
+  and **Send a test**. It's per device, so the copy says to turn it on on
+  each phone or computer. A phone notification reads "KOVA" over the
+  bell's text, with the app icon.
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
   takes its status color only when its count is above zero; a zero is

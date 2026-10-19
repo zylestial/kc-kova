@@ -21,8 +21,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { markAllNotificationsRead, markNotificationRead, type Notification, type NotificationType, type Schedule } from "@/lib/kova-api";
-import { schedulingHref } from "@/lib/scheduling";
+import { markAllNotificationsRead, markNotificationRead, type Notification, type NotificationType } from "@/lib/kova-api";
+import { notificationTarget } from "@/lib/notification-target";
 import { useAccount } from "./(app)/providers";
 import { useKovaData } from "@/lib/use-kova-data";
 
@@ -45,52 +45,6 @@ const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "suc
   STOP_MISSED: { icon: MapPinX, tone: "warning" },
   STOP_ANSWERED: { icon: MessageSquareReply, tone: "info" },
 };
-
-/** Where clicking a notification should land, per its type. */
-function notificationTarget(notification: Notification, schedules: Schedule[], role: string): string | undefined {
-  const { type, relatedRequestId, relatedScheduleId } = notification;
-  switch (type) {
-    case "REQUEST_SCHEDULED":
-    case "REQUEST_RETURNED":
-    case "REQUEST_SENT_BACK":
-    case "REQUEST_SPLIT":
-    case "REQUEST_MOVED":
-    case "REQUEST_CANCELLED":
-    case "CANCELLATION_DECLINED":
-    case "STOP_MISSED":
-      return relatedRequestId ? `/requests?open=${encodeURIComponent(relatedRequestId)}` : "/requests";
-    case "CANCELLATION_REQUESTED":
-      // The ask itself, with its Confirm and Decline.
-      return relatedRequestId ? `/schedules?cancellation=${encodeURIComponent(relatedRequestId)}` : "/schedules#cancellations";
-    case "SCHEDULE_SUBMITTED":
-      return relatedScheduleId ? `/schedules?open=${encodeURIComponent(relatedScheduleId)}` : "/schedules";
-    case "PROBLEM_REPORTED":
-      return relatedScheduleId ? `/finished?open=${encodeURIComponent(relatedScheduleId)}` : "/finished";
-    case "SCHEDULE_RETURNED": {
-      // Fixed on Scheduling, opened on the schedule's day and kind.
-      if (!relatedScheduleId) return "/schedules";
-      const schedule = schedules.find((item) => item.id === relatedScheduleId);
-      return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
-    }
-    case "TRIP_PUBLISHED":
-      return relatedScheduleId ? `/my-schedule?open=${encodeURIComponent(relatedScheduleId)}` : "/my-schedule";
-    case "STOP_REPORTED": {
-      // A Scheduler handles it on Scheduling; an Admin sees it with the trip's problems.
-      if (!relatedScheduleId) return role === "Scheduler" ? "/scheduling" : "/finished";
-      if (role !== "Scheduler") return `/finished?open=${encodeURIComponent(relatedScheduleId)}`;
-      const schedule = schedules.find((item) => item.id === relatedScheduleId);
-      return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
-    }
-    case "TRIP_CHANGED":
-    case "STOP_ANSWERED": {
-      // The Driver's trip, or the Company trip a requester records (0055).
-      const page = role === "Driver" ? "/my-schedule" : "/my-trips";
-      return relatedScheduleId ? `${page}?open=${encodeURIComponent(relatedScheduleId)}` : page;
-    }
-    default:
-      return undefined;
-  }
-}
 
 function timeAgo(iso: string) {
   const ms = Date.now() - new Date(iso).getTime();
@@ -115,7 +69,7 @@ function NotificationItem({ notification, onOpen }: { notification: Notification
       className={`notif-item${unread ? " unread" : ""}`}
       onClick={() => {
         if (unread) void markNotificationRead(notification.id).catch(() => {});
-        const target = notificationTarget(notification, schedules, account.role);
+        const target = notificationTarget(notification, (id) => schedules.find((item) => item.id === id), account.role);
         if (!target) return;
         // Close the panel so it doesn't cover what it opened.
         onOpen();

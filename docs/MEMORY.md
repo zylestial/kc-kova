@@ -874,3 +874,42 @@ Gotchas:
   on Resubmit); late at night the trip may still not fit before midnight.
   Demo:
   `node scripts/seed-live-trip-demo.mjs` (driver4 / UAT-004).
+
+## Phone notifications (2026-10-16 to 10-19)
+
+The owner asked for notifications that arrive with the browser closed,
+free of charge ("maybe I'll remove later"), so it's Web Push with the
+`web-push` library and VAPID keys: no paid service, kept in its own
+branch and migrations (0069-0071) so it can come out cleanly.
+
+- **Every bell notification is pushed, to every role.** The owner went
+  through the list of types and recipients (2026-10-19) and kept them all.
+- **The switch is in the side menu, not Settings**, because Settings is
+  Admin-only and every role needs it.
+- **Sending is a trigger, not code in each RPC.** One `after insert` on
+  `notifications` covers all ~50 `notify()` calls. `pg_net` queues the
+  call and sends after commit; the URL and secret live in Vault so the
+  migration is the same everywhere and does nothing until set.
+- **Sign-out pauses, it doesn't turn off** (owner's choice over turning
+  it off for shared devices): the next sign-in resumes the device for
+  whoever signs in. Signing back in as the same account catches up on
+  unread notifications since the pause: last 24 hours, up to 3, else one
+  summary (owner approved those limits).
+- Tested by the owner on desktop Chrome against local Supabase, since a
+  Vercel preview shares production's database. Not yet on a phone.
+
+Gotchas:
+
+- `serviceWorker.register()` resolves while the worker is still
+  installing; `pushManager.subscribe()` then fails with "no active Service
+  Worker". Wait for `navigator.serviceWorker.ready` (with a timeout, since
+  a worker stuck behind an old one never gets there).
+- `WindowClient.navigate()` refuses a tab the worker doesn't control (one
+  opened before it started), so `sw.js` falls back to `openWindow()`.
+- DevTools' "Update on reload" installs a new worker on every reload, so
+  one always shows "waiting to activate". Untick it when testing.
+- Locally, the database reaches `next dev` at
+  `http://host.docker.internal:3000/api/push/send`. pgTAP tests that set
+  the Vault secrets delete any real ones first (inside their transaction).
+- Windows may drop Chrome's notifications from the notification centre;
+  that's a Windows setting, not KOVA.

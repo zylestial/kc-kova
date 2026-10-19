@@ -357,6 +357,37 @@ causes the event (`submit_schedule`, `approve_schedule`, `return_schedule`,
 itself, and `read_at` is only ever set by the `mark_notification_read`/
 `mark_all_notifications_read` RPCs.
 
+### `push_subscriptions` and phone notifications (migrations 0069–0071)
+
+Web Push, so the bell's notifications also pop up on a device with KOVA
+closed. One row per device: its push `endpoint` (unique), keys `p256dh`
+and `auth`, `user_agent`, its `account_id` and `paused_at`. A device
+belongs to one account at a time; saving it from another account moves
+it. `authenticated` may only `SELECT` its own rows; writes go through
+`save_push_subscription` (turn on, or un-pause on sign-in: returns when
+it was paused), `remove_push_subscription` (turn off) and
+`pause_push_subscription` (sign-out).
+
+Sending: an `after insert` trigger on `notifications`
+(`push_new_notification`, 0070/0071) posts the new row's id through
+`pg_net` to `POST /api/push/send`, only when the recipient has an
+un-paused device. `pg_net` sends after commit, so a rolled-back action
+sends nothing, and the trigger swallows its own errors so it can never
+fail the action. The URL and a shared secret are in Vault as
+`push_send_url` and `push_send_secret`; until both exist nothing is
+sent. The route checks `Authorization: Bearer <PUSH_SEND_SECRET>`, loads
+the row with the service-role client and sends it with the `web-push`
+library (`lib/supabase/push.ts`) to each device. The tap opens the page
+the bell would (`lib/notification-target.ts`, shared by both). A device
+the push service answers 404/410 for is deleted.
+
+On sign-in, a device that was paused for the same account gets the
+unread notifications since it was paused, from the last 24 hours: up to
+3, oldest first, or one "You have N new notifications" for more
+(`catchUpMessages`, `lib/push-message.ts`). The browser side is
+`public/sw.js` (shows a push, opens its page on a tap) and
+`lib/push-device.ts` (permission, subscription, pause and resync).
+
 ## API contract
 
 The authoritative, human-readable version of this table lives in
@@ -410,6 +441,11 @@ Summary, with the implementing route file:
 | GET | `/api/notifications` | `app/api/notifications/route.ts` | any session (own rows only, RLS) |
 | POST | `/api/notifications/:id/read` | `app/api/notifications/[id]/read/route.ts` | any session, own notification |
 | POST | `/api/notifications/read-all` | `app/api/notifications/read-all/route.ts` | any session |
+| POST | `/api/push/subscription` | `app/api/push/subscription/route.ts` | any session; this device's `PushSubscription` JSON. Un-pauses it and sends what was missed |
+| DELETE | `/api/push/subscription` | `app/api/push/subscription/route.ts` | any session, own device; `{ endpoint }` |
+| POST | `/api/push/pause` | `app/api/push/pause/route.ts` | any session, own device; `{ endpoint }` (sign-out) |
+| POST | `/api/push/test` | `app/api/push/test/route.ts` | any session; a test to the caller's own devices |
+| POST | `/api/push/send` | `app/api/push/send/route.ts` | the database only (`Bearer PUSH_SEND_SECRET`); `{ notificationId }` |
 
 Request/response bodies match the TypeScript types in `lib/kova-api.ts`
 (`Account`, `Vehicle`, `BookingOption`,
@@ -453,6 +489,13 @@ Configuration is entirely in environment variables (`.env.example`):
   the browser.
 - `NEXT_PUBLIC_KOVA_API_BASE_URL` — left blank when the API is same-origin
   (the default; this repo serves both frontend and API from one Next.js app).
+- Phone notifications (optional; push is off while they're blank):
+  `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and the server-only `VAPID_PRIVATE_KEY`
+  (a pair from `pnpm dlx web-push generate-vapid-keys`), `VAPID_SUBJECT`
+  (a `mailto:` or `https:` contact for push services) and the server-only
+  `PUSH_SEND_SECRET`. Each environment also needs the Vault secrets
+  `push_send_url` (`https://<app>/api/push/send`) and `push_send_secret`
+  (the same value as `PUSH_SEND_SECRET`); see 0070's header.
 
 All three Supabase variables are validated as present at server startup
 (`instrumentation.ts` -> `lib/env.ts`) — a missing/misconfigured one fails

@@ -130,6 +130,10 @@ A person has exactly one role; there is no multi-role account.
 9. **Stay informed.** An in-app bell tells people what changed for them (a
    request scheduled, returned, sent back or moved to another day; a
    schedule waiting for approval; a trip published; a problem reported).
+   Anyone can also have the same notifications pop up on their phone or
+   computer, even with KOVA closed: they turn this on per device, a tap
+   opens what it's about, and signing back in shows what arrived while
+   they were signed out.
 
 ## Non-goals
 
@@ -137,7 +141,8 @@ A person has exactly one role; there is no multi-role account.
   credentials.
 - No mobile app; KOVA is a responsive web app only.
 - No multi-tenant support — this is a single organization's fleet.
-- No email or push notifications; the bell is in-app only.
+- No email notifications. Phone notifications only repeat the bell; they
+  never carry anything the bell doesn't.
 
 ## Key constraints carried into every design decision
 

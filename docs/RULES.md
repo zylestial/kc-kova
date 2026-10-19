@@ -351,6 +351,15 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   reset).
 - Sign-in is rate-limited (5 failed attempts / 15 minutes per username) to
   slow down credential guessing.
+- **Phone notifications** (0069–0071) repeat the bell: every notification
+  goes to each of the recipient's devices that turned them on, and nothing
+  else is ever pushed. Any role may turn them on, per device. A device
+  belongs to whoever turned it on there last. Signing out pauses it;
+  signing back in as the same account sends the unread notifications from
+  while it was paused, from the last 24 hours (up to 3, else one "You have
+  N new notifications"); signing in as another account moves the device
+  without catching up. Inactive accounts get no pushes. A push never
+  delays or fails the action behind it.
 
 ## Engineering & agent conventions
 
