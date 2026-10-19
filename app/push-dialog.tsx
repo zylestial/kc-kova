@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { sendTestPush } from "@/lib/kova-api";
 import { pushState, turnPushOff, turnPushOn, type PushState } from "@/lib/push-device";
 
 const stateText: Record<PushState, string> = {
@@ -18,6 +19,7 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -29,9 +31,24 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       });
   }, [open]);
 
+  async function sendTest() {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const { sent } = await sendTestPush();
+      setNotice(sent === 1 ? "Test sent. It should pop up in a moment." : `Test sent to your ${sent} devices.`);
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function change(on: boolean) {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       if (on) setState(await turnPushOn());
       else {
@@ -46,7 +63,10 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   }
 
   function openChange(next: boolean) {
-    if (!next) setError("");
+    if (!next) {
+      setError("");
+      setNotice("");
+    }
     onOpenChange(next);
   }
 
@@ -61,6 +81,11 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           </DialogDescription>
         </DialogHeader>
         {!error && <p role="status">{state ? stateText[state] : "Checking this device…"}</p>}
+        {notice && (
+          <div className="notice success" role="status">
+            {notice}
+          </div>
+        )}
         {error && (
           <p className="modal-error" role="alert">
             {error}
@@ -76,9 +101,14 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             </Button>
           )}
           {state === "on" && (
-            <Button className="primary" disabled={busy} onClick={() => void change(false)}>
-              {busy ? "Turning off…" : "Turn off"}
-            </Button>
+            <>
+              <Button variant="outline" disabled={busy} onClick={() => void change(false)}>
+                Turn off
+              </Button>
+              <Button className="primary" disabled={busy} onClick={() => void sendTest()}>
+                {busy ? "Sending…" : "Send a test"}
+              </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>
