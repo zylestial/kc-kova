@@ -24,11 +24,12 @@ In progress (2026-10-14): the Company Trip flow on `feat/requester-vehicle`.
 | v2.5 | 2026-10-02 | Simplification pass (below) (PRs #65–#77, migration 0041). |
 | v2.6 | 2026-10-08 | Auth hardening, Zod validation, Playwright suite, UI refresh, dashboard tile filters, trip attendance with tap addresses, trip table filters and sorting (PRs #78–#107, migrations 0042–0043). |
 | v2.7 | 2026-10-09 | Planner and phone follow-ups, Driver trip cards, stop times with Admin time entries, complete right after End trip, one trip per vehicle per day, typed choices become options (PRs #108–#124, migrations 0044–0049). |
+| v2.8 | 2026-10-16 | Company trips and request groups, one Scheduling page, notification icons, Daily / Company filters, trips on the road: stop reports answered by the Scheduler, missed stops, Not reached, no 6 PM end of day (PRs #131–#135, migrations 0050–0068). |
 
 Each release ends at its last merge on `master`: v2.2 `d0d5db2`, v2.3
 `7d45c5b`, v2.4 `c0e45cd`, v2.5 `1f3c516`, v2.6 `373a0ce`, v2.7
-`de86783`. Only v2.0 and v2.1 have git tags so far (plus the old
-`v1.2-stable`).
+`de86783`, v2.8 `9a6a3f7`. Only v2.0, v2.1 and v2.8 have git tags
+so far (plus the old `v1.2-stable`).
 
 ## Outstanding / follow-ups
 
