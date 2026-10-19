@@ -8,6 +8,7 @@ import { removePushSubscription, savePushSubscription } from "@/lib/kova-api";
 
 // Empty when push isn't set up for this deployment; the switch then hides.
 const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+export const pushConfigured = !!publicKey;
 
 /**
  * - unsupported: this browser can't, or push isn't set up here
