@@ -569,6 +569,15 @@ export const getMyEmail = () => request<EmailStatus>("/api/me/email");
 /** Sends a confirm link to `email`; replacing a confirmed email needs the current password. */
 export const setMyEmail = (email: string, currentPassword = "") =>
   request<EmailStatus>("/api/me/email", { method: "POST", body: JSON.stringify({ email, currentPassword }) });
+/** My account: a new username, with the current password. */
+export async function changeMyUsername(username: string, currentPassword: string) {
+  const account = await request<Account>("/api/me/username", { method: "PUT", body: JSON.stringify({ username, currentPassword }) });
+  sessionAccount = account;
+  return account;
+}
+/** My account: a new password, with the current one. */
+export const changeMyPassword = (currentPassword: string, newPassword: string) =>
+  request<void>("/api/me/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) });
 export const confirmEmailLink = (token: string) =>
   request<{ email: string }>("/api/auth/confirm-email", { method: "POST", body: JSON.stringify({ token }) });
 
