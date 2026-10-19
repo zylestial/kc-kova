@@ -277,6 +277,27 @@ export type NotificationType =
   | "STOP_REPORTED"
   | "STOP_MISSED"
   | "STOP_ANSWERED";
+/** An Admin's open invite (0072): sent, not yet accepted or cancelled. */
+export type Invite = {
+  id: string;
+  email: string;
+  role: Role;
+  driverType?: DriverType;
+  canRequestDaily: boolean;
+  canRequestCompany: boolean;
+  sentAt: string;
+  /** Its link no longer works; Resend makes a new one. */
+  expired: boolean;
+};
+
+/** What a batch of invites did, email by email. */
+export type InviteResult = {
+  sent: string[];
+  skipped: Array<{ email: string; reason: string }>;
+  invalid: string[];
+  failed: string[];
+};
+
 export type Notification = {
   id: string;
   type: NotificationType;
