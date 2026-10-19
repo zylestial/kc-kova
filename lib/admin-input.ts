@@ -32,6 +32,9 @@ const requestAccess = {
   canRequestDaily: z.boolean().catch(false),
   canRequestCompany: z.boolean().catch(false),
 };
+/** An email as typed, lowercased; "" when missing. The routes say when one is required or invalid. */
+const optionalEmail = z.string().trim().toLowerCase().catch("");
+
 function forRole<T extends { role: Role; driverType: string; canRequestDaily: boolean }>(body: T) {
   return body.role === "Driver" ? body : { ...body, driverType: null, canRequestDaily: false };
 }
@@ -43,12 +46,13 @@ export const createAccountBody = z
     role: z.enum(ROLES),
     status: statusOrActive,
     password: z.string().min(1),
+    email: optionalEmail,
     ...requestAccess,
   })
   .transform(forRole);
 
 export const updateAccountBody = z
-  .object({ name: required, username: required, role: z.enum(ROLES), status, ...requestAccess })
+  .object({ name: required, username: required, role: z.enum(ROLES), status, email: optionalEmail, ...requestAccess })
   .transform(forRole);
 
 /** Any string; the password policy gives the message for a bad one. */

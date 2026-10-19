@@ -21,6 +21,7 @@ describe("account bodies", () => {
       role: "Driver",
       status: "Active",
       password: "drive2026",
+      email: "",
       position: "",
       driverType: "Truck",
       canRequestDaily: false,
