@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   bookingOptionBody,
+  inviteBody,
+  parseEmailList,
   createAccountBody,
   createVehicleBody,
   passwordBody,
@@ -86,5 +88,27 @@ describe("booking option body", () => {
     expect(parseWith(bookingOptionBody, { name: "Shell", isOtherStop: "yes" })?.isOtherStop).toBe(false);
     expect(parseWith(bookingOptionBody, { name: "Shell" })?.isOtherStop).toBe(false);
     expect(parseWith(bookingOptionBody, { name: " " })).toBeNull();
+  });
+});
+
+describe("invites", () => {
+  it("splits a pasted list, lowercases it and drops repeats", () => {
+    expect(parseEmailList("Ana@Mail.com, ben@mail.com\n ana@mail.com;carl@mail.com  not-an-email")).toEqual({
+      valid: ["ana@mail.com", "ben@mail.com", "carl@mail.com"],
+      invalid: ["not-an-email"],
+    });
+  });
+
+  it("turns off switches the role can't have", () => {
+    const truck = parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Truck", canRequestDaily: true, canRequestCompany: true });
+    expect(truck).toMatchObject({ driverType: "Truck", canRequestDaily: false, canRequestCompany: false });
+    const scheduler = parseWith(inviteBody, { emails: "a@b.co", role: "Scheduler", canRequestCompany: true });
+    expect(scheduler).toMatchObject({ driverType: null, canRequestCompany: false });
+    const car = parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Company car", canRequestDaily: true });
+    expect(car).toMatchObject({ canRequestDaily: true });
+  });
+
+  it("refuses an unknown role", () => {
+    expect(parseWith(inviteBody, { emails: "a@b.co", role: "Booker" })).toBeNull();
   });
 });

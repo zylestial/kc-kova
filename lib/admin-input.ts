@@ -77,3 +77,38 @@ export const bookingOptionBody = z.object({
     .nullable()
     .default(null),
 });
+
+const email = z.email();
+
+/**
+ * The emails an Admin pasted to invite: split on spaces, commas, semicolons
+ * or new lines, lowercased, with repeats dropped. Anything that isn't an
+ * email comes back in `invalid` so the Admin can fix it.
+ */
+export function parseEmailList(input: string) {
+  const items = [...new Set(input.split(/[\s,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))];
+  return {
+    valid: items.filter((item) => email.safeParse(item).success),
+    invalid: items.filter((item) => !email.safeParse(item).success),
+  };
+}
+
+/**
+ * A batch of invites: one role and set of request permissions for every
+ * email in it. Switches the role can't have are turned off here, the same
+ * way the Add Account form sends them (0051, 0059).
+ */
+export const inviteBody = z
+  .object({ emails: z.string().catch(""), role: z.enum(ROLES), ...requestAccess })
+  .transform(forRole)
+  .transform((body) => {
+    const carDriver = body.role === "Driver" && body.driverType === "Company car";
+    const companyAllowed = body.role === "Requester" || body.role === "Admin" || carDriver;
+    return {
+      emails: body.emails,
+      role: body.role,
+      driverType: body.driverType,
+      canRequestDaily: carDriver && body.canRequestDaily,
+      canRequestCompany: companyAllowed && body.canRequestCompany,
+    };
+  });
