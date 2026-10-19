@@ -23,7 +23,10 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     if (!open) return;
     pushState()
       .then(setState)
-      .catch(() => setState("unsupported"));
+      .catch((caught: Error) => {
+        setState("unsupported");
+        setError(caught.message);
+      });
   }, [open]);
 
   async function change(on: boolean) {
@@ -57,7 +60,7 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             use.
           </DialogDescription>
         </DialogHeader>
-        <p role="status">{state ? stateText[state] : "Checking this device…"}</p>
+        {!error && <p role="status">{state ? stateText[state] : "Checking this device…"}</p>}
         {error && (
           <p className="modal-error" role="alert">
             {error}
