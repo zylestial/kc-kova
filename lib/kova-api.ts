@@ -555,6 +555,14 @@ export async function acceptInvite(input: { token: string; name: string; usernam
   return sessionAccount;
 }
 
+/** Emails a reset link if that username or email has one; the answer is the same either way. */
+export const forgotPassword = (login: string) =>
+  request<{ message: string }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ login }) });
+/** Who a reset link is for, or an error when it no longer works. */
+export const lookUpReset = (token: string) => request<{ username: string }>(`/api/auth/reset-password?token=${encodeURIComponent(token)}`);
+export const resetPassword = (token: string, password: string) =>
+  request<void>("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) });
+
 export const currentAccount = () => sessionAccount;
 export const getSchedules = () => cache.schedules;
 
