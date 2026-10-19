@@ -5,7 +5,9 @@ import { hydrateKovaData, restoreSession, signOut as endSession, type Account } 
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { watchTables } from "@/lib/stacked-tables";
 import { watchNotifications } from "@/lib/notifications-poll";
+import { resyncPush, turnPushOff } from "@/lib/push-device";
 import { HelpDialog } from "../how-it-works";
+import { PushDialog } from "../push-dialog";
 import KovaBrand from "../kova-brand";
 import { AccountProvider } from "./providers";
 import Topbar from "./topbar";
@@ -22,6 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
@@ -83,6 +86,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!account) return;
     return watchNotifications();
   }, [account]);
+  // A device with phone notifications on stays saved for whoever is signed in.
+  useEffect(() => {
+    if (account) void resyncPush().catch(() => undefined);
+  }, [account]);
   useEffect(() => {
     if (!account) return;
     const onReturn = () => {
@@ -98,6 +105,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     setLoading(true);
+    // Whoever signs in next on this device doesn't get this account's notifications.
+    await turnPushOff().catch(() => undefined);
     await endSession().catch(() => undefined);
     setAccount(null);
     setLoading(false);
@@ -125,6 +134,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             setMenuOpen(false);
             setHelpOpen(true);
           }}
+          onPush={() => {
+            setMenuOpen(false);
+            setPushOpen(true);
+          }}
           onSignOut={signOut}
         />
         <Topbar
@@ -135,6 +148,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onMenu={() => setMenuOpen(true)}
         />
         <HelpDialog role={account.role} open={helpOpen} onOpenChange={setHelpOpen} />
+        <PushDialog open={pushOpen} onOpenChange={setPushOpen} />
         <LeaveGuardDialog />
         <main className="role-main">{children}</main>
         <footer className="app-footer">
