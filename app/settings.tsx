@@ -15,6 +15,7 @@ import { canRequestCompany, canRequestDaily } from "@/lib/request-access";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
 import BookingOptions from "./booking-options";
+import InvitesPanel from "./invites-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -321,6 +322,8 @@ export default function Settings() {
         </div>
       )}
       {tab === "accounts" ? (
+        <>
+        <InvitesPanel onNotice={setNotice} />
         <section className="schedule-panel">
           <div className="panel-toolbar">
             <div>
@@ -373,6 +376,7 @@ export default function Settings() {
             </table>
           </div>
         </section>
+        </>
       ) : tab === "vehicles" ? (
         <section className="schedule-panel">
           <div className="panel-toolbar">
