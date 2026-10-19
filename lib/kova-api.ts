@@ -543,6 +543,18 @@ export async function signOut() {
   notify();
 }
 
+/** What an invite link is for (/join), or an error when it no longer works. */
+export const lookUpInvite = (token: string) =>
+  request<{ email: string; role: Role; needsPosition: boolean }>(`/api/auth/invite?token=${encodeURIComponent(token)}`);
+
+/** Sets up the invited account and signs in as it (null when the sign-in itself failed). */
+export async function acceptInvite(input: { token: string; name: string; username: string; position: string; password: string }) {
+  const result = await request<{ account: Account | null }>("/api/auth/accept-invite", { method: "POST", body: JSON.stringify(input) });
+  sessionAccount = result.account;
+  if (sessionAccount) await hydrateKovaData();
+  return sessionAccount;
+}
+
 export const currentAccount = () => sessionAccount;
 export const getSchedules = () => cache.schedules;
 
@@ -593,7 +605,12 @@ async function refreshAfter<T>(operation: Promise<T>) {
 
 export const saveAccount = (account: Account & { password?: string }) => refreshAfter(request<Account>(account.id ? `/api/accounts/${encodeURIComponent(account.id)}` : "/api/accounts", { method: account.id ? "PUT" : "POST", body: JSON.stringify(account) }));
 export const changeAccountPassword = (accountId: string, password: string) => request<void>(`/api/accounts/${encodeURIComponent(accountId)}/password`, { method: "POST", body: JSON.stringify({ password }) });
-export const saveVehicle = (vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
+export const listInvites = () => request<Invite[]>("/api/invites");
+export const sendInvites = (input: { emails: string; role: Role; driverType?: DriverType; canRequestDaily: boolean; canRequestCompany: boolean }) =>
+  request<InviteResult>("/api/invites", { method: "POST", body: JSON.stringify(input) });
+export const resendInvite = (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}/resend`, { method: "POST" });
+export const cancelInvite = (id: string) => request<void>(`/api/invites/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const saveVehicle =(vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
 export const saveBookingOption = (group: OptionGroup, option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
 /** Returns the group's stops, A first. */
