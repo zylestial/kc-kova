@@ -1,4 +1,4 @@
-import { removePushSubscription, savePushSubscription } from "@/lib/kova-api";
+import { pausePushSubscription, removePushSubscription, savePushSubscription } from "@/lib/kova-api";
 
 /**
  * This browser's side of phone notifications: the service worker
@@ -83,12 +83,13 @@ export async function turnPushOff() {
 
 /**
  * On signing out: the server stops sending here, but the browser keeps its
- * subscription, so resyncPush() resumes it for whoever signs in next.
+ * subscription, so resyncPush() resumes it for whoever signs in next, and
+ * catches the same account up on what came meanwhile (0071).
  */
 export async function pausePush() {
   if (!supported()) return;
   const subscription = await currentSubscription();
-  if (subscription) await removePushSubscription(subscription.endpoint);
+  if (subscription) await pausePushSubscription(subscription.endpoint);
 }
 
 /**
