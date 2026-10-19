@@ -46,7 +46,23 @@ export async function issueAccountToken(admin: SupabaseClient, accountId: string
 }
 
 /**
- * Uses up a link: marks it used in the same statement that checks it's
+ * The account a link still works for, without using it up, so a page can
+ * show who it's for and a refused password doesn't cost the link.
+ */
+export async function peekAccountToken(admin: SupabaseClient, raw: string, purpose: TokenPurpose) {
+  const { data } = await admin
+    .from("account_tokens")
+    .select("account_id, email")
+    .eq("token_hash", hashToken(raw))
+    .eq("purpose", purpose)
+    .is("used_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  return data ? { accountId: data.account_id as string, email: data.email as string } : null;
+}
+
+/**
+ * Uses up a link:marks it used in the same statement that checks it's
  * unused and unexpired, so it works once even if opened twice at the same
  * moment. Null when it's unknown, used, expired, or for another purpose.
  */
