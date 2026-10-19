@@ -9,7 +9,9 @@ app that covers: asking for transport, planning a vehicle's route for the
 day, getting that plan approved, recording the trip as it happens, and
 routing the finished trip through Admin review to a locked, final state.
 
-There is no public sign-up. Every account is provisioned by an Admin.
+There is no public sign-up. An Admin invites each person by email and
+chooses their account type and permissions; the person sets up their own
+username and password from the emailed link.
 
 ## Roles
 
@@ -134,15 +136,25 @@ A person has exactly one role; there is no multi-role account.
    computer, even with KOVA closed: they turn this on per device, a tap
    opens what it's about, and signing back in shows what arrived while
    they were signed out.
+10. **Join and look after your own sign-in.** Staff collect everyone's
+    email; an Admin pastes them in batches, each batch with one account
+    type and set of request permissions, and KOVA emails each person an
+    invite link. The person picks their own name, username, position and
+    password from it. Every account has a confirmed email (someone without
+    one is asked for it right after signing in), so anyone who forgets
+    their password resets it from Sign In by email, and anyone can change
+    their own username, email and password on **My account**. Names,
+    account types and permissions stay with an Admin.
 
 ## Non-goals
 
-- No public registration or self-service password reset — an Admin manages all
-  credentials.
+- No public registration — every account starts from an Admin's invite (or
+  an Admin adding it directly).
 - No mobile app; KOVA is a responsive web app only.
 - No multi-tenant support — this is a single organization's fleet.
-- No email notifications. Phone notifications only repeat the bell; they
-  never carry anything the bell doesn't.
+- No email notifications. KOVA emails only about accounts (an invite, a
+  link to confirm an email, a password reset). Phone notifications only
+  repeat the bell; they never carry anything the bell doesn't.
 
 ## Key constraints carried into every design decision
 
@@ -229,8 +241,16 @@ in `supabase/tests/` already check automatically.
   Finance Use section blank. (tested)
 
 **Accounts and access**
-- Only an Admin can create accounts, set passwords, and change vehicles and
-  request choices. Nothing is ever hard-deleted.
+- Only an Admin can invite or add accounts, choose account types and
+  permissions, and change vehicles and request choices. Nothing is ever
+  hard-deleted.
+- An invite link works once, for 7 days; the account it sets up gets the
+  Admin's chosen type and permissions, never the person's own choice.
+- Every account has a confirmed email. A reset link works once, for an
+  hour, and Forgot password answers the same whether or not the account
+  exists.
+- Changing your own username, email or password needs your current
+  password.
 - An inactive account can't sign in. Sign-in locks after 5 wrong passwords
   in 15 minutes.
 - A new password has at least 8 characters, a letter and a number, and
