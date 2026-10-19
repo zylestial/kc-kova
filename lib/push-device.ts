@@ -23,11 +23,19 @@ const isStandalone = () => window.matchMedia("(display-mode: standalone)").match
 const supported = () =>
   !!publicKey && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
+const READY_TIMEOUT_MS = 10_000;
+
 // register() can resolve while the worker is still installing, and subscribing
-// then fails ("no active Service Worker"), so wait until it's active.
+// then fails ("no active Service Worker"), so wait until it's active, but not
+// forever: a worker stuck behind an old one would leave the dialog loading.
 async function registration() {
   await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
-  return navigator.serviceWorker.ready;
+  const ready = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), READY_TIMEOUT_MS)),
+  ]);
+  if (!ready) throw Error("Notifications didn't start in this browser. Close every KOVA tab, open KOVA again and retry.");
+  return ready;
 }
 
 async function currentSubscription() {
