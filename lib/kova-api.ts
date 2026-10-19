@@ -563,6 +563,15 @@ export const lookUpReset = (token: string) => request<{ username: string }>(`/ap
 export const resetPassword = (token: string, password: string) =>
   request<void>("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) });
 
+/** The signed-in account's email (0072): confirmed, and a new one waiting for its link. */
+export type EmailStatus = { email: string | null; pendingEmail: string | null };
+export const getMyEmail = () => request<EmailStatus>("/api/me/email");
+/** Sends a confirm link to `email`; replacing a confirmed email needs the current password. */
+export const setMyEmail = (email: string, currentPassword = "") =>
+  request<EmailStatus>("/api/me/email", { method: "POST", body: JSON.stringify({ email, currentPassword }) });
+export const confirmEmailLink = (token: string) =>
+  request<{ email: string }>("/api/auth/confirm-email", { method: "POST", body: JSON.stringify({ token }) });
+
 export const currentAccount = () => sessionAccount;
 export const getSchedules = () => cache.schedules;
 
