@@ -620,8 +620,13 @@ async function refreshAfter<T>(operation: Promise<T>) {
   return result;
 }
 
-export const saveAccount = (account: Account & { password?: string }) => refreshAfter(request<Account>(account.id ? `/api/accounts/${encodeURIComponent(account.id)}` : "/api/accounts", { method: account.id ? "PUT" : "POST", body: JSON.stringify(account) }));
+export const saveAccount = (account: Account & { password?: string; email?: string }) => refreshAfter(request<Account>(account.id ? `/api/accounts/${encodeURIComponent(account.id)}` : "/api/accounts", { method: account.id ? "PUT" : "POST", body: JSON.stringify(account) }));
 export const changeAccountPassword = (accountId: string, password: string) => request<void>(`/api/accounts/${encodeURIComponent(accountId)}/password`, { method: "POST", body: JSON.stringify({ password }) });
+/** Every account's email (Admin only, 0072). */
+export const listAccountEmails = () => request<Array<{ accountId: string } & EmailStatus>>("/api/account-emails");
+/** Sends an account's waiting email its confirm link again. */
+export const resendEmailLink = (accountId: string) =>
+  request<void>(`/api/accounts/${encodeURIComponent(accountId)}/email-link`, { method: "POST" });
 export const listInvites = () => request<Invite[]>("/api/invites");
 export const sendInvites = (input: { emails: string; role: Role; driverType?: DriverType; canRequestDaily: boolean; canRequestCompany: boolean }) =>
   request<InviteResult>("/api/invites", { method: "POST", body: JSON.stringify(input) });
