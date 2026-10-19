@@ -5,7 +5,7 @@ import { hydrateKovaData, restoreSession, signOut as endSession, type Account } 
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { watchTables } from "@/lib/stacked-tables";
 import { watchNotifications } from "@/lib/notifications-poll";
-import { resyncPush, turnPushOff } from "@/lib/push-device";
+import { pausePush, resyncPush } from "@/lib/push-device";
 import { HelpDialog } from "../how-it-works";
 import { PushDialog } from "../push-dialog";
 import KovaBrand from "../kova-brand";
@@ -105,8 +105,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     setLoading(true);
-    // Whoever signs in next on this device doesn't get this account's notifications.
-    await turnPushOff().catch(() => undefined);
+    // This account's notifications stop here; the next sign-in resumes them for that account.
+    await pausePush().catch(() => undefined);
     await endSession().catch(() => undefined);
     setAccount(null);
     setLoading(false);

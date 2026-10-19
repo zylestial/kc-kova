@@ -82,6 +82,16 @@ export async function turnPushOff() {
 }
 
 /**
+ * On signing out: the server stops sending here, but the browser keeps its
+ * subscription, so resyncPush() resumes it for whoever signs in next.
+ */
+export async function pausePush() {
+  if (!supported()) return;
+  const subscription = await currentSubscription();
+  if (subscription) await removePushSubscription(subscription.endpoint);
+}
+
+/**
  * On opening KOVA: saves this device again if it's on, so it follows
  * whoever is signed in and comes back after the server dropped it.
  */
