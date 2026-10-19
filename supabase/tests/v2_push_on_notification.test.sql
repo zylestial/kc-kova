@@ -19,7 +19,9 @@ create function pg_temp.queued() returns int language sql as $$
   select count(*)::int from net.http_request_queue where url = 'https://kova.test/api/push/send';
 $$;
 
--- Nothing is set up yet.
+-- Nothing is set up yet. A dev database may have real ones; this
+-- transaction rolls back.
+delete from vault.secrets where name in ('push_send_url', 'push_send_secret');
 select lives_ok(
   $$ select notify('00000000-0000-0000-0000-0000000000b1', 'REQUEST_SCHEDULED', 'Scheduled') $$,
   'a notification is made while push isn''t set up'
