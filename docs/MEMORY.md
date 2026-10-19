@@ -913,3 +913,45 @@ Gotchas:
   the Vault secrets delete any real ones first (inside their transaction).
 - Windows may drop Chrome's notifications from the notification centre;
   that's a Windows setting, not KOVA.
+
+## Invites and self-service sign-in (2026-10-19)
+
+The owner wanted less Admin work: staff collect everyone's email, an Admin
+sends invites, and people set up and look after their own sign-in.
+
+- **Real email next to the synthetic one, not instead of it.** The Auth
+  email stays `<username>@accounts.kova.internal`, so sign-in, renames and
+  "Auth identity" above are unchanged. The real email sits in its own
+  table (0072) so other users can't read it through `accounts`' broad
+  select policy.
+- **KOVA sends its own emails** over SMTP rather than through Supabase
+  Auth's mailer, which would need the real email as the Auth email. Owner
+  chose a **Gmail account with an App password** (no domain yet; 500
+  emails a day). A domain plus Resend later only changes env vars.
+- **Every account needs a confirmed email** (owner: "from now on we need
+  to have an email for everyone"). Existing accounts get a blocking Add
+  your email step after sign-in; Add Account requires one.
+- **Only Admins invite, and the role and permissions are set per batch at
+  invite time** (owner's choice over assigning them after sign-up). The
+  person chooses name, username, position and password; My account lets
+  them change username, email and password, not their name.
+- Links: invite 7 days, confirm email 24 hours, reset 1 hour; each works
+  once and stores only a hash.
+
+Gotchas:
+
+- Supabase's project template grants ALL on new tables to `anon` and
+  `authenticated`; without 0072's explicit revokes, a write with no
+  policy silently affects 0 rows instead of failing. (See 0020.)
+- `auth.admin.updateUserById` answers a taken email with a bare 500
+  ("Error updating user"), not `email_exists`, so a rename checks
+  `accounts` for the username first (`renameAuthUser`). This was also
+  why Edit Account said "Could not update the account." for a taken
+  username.
+- Changing a password with `updateUserById` ends that account's
+  sessions, so `/api/me/password` signs the person in again.
+- Locally, Mailpit's SMTP port 54325 is only exposed with
+  `smtp_port = 54325` in `supabase/config.toml` and a `supabase stop/start`.
+- React Strict Mode runs effects twice in development; the confirm-email
+  page guards with a ref so its one-time link isn't used up by the first
+  run.
