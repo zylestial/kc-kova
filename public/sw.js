@@ -28,13 +28,20 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      // Reuse an open KOVA window rather than opening another.
+      // Reuse an open KOVA window rather than opening another. navigate()
+      // refuses a tab this worker doesn't control (one opened before it
+      // started), so open a new one then.
       const open = windows.find((client) => new URL(client.url).origin === self.location.origin);
       if (open) {
-        await open.focus();
-        return open.navigate(url);
+        try {
+          const focused = await open.focus();
+          if (focused.url !== url) await focused.navigate(url);
+          return;
+        } catch (error) {
+          console.warn("KOVA: couldn't reuse the open tab", error);
+        }
       }
-      return self.clients.openWindow(url);
+      await self.clients.openWindow(url);
     })(),
   );
 });
