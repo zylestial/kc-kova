@@ -1,10 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabaseSessionCookie } from "@/lib/supabase/middleware-cookie";
 
+// Pages opened from an emailed link, which work signed in or not.
+const LINK_PAGES = ["/join", "/forgot-password", "/reset-password", "/confirm-email"];
+
 export function proxy(request: NextRequest) {
-  const isSignInRoute = request.nextUrl.pathname.startsWith("/sign-in");
+  const { pathname } = request.nextUrl;
+  const isSignInRoute = pathname.startsWith("/sign-in");
+  const isLinkPage = LINK_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
   const authed = hasSupabaseSessionCookie(request);
-  if (!authed && !isSignInRoute) {
+  if (!authed && !isSignInRoute && !isLinkPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
     return NextResponse.redirect(url);
