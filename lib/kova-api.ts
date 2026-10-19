@@ -554,6 +554,11 @@ export async function removePushSubscription(endpoint: string) {
   await request<void>("/api/push/subscription", { method: "DELETE", body: JSON.stringify({ endpoint }) });
 }
 
+/** On signing out: this device stops getting them until the next sign-in (0071). */
+export async function pausePushSubscription(endpoint: string) {
+  await request<void>("/api/push/pause", { method: "POST", body: JSON.stringify({ endpoint }) });
+}
+
 /** A test notification to each of the signed-in account's devices; how many it reached. */
 export async function sendTestPush() {
   return request<{ sent: number; removed: number }>("/api/push/test", { method: "POST" });
