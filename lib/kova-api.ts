@@ -544,6 +544,16 @@ export async function markAllNotificationsRead() {
   await refreshNotifications();
 }
 
+/** This device gets phone notifications for the signed-in account (0069). */
+export async function savePushSubscription(subscription: PushSubscriptionJSON) {
+  await request<void>("/api/push/subscription", { method: "POST", body: JSON.stringify(subscription) });
+}
+
+/** This device stops getting them. */
+export async function removePushSubscription(endpoint: string) {
+  await request<void>("/api/push/subscription", { method: "DELETE", body: JSON.stringify({ endpoint }) });
+}
+
 async function refreshAfter<T>(operation: Promise<T>) {
   const result = await operation;
   await hydrateKovaData();
