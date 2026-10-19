@@ -1,7 +1,14 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { hydrateKovaData, restoreSession, signOut as endSession, type Account } from "@/lib/kova-api";
+import {
+  getMyEmail,
+  hydrateKovaData,
+  restoreSession,
+  signOut as endSession,
+  type Account,
+  type EmailStatus,
+} from "@/lib/kova-api";
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { watchTables } from "@/lib/stacked-tables";
 import { watchNotifications } from "@/lib/notifications-poll";
@@ -13,6 +20,7 @@ import { AccountProvider } from "./providers";
 import Topbar from "./topbar";
 import Sidebar from "./sidebar";
 import LeaveGuardDialog from "./leave-guard-dialog";
+import EmailStep from "./email-step";
 
 // Opening a screen or returning to the tab reloads the data, but not more
 // often than this, so switching screens quickly doesn't hammer the server.
@@ -78,6 +86,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading && !account) router.replace("/sign-in");
   }, [loading, account, router]);
+  // Every account needs a confirmed email (0072); until then EmailStep
+  // shows instead of KOVA. If the check itself fails, KOVA isn't blocked.
+  const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null);
+  useEffect(() => {
+    if (!account) return;
+    getMyEmail()
+      .then(setEmailStatus)
+      .catch(() => setEmailStatus({ email: "unknown", pendingEmail: null }));
+  }, [account]);
   useEffect(() => {
     if (account) void refreshData();
   }, [account, pathname, refreshData]);
@@ -113,7 +130,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.replace("/sign-in");
   }
 
-  if (loading)
+  if (account && emailStatus && !emailStatus.email)
+    return <EmailStep status={emailStatus} onChange={setEmailStatus} onSignOut={signOut} />;
+  if (loading || (account && !emailStatus))
     return (
       <div className="sign-shell">
         <div className="sign-card">
