@@ -554,6 +554,11 @@ export async function removePushSubscription(endpoint: string) {
   await request<void>("/api/push/subscription", { method: "DELETE", body: JSON.stringify({ endpoint }) });
 }
 
+/** A test notification to each of the signed-in account's devices; how many it reached. */
+export async function sendTestPush() {
+  return request<{ sent: number; removed: number }>("/api/push/test", { method: "POST" });
+}
+
 async function refreshAfter<T>(operation: Promise<T>) {
   const result = await operation;
   await hydrateKovaData();
