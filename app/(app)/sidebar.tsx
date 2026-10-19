@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BellRing, CircleHelp, LogOut, X } from "lucide-react";
+import { BellRing, CircleHelp, LogOut, UserRound, X } from "lucide-react";
 import { useAccount } from "./providers";
 import { activeHref, navItems } from "./nav-items";
 import { canRequestCompany, canRequestTransport } from "@/lib/request-access";
@@ -81,6 +81,15 @@ export default function Sidebar({
               <span>Phone notifications</span>
             </button>
           )}
+          <a
+            href="/account"
+            className={"sidebar-link" + (pathname === "/account" ? " active" : "")}
+            aria-current={pathname === "/account" ? "page" : undefined}
+            onClick={(event) => go(event, "/account")}
+          >
+            <UserRound size={18} />
+            <span>My account</span>
+          </a>
           <button type="button" className="sidebar-link" onClick={onHelp}>
             <CircleHelp size={18} />
             <span>Help</span>
