@@ -968,3 +968,17 @@ Gotchas:
 - React Strict Mode runs effects twice in development; the confirm-email
   page guards with a ref so its one-time link isn't used up by the first
   run.
+
+## Who scheduled a trip, and two Schedulers (2026-10-20)
+
+- **"Drafted by" vs "Scheduled by".** A draft or returned version names
+  whoever drafted it (`created_by_account_id`); once submitted, whoever
+  submitted it (`submitted_by_account_id`). Both were already stored, so
+  this was client-only (`lib/scheduled-by.ts`).
+- **Another Scheduler's draft: a warning, not a lock.** Asked how two
+  Schedulers keep from overlapping, the owner picked a warning over "only
+  the drafter edits, others Take over": changing a trip someone else is
+  planning asks "Sam is drafting this trip. Edit anyway?", once per trip
+  until the page reloads. The database already keeps them apart where it
+  matters (one active inclusion per request, one trip per vehicle a day,
+  one open version per trip, `row_version` on every save).
