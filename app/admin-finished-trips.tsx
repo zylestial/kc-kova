@@ -1,7 +1,8 @@
 "use client";
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { useMemo, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Download } from "lucide-react";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -203,6 +204,39 @@ export default function AdminFinishedTrips({
     setMode("time");
   }
 
+  /** What the filters show, in the shown order, with the form's first Time Out and last Time In. */
+  function downloadVisible() {
+    const projectsOf = (ids: string[]) =>
+      [...new Set(requests.filter((item) => ids.includes(item.id)).map((item) => item.projectName).filter(Boolean))].join("; ");
+    const rows = visible.map((trip) => {
+      const times = timesFor(trip);
+      const last = times.at(-1);
+      const completion = trip.completion;
+      return [
+        trip.schedule.date,
+        trip.schedule.kind === "COMPANY" ? "Company" : "Daily",
+        trip.revision.plate,
+        trip.revision.driverName,
+        projectsOf(trip.revision.requestIds),
+        trip.revision.legs.map((leg) => leg.destinationName).join(" → "),
+        times[0] ? formTimeValue(times[0].out) : null,
+        last ? formTimeValue(last.in) : null,
+        completion?.startOdometer,
+        completion?.endOdometer,
+        completion?.distance,
+        completion?.fullTank,
+        completion?.fleetCardUsed,
+        completion?.gasReceiptAttached,
+        completion ? completionLabel[completion.status] : notSubmitted,
+      ];
+    });
+    const header = [
+      "DATE", "FORM", "VEHICLE", "DRIVER", "PROJECT / SITE", "STOPS", "TIME OUT", "TIME IN",
+      "START ODOMETER", "END ODOMETER", "DISTANCE (KM)", "FULL TANK", "FLEET CARD USED", "GAS RECEIPT ATTACHED", "STATUS",
+    ];
+    downloadCsv(`kova-finished-trips-${today}.csv`, toCsv(header, rows));
+  }
+
   async function markCleanDone() {
     setBusy(true);
     setBulkError("");
@@ -299,19 +333,24 @@ export default function AdminFinishedTrips({
             <h2>Submitted trips</h2>
             <span className="count">{visible.length}</span>
           </div>
-          {!readOnly && (
-            <Button
-              className="primary"
-              disabled={!clean.length}
-              title="Submitted trips with no open problem and no missing time, among those shown below"
-              onClick={() => {
-                setBulkError("");
-                setBulkOpen(true);
-              }}
-            >
-              Mark {clean.length || "all"} clean {clean.length === 1 ? "trip" : "trips"} done
+          <div>
+            <Button variant="outline" disabled={!visible.length} title="The trips shown below, as a spreadsheet" onClick={downloadVisible}>
+              <Download size={16} /> Download CSV
             </Button>
-          )}
+            {!readOnly && (
+              <Button
+                className="primary"
+                disabled={!clean.length}
+                title="Submitted trips with no open problem and no missing time, among those shown below"
+                onClick={() => {
+                  setBulkError("");
+                  setBulkOpen(true);
+                }}
+              >
+                Mark {clean.length || "all"} clean {clean.length === 1 ? "trip" : "trips"} done
+              </Button>
+            )}
+          </div>
         </div>
         <OlderRecordsNotice />
         <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, form, status, problems].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
