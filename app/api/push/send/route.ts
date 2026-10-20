@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!bearerMatches(request.headers.get("authorization"), process.env.PUSH_SEND_SECRET)) {
     return NextResponse.json({ message: "Not allowed." }, { status: 401 });
   }
-  if (!pushConfigured()) return NextResponse.json({ message: "Phone notifications aren't set up." }, { status: 503 });
+  if (!pushConfigured()) return NextResponse.json({ message: "Push notifications aren't set up." }, { status: 503 });
 
   const body = parseWith(sendBody, await readJson(request));
   if (!body) return NextResponse.json({ message: "Which notification?" }, { status: 422 });
