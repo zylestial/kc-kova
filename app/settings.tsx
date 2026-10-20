@@ -14,7 +14,7 @@ import {
   type EmailStatus,
   type DriverType,
 } from "@/lib/kova-api";
-import { canRequestCompany, canRequestDaily } from "@/lib/request-access";
+import { canRequestCompany, canRequestDaily, hasRequestSwitches } from "@/lib/request-access";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
 import BookingOptions from "./booking-options";
@@ -178,12 +178,12 @@ export default function Settings() {
   );
   const driverName = (id?: string | null) =>
     (id && accounts.find((a) => a.id === id)?.name) || "No Driver assigned";
-  // Who may request what (0051): a Truck driver never; a Company car driver
-  // only with the switches below; Requesters and Admins always make Daily
-  // requests, and company trips with their switch.
+  // Who may request what (0051, 0074): a Truck driver never; a Scheduler or
+  // Company car driver only with the switches below; Requesters and Admins
+  // always make Daily requests, and company trips with their switch.
   const isDriver = account.role === "Driver";
-  const carDriver = isDriver && account.driverType === "Company car";
-  const companyAllowed = account.role === "Requester" || account.role === "Admin" || carDriver;
+  const switches = hasRequestSwitches(account);
+  const companyAllowed = account.role === "Requester" || account.role === "Admin" || switches;
   // The lists follow the app's data (useKovaData), so another Admin's change
   // shows once the app refreshes; after a save there is only the error to clear.
   function load() {
@@ -225,7 +225,7 @@ export default function Settings() {
         // Switches the role or Driver type can't have are sent off.
         position: account.position.trim(),
         driverType: isDriver ? account.driverType : undefined,
-        canRequestDaily: carDriver && account.canRequestDaily,
+        canRequestDaily: switches && account.canRequestDaily,
         canRequestCompany: companyAllowed && account.canRequestCompany,
       });
       setAccountModal(null);
@@ -528,40 +528,38 @@ export default function Settings() {
               items={["Active", "Inactive"]}
               onChange={(v) => setAccount({ ...account, status: v })}
             />
-            {account.role !== "Scheduler" && (
-              <div className="field">
-                <span>Requests</span>
-                {isDriver && !carDriver ? (
-                  <small>Truck drivers can&apos;t make requests.</small>
-                ) : (
-                  <div className="person-projects">
-                    {carDriver ? (
-                      <label>
-                        <Checkbox
-                          checked={account.canRequestDaily}
-                          onCheckedChange={(v) => setAccount({ ...account, canRequestDaily: v === true })}
-                        />
-                        Can make Daily Vehicle Trip requests
-                      </label>
-                    ) : (
-                      <small>Can make Daily Vehicle Trip requests.</small>
-                    )}
-                    {account.role === "Admin" ? (
-                      // Every Admin may (0059); no switch needed.
-                      <small>Can request company trips.</small>
-                    ) : (
-                      <label>
-                        <Checkbox
-                          checked={account.canRequestCompany}
-                          onCheckedChange={(v) => setAccount({ ...account, canRequestCompany: v === true })}
-                        />
-                        Can request company trips
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="field">
+              <span>Requests</span>
+              {isDriver && !switches ? (
+                <small>Truck drivers can&apos;t make requests.</small>
+              ) : (
+                <div className="person-projects">
+                  {switches ? (
+                    <label>
+                      <Checkbox
+                        checked={account.canRequestDaily}
+                        onCheckedChange={(v) => setAccount({ ...account, canRequestDaily: v === true })}
+                      />
+                      Can make Daily Vehicle Trip requests
+                    </label>
+                  ) : (
+                    <small>Can make Daily Vehicle Trip requests.</small>
+                  )}
+                  {account.role === "Admin" ? (
+                    // Every Admin may (0059); no switch needed.
+                    <small>Can request company trips.</small>
+                  ) : (
+                    <label>
+                      <Checkbox
+                        checked={account.canRequestCompany}
+                        onCheckedChange={(v) => setAccount({ ...account, canRequestCompany: v === true })}
+                      />
+                      Can request company trips
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
             {(account.role === "Admin" || (companyAllowed && account.canRequestCompany)) && (
               <TextField
                 label="Position"

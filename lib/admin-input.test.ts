@@ -37,6 +37,11 @@ describe("account bodies", () => {
     });
   });
 
+  it("keeps the Daily switch for Schedulers too (0074)", () => {
+    const scheduler = { ...account, role: "Scheduler", driverType: "Company car", canRequestDaily: true };
+    expect(parseWith(updateAccountBody, scheduler)).toMatchObject({ driverType: null, canRequestDaily: true });
+  });
+
   it("rejects a blank name, an unknown role or an unknown status", () => {
     expect(parseWith(updateAccountBody, { ...account, name: "  " })).toBeNull();
     expect(parseWith(updateAccountBody, { ...account, role: "Booker" })).toBeNull();
@@ -95,10 +100,15 @@ describe("invites", () => {
   it("turns off switches the role can't have", () => {
     const truck = parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Truck", canRequestDaily: true, canRequestCompany: true });
     expect(truck).toMatchObject({ driverType: "Truck", canRequestDaily: false, canRequestCompany: false });
-    const scheduler = parseWith(inviteBody, { emails: "a@b.co", role: "Scheduler", canRequestCompany: true });
-    expect(scheduler).toMatchObject({ driverType: null, canRequestCompany: false });
+    const requester = parseWith(inviteBody, { emails: "a@b.co", role: "Requester", canRequestDaily: true });
+    expect(requester).toMatchObject({ driverType: null, canRequestDaily: false });
     const car = parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Company car", canRequestDaily: true });
     expect(car).toMatchObject({ canRequestDaily: true });
+  });
+
+  it("keeps a Scheduler's switches (0074)", () => {
+    const scheduler = parseWith(inviteBody, { emails: "a@b.co", role: "Scheduler", canRequestDaily: true, canRequestCompany: true });
+    expect(scheduler).toMatchObject({ driverType: null, canRequestDaily: true, canRequestCompany: true });
   });
 
   it("refuses an unknown role", () => {

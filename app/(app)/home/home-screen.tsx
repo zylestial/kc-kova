@@ -165,6 +165,7 @@ export default function HomeScreen() {
               label="Finished Trips"
               onClick={() => go("/finished")}
             />
+            {canRequest && requestCards}
           </>
         ) : (
           <>

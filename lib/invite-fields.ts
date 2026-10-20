@@ -15,10 +15,16 @@ export function positionAsk(invite: Pick<InviteAccess, "role" | "canRequestCompa
 
 /** What an invite lets someone do, in a few words, for the Join page. */
 export function accessSummary(invite: InviteAccess): string {
-  if (invite.role === "Scheduler") return "Scheduler · plans the trips";
   if (invite.role === "Admin") return "Admin · runs KOVA, can make requests and company trips";
-  const parts: string[] = [invite.role === "Driver" ? `${invite.driverType ?? "Truck"} Driver` : "Requester"];
-  const daily = invite.role === "Requester" || (invite.driverType === "Company car" && invite.canRequestDaily);
+  const who =
+    invite.role === "Driver"
+      ? `${invite.driverType ?? "Truck"} Driver`
+      : invite.role === "Scheduler"
+        ? "Scheduler · plans the trips"
+        : "Requester";
+  const parts: string[] = [who];
+  const switches = invite.role === "Scheduler" || invite.driverType === "Company car";
+  const daily = invite.role === "Requester" || (switches && invite.canRequestDaily);
   if (daily) parts.push("Daily requests");
   if (invite.canRequestCompany) parts.push("Company trips");
   return parts.join(" · ");

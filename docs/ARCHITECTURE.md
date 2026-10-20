@@ -192,7 +192,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `project` | text, nullable | Unused since v2.5 (no screen showed it); kept for history |
 | `position` | text | 0051. Prints on the Company Trip Form; required when `can_request_company` is on |
 | `driver_type` | text, nullable | 0051. Drivers only: `Truck` \| `Company car` |
-| `can_request_daily` | boolean | 0051. Lets a Company car Driver make Daily requests (Requesters and Admins always can) |
+| `can_request_daily` | boolean | 0051, 0074. Lets a Company car Driver or a Scheduler make Daily requests (Requesters and Admins always can) |
 | `can_request_company` | boolean | 0051. May make Company Trip requests; never for a Truck Driver |
 | `created_at` | timestamptz | |
 

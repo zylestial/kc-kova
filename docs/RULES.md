@@ -49,7 +49,7 @@ should be written, for both humans and AI agents.)
   non-Active account as "no session" and sign it out).
 - Passwords are never stored or returned by KOVA's own code — Supabase Auth
   owns the credential.
-- **Who may request what** (0051; `can_request_daily`,
+- **Who may request what** (0051, 0074; `can_request_daily`,
   `can_request_company`, `can_request_transport`, mirrored for the menus in
   `lib/request-access.ts`): Requesters and Admins can always make Daily
   requests. Every Admin can make Company trips too (0059, owner's call
@@ -62,6 +62,11 @@ should be written, for both humans and AI agents.)
   separately. A Truck Driver can never be allowed. Someone who stops being
   a Driver loses the Driver-only fields (trigger
   `accounts_normalize_driver_fields`).
+- A **Scheduler** gets the same two switches as a Company car Driver
+  (0074, owner's call 2026-10-20), both off until an Admin turns them on.
+  A Scheduler may plan a trip that carries their own request; the Admin
+  still approves it. Someone who stops being a Scheduler or Driver loses
+  the Daily switch.
 
 ## Vehicles
 
