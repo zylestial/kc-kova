@@ -21,6 +21,9 @@ describe("accessSummary", () => {
     expect(accessSummary({ ...base, role: "Driver", driverType: "Company car", canRequestDaily: true })).toBe(
       "Company car Driver · Daily requests",
     );
-    expect(accessSummary({ ...base, role: "Scheduler" })).toMatch(/^Scheduler/);
+    expect(accessSummary({ ...base, role: "Scheduler" })).toBe("Scheduler · plans the trips");
+    expect(accessSummary({ ...base, role: "Scheduler", canRequestDaily: true, canRequestCompany: true })).toBe(
+      "Scheduler · plans the trips · Daily requests · Company trips",
+    );
   });
 });
