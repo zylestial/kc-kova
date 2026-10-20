@@ -8,7 +8,7 @@ import { hasRequestSwitches } from "@/lib/request-access";
  * itself are enforced in Postgres and the routes.
  */
 
-const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const satisfies readonly Role[];
+const ROLES = ["Requester", "Scheduler", "Admin", "Driver", "Finance"] as const satisfies readonly Role[];
 const STATUSES = ["Active", "Inactive"] as const;
 
 /** A non-blank string, trimmed. */
@@ -23,9 +23,10 @@ const optionalId = z
   .transform((id) => id || null);
 
 /**
- * Who may request what (0051, 0074). The Driver type is dropped for other
- * roles, and the Daily switch for anyone but Drivers and Schedulers; a Truck driver with a switch on, or company trips without a
- * Position, is refused by the database's constraints.
+ * Who may request what (0051, 0074, 0075). The Driver type is dropped for
+ * other roles, and the Daily switch for anyone without request switches; a
+ * Truck driver with a switch on, or company trips without a Position, is
+ * refused by the database's constraints.
  */
 const requestAccess = {
   position: z.string().trim().catch(""),
@@ -40,7 +41,7 @@ function forRole<T extends { role: Role; driverType: string; canRequestDaily: bo
   return {
     ...body,
     driverType: body.role === "Driver" ? body.driverType : null,
-    canRequestDaily: (body.role === "Driver" || body.role === "Scheduler") && body.canRequestDaily,
+    canRequestDaily: ["Driver", "Scheduler", "Finance"].includes(body.role) && body.canRequestDaily,
   };
 }
 
