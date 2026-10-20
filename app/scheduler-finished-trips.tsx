@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useKovaData } from "@/lib/use-kova-data";
+import { scheduledBy } from "@/lib/scheduled-by";
 import { buildScheduledFinishedTrips } from "@/lib/trip-finish";
 import { stopsFor } from "@/lib/trip-record";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
@@ -41,7 +42,7 @@ const routeOf = (trip: { revision: { legs: { destinationName: string }[] } }) =>
  * odometer; reviewing and marking Done stay with the Admin.
  */
 export default function SchedulerFinishedTrips() {
-  const { schedules, completions, requests, problems } = useKovaData();
+  const { schedules, completions, requests, problems, accounts } = useKovaData();
   const trips = useMemo(
     () => buildScheduledFinishedTrips(schedules, completions, requests, problems),
     [schedules, completions, requests, problems],
@@ -62,6 +63,7 @@ export default function SchedulerFinishedTrips() {
   );
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
+  const selectedBy = selected ? scheduledBy(selected.revision, accounts) : null;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
 
   return (
@@ -137,6 +139,7 @@ export default function SchedulerFinishedTrips() {
             <DialogTitle>Finished trip</DialogTitle>
             <DialogDescription>
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} · ${selected.revision.driverName}`}
+              {selectedBy && ` — ${selectedBy.label} ${selectedBy.name}`}
             </DialogDescription>
           </DialogHeader>
           {selected && (

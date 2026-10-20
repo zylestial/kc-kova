@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, Schedule, ScheduleRevision } from "@/lib/kova-api";
-import { requestScheduledBy, scheduledBy } from "@/lib/scheduled-by";
+import { othersDraftQuestion, requestScheduledBy, scheduledBy } from "@/lib/scheduled-by";
 
 describe("scheduled by", () => {
   const accounts = [
@@ -48,6 +48,16 @@ describe("scheduled by", () => {
   it("is null without a revision or a known account", () => {
     expect(scheduledBy(undefined, accounts)).toBeNull();
     expect(scheduledBy(revision({ createdByAccountId: "gone" }), accounts)).toBeNull();
+  });
+
+  it("asks before changing a trip someone else is planning", () => {
+    expect(othersDraftQuestion(schedule({}), "s2", accounts)).toBe("Sam Cruz is drafting this trip. Edit anyway?");
+    expect(othersDraftQuestion(schedule({}), "s1", accounts)).toBeNull();
+    expect(
+      othersDraftQuestion(schedule({ revisions: [revision({ status: "SUBMITTED", submittedByAccountId: "s1" })] }), "s2", accounts),
+    ).toBe("Sam Cruz scheduled this trip. Edit anyway?");
+    // An approved trip with no draft changes has nothing open to step on.
+    expect(othersDraftQuestion(schedule({ revisions: [revision({ status: "APPROVED" })], publishedRevisionId: "rev" }), "s2", accounts)).toBeNull();
   });
 
   it("finds who planned a request's live trip", () => {
