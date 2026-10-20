@@ -50,10 +50,9 @@ export default function Sidebar({
       <div className={"sidebar-scrim" + (open ? " open" : "")} onClick={onClose} aria-hidden="true" />
       <aside className={"sidebar" + (open ? " open" : "")} aria-label="Main menu">
         <div className="sidebar-brand">
-          <img className="kova-logo" src="/images/kova-print-logo.png" alt="Kayelen's Construction" />
+          <img className="sidebar-logo" src="/images/kova-sidebar-logo.png" alt="Kayelen's Construction" width={216} height={59} />
           <div className="sidebar-lockup">
             <strong>KOVA</strong>
-            <span>Kayelen&apos;s Operations and Vehicle Allocation</span>
           </div>
           <button type="button" className="sidebar-close" aria-label="Close menu" onClick={onClose}>
             <X size={18} />
