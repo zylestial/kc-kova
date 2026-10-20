@@ -277,6 +277,27 @@ export type NotificationType =
   | "STOP_REPORTED"
   | "STOP_MISSED"
   | "STOP_ANSWERED";
+/** An Admin's open invite (0072): sent, not yet accepted or cancelled. */
+export type Invite = {
+  id: string;
+  email: string;
+  role: Role;
+  driverType?: DriverType;
+  canRequestDaily: boolean;
+  canRequestCompany: boolean;
+  sentAt: string;
+  /** Its link no longer works; Resend makes a new one. */
+  expired: boolean;
+};
+
+/** What a batch of invites did, email by email. */
+export type InviteResult = {
+  sent: string[];
+  skipped: Array<{ email: string; reason: string }>;
+  invalid: string[];
+  failed: string[];
+};
+
 export type Notification = {
   id: string;
   type: NotificationType;
@@ -522,6 +543,50 @@ export async function signOut() {
   notify();
 }
 
+/**
+ * What an invite link is for (/join): its email, role, what it allows in a
+ * few words, and whether Join asks for a Position. An error when the link
+ * no longer works.
+ */
+export const lookUpInvite = (token: string) =>
+  request<{ email: string; role: Role; access: string; position: "required" | "optional" | "none" }>(
+    `/api/auth/invite?token=${encodeURIComponent(token)}`,
+  );
+
+/** Sets up the invited account and signs in as it (null when the sign-in itself failed). */
+export async function acceptInvite(input: { token: string; name: string; username: string; position: string; password: string }) {
+  const result = await request<{ account: Account | null }>("/api/auth/accept-invite", { method: "POST", body: JSON.stringify(input) });
+  sessionAccount = result.account;
+  if (sessionAccount) await hydrateKovaData();
+  return sessionAccount;
+}
+
+/** Emails a reset link if that username or email has one; the answer is the same either way. */
+export const forgotPassword = (login: string) =>
+  request<{ message: string }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ login }) });
+/** Who a reset link is for, or an error when it no longer works. */
+export const lookUpReset = (token: string) => request<{ username: string }>(`/api/auth/reset-password?token=${encodeURIComponent(token)}`);
+export const resetPassword = (token: string, password: string) =>
+  request<void>("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) });
+
+/** The signed-in account's email (0072): confirmed, and a new one waiting for its link. */
+export type EmailStatus = { email: string | null; pendingEmail: string | null };
+export const getMyEmail = () => request<EmailStatus>("/api/me/email");
+/** Sends a confirm link to `email`; replacing a confirmed email needs the current password. */
+export const setMyEmail = (email: string, currentPassword = "") =>
+  request<EmailStatus>("/api/me/email", { method: "POST", body: JSON.stringify({ email, currentPassword }) });
+/** My account: a new username, with the current password. */
+export async function changeMyUsername(username: string, currentPassword: string) {
+  const account = await request<Account>("/api/me/username", { method: "PUT", body: JSON.stringify({ username, currentPassword }) });
+  sessionAccount = account;
+  return account;
+}
+/** My account: a new password, with the current one. */
+export const changeMyPassword = (currentPassword: string, newPassword: string) =>
+  request<void>("/api/me/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) });
+export const confirmEmailLink = (token: string) =>
+  request<{ email: string }>("/api/auth/confirm-email", { method: "POST", body: JSON.stringify({ token }) });
+
 export const currentAccount = () => sessionAccount;
 export const getSchedules = () => cache.schedules;
 
@@ -570,9 +635,20 @@ async function refreshAfter<T>(operation: Promise<T>) {
   return result;
 }
 
-export const saveAccount = (account: Account & { password?: string }) => refreshAfter(request<Account>(account.id ? `/api/accounts/${encodeURIComponent(account.id)}` : "/api/accounts", { method: account.id ? "PUT" : "POST", body: JSON.stringify(account) }));
+/** Saves an Admin's changes to an account; new accounts come from invites (0072). */
+export const saveAccount = (account: Account & { email?: string }) => refreshAfter(request<Account>(`/api/accounts/${encodeURIComponent(account.id)}`, { method: "PUT", body: JSON.stringify(account) }));
 export const changeAccountPassword = (accountId: string, password: string) => request<void>(`/api/accounts/${encodeURIComponent(accountId)}/password`, { method: "POST", body: JSON.stringify({ password }) });
-export const saveVehicle = (vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
+/** Every account's email (Admin only, 0072). */
+export const listAccountEmails = () => request<Array<{ accountId: string } & EmailStatus>>("/api/account-emails");
+/** Sends an account's waiting email its confirm link again. */
+export const resendEmailLink = (accountId: string) =>
+  request<void>(`/api/accounts/${encodeURIComponent(accountId)}/email-link`, { method: "POST" });
+export const listInvites = () => request<Invite[]>("/api/invites");
+export const sendInvites = (input: { emails: string; role: Role; driverType?: DriverType; canRequestDaily: boolean; canRequestCompany: boolean }) =>
+  request<InviteResult>("/api/invites", { method: "POST", body: JSON.stringify(input) });
+export const resendInvite = (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}/resend`, { method: "POST" });
+export const cancelInvite = (id: string) => request<void>(`/api/invites/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const saveVehicle =(vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
 export const saveBookingOption = (group: OptionGroup, option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
 /** Returns the group's stops, A first. */

@@ -15,9 +15,13 @@
 ```
 app/                    Next.js App Router: pages (client components) + API routes
   api/                  Route handlers — the only code that talks to Supabase from the server
-    auth/               sign-in, session, sign-out
+    auth/               sign-in, session, sign-out; public link endpoints: invite,
+                         accept-invite, forgot-password, reset-password, confirm-email
+    me/                 The signed-in account's own email, username, password (My account)
+    invites/            Admin: send a batch of invites, list, resend, cancel
     bootstrap/          GET: one-shot hydration payload for the signed-in role
-    accounts/           Admin: create/update accounts, reset passwords
+    accounts/           Admin: update accounts, reset passwords, resend an email link
+    account-emails/     Admin: every account's email for Settings
     vehicles/           Admin: create/rename vehicles
     request-groups/     Requester/Admin: create/edit a request and its stops (Daily or Company)
     requests/           Per-stop actions: cancel, send back, split, move to another day
@@ -46,6 +50,12 @@ lib/
     session.ts           requireAccount(): resolve the signed-in Account or null
     mappers.ts            snake_case DB rows -> the camelCase types in kova-api.ts
     login-rate-limit.ts    Sign-in throttling backed by the login_attempts table
+    verify-password.ts     Checks a current password without touching the session
+  mailer.ts             Account emails over SMTP (Gmail in prod, Mailpit locally); appUrl()
+  email-templates.ts    The invite, confirm-email and reset-password texts
+  account-tokens.ts     One-time email links: random token out, only its sha256 stored
+  account-email.ts      Pending email + confirm link; an account's email status
+  invites.ts            Invite links and rows
 supabase/
   migrations/            Schema + RLS policies + RPC functions, applied in order
 docs/                    This documentation set
@@ -90,7 +100,40 @@ separate KOVA session table.
 
 Sign-in attempts are rate-limited (5 failures / 15 minutes per username) via
 the `login_attempts` table, touched only through the service-role client
-since RLS grants it no policies at all.
+since RLS grants it no policies at all. The same table, with `reset:<id>`
+and `confirm:<id>` keys, limits reset and confirm emails per account.
+
+### Real emails, invites and email links (migration 0072)
+
+The synthetic Auth email stays the sign-in identity. Each account's real
+email lives in `account_emails` and is used only to deliver links, which
+KOVA sends itself over SMTP (`lib/mailer.ts`), not through Supabase Auth's
+mailer. Every link carries a random 32-byte token; only its sha256 is
+stored, and a link is used up by a single conditional `update … where
+used_at is null and expires_at > now()`, so it works once even when opened
+twice at once. Links are built from `APP_URL`, never the Host header.
+
+- **Invite** (7 days): an Admin's batch makes one `account_invites` row per
+  email. `/join` sets up the account with the invite's role and
+  permissions; the invite is claimed first and released again if the
+  account can't be made (say, a taken username). The invited email is
+  stored as confirmed. Invites are the only way to make an account; there
+  is no `POST /api/accounts`. Join asks for a Position only when the
+  invite's access needs one (`lib/invite-fields.ts`).
+- **Confirm email** (24 hours): a new email from My account or the Admin's
+  Edit Account waits in `pending_email`, and the confirmed one keeps
+  working until the link is opened.
+- **Reset password** (1 hour): Forgot password takes a username or email
+  and always gives the same answer. The reset page checks the password
+  before using up the link, so a refused one doesn't cost it.
+
+Changing your own username, email or password (`/api/me/*`) checks the
+current password with a cookie-less client (`verify-password.ts`). A
+password change ends the account's Auth sessions, so the route signs this
+one in again.
+
+`proxy.ts` lets `/join`, `/forgot-password`, `/reset-password` and
+`/confirm-email` open without a session.
 
 ## Authorization: two enforcement layers
 
@@ -208,6 +251,17 @@ route were removed. The table and its rows stay (nothing is hard-deleted).
 
 Touched only by the service-role client (`lib/supabase/login-rate-limit.ts`)
 — no RLS policy is granted to any other role.
+
+### `account_emails`, `account_invites`, `account_tokens` (migration 0072)
+| Table | Holds | Who reads it |
+| --- | --- | --- |
+| `account_emails` | One row per account: `email` (confirmed; unique), `pending_email`, `confirmed_at` | The account itself and Admins |
+| `account_invites` | `email`, `role`, `driver_type`, `can_request_daily`, `can_request_company`, `token_hash`, `expires_at`, `invited_by`, `sent_at`, `accepted_account_id`/`accepted_at`, `cancelled_at`; one open invite per email | Admins |
+| `account_tokens` | Confirm-email and reset-password links: `account_id`, `purpose`, `email`, `token_hash`, `expires_at`, `used_at` | Nobody (service role only) |
+
+Emails are stored lowercase. All writes go through the service-role
+client in the API routes; signed-in users get `select` only, and nothing
+on `account_tokens`.
 
 ### v2 request/schedule tables (migrations 0013–0023)
 
@@ -403,9 +457,21 @@ Summary, with the implementing route file:
 | GET | `/api/auth/session` | `app/api/auth/session/route.ts` | — |
 | POST | `/api/auth/sign-out` | `app/api/auth/sign-out/route.ts` | any session |
 | GET | `/api/bootstrap` | `app/api/bootstrap/route.ts` | any session |
-| POST | `/api/accounts` | `app/api/accounts/route.ts` | Admin |
 | PUT | `/api/accounts/:accountId` | `app/api/accounts/[accountId]/route.ts` | Admin |
 | POST | `/api/accounts/:accountId/password` | `app/api/accounts/[accountId]/password/route.ts` | Admin |
+| POST | `/api/accounts/:accountId/email-link` | `app/api/accounts/[accountId]/email-link/route.ts` | Admin; sends the pending email's confirm link again |
+| GET | `/api/account-emails` | `app/api/account-emails/route.ts` | Admin |
+| GET, POST | `/api/invites` | `app/api/invites/route.ts` | Admin; POST `{ emails, role, driverType, canRequestDaily, canRequestCompany }` → sent / skipped / invalid / failed |
+| POST | `/api/invites/:inviteId/resend` | `app/api/invites/[inviteId]/resend/route.ts` | Admin |
+| DELETE | `/api/invites/:inviteId` | `app/api/invites/[inviteId]/route.ts` | Admin |
+| GET | `/api/auth/invite?token=` | `app/api/auth/invite/route.ts` | — (the token) |
+| POST | `/api/auth/accept-invite` | `app/api/auth/accept-invite/route.ts` | — (the token); `{ token, name, username, position, password }`, ends signed in |
+| POST | `/api/auth/forgot-password` | `app/api/auth/forgot-password/route.ts` | —; `{ login }`, same answer always |
+| GET, POST | `/api/auth/reset-password` | `app/api/auth/reset-password/route.ts` | — (the token); POST `{ token, password }` |
+| POST | `/api/auth/confirm-email` | `app/api/auth/confirm-email/route.ts` | — (the token) |
+| GET, POST | `/api/me/email` | `app/api/me/email/route.ts` | any session; POST `{ email, currentPassword }` (password only when replacing a confirmed email) |
+| PUT | `/api/me/username` | `app/api/me/username/route.ts` | any session; `{ username, currentPassword }` |
+| POST | `/api/me/password` | `app/api/me/password/route.ts` | any session; `{ currentPassword, newPassword }` |
 | POST | `/api/vehicles` | `app/api/vehicles/route.ts` | Admin |
 | PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
 | POST | `/api/requests` | `app/api/requests/route.ts` | Requester, Admin |
@@ -498,6 +564,12 @@ Configuration is entirely in environment variables (`.env.example`):
   `PUSH_SEND_SECRET`. Each environment also needs the Vault secrets
   `push_send_url` (`https://<app>/api/push/send`) and `push_send_secret`
   (the same value as `PUSH_SEND_SECRET`); see 0070's header.
+- Account emails (0072): `SMTP_HOST`, `SMTP_PORT` (465 means TLS from the
+  start), `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` and `APP_URL` (the base of
+  every emailed link). Production uses a Gmail account with an App
+  password; locally they point at Supabase's Mailpit (`127.0.0.1:54325`,
+  read at http://127.0.0.1:54324). Without `SMTP_HOST`, development logs
+  each email to the console and production refuses to send.
 
 All three Supabase variables are validated as present at server startup
 (`instrumentation.ts` -> `lib/env.ts`) — a missing/misconfigured one fails

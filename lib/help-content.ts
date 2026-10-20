@@ -43,15 +43,15 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Review schedules", detail: "Approve, Return with a note, or handle cancellations." },
     { title: "Close out trips", detail: "Check odometers and times, fill in missed ones, resolve problems, mark Done, print the form." },
     { title: "Check attendance", detail: "See each Driver's taps at ANONANG and at each stop; odd taps are flagged." },
-    { title: "Manage the system", detail: "Accounts, passwords, vehicles, Drivers, request choices, who can request Company trips." },
+    { title: "Manage the system", detail: "Invite people by email, accounts and passwords, vehicles, Drivers, request choices, who can request Company trips." },
     { title: "Act as anyone", detail: "You can also submit requests, even for a past date." },
   ],
 };
 
-/** Who to turn to, since KOVA has no self-service password reset. */
+/** What to do about a forgotten password (0072: reset by email from Sign In). */
 export const whoToAsk: Record<Role, string> = {
-  Requester: "Forgot your password? Ask an Admin — they can set a new one.",
-  Scheduler: "Forgot your password? Ask an Admin — they can set a new one.",
-  Driver: "Forgot your password? Ask an Admin — they can set a new one.",
-  Admin: "Forgot your password? Ask another Admin to set a new one in Settings.",
+  Requester: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
+  Scheduler: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
+  Driver: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
+  Admin: "Forgot your password? Use Forgot password? on the Sign In page. You can also set someone's password in Settings if their email doesn't reach them.",
 };

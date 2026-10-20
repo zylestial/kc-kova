@@ -86,13 +86,23 @@ export default function Sidebar({
             <span>Help</span>
           </button>
           <div className="sidebar-account">
-            <span className="sidebar-avatar" aria-hidden="true">
-              {account.name.trim().charAt(0).toUpperCase()}
-            </span>
-            <div>
-              <strong>{account.name}</strong>
-              <small>{account.role}</small>
-            </div>
+            {/* The name opens My account, to keep the menu short. */}
+            <a
+              href="/account"
+              className={"sidebar-profile" + (pathname === "/account" ? " active" : "")}
+              aria-current={pathname === "/account" ? "page" : undefined}
+              aria-label={`My account: ${account.name}`}
+              title="My account"
+              onClick={(event) => go(event, "/account")}
+            >
+              <span className="sidebar-avatar" aria-hidden="true">
+                {account.name.trim().charAt(0).toUpperCase()}
+              </span>
+              <div>
+                <strong>{account.name}</strong>
+                <small>{account.role} · My account</small>
+              </div>
+            </a>
             <button
               type="button"
               className="sidebar-signout"

@@ -2,19 +2,23 @@
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { PASSWORD_HINT, passwordError } from "@/lib/password-policy";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Car, Plus } from "lucide-react";
 import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
   changeAccountPassword,
+  listAccountEmails,
+  resendEmailLink,
   DRIVER_TYPES,
+  type EmailStatus,
   type DriverType,
 } from "@/lib/kova-api";
 import { canRequestCompany, canRequestDaily } from "@/lib/request-access";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
 import BookingOptions from "./booking-options";
+import InvitesPanel from "./invites-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -54,7 +58,7 @@ const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
   name: "",
   username: "",
-  password: "",
+  email: "",
   role: "Requester" as Account["role"],
   status: "Active" as Account["status"],
   position: "",
@@ -140,7 +144,8 @@ export default function Settings() {
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
-  const [accountModal, setAccountModal] = useState<"add" | "edit" | null>(null);
+  // Accounts are only edited here; new ones come from Invite people (0072).
+  const [accountModal, setAccountModal] = useState<"edit" | null>(null);
   const [vehicleModal, setVehicleModal] = useState<"add" | "edit" | null>(null);
   const [account, setAccount] = useState(blankAccount());
   const [vehicle, setVehicle] = useState(blankVehicle());
@@ -148,6 +153,26 @@ export default function Settings() {
   const [originalPlate, setOriginalPlate] = useState("");
   const [passwordFor, setPasswordFor] = useState<Account | null>(null);
   const [passwords, setPasswords] = useState({ next: "", confirm: "" });
+  // Every account's email (0072), by account id; loaded apart from the app's data.
+  const [emails, setEmails] = useState<Record<string, EmailStatus>>({});
+  const [resending, setResending] = useState("");
+  const loadEmails = useCallback(() => {
+    listAccountEmails()
+      .then((list) => setEmails(Object.fromEntries(list.map(({ accountId, ...status }) => [accountId, status]))))
+      .catch(() => undefined);
+  }, []);
+  useEffect(loadEmails, [loadEmails]);
+  async function resendLink(a: Account) {
+    setResending(a.id);
+    try {
+      await resendEmailLink(a.id);
+      setNotice(`Confirm link sent again to ${emails[a.id]?.pendingEmail}.`);
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setResending("");
+    }
+  }
   const drivers = accounts.filter(
     (a) => a.role === "Driver" && a.status === "Active",
   );
@@ -164,18 +189,13 @@ export default function Settings() {
   function load() {
     setError("");
   }
-  function addAccount() {
-    setAccount(blankAccount());
-    setAccountModal("add");
-    setFormError("");
-  }
   function editAccount(a: Account) {
     setAccount({
       name: a.name,
       username: a.username,
       role: a.role,
       status: a.status,
-      password: "",
+      email: emails[a.id]?.pendingEmail ?? emails[a.id]?.email ?? "",
       position: a.position,
       driverType: a.driverType ?? "Truck",
       canRequestDaily: a.canRequestDaily,
@@ -186,7 +206,7 @@ export default function Settings() {
     setFormError("");
   }
   async function saveAccount() {
-    const missing = accountMissing(account, accountModal === "add");
+    const missing = accountMissing(account, false);
     if (companyAllowed && account.canRequestCompany && !account.position.trim()) missing.push("Position");
     if (missing.length) {
       setFormError(stillNeeded(missing));
@@ -196,12 +216,12 @@ export default function Settings() {
     setFormError("");
     try {
       await storeAccount({
-        id: accountModal === "add" ? "" : accountId,
+        id: accountId,
         name: account.name.trim(),
         username: account.username.trim(),
         role: account.role,
         status: account.status,
-        password: accountModal === "add" ? account.password : undefined,
+        email: account.email.trim(),
         // Switches the role or Driver type can't have are sent off.
         position: account.position.trim(),
         driverType: isDriver ? account.driverType : undefined,
@@ -209,9 +229,9 @@ export default function Settings() {
         canRequestCompany: companyAllowed && account.canRequestCompany,
       });
       setAccountModal(null);
-      setAccount({ ...account, password: "" });
       setNotice("Account saved.");
       load();
+      loadEmails();
     } catch (e) {
       setFormError((e as Error).message);
     } finally {
@@ -321,16 +341,15 @@ export default function Settings() {
         </div>
       )}
       {tab === "accounts" ? (
+        <>
+        <InvitesPanel onNotice={setNotice} />
         <section className="schedule-panel">
           <div className="panel-toolbar">
             <div>
               <h2>Accounts</h2>
               <span className="count">{accounts.length}</span>
-              <p>Manage people who can sign in.</p>
+              <p>People who can sign in. To add someone, use Invite people above.</p>
             </div>
-            <Button className="primary" onClick={addAccount}>
-              <Plus size={17} /> Add Account
-            </Button>
           </div>
           <div className="schedule-table">
             <table>
@@ -338,6 +357,7 @@ export default function Settings() {
                 <tr>
                   <th>NAME</th>
                   <th>USERNAME</th>
+                  <th>EMAIL</th>
                   <th>ACCOUNT TYPE</th>
                   <th>CAN REQUEST</th>
                   <th>STATUS</th>
@@ -351,6 +371,17 @@ export default function Settings() {
                       <b>{a.name}</b>
                     </td>
                     <td>{a.username}</td>
+                    <td>
+                      {emails[a.id]?.email ?? "—"}
+                      {emails[a.id]?.pendingEmail && (
+                        <div className="account-email-pending">
+                          <span className="badge">Not confirmed</span> {emails[a.id]?.pendingEmail}{" "}
+                          <Button variant="ghost" disabled={!!resending} onClick={() => resendLink(a)}>
+                            {resending === a.id ? "Sending…" : "Resend"}
+                          </Button>
+                        </div>
+                      )}
+                    </td>
                     <td>{a.role === "Driver" ? `Driver · ${a.driverType ?? "Truck"}` : a.role}</td>
                     <td>{requestsLabel(a)}</td>
                     <td>
@@ -373,6 +404,7 @@ export default function Settings() {
             </table>
           </div>
         </section>
+        </>
       ) : tab === "vehicles" ? (
         <section className="schedule-panel">
           <div className="panel-toolbar">
@@ -450,14 +482,8 @@ export default function Settings() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {accountModal === "add" ? "Add Account" : "Edit Account"}
-            </DialogTitle>
-            <DialogDescription>
-              {accountModal === "add"
-                ? "Add a Requester, Scheduler, Admin or Driver account."
-                : "Update this account. Inactive accounts cannot sign in."}
-            </DialogDescription>
+            <DialogTitle>Edit Account</DialogTitle>
+            <DialogDescription>Update this account. Inactive accounts cannot sign in.</DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
             <TextField
@@ -471,16 +497,17 @@ export default function Settings() {
               onChange={(v) => setAccount({ ...account, username: v })}
               autoComplete="off"
             />
-            {accountModal === "add" && (
-              <TextField
-                label="Password"
-                hint={PASSWORD_HINT}
-                type="password"
-                value={account.password}
-                onChange={(v) => setAccount({ ...account, password: v })}
-                autoComplete="new-password"
+            <label className="field">
+              <span>Email</span>
+              <Input
+                type="email"
+                value={account.email}
+                onChange={(e) => setAccount({ ...account, email: e.target.value })}
+                autoComplete="off"
+                maxLength={254}
               />
-            )}
+              <small>A new email gets a confirm link; the old one keeps working until then.</small>
+            </label>
             <Choice
               label="Account Type"
               value={account.role}
@@ -550,30 +577,24 @@ export default function Settings() {
             </p>
           )}
           <div className="modal-actions">
-            {accountModal === "edit" && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAccountModal(null);
-                  setPasswordFor(
-                    accounts.find((a) => a.id === accountId) || null,
-                  );
-                  setPasswords({ next: "", confirm: "" });
-                  setFormError("");
-                }}
-              >
-                Change Password
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAccountModal(null);
+                setPasswordFor(
+                  accounts.find((a) => a.id === accountId) || null,
+                );
+                setPasswords({ next: "", confirm: "" });
+                setFormError("");
+              }}
+            >
+              Change Password
+            </Button>
             <Button variant="outline" onClick={() => setAccountModal(null)}>
               Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={saveAccount}>
-              {busy
-                ? "Saving…"
-                : accountModal === "add"
-                  ? "Add Account"
-                  : "Save"}
+              {busy ? "Saving…" : "Save"}
             </Button>
           </div>
         </DialogContent>

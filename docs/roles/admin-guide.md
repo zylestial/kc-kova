@@ -8,12 +8,12 @@ This is the single reference for each role in KOVA. It combines the Requester, S
 | --- | --- | --- | --- |
 | Requester | Ask for transport and track requests | My requests | Create requests, edit or cancel before planning, watch schedule status |
 | Scheduler | Build the day plan | Schedules | Review pool, assign vehicles, create the route, submit for approval |
-| Admin | Run operations and approvals | Admin dashboard | Create accounts, maintain vehicles and options, approve schedules, close trips |
+| Admin | Run operations and approvals | Admin dashboard | Invite people, maintain vehicles and options, approve schedules, close trips |
 | Driver | Execute assigned trips | My schedule | Start and end trip, tap stops, submit completion, report problems |
 
 ## End-to-end flow: Admin to Driver
 
-1. Admin creates or updates user accounts and assigns one role per person.
+1. Admin invites people by email (Settings → Accounts → Invite people), choosing one account type and its request permissions per batch; each person sets up their own username and password from the emailed link.
 2. Admin adds or updates vehicles and assigns each vehicle to a Driver.
 3. Requester creates a trip request with date and stops.
 4. Scheduler reviews the request pool and builds the trip record.
@@ -112,8 +112,8 @@ An Admin is the operational owner of KOVA. The Admin keeps the system running by
 
 ### What an Admin can do
 
-- Create and update user accounts
-- Reset passwords and manage account status
+- Invite people by email in batches, resend or cancel invites, and update accounts
+- Manage account status, and set a password for someone whose email doesn't reach them (everyone else uses Forgot password on the Sign In page)
 - Create or rename vehicles and assign Drivers
 - Maintain Projects, Destinations, and Purposes
 - Approve or return submitted schedules
@@ -124,7 +124,7 @@ An Admin is the operational owner of KOVA. The Admin keeps the system running by
 
 ### Admin workflow
 
-1. Create or update accounts and assign roles.
+1. Invite people, choosing their roles and access; edit accounts in Settings when something changes.
 2. Maintain active and inactive fleet records.
 3. Keep booking choice lists current and consistent.
 4. Review schedule submissions and approve or return them.
@@ -150,7 +150,7 @@ A Done trip is locked and remains read-only for everyone.
 
 ### Admin checklist
 
-- [ ] Create or update accounts
+- [ ] Invite people, or update accounts
 - [ ] Verify vehicle and Driver coverage
 - [ ] Approve or return schedules
 - [ ] Confirm or decline cancellations

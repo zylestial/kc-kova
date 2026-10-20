@@ -73,6 +73,7 @@ async function seedAccount({ username, name, role, ...extra }) {
     // even if the account was created by an earlier manual QA pass.
     const { error } = await admin.auth.admin.updateUserById(existing.id, { password: UAT_PASSWORD });
     if (error) throw new Error(`password reset(${username}) failed: ${error.message}`);
+    await seedEmail(existing.id, username);
     console.log(`account ${username} already exists — password reset`);
     return;
   }
@@ -91,7 +92,17 @@ async function seedAccount({ username, name, role, ...extra }) {
     await admin.auth.admin.deleteUser(created.user.id);
     throw new Error(`accounts insert(${username}) failed: ${insertError.message}`);
   }
+  await seedEmail(created.user.id, username);
   console.log(`created account ${username} (${role})`);
+}
+
+// Every account needs a confirmed email (0072), or KOVA shows the Add your
+// email step instead of the app. .test never delivers, so nothing is sent.
+async function seedEmail(accountId, username) {
+  const { error } = await admin
+    .from("account_emails")
+    .upsert({ account_id: accountId, email: `${username.toLowerCase()}@uat.kova.test`, confirmed_at: new Date().toISOString() });
+  if (error) throw new Error(`account_emails upsert(${username}) failed: ${error.message}`);
 }
 
 async function seedVehicle({ plate, name, company_trips = false }) {

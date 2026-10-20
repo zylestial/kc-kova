@@ -12,7 +12,32 @@ should be written, for both humans and AI agents.)
 
 ## Accounts
 
-- Only an Admin may create, edit, or reset the password of an account.
+- Only an Admin may invite people, edit an account's name, role, status,
+  position and request permissions, or reset its password. An invite is
+  the only way to make an account (there is no Add Account).
+- **Invites** (0072): an Admin invites a batch of emails with one role and
+  set of request permissions. The person sets up their own name, username
+  and password from the link, plus a Position only when their access needs
+  one: required with company trips, optional for an Admin, not asked
+  otherwise (`lib/invite-fields.ts`). They can never change their role or
+  permissions there. A link works once, for 7 days; Resend makes a new one
+  and the old stops working. An email that already has an account, or an
+  open invite, is skipped.
+- **Every account has a confirmed email** (0072): the invited one, since
+  invites are the only way in. (Accounts from before 0072 have none until
+  they add one on My account; the site is to be reset before real use.)
+  A new email stays pending, and the confirmed one keeps working, until
+  its link is opened. Two accounts can't share an email. Only the account
+  itself and Admins can see it.
+- **Self-service** (0072): anyone can change their own username, email and
+  password on My account, each with their current password; wrong ones
+  count toward the sign-in lockout. A new username can't be inside the
+  current password. Forgot password emails a link (1 hour, once) to the
+  confirmed email, found by username or email, and answers the same
+  whether or not the account exists; at most 5 such emails per account per
+  15 minutes. Setting a password from the link also lifts a sign-in lockout.
+- A username someone chooses themselves is 3–30 letters, numbers, dots,
+  dashes or underscores (`lib/username-policy.ts`).
 - `username` is unique across all accounts (enforced by the `accounts`
   table's `unique` constraint and, transitively, by the synthetic Auth
   email's uniqueness).
@@ -469,6 +494,8 @@ audit — see `docs/MEMORY.md` and `docs/archive/MEMORY-history.md` for the full
   history. If one is exposed this way, rotate it.
 - Passwords are never stored or returned by KOVA's own code; Supabase Auth
   owns the credential.
+- Emailed links store only a hash of their token, and are built from
+  `APP_URL`, never from the request's Host header (`lib/mailer.ts`).
 
 ### Testing
 
