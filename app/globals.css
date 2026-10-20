@@ -309,3 +309,4 @@ tr.flash-row>td{animation:row-flash 3s ease-out}@keyframes row-flash{0%,60%{back
 .settings-shell .schedule-panel+.schedule-panel{margin-top:24px}.settings-shell .schedule-table .modal-actions{margin:0;justify-content:flex-start}
 .account-email-pending{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;margin-top:4px}
 .my-account .schedule-panel+.schedule-panel{margin-top:20px}.my-account .modal-fields{max-height:none;margin-top:16px;max-width:460px}.my-account .panel-toolbar p{margin:4px 0 0}
+.sidebar-profile{display:flex;align-items:center;gap:10px;flex:1;min-width:0;color:inherit;text-decoration:none;border-radius:8px;padding:2px;margin:-2px}.sidebar-profile>div{display:flex;flex-direction:column;min-width:0;flex:1}.sidebar-profile:hover strong,.sidebar-profile.active strong{text-decoration:underline}.sidebar-profile:focus-visible{outline:2px solid #fff;outline-offset:2px}
