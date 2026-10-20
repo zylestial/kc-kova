@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
-import { MapPin } from "lucide-react";
+import { Download, MapPin } from "lucide-react";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { AttendanceTap } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
@@ -141,6 +142,35 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
   );
   const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone else";
 
+  /** What the filters show, in the shown order: each tap with its place, and every flag in words. */
+  function downloadVisible() {
+    const rows = visible.map((row) => {
+      const { start, end } = row.attendance ?? {};
+      const summary = stopSummary(timesFor(row));
+      const flags = [
+        ...(start ? tapFlags(start, row.schedule.date).map((flag) => `Start: ${tapFlagLabel[flag]}`) : []),
+        ...(end ? tapFlags(end, row.schedule.date).map((flag) => `End: ${tapFlagLabel[flag]}`) : []),
+        summary.away ? `${summary.away} stop taps away from the stop` : "",
+        summary.noLocation ? `${summary.noLocation} stop taps without a location` : "",
+        summary.unchecked ? `${summary.unchecked} stop taps not checked` : "",
+      ].filter(Boolean);
+      return [
+        row.schedule.date,
+        row.revision.driverName,
+        row.revision.plate,
+        start ? tapTimeLabel(start.at) : null,
+        start ? tapPlaceLabel(start) : null,
+        end ? tapTimeLabel(end.at) : null,
+        end ? tapPlaceLabel(end) : null,
+        summary.expected ? `${summary.tapped} of ${summary.expected}` : null,
+        flags.join("; "),
+        attendanceStatusLabel[row.status],
+      ];
+    });
+    const header = ["DATE", "DRIVER", "VEHICLE", "START", "START PLACE", "END", "END PLACE", "STOPS TAPPED", "FLAGS", "STATUS"];
+    downloadCsv(`kova-attendance-${today}.csv`, toCsv(header, rows));
+  }
+
   return (
     <>
       <div className="page-heading">
@@ -159,6 +189,9 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
             <h2>Driver attendance</h2>
             <span className="count">{visible.length}</span>
           </div>
+          <Button variant="outline" disabled={!visible.length} title="The rows shown below, as a spreadsheet" onClick={downloadVisible}>
+            <Download size={16} /> Download CSV
+          </Button>
         </div>
         <OlderRecordsNotice />
         <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
