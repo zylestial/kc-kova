@@ -50,3 +50,25 @@ export const testPushMessage: PushMessage = {
 
 /** The push service's answer for a device that has gone for good (unsubscribed, expired, uninstalled). */
 export const deviceGone = (statusCode: number | undefined) => statusCode === 404 || statusCode === 410;
+
+/**
+ * VAPID_SUBJECT as push services accept it: a "mailto:" or "https:" URL.
+ * Apple refuses every push when it's off (a space, quotes, "mailto:mailto:",
+ * a bare address), while Chrome and Windows let it pass, so tidy it here.
+ * Falls back when it's blank or can't be read as either.
+ */
+export function vapidSubject(raw: string | undefined, fallback: string) {
+  const value = (raw ?? "").trim().replace(/^["']|["']$/g, "").trim();
+  if (/^https:\/\/\S+$/i.test(value)) return value;
+  const address = value.replace(/^(mailto:\s*)+/i, "").trim();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return `mailto:${address}`;
+  return fallback;
+}
+
+/** A failed push for the log: the service's status and reply, and which service. */
+export function pushFailure(caught: unknown, endpoint: string) {
+  const { statusCode, body, message } = caught as { statusCode?: number; body?: string; message?: string };
+  const service = endpoint.split("/")[2] ?? "unknown service";
+  const reply = (body || message || "").trim().replace(/\s+/g, " ").slice(0, 200);
+  return `${statusCode ?? "no status"} from ${service}: ${reply || "no reply"}`;
+}

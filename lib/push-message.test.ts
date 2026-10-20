@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catchUpMessages, deviceGone, pushMessage } from "@/lib/push-message";
+import { catchUpMessages, deviceGone, pushFailure, pushMessage, vapidSubject } from "@/lib/push-message";
 
 const noSchedule = () => undefined;
 
@@ -52,5 +52,40 @@ describe("deviceGone", () => {
     expect(deviceGone(404)).toBe(true);
     expect(deviceGone(429)).toBe(false);
     expect(deviceGone(undefined)).toBe(false);
+  });
+});
+
+describe("vapidSubject", () => {
+  const fallback = "https://kova.test";
+
+  it("keeps a good subject", () => {
+    expect(vapidSubject("https://kc-kova.vercel.app", fallback)).toBe("https://kc-kova.vercel.app");
+    expect(vapidSubject("mailto:ops@kayelen.com", fallback)).toBe("mailto:ops@kayelen.com");
+  });
+
+  it("tidies what Apple would refuse", () => {
+    expect(vapidSubject("  mailto: ops@kayelen.com ", fallback)).toBe("mailto:ops@kayelen.com");
+    expect(vapidSubject("mailto:mailto:ops@kayelen.com", fallback)).toBe("mailto:ops@kayelen.com");
+    expect(vapidSubject('"ops@kayelen.com"', fallback)).toBe("mailto:ops@kayelen.com");
+  });
+
+  it("falls back when there's nothing usable", () => {
+    expect(vapidSubject(undefined, fallback)).toBe(fallback);
+    expect(vapidSubject("mailto:", fallback)).toBe(fallback);
+    expect(vapidSubject("kayelen", fallback)).toBe(fallback);
+  });
+});
+
+describe("pushFailure", () => {
+  it("names the status, the reply and the service", () => {
+    expect(
+      pushFailure({ statusCode: 403, body: '{"reason":"BadJwtToken"}\n', message: "Received unexpected response code" }, "https://web.push.apple.com/abc"),
+    ).toBe('403 from web.push.apple.com: {"reason":"BadJwtToken"}');
+  });
+
+  it("still says something for a network error", () => {
+    expect(pushFailure(new Error("socket hang up"), "https://fcm.googleapis.com/fcm/send/x")).toBe(
+      "no status from fcm.googleapis.com: socket hang up",
+    );
   });
 });
