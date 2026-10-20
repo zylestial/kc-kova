@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { sendTestPush } from "@/lib/kova-api";
-import { pushState, turnPushOff, turnPushOn, type PushState } from "@/lib/push-device";
+import { pushState, sendTestHere, turnPushOff, turnPushOn, type PushState } from "@/lib/push-device";
 
 const stateText: Record<PushState, string> = {
   unsupported: "This browser can't show KOVA's notifications. Try Chrome, Edge or Firefox.",
@@ -36,8 +35,8 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     setError("");
     setNotice("");
     try {
-      const { sent } = await sendTestPush();
-      setNotice(sent === 1 ? "Test sent. It should pop up in a moment." : `Test sent to your ${sent} devices.`);
+      await sendTestHere();
+      setNotice("Test sent. It should pop up on this device in a moment.");
     } catch (caught) {
       setError((caught as Error).message);
     } finally {

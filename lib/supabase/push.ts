@@ -82,6 +82,18 @@ export async function sendToAccount(admin: SupabaseClient, accountId: string, me
   return sendToDevices(admin, data ?? [], [message]);
 }
 
+/** One phone notification to a single device of an account, if it isn't paused. */
+export async function sendToDevice(admin: SupabaseClient, accountId: string, endpoint: string, message: PushMessage) {
+  const { data, error } = await admin
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth")
+    .eq("account_id", accountId)
+    .eq("endpoint", endpoint)
+    .is("paused_at", null);
+  if (error) throw Error(error.message);
+  return sendToDevices(admin, data ?? [], [message]);
+}
+
 /**
  * A device just signed back in (0071): sends it the account's unread
  * notifications from while it was paused, within the catch-up window.

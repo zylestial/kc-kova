@@ -512,7 +512,7 @@ Summary, with the implementing route file:
 | POST | `/api/push/subscription` | `app/api/push/subscription/route.ts` | any session; this device's `PushSubscription` JSON. Un-pauses it and sends what was missed |
 | DELETE | `/api/push/subscription` | `app/api/push/subscription/route.ts` | any session, own device; `{ endpoint }` |
 | POST | `/api/push/pause` | `app/api/push/pause/route.ts` | any session, own device; `{ endpoint }` (sign-out) |
-| POST | `/api/push/test` | `app/api/push/test/route.ts` | any session; a test to the caller's own devices |
+| POST | `/api/push/test` | `app/api/push/test/route.ts` | any session; a test to the calling device only (its `endpoint`, which must be one of the caller's) |
 | POST | `/api/push/send` | `app/api/push/send/route.ts` | the database only (`Bearer PUSH_SEND_SECRET`); `{ notificationId }` |
 
 Request/response bodies match the TypeScript types in `lib/kova-api.ts`

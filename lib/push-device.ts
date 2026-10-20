@@ -1,4 +1,4 @@
-import { pausePushSubscription, removePushSubscription, savePushSubscription } from "@/lib/kova-api";
+import { pausePushSubscription, removePushSubscription, savePushSubscription, sendTestPush } from "@/lib/kova-api";
 
 /**
  * This browser's side of phone notifications: the service worker
@@ -79,6 +79,13 @@ export async function turnPushOff() {
   if (!subscription) return;
   await removePushSubscription(subscription.endpoint);
   await subscription.unsubscribe();
+}
+
+/** Sends a test push to this device alone. */
+export async function sendTestHere() {
+  const subscription = supported() ? await currentSubscription() : null;
+  if (!subscription) throw Error("Notifications aren't on for this device. Turn them on first.");
+  return sendTestPush(subscription.endpoint);
 }
 
 /**
