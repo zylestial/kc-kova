@@ -40,6 +40,8 @@ const ACCOUNTS = [
   { username: "req1", name: "QA Requester Three", role: "Requester", position: "Purchasing Officer", can_request_company: true },
   // The Company car Driver a Company trip is requested with.
   { username: "carjun", name: "Jun Reyes", role: "Driver", driver_type: "Company car" },
+  // Finance views trips and attendance; no request switches to start.
+  { username: "fin1", name: "QA Finance", role: "Finance" },
 ];
 
 const VEHICLES = [
