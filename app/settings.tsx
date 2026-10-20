@@ -13,6 +13,7 @@ import {
   DRIVER_TYPES,
   type EmailStatus,
   type DriverType,
+  type Role,
 } from "@/lib/kova-api";
 import { canRequestCompany, canRequestDaily, hasRequestSwitches } from "@/lib/request-access";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,7 +41,7 @@ type Account = {
   id: string;
   name: string;
   username: string;
-  role: "Requester" | "Scheduler" | "Admin" | "Driver";
+  role: Role;
   status: "Active" | "Inactive";
   position: string;
   driverType?: DriverType;
@@ -511,7 +512,7 @@ export default function Settings() {
             <Choice
               label="Account Type"
               value={account.role}
-              items={["Requester", "Scheduler", "Admin", "Driver"]}
+              items={["Requester", "Scheduler", "Admin", "Driver", "Finance"]}
               onChange={(v) => setAccount({ ...account, role: v })}
             />
             {isDriver && (

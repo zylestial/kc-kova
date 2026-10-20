@@ -19,7 +19,7 @@ import {
 } from "@/lib/kova-api";
 import { hasRequestSwitches } from "@/lib/request-access";
 
-const ROLES: Role[] = ["Requester", "Scheduler", "Admin", "Driver"];
+const ROLES: Role[] = ["Requester", "Scheduler", "Admin", "Driver", "Finance"];
 const blankBatch = () => ({
   emails: "",
   role: "Requester" as Role,
