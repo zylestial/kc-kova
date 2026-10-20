@@ -22,9 +22,9 @@ const requestItems: NavItem[] = [
 const myTrips: NavItem = { href: "/my-trips", label: "My Trips", icon: Car };
 
 // The screens each role can open, in the same order as their home cards.
-// canRequest adds the request screens for a Driver who doesn't drive a
-// Truck (canRequestTransport); canCompany adds My Trips, where a requester
-// records their Company trips (canRequestCompany).
+// canRequest adds the request screens for a Driver or Scheduler an Admin
+// allowed (canRequestTransport); canCompany adds My Trips, where a
+// requester records their Company trips (canRequestCompany).
 export function navItems(viewRole: Account["role"], canRequest = false, canCompany = false): NavItem[] {
   const trips = canCompany ? [myTrips] : [];
   const home: NavItem = { href: "/home", label: "Dashboard", icon: LayoutDashboard };
@@ -42,6 +42,7 @@ export function navItems(viewRole: Account["role"], canRequest = false, canCompa
       { href: "/scheduling", label: "Scheduling", icon: CalendarClock },
       { href: "/schedules", label: "Schedules", icon: CalendarDays },
       { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
+      ...(canRequest ? [...requestItems, ...trips] : []),
     ];
   return [
     home,
