@@ -283,7 +283,7 @@ export default function MyRequests({
                     <td>
                       <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
                       {request.cancellationPending && <small>Cancellation requested</small>}
-                      {request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Pick another day</small>}
+                      {request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Fix it and save to resend</small>}
                     </td>
                     <td>{submittedLabel(request.createdAt)}</td>
                     <td>
@@ -406,7 +406,7 @@ export default function MyRequests({
                 )}
                 {editable(shown) && (
                   <Button className="primary" onClick={() => openEdit(shown)}>
-                    {shown.progress === "SENT_BACK" ? "Pick another day" : "Edit"}
+                    Edit
                   </Button>
                 )}
               </DialogFooter>
@@ -483,9 +483,9 @@ export default function MyRequests({
             <>
               {editing.progress === "SENT_BACK" && (
                 <p className="helper" role="status">
-                  {draft.date === editing.date
-                    ? "This day had no room. Choose a new date to put the request back in the Scheduler's pool."
-                    : "Saving puts the request back in the Scheduler's pool for the new date."}
+                  {draft.date < manilaToday()
+                    ? "That day has passed. Choose a new date to send it to the Scheduler again."
+                    : "Saving sends the request back to the Scheduler's pool."}
                 </p>
               )}
               <label className="field">
