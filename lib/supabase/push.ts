@@ -1,6 +1,13 @@
 import webpush from "web-push";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CATCH_UP_WINDOW_MS, catchUpMessages, deviceGone, type PushMessage } from "@/lib/push-message";
+import {
+  CATCH_UP_WINDOW_MS,
+  catchUpMessages,
+  deviceGone,
+  pushFailure,
+  vapidSubject,
+  type PushMessage,
+} from "@/lib/push-message";
 
 // A push the device can't take within a day is dropped, not shown late.
 const TIME_TO_LIVE_S = 24 * 60 * 60;
@@ -16,8 +23,11 @@ export function pushConfigured() {
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return false;
   if (!configured) {
-    // Push services contact this address if KOVA's pushes misbehave.
-    webpush.setVapidDetails(process.env.VAPID_SUBJECT || "mailto:kova@kayelen.invalid", publicKey, privateKey);
+    // Push services contact this address if KOVA's pushes misbehave. Vercel
+    // sets VERCEL_PROJECT_PRODUCTION_URL, the site's own host, as a fallback.
+    const site = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    const fallback = site ? `https://${site}` : "mailto:kova@kayelen.invalid";
+    webpush.setVapidDetails(vapidSubject(process.env.VAPID_SUBJECT, fallback), publicKey, privateKey);
     configured = true;
   }
   return true;
@@ -48,7 +58,7 @@ async function sendToDevices(admin: SupabaseClient, devices: Device[], messages:
             gone.push(device.endpoint);
             return;
           }
-          console.error("Push failed", (caught as Error).message);
+          console.error("Push failed", pushFailure(caught, device.endpoint));
         }
       }
     }),
