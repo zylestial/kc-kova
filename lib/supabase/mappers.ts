@@ -494,6 +494,8 @@ type ScheduleRevisionRow = {
   driver_id: string;
   driver_name: string;
   row_version: number;
+  created_by_account_id?: string;
+  submitted_by_account_id?: string | null;
   created_at: string;
   updated_at: string;
   submitted_at: string | null;
@@ -542,6 +544,8 @@ export function toSchedule(row: ScheduleRow): Schedule {
         driverId: revision.driver_id,
         driverName: revision.driver_name,
         rowVersion: revision.row_version,
+        createdByAccountId: revision.created_by_account_id,
+        submittedByAccountId: revision.submitted_by_account_id ?? undefined,
         createdAt: revision.created_at,
         updatedAt: revision.updated_at,
         submittedAt: revision.submitted_at ?? undefined,
