@@ -929,12 +929,19 @@ sends invites, and people set up and look after their own sign-in.
   chose a **Gmail account with an App password** (no domain yet; 500
   emails a day). A domain plus Resend later only changes env vars.
 - **Every account needs a confirmed email** (owner: "from now on we need
-  to have an email for everyone"). Existing accounts get a blocking Add
-  your email step after sign-in; Add Account requires one.
+  to have an email for everyone"). On 2026-10-20 the owner dropped both
+  the blocking Add your email step and Add Account: **invites are the only
+  way to make an account**, so every account gets its email from its
+  invite. The site will be reset before real use, so old accounts without
+  an email don't matter.
 - **Only Admins invite, and the role and permissions are set per batch at
-  invite time** (owner's choice over assigning them after sign-up). The
-  person chooses name, username, position and password; My account lets
-  them change username, email and password, not their name.
+  invite time.** On 2026-10-20 the owner briefly considered assigning the
+  role after sign-up, then settled on role-first: "they must have a role
+  already, then based on their role and access they enter the needed
+  information; Admin can still edit in Settings." So Join asks name,
+  username and password, plus Position only when the access needs it
+  (`lib/invite-fields.ts`). My account lets them change username, email
+  and password, not their name.
 - Links: invite 7 days, confirm email 24 hours, reset 1 hour; each works
   once and stores only a hash.
 
