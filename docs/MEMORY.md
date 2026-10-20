@@ -1016,7 +1016,8 @@ Gotchas:
   `canEdit`/`canReview` off; `AdminFinishedTrips readOnly` (Print stays,
   the owner asked for it); Attendance as is. Finance gets no
   notifications.
-- **Download CSV** (Finished Trips, Attendance; Admins too) saves what
+- **Download CSV** (Finished Trips, Attendance; Admins too) opens a dialog
+  with the screen's filters (owner asked to filter first) and saves what
   the filters show, built in the browser (`lib/csv.ts`, UTF-8 BOM for
   Excel, a leading ' on formula-like text). Columns as the owner approved.
   Fuel costs and liters aren't recorded, so they aren't exported.
