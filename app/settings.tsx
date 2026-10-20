@@ -58,7 +58,6 @@ const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
   name: "",
   username: "",
-  password: "",
   email: "",
   role: "Requester" as Account["role"],
   status: "Active" as Account["status"],
@@ -145,7 +144,8 @@ export default function Settings() {
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
-  const [accountModal, setAccountModal] = useState<"add" | "edit" | null>(null);
+  // Accounts are only edited here; new ones come from Invite people (0072).
+  const [accountModal, setAccountModal] = useState<"edit" | null>(null);
   const [vehicleModal, setVehicleModal] = useState<"add" | "edit" | null>(null);
   const [account, setAccount] = useState(blankAccount());
   const [vehicle, setVehicle] = useState(blankVehicle());
@@ -189,18 +189,12 @@ export default function Settings() {
   function load() {
     setError("");
   }
-  function addAccount() {
-    setAccount(blankAccount());
-    setAccountModal("add");
-    setFormError("");
-  }
   function editAccount(a: Account) {
     setAccount({
       name: a.name,
       username: a.username,
       role: a.role,
       status: a.status,
-      password: "",
       email: emails[a.id]?.pendingEmail ?? emails[a.id]?.email ?? "",
       position: a.position,
       driverType: a.driverType ?? "Truck",
@@ -212,8 +206,7 @@ export default function Settings() {
     setFormError("");
   }
   async function saveAccount() {
-    const missing = accountMissing(account, accountModal === "add");
-    if (accountModal === "add" && !account.email.trim()) missing.push("Email");
+    const missing = accountMissing(account, false);
     if (companyAllowed && account.canRequestCompany && !account.position.trim()) missing.push("Position");
     if (missing.length) {
       setFormError(stillNeeded(missing));
@@ -223,12 +216,11 @@ export default function Settings() {
     setFormError("");
     try {
       await storeAccount({
-        id: accountModal === "add" ? "" : accountId,
+        id: accountId,
         name: account.name.trim(),
         username: account.username.trim(),
         role: account.role,
         status: account.status,
-        password: accountModal === "add" ? account.password : undefined,
         email: account.email.trim(),
         // Switches the role or Driver type can't have are sent off.
         position: account.position.trim(),
@@ -237,8 +229,7 @@ export default function Settings() {
         canRequestCompany: companyAllowed && account.canRequestCompany,
       });
       setAccountModal(null);
-      setAccount({ ...account, password: "" });
-      setNotice(accountModal === "add" ? "Account saved. A link to confirm the email is on its way." : "Account saved.");
+      setNotice("Account saved.");
       load();
       loadEmails();
     } catch (e) {
@@ -357,11 +348,8 @@ export default function Settings() {
             <div>
               <h2>Accounts</h2>
               <span className="count">{accounts.length}</span>
-              <p>Manage people who can sign in.</p>
+              <p>People who can sign in. To add someone, use Invite people above.</p>
             </div>
-            <Button className="primary" onClick={addAccount}>
-              <Plus size={17} /> Add Account
-            </Button>
           </div>
           <div className="schedule-table">
             <table>
@@ -494,14 +482,8 @@ export default function Settings() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {accountModal === "add" ? "Add Account" : "Edit Account"}
-            </DialogTitle>
-            <DialogDescription>
-              {accountModal === "add"
-                ? "Add a Requester, Scheduler, Admin or Driver account."
-                : "Update this account. Inactive accounts cannot sign in."}
-            </DialogDescription>
+            <DialogTitle>Edit Account</DialogTitle>
+            <DialogDescription>Update this account. Inactive accounts cannot sign in.</DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
             <TextField
@@ -516,7 +498,7 @@ export default function Settings() {
               autoComplete="off"
             />
             <label className="field">
-              <span>Email{accountModal === "add" ? " *" : ""}</span>
+              <span>Email</span>
               <Input
                 type="email"
                 value={account.email}
@@ -524,22 +506,8 @@ export default function Settings() {
                 autoComplete="off"
                 maxLength={254}
               />
-              <small>
-                {accountModal === "add"
-                  ? "They get a link to confirm it. It lets them reset their own password."
-                  : "A new email gets a confirm link; the old one keeps working until then."}
-              </small>
+              <small>A new email gets a confirm link; the old one keeps working until then.</small>
             </label>
-            {accountModal === "add" && (
-              <TextField
-                label="Password"
-                hint={PASSWORD_HINT}
-                type="password"
-                value={account.password}
-                onChange={(v) => setAccount({ ...account, password: v })}
-                autoComplete="new-password"
-              />
-            )}
             <Choice
               label="Account Type"
               value={account.role}
@@ -609,30 +577,24 @@ export default function Settings() {
             </p>
           )}
           <div className="modal-actions">
-            {accountModal === "edit" && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAccountModal(null);
-                  setPasswordFor(
-                    accounts.find((a) => a.id === accountId) || null,
-                  );
-                  setPasswords({ next: "", confirm: "" });
-                  setFormError("");
-                }}
-              >
-                Change Password
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAccountModal(null);
+                setPasswordFor(
+                  accounts.find((a) => a.id === accountId) || null,
+                );
+                setPasswords({ next: "", confirm: "" });
+                setFormError("");
+              }}
+            >
+              Change Password
+            </Button>
             <Button variant="outline" onClick={() => setAccountModal(null)}>
               Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={saveAccount}>
-              {busy
-                ? "Saving…"
-                : accountModal === "add"
-                  ? "Add Account"
-                  : "Save"}
+              {busy ? "Saving…" : "Save"}
             </Button>
           </div>
         </DialogContent>
