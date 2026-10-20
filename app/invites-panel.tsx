@@ -17,6 +17,7 @@ import {
   type InviteResult,
   type Role,
 } from "@/lib/kova-api";
+import { hasRequestSwitches } from "@/lib/request-access";
 
 const ROLES: Role[] = ["Requester", "Scheduler", "Admin", "Driver"];
 const blankBatch = () => ({
@@ -55,10 +56,10 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
   }, []);
   useEffect(load, [load]);
 
-  // The same rules as the Add Account form (0051, 0059).
+  // The same rules as the Accounts form (0051, 0059, 0074).
   const isDriver = batch.role === "Driver";
-  const carDriver = isDriver && batch.driverType === "Company car";
-  const companyAllowed = batch.role === "Requester" || batch.role === "Admin" || carDriver;
+  const switches = hasRequestSwitches(batch);
+  const companyAllowed = batch.role === "Requester" || batch.role === "Admin" || switches;
   const count = new Set(batch.emails.split(/[\s,;]+/).filter((item) => item.includes("@"))).size;
 
   function start() {
@@ -80,7 +81,7 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
         emails: batch.emails,
         role: batch.role,
         driverType: isDriver ? batch.driverType : undefined,
-        canRequestDaily: carDriver && batch.canRequestDaily,
+        canRequestDaily: switches && batch.canRequestDaily,
         canRequestCompany: companyAllowed && batch.canRequestCompany,
       });
       setResult(sent);
@@ -241,39 +242,37 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
                     </Select>
                   </label>
                 )}
-                {batch.role !== "Scheduler" && (
-                  <div className="field">
-                    <span>Requests</span>
-                    {isDriver && !carDriver ? (
-                      <small>Truck drivers can&apos;t make requests.</small>
-                    ) : (
-                      <div className="person-projects">
-                        {carDriver ? (
-                          <label>
-                            <Checkbox
-                              checked={batch.canRequestDaily}
-                              onCheckedChange={(v) => setBatch({ ...batch, canRequestDaily: v === true })}
-                            />
-                            Can make Daily Vehicle Trip requests
-                          </label>
-                        ) : (
-                          <small>Can make Daily Vehicle Trip requests.</small>
-                        )}
-                        {batch.role === "Admin" ? (
-                          <small>Can request company trips.</small>
-                        ) : (
-                          <label>
-                            <Checkbox
-                              checked={batch.canRequestCompany}
-                              onCheckedChange={(v) => setBatch({ ...batch, canRequestCompany: v === true })}
-                            />
-                            Can request company trips
-                          </label>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="field">
+                  <span>Requests</span>
+                  {isDriver && !switches ? (
+                    <small>Truck drivers can&apos;t make requests.</small>
+                  ) : (
+                    <div className="person-projects">
+                      {switches ? (
+                        <label>
+                          <Checkbox
+                            checked={batch.canRequestDaily}
+                            onCheckedChange={(v) => setBatch({ ...batch, canRequestDaily: v === true })}
+                          />
+                          Can make Daily Vehicle Trip requests
+                        </label>
+                      ) : (
+                        <small>Can make Daily Vehicle Trip requests.</small>
+                      )}
+                      {batch.role === "Admin" ? (
+                        <small>Can request company trips.</small>
+                      ) : (
+                        <label>
+                          <Checkbox
+                            checked={batch.canRequestCompany}
+                            onCheckedChange={(v) => setBatch({ ...batch, canRequestCompany: v === true })}
+                          />
+                          Can request company trips
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               {formError && (
                 <p className="modal-error" role="alert">
