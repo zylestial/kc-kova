@@ -67,6 +67,12 @@ should be written, for both humans and AI agents.)
   A Scheduler may plan a trip that carries their own request; the Admin
   still approves it. Someone who stops being a Scheduler or Driver loses
   the Daily switch.
+- **Finance** (0075, 0076, owner's call 2026-10-20) is its own account
+  type. It reads every trip, its finished-trip details (odometers, fuel
+  checks, corrected times, problem reports, stop taps) and attendance, and
+  prints and downloads them, but changes nothing: every write RPC checks
+  the role and refuses it. Cancellation asks and audit events stay
+  Admin-only. It has the same two request switches as a Scheduler.
 
 ## Vehicles
 
