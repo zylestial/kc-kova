@@ -371,6 +371,10 @@ export type ScheduleRevision = {
   driverId: string;
   driverName: string;
   rowVersion: number;
+  /** The Scheduler (or Admin) who drafted this version. */
+  createdByAccountId?: string;
+  /** Who submitted it for approval. */
+  submittedByAccountId?: string;
   createdAt: string;
   updatedAt: string;
   submittedAt?: string;

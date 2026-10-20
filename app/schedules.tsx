@@ -19,8 +19,10 @@ import {
   cancelSchedule,
   returnSchedule,
   type Schedule,
+  type ScheduleRevision,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
+import { scheduledBy } from "@/lib/scheduled-by";
 import { addDays, manilaToday } from "@/lib/timezone";
 import {
   currentRevision,
@@ -151,6 +153,7 @@ export default function Schedules({
 
   const selected = schedules.find((schedule) => schedule.id === selectedId);
   const selectedRevision = selected && currentRevision(selected);
+  const selectedBy = selectedRevision ? scheduledBy(selectedRevision, accounts) : null;
   const editable = (schedule: Schedule) => canEdit && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
   const revisable = (schedule: Schedule) => canEdit && scheduleState(schedule) === "APPROVED";
   // Admin can cancel any schedule that is still in force and whose trip the
@@ -201,6 +204,10 @@ export default function Schedules({
   const requesters = (requestIds: string[]) =>
     [...new Set(requestIds.map((id) => requestsById.get(id)?.ownerName).filter(Boolean))].join(", ");
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
+  const byText = (revision?: ScheduleRevision) => {
+    const by = scheduledBy(revision, accounts);
+    return by ? `${by.label} ${by.name}` : "";
+  };
 
   const card = ({ schedule, revision, time }: (typeof visible)[number]) => (
     <button key={schedule.id} className="schedule-card" onClick={() => setSelectedId(schedule.id)}>
@@ -221,6 +228,7 @@ export default function Schedules({
         {revision?.driverName ?? "—"}
       </span>
       <small>{revision && requesters(revision.requestIds)}</small>
+      {byText(revision) && <small>{byText(revision)}</small>}
       {revision?.requestIds.some((id) => requestsById.get(id)?.cancellationPending) && <small>Cancellation requested</small>}
       {needsUpdate(schedule) && <small>Route needs updating</small>}
       <small>{revision?.legs.map((leg) => leg.destinationName).join(" → ")}</small>
@@ -424,12 +432,13 @@ export default function Schedules({
                 {[
                   ["Vehicle", `${vehicleName(selectedRevision.plate)} · ${selectedRevision.plate}`],
                   ["Driver", selectedRevision.driverName],
-                  ["Status", scheduleStateLabel[scheduleState(selected)]],
+                  ["Status", scheduleStateLabel[scheduleState(selected)], selectedBy && `${selectedBy.label} ${selectedBy.name}`],
                   ["Version", `v${selectedRevision.version}`],
-                ].map(([label, value]) => (
+                ].map(([label, value, note]) => (
                   <div key={label}>
                     <span>{label}</span>
                     <strong>{value}</strong>
+                    {note && <small className="detail-note">{note}</small>}
                   </div>
                 ))}
               </div>

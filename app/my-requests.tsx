@@ -30,6 +30,7 @@ import {
   type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
+import { requestScheduledBy } from "@/lib/scheduled-by";
 import { manilaToday, requestDateError, requestTypeFor } from "@/lib/timezone";
 import RequestFields, {
   draftComplete,
@@ -86,7 +87,7 @@ export default function MyRequests({
   const router = useRouter();
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
-  const { requests: allRequests, options, cancellations } = useKovaData();
+  const { requests: allRequests, options, cancellations, schedules, accounts } = useKovaData();
   const requests = useMemo(
     () =>
       allRequests
@@ -131,6 +132,7 @@ export default function MyRequests({
 
   // Keep the details modal showing the latest copy after a refresh.
   const shown = selected ? requests.find((item) => item.id === selected.id) ?? selected : null;
+  const shownBy = shown && requestScheduledBy(shown.id, schedules, accounts);
 
   function openEdit(request: TransportRequest) {
     // A request made on the new form opens there, with all its stops.
@@ -340,6 +342,7 @@ export default function MyRequests({
                   ["Requested by", shown.ownerName],
                   ["Project / Site", projectText(shown)],
                   ["Progress", requestProgressLabel[shown.progress]],
+                  ...(shownBy ? [[shownBy.label, shownBy.name]] : []),
                   ["Submitted", submittedLabel(shown.createdAt)],
                 ].map(([label, value]) => (
                   <div key={label}>
