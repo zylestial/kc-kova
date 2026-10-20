@@ -20,7 +20,7 @@ export const requestProgressLabel: Record<RequestProgress, string> = {
 
 export const requestProgressMeaning: Record<RequestProgress, string> = {
   NOT_YET_SCHEDULED: "A Scheduler hasn't planned this trip yet.",
-  SENT_BACK: "No vehicle was free for this day. Move it to another day, or cancel it.",
+  SENT_BACK: "The Scheduler sent this back. Fix it or move it to another day, then save to send it again. Or cancel it.",
   SCHEDULING: "A Scheduler is planning this trip.",
   PENDING_APPROVAL: "The plan is ready and waiting for an Admin to approve it.",
   APPROVED: "The trip is planned and approved. The Driver will make it on the day.",
