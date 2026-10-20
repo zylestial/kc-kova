@@ -72,6 +72,7 @@ const columns: SortColumn<SortKey>[] = [
  * with a problem report (only handling applies to those), newest first. An Admin
  * can correct the odometers until the trip is marked Done, mark it Done
  * (which locks it), handle the Driver's problem reports and print the form.
+ * Finance sees the same screen read-only (`readOnly`): view and print.
  * Postgres decides what is allowed; this only shapes the screen.
  */
 // The Status and Problems filter values a link may start on.
@@ -82,8 +83,11 @@ export default function AdminFinishedTrips({
   initialOpenId,
   initialStatus,
   initialProblems,
+  readOnly = false,
 }: {
   initialOpenId?: string;
+  /** Finance: no corrections, Done or problem handling; Print stays. */
+  readOnly?: boolean;
   /** One of `finishedStatusFilters`, e.g. from a Dashboard tile. */
   initialStatus?: string;
   /** One of `finishedProblemFilters`, e.g. from a Dashboard tile. */
@@ -272,11 +276,15 @@ export default function AdminFinishedTrips({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">ADMIN</div>
+          <div className="eyebrow">{readOnly ? "FINANCE" : "ADMIN"}</div>
           <h1>
             Finished Trips<span className="title-dot">.</span>
           </h1>
-          <p>Driver-submitted trips. Review, correct, handle problems, then mark each as done.</p>
+          <p>
+            {readOnly
+              ? "Driver-submitted trips with their odometers and times. Open one to print its form, fuel checks included."
+              : "Driver-submitted trips. Review, correct, handle problems, then mark each as done."}
+          </p>
         </div>
       </div>
       {notice && (
@@ -291,17 +299,19 @@ export default function AdminFinishedTrips({
             <h2>Submitted trips</h2>
             <span className="count">{visible.length}</span>
           </div>
-          <Button
-            className="primary"
-            disabled={!clean.length}
-            title="Submitted trips with no open problem and no missing time, among those shown below"
-            onClick={() => {
-              setBulkError("");
-              setBulkOpen(true);
-            }}
-          >
-            Mark {clean.length || "all"} clean {clean.length === 1 ? "trip" : "trips"} done
-          </Button>
+          {!readOnly && (
+            <Button
+              className="primary"
+              disabled={!clean.length}
+              title="Submitted trips with no open problem and no missing time, among those shown below"
+              onClick={() => {
+                setBulkError("");
+                setBulkOpen(true);
+              }}
+            >
+              Mark {clean.length || "all"} clean {clean.length === 1 ? "trip" : "trips"} done
+            </Button>
+          )}
         </div>
         <OlderRecordsNotice />
         <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, form, status, problems].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
@@ -501,9 +511,9 @@ export default function AdminFinishedTrips({
                     times={selectedTimes}
                     driverId={selected.revision.driverId}
                     nameOf={nameOf}
-                    onEdit={isDone ? undefined : openTimeEditor}
+                    onEdit={isDone || readOnly ? undefined : openTimeEditor}
                   />
-                  {!isDone && selectedMissing > 0 && (
+                  {!isDone && !readOnly && selectedMissing > 0 && (
                     <p className="helper" role="status">
                       {selectedMissing} {selectedMissing === 1 ? "time is" : "times are"} missing. Fill them in from the
                       Driver&apos;s logbook or a call before marking this trip done; they print on the form.
@@ -512,8 +522,9 @@ export default function AdminFinishedTrips({
                 </>
               ) : (
                 <p className="helper">
-                  The Driver reported a problem but hasn&apos;t submitted this trip yet. You can handle the problem now; the
-                  odometers can be reviewed once it&apos;s submitted.
+                  {readOnly
+                    ? "The Driver reported a problem but hasn't submitted this trip yet; its odometers show once it's submitted."
+                    : "The Driver reported a problem but hasn't submitted this trip yet. You can handle the problem now; the odometers can be reviewed once it's submitted."}
                 </p>
               )}
               {selected.problems.map((item) => (
@@ -523,7 +534,7 @@ export default function AdminFinishedTrips({
                     `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}${item.note ? ": " : ""}`}
                   {item.note}
                   {item.status === "HANDLED" && <div>Handled: {item.handlingNote}</div>}
-                  {item.status === "OPEN" && (
+                  {item.status === "OPEN" && !readOnly && (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -542,25 +553,29 @@ export default function AdminFinishedTrips({
                   <Button variant="outline" onClick={() => window.print()}>
                     Print
                   </Button>
-                  <Button
-                    variant="outline"
-                    disabled={isDone}
-                    onClick={() => {
-                      setStart(String(selected.completion!.startOdometer));
-                      setEnd(String(selected.completion!.endOdometer));
-                      setMode("correct");
-                    }}
-                  >
-                    Correct odometers
-                  </Button>
-                  <Button
-                    className="primary"
-                    disabled={isDone || selectedMissing > 0}
-                    title={selectedMissing > 0 ? "Fill in every Time Out and Time In first" : undefined}
-                    onClick={() => setMode("done")}
-                  >
-                    Mark as done
-                  </Button>
+                  {!readOnly && (
+                    <>
+                      <Button
+                        variant="outline"
+                        disabled={isDone}
+                        onClick={() => {
+                          setStart(String(selected.completion!.startOdometer));
+                          setEnd(String(selected.completion!.endOdometer));
+                          setMode("correct");
+                        }}
+                      >
+                        Correct odometers
+                      </Button>
+                      <Button
+                        className="primary"
+                        disabled={isDone || selectedMissing > 0}
+                        title={selectedMissing > 0 ? "Fill in every Time Out and Time In first" : undefined}
+                        onClick={() => setMode("done")}
+                      >
+                        Mark as done
+                      </Button>
+                    </>
+                  )}
                 </DialogFooter>
               )}
             </>
