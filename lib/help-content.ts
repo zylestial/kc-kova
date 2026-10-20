@@ -50,8 +50,8 @@ export const howItWorks: Record<Role, HelpStep[]> = {
 
 /** What to do about a forgotten password (0072: reset by email from Sign In). */
 export const whoToAsk: Record<Role, string> = {
-  Requester: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Change your username, email or password on My account.",
-  Scheduler: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Change your username, email or password on My account.",
-  Driver: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Change your username, email or password on My account.",
+  Requester: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
+  Scheduler: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
+  Driver: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
   Admin: "Forgot your password? Use Forgot password? on the Sign In page. You can also set someone's password in Settings if their email doesn't reach them.",
 };
