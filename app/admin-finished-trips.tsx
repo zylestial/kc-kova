@@ -29,6 +29,7 @@ import {
   type ProblemReport,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
+import { scheduledBy } from "@/lib/scheduled-by";
 import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
@@ -164,6 +165,7 @@ export default function AdminFinishedTrips({
   const clean = cleanTrips(visible).filter((trip) => missingFor(trip) === 0);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
+  const selectedBy = selected ? scheduledBy(selected.revision, accounts) : null;
   const selectedTimes = selected ? timesFor(selected) : [];
   const selectedMissing = selected ? missingFor(selected) : 0;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
@@ -481,6 +483,7 @@ export default function AdminFinishedTrips({
             </DialogTitle>
             <DialogDescription className="dialog-context">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} — ${selected.revision.driverName}`}
+              {selectedBy && ` — ${selectedBy.label} ${selectedBy.name}`}
             </DialogDescription>
           </DialogHeader>
           {selected && mode === "view" && (
