@@ -56,8 +56,18 @@ export function homeStats(
     ];
   }
 
-  // Finance's tiles come with its read-only screens.
-  if (role === "Finance") return [];
+  // Finance only reads, so its tiles count what's there rather than work waiting.
+  if (role === "Finance") {
+    const tripsToday = data.schedules.filter(
+      (schedule) => schedule.status === "ACTIVE" && schedule.publishedRevisionId && schedule.date === today,
+    ).length;
+    return [
+      { label: "Trips today", href: "/schedules?view=day", value: tripsToday, tone: "info", icon: "trips" },
+      { label: "Finished, not yet done", href: "/finished?status=SUBMITTED", value: data.completions.filter((item) => item.status === "SUBMITTED").length, tone: "warning", icon: "close" },
+      { label: "Done", href: "/finished?status=DONE", value: data.completions.filter((item) => item.status === "DONE").length, tone: "success", icon: "complete" },
+      { label: "Open problems", href: "/finished?problems=open", value: data.problems.filter((item) => item.status === "OPEN").length, tone: "error", icon: "problem" },
+    ];
+  }
 
   if (role === "Scheduler") {
     const waiting = data.requests.filter(
