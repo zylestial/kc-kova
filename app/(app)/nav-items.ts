@@ -36,6 +36,8 @@ export function navItems(viewRole: Account["role"], canRequest = false, canCompa
       ...(canRequest ? [...requestItems, ...trips] : []),
     ];
   if (viewRole === "Requester") return [home, ...requestItems, ...trips];
+  // Finance's read-only screens come next (Schedules, Finished Trips, Attendance).
+  if (viewRole === "Finance") return [home, ...(canRequest ? [...requestItems, ...trips] : [])];
   if (viewRole === "Scheduler")
     return [
       home,

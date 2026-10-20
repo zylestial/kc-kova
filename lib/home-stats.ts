@@ -56,6 +56,9 @@ export function homeStats(
     ];
   }
 
+  // Finance's tiles come with its read-only screens.
+  if (role === "Finance") return [];
+
   if (role === "Scheduler") {
     const waiting = data.requests.filter(
       (request) => request.status === "ACTIVE" && request.progress === "NOT_YET_SCHEDULED" && request.date >= today,

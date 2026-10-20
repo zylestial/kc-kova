@@ -146,6 +146,8 @@ export default function HomeScreen() {
           </>
         ) : viewRole === "Requester" ? (
           requestCards
+        ) : viewRole === "Finance" ? (
+          canRequest && requestCards
         ) : viewRole === "Scheduler" ? (
           <>
             <HomeCard

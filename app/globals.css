@@ -227,6 +227,7 @@ tbody tr:hover{background:#f5f7fd}
 :root[data-role=Scheduler]{--role-from:#5b3fb0;--role-to:#33236e;--role-accent:#5b3fb0;--role-accent-bg:#f0ecfb}
 :root[data-role=Driver]{--role-from:#4a6633;--role-to:#2c3d1f;--role-accent:#3f5a2b;--role-accent-bg:#edf3e8}
 :root[data-role=Requester]{--role-from:#136f7c;--role-to:#0b4650;--role-accent:#11697a;--role-accent-bg:#e6f4f6}
+:root[data-role=Finance]{--role-from:#8a5410;--role-to:#55330a;--role-accent:#8a5410;--role-accent-bg:#fbf1e3}
 .sidebar{background:linear-gradient(180deg,var(--role-from) 0%,var(--role-to) 100%)}
 .sidebar-section{color:rgba(255,255,255,.72)}
 .sidebar-link.active,.sidebar-avatar{color:var(--role-accent)}
