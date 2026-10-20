@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readJson } from "@/lib/api-route";
 import { hashToken } from "@/lib/account-tokens";
 import { INVITE_LINK_GONE, type InviteRow } from "@/lib/invites";
+import { positionAsk } from "@/lib/invite-fields";
 import { passwordError } from "@/lib/password-policy";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -47,7 +48,10 @@ export async function POST(request: Request) {
   const invite = claimed as InviteRow;
   const release = () => admin.from("account_invites").update({ accepted_at: null }).eq("id", invite.id);
 
-  if (invite.can_request_company && !body.position) {
+  // Only what this invite's access needs: a Position nobody prints isn't kept.
+  const ask = positionAsk({ role: invite.role, canRequestCompany: invite.can_request_company });
+  const position = ask === "none" ? "" : body.position;
+  if (ask === "required" && !position) {
     await release();
     return NextResponse.json({ message: "Add your position; it prints on the Company Trip Form." }, { status: 422 });
   }
@@ -63,7 +67,7 @@ export async function POST(request: Request) {
     role: invite.role,
     status: "Active",
     password: body.password,
-    position: body.position,
+    position,
     driverType: invite.driver_type ?? null,
     canRequestDaily: invite.can_request_daily,
     canRequestCompany: invite.can_request_company,
