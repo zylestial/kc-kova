@@ -564,7 +564,7 @@ export default function RequestForm({
                   </div>
 
                   <label className="field">
-                    <span>Details {needsDetails(stop, options) ? "(required)" : "(optional)"}</span>
+                    <span>Details{needsDetails(stop, options) ? " (required)" : ""}</span>
                     <Textarea
                       value={stop.details}
                       maxLength={DETAILS_MAX}

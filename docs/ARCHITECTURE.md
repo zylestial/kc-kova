@@ -226,7 +226,9 @@ migration 0032 (release-time only; there was no legacy data to carry over).
 Since migration 0038 (v2.4), `requests` also carries `sent_back_at`,
 `sent_back_by_account_id` and `sent_back_reason`: set by the
 `send_back_requests` RPC when a Scheduler sends an unplaced request back
-to its requester, and cleared by a trigger once the request's date changes.
+to its requester, and cleared by a trigger once the request's date changes,
+or by any requester save through `update_request` or `update_request_group`
+(0073; a request on a past day must be moved first).
 `request_progress` reports such a request as `SENT_BACK`, and a trigger on
 `schedule_requests` stops any schedule from including it.
 `split_request` (migration 0039) moves stops a vehicle can't fit off a request

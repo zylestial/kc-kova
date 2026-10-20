@@ -355,7 +355,13 @@ superseded by v2); left in place, since a pushed tag may be in use.
   (`sent_back_at`/`_by_account_id`/`_reason`). Two triggers keep it honest
   without new copies of `update_request` or `write_revision_content`: a
   date change clears it, and `schedule_requests` refuses an inclusion of a
-  sent-back request. Editing without changing the date keeps it sent back.
+  sent-back request. ~~Editing without changing the date keeps it sent
+  back.~~ Changed 2026-10-20 (0073): **any save by the requester resends
+  it**, same day or not. A tester fixed a sent-back request's details and
+  saved three times, and it stayed sent back; Schedulers also send requests
+  back for details to fix, not only for a full day. A sent-back request on
+  a day that has passed still has to be moved first (Admin excepted).
+  0073 skips 0072, which is `feat/self-service-account`'s.
 - **Urgent priority is guidance, not a rule.** The pool sorts Urgent first
   and submit warns about an unplaced Urgent request, but nothing blocks
   submitting without it: it may belong on another vehicle's schedule.
