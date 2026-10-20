@@ -88,9 +88,10 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
 /**
  * Admin Attendance: each Driver's Start and End taps at ANONANG, one row per
  * published trip up to today. A tap away from base, without a location or on
- * a later day is flagged, not refused, so the Admin judges it here.
+ * a later day is flagged, not refused, so the Admin judges it here. Finance
+ * sees the same screen (`eyebrow` names whose it is); it has no actions.
  */
-export default function AdminAttendance() {
+export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: string } = {}) {
   const { schedules, attendance, stopTaps, timeCorrections, accounts, options } = useKovaData();
   const placeOf = placeResolver(options.destinations);
   const today = manilaToday();
@@ -144,7 +145,7 @@ export default function AdminAttendance() {
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">ADMIN</div>
+          <div className="eyebrow">{eyebrow}</div>
           <h1>
             Attendance<span className="title-dot">.</span>
           </h1>

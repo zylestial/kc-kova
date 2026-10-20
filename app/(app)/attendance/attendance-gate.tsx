@@ -6,8 +6,8 @@ import { useAccount } from "../providers";
 export default function AttendanceGate() {
   const { viewRole } = useAccount();
   return (
-    <RequireRole allow={viewRole === "Admin"}>
-      <AdminAttendance />
+    <RequireRole allow={viewRole === "Admin" || viewRole === "Finance"}>
+      <AdminAttendance eyebrow={viewRole === "Finance" ? "FINANCE" : "ADMIN"} />
     </RequireRole>
   );
 }
