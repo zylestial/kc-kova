@@ -12,9 +12,9 @@ type Who = Pick<Account, "role" | "status" | "driverType" | "canRequestDaily" | 
 const companyCarDriver = (account: Pick<Who, "role" | "driverType">) =>
   account.role === "Driver" && account.driverType === "Company car";
 
-/** Accounts that request only with an Admin's switches: Schedulers and Company car drivers (0074). */
+/** Accounts that request only with an Admin's switches: Schedulers, Finance and Company car drivers (0074, 0075). */
 export function hasRequestSwitches(account: Pick<Who, "role" | "driverType">): boolean {
-  return account.role === "Scheduler" || companyCarDriver(account);
+  return account.role === "Scheduler" || account.role === "Finance" || companyCarDriver(account);
 }
 
 /** Daily Vehicle Trip requests: every Requester and Admin, and Schedulers and Company car drivers an Admin allowed. */

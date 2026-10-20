@@ -63,7 +63,9 @@ export default function CompanyTripPaper({ data }: { data: CompanyTripPaperData 
   return (
     <article className="trip-paper" aria-label="Company Trip Form">
       <div className="trip-paper-head">
-        <b>KAYELEN&apos;S CONSTRUCTION</b>
+        {/* The same logo as the Daily form (finished-trip-print.tsx). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/kova-print-logo.png" alt="Kayelen's Construction logo" />
       </div>
       <h1>COMPANY TRIP FORM</h1>
       <div className="trip-paper-info">

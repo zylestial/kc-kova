@@ -1003,6 +1003,28 @@ Gotchas:
   company trips) after Finished Trips in the menu and on Home; an Admin
   viewing as Scheduler sees them too, as with View as Driver.
 
+## Finance (2026-10-20)
+
+- **Its own account type, not a switch** (owner's pick). The owner
+  briefly wanted another name, then kept "Finance".
+- **Reads, never writes.** 0076 adds Finance to the `can_view_*` helpers
+  and to the read policies on completions, time corrections, problem
+  reports, stop taps and attendance. No write RPC was touched: they all
+  name the roles they allow, so Finance is refused (pgTAP
+  `v2_finance_read`). Cancellation asks and audit events stay Admin-only.
+- **Screens are the Admin's, minus the actions.** Schedules with
+  `canEdit`/`canReview` off; `AdminFinishedTrips readOnly` (Print stays,
+  the owner asked for it); Attendance as is. Finance gets no
+  notifications.
+- **Download CSV** (Finished Trips, Attendance; Admins too) opens a dialog
+  with the screen's filters (owner asked to filter first) and saves what
+  the filters show, built in the browser (`lib/csv.ts`, UTF-8 BOM for
+  Excel, a leading ' on formula-like text). Columns as the owner approved.
+  Fuel costs and liters aren't recorded, so they aren't exported.
+- **Request switches** like a Scheduler's (0075).
+- The Company Trip Form got the logo in the same pass (owner spotted it
+  missing while testing Print).
+
 ## Who owns the hosting accounts (2026-10-20)
 
 Moved the day before the real-staff pilot, so staff data sits in an

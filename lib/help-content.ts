@@ -44,8 +44,17 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Review schedules", detail: "Approve, Return with a note, or handle cancellations." },
     { title: "Close out trips", detail: "Check odometers and times, fill in missed ones, resolve problems, mark Done, print the form." },
     { title: "Check attendance", detail: "See each Driver's taps at ANONANG and at each stop; odd taps are flagged." },
+    { title: "Download", detail: "Download CSV on Finished Trips or Attendance: pick the dates and filters, then save it for Excel." },
     { title: "Manage the system", detail: "Invite people by email, accounts and passwords, vehicles, Drivers, request choices, who can request Company trips." },
     { title: "Act as anyone", detail: "You can also submit requests, even for a past date." },
+  ],
+  Finance: [
+    { title: "View only", detail: "You see trips and attendance; you can't change them." },
+    { title: "Schedules", detail: "Every trip by day, week or all dates, and where each one stands." },
+    { title: "Finished Trips", detail: "Odometers, distance and times per trip. Open one and tap Print for its form." },
+    { title: "Attendance", detail: "When each Driver started and ended, and their taps at each stop." },
+    { title: "Download", detail: "Download CSV on Finished Trips or Attendance: pick the dates and filters, then save it for Excel." },
+    { title: "Requests", detail: "If an Admin allows it, make Daily or Company trip requests like a Requester." },
   ],
 };
 
@@ -55,4 +64,5 @@ export const whoToAsk: Record<Role, string> = {
   Scheduler: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
   Driver: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
   Admin: "Forgot your password? Use Forgot password? on the Sign In page. You can also set someone's password in Settings if their email doesn't reach them.",
+  Finance: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
 };

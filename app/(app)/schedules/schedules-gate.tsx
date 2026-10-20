@@ -39,8 +39,9 @@ export default function SchedulesGate() {
     // Only ever runs once, on mount, to consume the initial query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Finance only views: it can neither edit nor review (0076).
   return (
-    <RequireRole allow={viewRole === "Scheduler" || viewRole === "Admin"}>
+    <RequireRole allow={viewRole === "Scheduler" || viewRole === "Admin" || viewRole === "Finance"}>
       <Schedules
         key={date ?? "today"}
         viewerId={account.id}

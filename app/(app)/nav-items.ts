@@ -36,6 +36,15 @@ export function navItems(viewRole: Account["role"], canRequest = false, canCompa
       ...(canRequest ? [...requestItems, ...trips] : []),
     ];
   if (viewRole === "Requester") return [home, ...requestItems, ...trips];
+  // Finance only views these (0076), and requests when an Admin allows it.
+  if (viewRole === "Finance")
+    return [
+      home,
+      { href: "/schedules", label: "Schedules", icon: CalendarDays },
+      { href: "/finished", label: "Finished Trips", icon: CheckCircle2 },
+      { href: "/attendance", label: "Attendance", icon: UserCheck },
+      ...(canRequest ? [...requestItems, ...trips] : []),
+    ];
   if (viewRole === "Scheduler")
     return [
       home,

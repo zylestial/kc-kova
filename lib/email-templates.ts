@@ -8,11 +8,14 @@ export type EmailContent = { subject: string; text: string };
 
 const SIGN_OFF = "\n\nIf you weren't expecting this email, you can ignore it.\n\n— KOVA";
 
+/** "a Requester", "an Admin", "Finance". */
+const asRole = (role: Role) => (role === "Finance" ? "Finance" : role === "Admin" ? "an Admin" : `a ${role}`);
+
 export function inviteEmail(link: string, role: Role): EmailContent {
   return {
     subject: "You're invited to KOVA",
     text:
-      `You've been invited to KOVA, the company's vehicle booking app, as a ${role}.\n\n` +
+      `You've been invited to KOVA, the company's vehicle booking app, as ${asRole(role)}.\n\n` +
       `Open this link to choose your username and password:\n${link}\n\n` +
       "The link works for 7 days. If it has expired, ask an Admin to send a new one." +
       SIGN_OFF,

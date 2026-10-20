@@ -187,12 +187,12 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `id` | uuid PK | Same value as `auth.users.id` |
 | `username` | text, unique | Display login name; mapped to a synthetic email for Supabase Auth |
 | `name` | text | Display name |
-| `role` | text | `Requester` \| `Scheduler` \| `Admin` \| `Driver` (v2; `Booker` is converted to `Requester` by migration 0023) |
+| `role` | text | `Requester` | `Scheduler` | `Admin` | `Driver` | `Finance` (0075, read-only; v2;\| `Scheduler` \| `Admin` \| `Driver` (v2; `Booker` is converted to `Requester` by migration 0023) |
 | `status` | text | `Active` \| `Inactive` |
 | `project` | text, nullable | Unused since v2.5 (no screen showed it); kept for history |
 | `position` | text | 0051. Prints on the Company Trip Form; required when `can_request_company` is on |
 | `driver_type` | text, nullable | 0051. Drivers only: `Truck` \| `Company car` |
-| `can_request_daily` | boolean | 0051, 0074. Lets a Company car Driver or a Scheduler make Daily requests (Requesters and Admins always can) |
+| `can_request_daily` | boolean | 0051, 0074, 0075. Lets a Company car Driver, a Scheduler or Finance make Daily requests (Requesters and Admins always can) |
 | `can_request_company` | boolean | 0051. May make Company Trip requests; never for a Truck Driver |
 | `created_at` | timestamptz | |
 

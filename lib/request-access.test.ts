@@ -18,6 +18,12 @@ describe("request access", () => {
     expect(canRequestDaily(account("Scheduler"))).toBe(false);
   });
 
+  it("lets Finance ask only when an Admin allows it (0075)", () => {
+    expect(canRequestTransport(account("Finance"))).toBe(false);
+    expect(canRequestDaily(account("Finance", { canRequestDaily: true }))).toBe(true);
+    expect(canRequestCompany(account("Finance", { canRequestCompany: true }))).toBe(true);
+  });
+
   it("lets a Scheduler ask when an Admin allows it (0074)", () => {
     expect(canRequestTransport(account("Scheduler"))).toBe(false);
     expect(canRequestDaily(account("Scheduler", { canRequestDaily: true }))).toBe(true);

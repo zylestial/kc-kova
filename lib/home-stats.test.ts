@@ -20,6 +20,21 @@ const schedule = (over: Partial<Schedule> & { revisions: ScheduleRevision[] }): 
 const values = (stats: { label: string; value: number }[]) => Object.fromEntries(stats.map((s) => [s.label, s.value]));
 
 describe("homeStats", () => {
+  it("counts trips and finished trips for Finance, with no work of its own", () => {
+    const data = {
+      ...empty,
+      schedules: [schedule({ revisions: [revision({})] }), schedule({ id: "s2", date: "2026-09-26", revisions: [revision({})] })],
+      completions: [{ status: "SUBMITTED" }, { status: "DONE" }, { status: "DONE" }],
+      problems: [{ status: "OPEN" }, { status: "HANDLED" }],
+    } as unknown as HomeData;
+    expect(values(homeStats("Finance", "f1", data, NOW))).toEqual({
+      "Trips today": 1,
+      "Finished, not yet done": 1,
+      Done: 2,
+      "Open problems": 1,
+    });
+  });
+
   it("splits a Requester's own open requests by progress", () => {
     const data = {
       ...empty,

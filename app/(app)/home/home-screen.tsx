@@ -146,6 +146,13 @@ export default function HomeScreen() {
           </>
         ) : viewRole === "Requester" ? (
           requestCards
+        ) : viewRole === "Finance" ? (
+          <>
+            <HomeCard icon={<CalendarDays size={24} />} label="Schedules" onClick={() => go("/schedules")} />
+            <HomeCard icon={<CheckCircle2 size={24} />} label="Finished Trips" onClick={() => go("/finished")} />
+            <HomeCard icon={<UserCheck size={24} />} label="Attendance" onClick={() => go("/attendance")} />
+            {canRequest && requestCards}
+          </>
         ) : viewRole === "Scheduler" ? (
           <>
             <HomeCard

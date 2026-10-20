@@ -26,11 +26,16 @@ export default function FinishedGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <RequireRole allow={viewRole === "Admin" || viewRole === "Scheduler"}>
+    <RequireRole allow={viewRole === "Admin" || viewRole === "Scheduler" || viewRole === "Finance"}>
       {viewRole === "Scheduler" ? (
         <SchedulerFinishedTrips />
       ) : (
-        <AdminFinishedTrips initialOpenId={openId} initialStatus={status} initialProblems={problems} />
+        <AdminFinishedTrips
+          initialOpenId={openId}
+          initialStatus={status}
+          initialProblems={problems}
+          readOnly={viewRole === "Finance"}
+        />
       )}
     </RequireRole>
   );
