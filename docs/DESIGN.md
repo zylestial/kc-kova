@@ -28,6 +28,11 @@ Brand colors are taken from the Kayelen's Construction logo:
 (dark surfaces such as the sidebar), `--brand-green` `#3b5228` (gears;
 small accents only) and `--steel` `#6b7280` (nails; secondary text).
 
+The app icon is three gears drawn as vector paths in `public/favicon.svg`
+(blue and green from the logo). The PNG icons (`icon-192`, `icon-512`,
+`icon-maskable-512`, `apple-touch-icon`) are rendered from it on white; the
+maskable one keeps the gears inside the 80% safe circle.
+
 ### Status colors
 
 Every status has a solid color plus a light background, border and text
