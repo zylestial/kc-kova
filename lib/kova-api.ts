@@ -8,7 +8,7 @@
 import { friendlyErrorMessage, NETWORK_ERROR } from "@/lib/error-messages";
 import { ALL_TIME } from "@/lib/bootstrap-window";
 
-export type Role ="Requester" | "Scheduler" | "Admin" | "Driver";
+export type Role ="Requester" | "Scheduler" | "Admin" | "Driver" | "Finance";
 export type Account = {
   id: string;
   name: string;

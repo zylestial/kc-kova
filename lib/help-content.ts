@@ -47,6 +47,10 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Manage the system", detail: "Invite people by email, accounts and passwords, vehicles, Drivers, request choices, who can request Company trips." },
     { title: "Act as anyone", detail: "You can also submit requests, even for a past date." },
   ],
+  Finance: [
+    { title: "View only", detail: "You see trips and attendance; you can't change them." },
+    { title: "Requests", detail: "If an Admin allows it, make Daily or Company trip requests like a Requester." },
+  ],
 };
 
 /** What to do about a forgotten password (0072: reset by email from Sign In). */
@@ -55,4 +59,5 @@ export const whoToAsk: Record<Role, string> = {
   Scheduler: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
   Driver: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
   Admin: "Forgot your password? Use Forgot password? on the Sign In page. You can also set someone's password in Settings if their email doesn't reach them.",
+  Finance: "Forgot your password? Use Forgot password? on the Sign In page and we'll email you a link. Tap your name in the menu to change your username, email or password.",
 };
