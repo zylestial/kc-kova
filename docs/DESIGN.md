@@ -60,7 +60,7 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   the top bar's menu button and closed by the scrim, the X or Escape. It
   holds the logo, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
-  Phone notifications (only when push is set up), Help, and the account
+  Help, and the account
   card: its name and avatar open My account (no separate menu item, to
   keep the menu short), and its icon signs out. Menu links are real links, but a plain
   click goes through `leave()` so unsaved work still asks first. While an
@@ -79,8 +79,11 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   or Finished Trips, a submitted schedule's details over its week, a
   returned trip's vehicle on Scheduling (`?trip=`, opened, scrolled to and
   highlighted), or a cancellation request's row on Schedules
-  (`?cancellation=`, highlighted).
-- **Phone notifications** dialog (`app/push-dialog.tsx`, from the menu):
+  (`?cancellation=`, highlighted). When push is set up, the bell's last
+  row (sticky at the bottom) is **Push notifications** with this device's
+  state: **Turn on** right there when it's off, **Manage** (the dialog)
+  when it's on, or **How to** (the dialog) when the device can't yet.
+- **Push notifications** dialog (`app/push-dialog.tsx`, from the bell):
   one line saying where this device stands (on, off, blocked in the
   browser, can't, or, on an iPhone or iPad not opened from the Home
   Screen, how to add it there first), with **Turn on**, or **Turn off**
