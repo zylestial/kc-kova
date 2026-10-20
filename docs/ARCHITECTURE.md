@@ -560,7 +560,9 @@ Configuration is entirely in environment variables (`.env.example`):
 - Phone notifications (optional; push is off while they're blank):
   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and the server-only `VAPID_PRIVATE_KEY`
   (a pair from `pnpm dlx web-push generate-vapid-keys`), `VAPID_SUBJECT`
-  (a `mailto:` or `https:` contact for push services) and the server-only
+  (a `mailto:` or `https:` contact for push services, not a secret;
+  production uses `https://kc-kova.vercel.app`, and `vapidSubject()`
+  tidies a typo or falls back to the site's own address) and the server-only
   `PUSH_SEND_SECRET`. Each environment also needs the Vault secrets
   `push_send_url` (`https://<app>/api/push/send`) and `push_send_secret`
   (the same value as `PUSH_SEND_SECRET`); see 0070's header.

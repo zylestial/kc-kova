@@ -921,6 +921,12 @@ Gotchas:
   the Vault secrets delete any real ones first (inside their transaction).
 - Windows may drop Chrome's notifications from the notification centre;
   that's a Windows setting, not KOVA.
+- **Apple refuses every push when `VAPID_SUBJECT` is malformed**, while
+  Chrome and Windows accept it (2026-10-20: the iPhone said "None of your
+  devices could be reached" until the subject was re-set to
+  `https://kc-kova.vercel.app` and redeployed). The sender now tidies it
+  (`vapidSubject`) and logs the service's status and reply
+  (`pushFailure`), so check Vercel's logs for "Push failed" first.
 
 ## Invites and self-service sign-in (2026-10-19)
 
