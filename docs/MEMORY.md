@@ -984,3 +984,28 @@ Gotchas:
   until the page reloads. The database already keeps them apart where it
   matters (one active inclusion per request, one trip per vehicle a day,
   one open version per trip, `row_version` on every save).
+
+## Who owns the hosting accounts (2026-10-20)
+
+Moved the day before the real-staff pilot, so staff data sits in an
+account the company owns from day one.
+
+- **Supabase:** the production project (`rhzqdtgruhpdhopkksuf`) is in an
+  organization owned by the company's account, `kayelens.kova@gmail.com`.
+  The developer is an Administrator there, which is enough to push
+  migrations; the CLI login must be the developer's own account, now a
+  member of that organization. The project's Supabase GitHub integration
+  had to be disabled for the transfer. KOVA never used it (migrations go
+  out with `supabase db push`), so don't reconnect it.
+- **Vercel and GitHub:** stay on the developer's accounts (Vercel Hobby)
+  until the company decides to keep KOVA. They move together then: Hobby
+  can't deploy a private repo owned by a GitHub organization, so moving
+  the repo first would stop deploys. Moving Vercel to a company team needs
+  Pro.
+- **Account emails:** already sent from the company's Gmail
+  (`kayelens.kova@gmail.com`); nothing to move.
+- **Keys weren't rotated.** None had left the developer's machine and
+  Vercel, and rotating the Supabase JWT secret would have signed everyone
+  out the night before go-live.
+- **Production seed scripts retired.** Production holds real data from
+  2026-10-21; never seed or reset it.
