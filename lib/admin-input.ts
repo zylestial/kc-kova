@@ -39,18 +39,6 @@ function forRole<T extends { role: Role; driverType: string; canRequestDaily: bo
   return body.role === "Driver" ? body : { ...body, driverType: null, canRequestDaily: false };
 }
 
-export const createAccountBody = z
-  .object({
-    name: required,
-    username: required,
-    role: z.enum(ROLES),
-    status: statusOrActive,
-    password: z.string().min(1),
-    email: optionalEmail,
-    ...requestAccess,
-  })
-  .transform(forRole);
-
 export const updateAccountBody = z
   .object({ name: required, username: required, role: z.enum(ROLES), status, email: optionalEmail, ...requestAccess })
   .transform(forRole);

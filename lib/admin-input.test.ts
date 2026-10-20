@@ -3,7 +3,6 @@ import {
   bookingOptionBody,
   inviteBody,
   parseEmailList,
-  createAccountBody,
   createVehicleBody,
   passwordBody,
   updateAccountBody,
@@ -12,44 +11,37 @@ import {
 import { parseWith } from "@/lib/validation";
 
 describe("account bodies", () => {
-  const account = { name: " Ana Cruz ", username: " ana ", role: "Driver", password: "drive2026" };
+  const account = { name: " Ana Cruz ", username: " ana ", role: "Driver", status: "Active" };
 
-  it("trims names and defaults a new account to Active", () => {
-    expect(parseWith(createAccountBody, account)).toEqual({
+  it("trims names and lowercases the email", () => {
+    expect(parseWith(updateAccountBody, { ...account, email: " Ana@Mail.COM " })).toEqual({
       name: "Ana Cruz",
       username: "ana",
       role: "Driver",
       status: "Active",
-      password: "drive2026",
-      email: "",
+      email: "ana@mail.com",
       position: "",
       driverType: "Truck",
       canRequestDaily: false,
       canRequestCompany: false,
     });
-    expect(parseWith(createAccountBody, { ...account, status: "Retired" })?.status).toBe("Active");
   });
 
   it("keeps the Driver-only fields for Drivers only", () => {
     const driver = { ...account, driverType: "Company car", canRequestDaily: true, canRequestCompany: true, position: " Site Driver " };
-    expect(parseWith(createAccountBody, driver)).toMatchObject({ driverType: "Company car", canRequestDaily: true, position: "Site Driver" });
-    expect(parseWith(createAccountBody, { ...driver, role: "Requester" })).toMatchObject({
+    expect(parseWith(updateAccountBody, driver)).toMatchObject({ driverType: "Company car", canRequestDaily: true, position: "Site Driver" });
+    expect(parseWith(updateAccountBody, { ...driver, role: "Requester" })).toMatchObject({
       driverType: null,
       canRequestDaily: false,
       canRequestCompany: true,
     });
   });
 
-  it("rejects a blank name, an unknown role or a missing password", () => {
-    expect(parseWith(createAccountBody, { ...account, name: "  " })).toBeNull();
-    expect(parseWith(createAccountBody, { ...account, role: "Booker" })).toBeNull();
-    expect(parseWith(createAccountBody, { ...account, password: "" })).toBeNull();
-    expect(parseWith(createAccountBody, null)).toBeNull();
-  });
-
-  it("needs a known status when editing", () => {
-    expect(parseWith(updateAccountBody, { ...account, status: "Inactive" })?.status).toBe("Inactive");
-    expect(parseWith(updateAccountBody, account)).toBeNull();
+  it("rejects a blank name, an unknown role or an unknown status", () => {
+    expect(parseWith(updateAccountBody, { ...account, name: "  " })).toBeNull();
+    expect(parseWith(updateAccountBody, { ...account, role: "Booker" })).toBeNull();
+    expect(parseWith(updateAccountBody, { ...account, status: "Retired" })).toBeNull();
+    expect(parseWith(updateAccountBody, null)).toBeNull();
   });
 
   it("reads any password string and treats a missing one as empty", () => {
