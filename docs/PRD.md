@@ -139,12 +139,13 @@ A person has exactly one role; there is no multi-role account.
 10. **Join and look after your own sign-in.** Staff collect everyone's
     email; an Admin pastes them in batches, each batch with one account
     type and set of request permissions, and KOVA emails each person an
-    invite link. The person picks their own name, username, position and
-    password from it. Every account has a confirmed email (someone without
-    one is asked for it right after signing in), so anyone who forgets
-    their password resets it from Sign In by email, and anyone can change
-    their own username, email and password on **My account**. Names,
-    account types and permissions stay with an Admin.
+    invite link. The person sets up their own name, username and password
+    from it, and only what their access needs besides (a Position when they
+    may request Company trips). Invites are the only way to make an
+    account, so every account has its email, and anyone who forgets their
+    password resets it from Sign In by email. Anyone can change their own
+    username, email and password on **My account**; an Admin can still
+    edit any account in Settings.
 
 ## Non-goals
 
@@ -241,7 +242,7 @@ in `supabase/tests/` already check automatically.
   Finance Use section blank. (tested)
 
 **Accounts and access**
-- Only an Admin can invite or add accounts, choose account types and
+- Only an Admin can invite people (the only way to make an account), choose account types and
   permissions, and change vehicles and request choices. Nothing is ever
   hard-deleted.
 - An invite link works once, for 7 days; the account it sets up gets the
