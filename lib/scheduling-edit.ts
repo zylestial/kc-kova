@@ -145,21 +145,20 @@ export function editInput(date: string, plate: string, legs: EditLeg[], requestI
  * Submit is refused until these are fixed. A Daily trip must end at
  * ANONANG; a Company trip ends at its last stop.
  */
-export function tripChecks(legs: EditLeg[], timer: Timer, company: boolean, nameOf: (requestId: string) => string): string[] {
+export function tripChecks(legs: EditLeg[], timer: Timer, company: boolean): string[] {
   const problems: string[] = [];
   if (!legs.length) return problems;
   if (legs.length > MAX_LEGS) problems.push(`Over ${MAX_LEGS} legs: this trip has ${legs.length}`);
-  legs.forEach((_, index) => problems.push(...legProblems(legs, index, timer, nameOf).map((problem) => `Leg ${index + 1}: ${problem}`)));
+  legs.forEach((_, index) => problems.push(...legProblems(legs, index, timer).map((problem) => `Leg ${index + 1}: ${problem}`)));
   if (!company && !legs.at(-1)!.isFinal) problems.push(`Must end at ANONANG: the last leg goes to ${legs.at(-1)!.destinationName}`);
   return problems;
 }
 
 /**
  * What's wrong with one leg, with the times involved: too little time to
- * drive there, leaving before it arrives from the stop before, and each
- * fixed-time stop it reaches more than 5 minutes off.
+ * drive there, or leaving before it arrives from the stop before.
  */
-export function legProblems(legs: EditLeg[], index: number, timer: Timer, nameOf: (requestId: string) => string): string[] {
+export function legProblems(legs: EditLeg[], index: number, timer: Timer): string[] {
   const leg = legs[index];
   const problems: string[] = [];
   const wait = timer.waitAt(legs, index);
@@ -167,11 +166,27 @@ export function legProblems(legs: EditLeg[], index: number, timer: Timer, nameOf
   const before = legs[index - 1];
   if (before && toMinutes(leg.timeOut) < toMinutes(before.timeIn))
     problems.push(`Time Out ${hhmmLabel(leg.timeOut)} is before it arrives at ${before.destinationName} at ${hhmmLabel(before.timeIn)}`);
+  return problems;
+}
+
+/**
+ * What the Scheduler may want to change on one leg, without blocking
+ * Submit (owner, 2026-10-20): each fixed-time stop it reaches more than 5
+ * minutes off the time asked for.
+ */
+export function legSuggestions(legs: EditLeg[], index: number, timer: Timer, nameOf: (requestId: string) => string): string[] {
+  const leg = legs[index];
+  const suggestions: string[] = [];
   for (const stopId of leg.stops) {
     const request = timer.requestOf(stopId);
     if (request?.flexibility !== "FIXED" || !request.fixedTime) continue;
     if (Math.abs(toMinutes(leg.timeIn) - toMinutes(request.fixedTime)) <= 5) continue;
-    problems.push(`${nameOf(request.id)} asked for ${hhmmLabel(request.fixedTime)}; it arrives ${hhmmLabel(leg.timeIn)}`);
+    suggestions.push(`${nameOf(request.id)} asked for ${hhmmLabel(request.fixedTime)}; it arrives ${hhmmLabel(leg.timeIn)}`);
   }
-  return problems;
+  return suggestions;
+}
+
+/** Every leg's suggestions, "Leg N: …"; shown under the vehicle, Submit still allowed. */
+export function tripSuggestions(legs: EditLeg[], timer: Timer, nameOf: (requestId: string) => string): string[] {
+  return legs.flatMap((_, index) => legSuggestions(legs, index, timer, nameOf).map((item) => `Leg ${index + 1}: ${item}`));
 }
