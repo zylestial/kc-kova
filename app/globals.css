@@ -57,6 +57,7 @@
 .notif-item.unread{background:#f5f8ff}
 .notif-item small{color:#5a6a84;font-size:12px}.dialog-context{font-size:15px;font-weight:700;color:var(--foreground)}
 .notif-empty{padding:30px 16px;text-align:center;color:#8290a4;font-size:13px}
+.notif-push{position:sticky;bottom:0;display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #e9edf3;background:#f8fafd;color:#253e63}.notif-push>svg{flex-shrink:0;color:var(--primary)}.notif-push-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}.notif-push-text strong{font-size:13px;font-weight:650}.notif-push-text small{font-size:12px;color:#5d718d;overflow-wrap:anywhere}.notif-push button{flex-shrink:0}
 @media(max-width:700px){.notif-panel{width:300px}}
 .show-password{justify-self:start;height:auto;padding:0!important;font-size:13px;color:var(--primary)}
 .request-review-list{list-style:decimal}
