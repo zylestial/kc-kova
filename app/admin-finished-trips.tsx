@@ -57,6 +57,16 @@ type Mode = "view" | "correct" | "done" | "handle" | "time";
 
 const notSubmitted = "Not submitted yet";
 
+type TripFilters = {
+  dates: DateFilter;
+  driver: string;
+  vehicle: string;
+  form: FormFilterValue;
+  status: string;
+  problems: string;
+};
+const noFilters: TripFilters = { dates: anyDate, driver: "all", vehicle: "all", form: "all", status: "all", problems: "all" };
+
 type SortKey = "date" | "plate" | "driver" | "route" | "distance" | "status";
 const columns: SortColumn<SortKey>[] = [
   { label: "DATE", key: "date" },
@@ -97,12 +107,13 @@ export default function AdminFinishedTrips({
   const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, timeCorrections, accounts, options, companyRuns } =
     useKovaData();
   const trips = useMemo(() => buildAdminTrips(schedules, completions, problemReports), [schedules, completions, problemReports]);
-  const [dates, setDates] = useState<DateFilter>(anyDate);
-  const [driver, setDriver] = useState("all");
-  const [vehicle, setVehicle] = useState("all");
-  const [form, setForm] = useState<FormFilterValue>("all");
-  const [status, setStatus] = useState(initialStatus ?? "all");
-  const [problems, setProblems] = useState(initialProblems ?? "all");
+  const [filters, setFilters] = useState<TripFilters>(() => ({
+    ...noFilters,
+    status: initialStatus ?? "all",
+    problems: initialProblems ?? "all",
+  }));
+  /** The Download CSV dialog's own filters, starting from the screen's; null while it's closed. */
+  const [exportFilters, setExportFilters] = useState<TripFilters | null>(null);
   const [sort, setSort] = useState<Sort<SortKey>>(null);
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
   const [mode, setMode] = useState<Mode>("view");
@@ -139,26 +150,97 @@ export default function AdminFinishedTrips({
   const drivers = [...new Set(trips.map((trip) => trip.revision.driverName))].sort();
   const vehicles = [...new Set(trips.map((trip) => trip.revision.plate))].sort();
   const today = manilaToday();
-  const visible = sortRows(
-    trips.filter(
-      (trip) =>
-        inDateFilter(trip.schedule.date, dates, today) &&
-        (driver === "all" || trip.revision.driverName === driver) &&
-        (vehicle === "all" || trip.revision.plate === vehicle) &&
-        formMatches(form, trip.schedule.kind) &&
-        (status === "all" || status === (trip.completion?.status ?? "UNSUBMITTED")) &&
-        (problems === "all" || (problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
-    ),
-    sort,
-    {
-      date: (trip) => trip.schedule.date,
-      plate: (trip) => trip.revision.plate,
-      driver: (trip) => trip.revision.driverName,
-      route: (trip) => trip.revision.legs.map((leg) => leg.destinationName).join(" → "),
-      // Unsubmitted trips have no distance yet; they sort before any submitted one.
-      distance: (trip) => trip.completion?.distance ?? -1,
-      status: (trip) => (trip.completion ? completionLabel[trip.completion.status] : notSubmitted),
-    },
+  /** The trips a set of filters lets through, in the screen's sort order. */
+  const filtered = (f: TripFilters) =>
+    sortRows(
+      trips.filter(
+        (trip) =>
+          inDateFilter(trip.schedule.date, f.dates, today) &&
+          (f.driver === "all" || trip.revision.driverName === f.driver) &&
+          (f.vehicle === "all" || trip.revision.plate === f.vehicle) &&
+          formMatches(f.form, trip.schedule.kind) &&
+          (f.status === "all" || f.status === (trip.completion?.status ?? "UNSUBMITTED")) &&
+          (f.problems === "all" || (f.problems === "open" ? hasOpenProblem(trip) : !hasOpenProblem(trip))),
+      ),
+      sort,
+      {
+        date: (trip) => trip.schedule.date,
+        plate: (trip) => trip.revision.plate,
+        driver: (trip) => trip.revision.driverName,
+        route: (trip) => trip.revision.legs.map((leg) => leg.destinationName).join(" → "),
+        // Unsubmitted trips have no distance yet; they sort before any submitted one.
+        distance: (trip) => trip.completion?.distance ?? -1,
+        status: (trip) => (trip.completion ? completionLabel[trip.completion.status] : notSubmitted),
+      },
+    );
+  const visible = filtered(filters);
+  const exportRows = exportFilters ? filtered(exportFilters) : [];
+
+  /** The filter fields, for the screen and for the Download CSV dialog. */
+  const filterFields = (f: TripFilters, set: (next: TripFilters) => void) => (
+    <>
+      <DateRangeFilter value={f.dates} onChange={(dates) => set({ ...f, dates })} />
+      <FormFilter value={f.form} onChange={(form) => set({ ...f, form })} />
+      <label className="field">
+        <span>Driver</span>
+        <Select value={f.driver} onValueChange={(driver) => set({ ...f, driver })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Drivers</SelectItem>
+            {drivers.map((name) => (
+              <SelectItem value={name} key={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="field">
+        <span>Vehicle</span>
+        <Select value={f.vehicle} onValueChange={(vehicle) => set({ ...f, vehicle })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Vehicles</SelectItem>
+            {vehicles.map((plate) => (
+              <SelectItem value={plate} key={plate}>
+                {plate}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="field">
+        <span>Status</span>
+        <Select value={f.status} onValueChange={(status) => set({ ...f, status })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="SUBMITTED">{completionLabel.SUBMITTED}</SelectItem>
+            <SelectItem value="DONE">{completionLabel.DONE}</SelectItem>
+            <SelectItem value="UNSUBMITTED">{notSubmitted}</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="field">
+        <span>Problems</span>
+        <Select value={f.problems} onValueChange={(problems) => set({ ...f, problems })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="open">Has open problem</SelectItem>
+            <SelectItem value="none">No open problem</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
+    </>
   );
 
   // Empty Time Out / Time In cells; a stop reported missed (0061) needs none.
@@ -204,11 +286,11 @@ export default function AdminFinishedTrips({
     setMode("time");
   }
 
-  /** What the filters show, in the shown order, with the form's first Time Out and last Time In. */
-  function downloadVisible() {
+  /** The dialog's trips, in the screen's order, with the form's first Time Out and last Time In. */
+  function downloadTrips() {
     const projectsOf = (ids: string[]) =>
       [...new Set(requests.filter((item) => ids.includes(item.id)).map((item) => item.projectName).filter(Boolean))].join("; ");
-    const rows = visible.map((trip) => {
+    const rows = exportRows.map((trip) => {
       const times = timesFor(trip);
       const last = times.at(-1);
       const completion = trip.completion;
@@ -235,6 +317,7 @@ export default function AdminFinishedTrips({
       "START ODOMETER", "END ODOMETER", "DISTANCE (KM)", "FULL TANK", "FLEET CARD USED", "GAS RECEIPT ATTACHED", "STATUS",
     ];
     downloadCsv(`kova-finished-trips-${today}.csv`, toCsv(header, rows));
+    setExportFilters(null);
   }
 
   async function markCleanDone() {
@@ -334,7 +417,7 @@ export default function AdminFinishedTrips({
             <span className="count">{visible.length}</span>
           </div>
           <div>
-            <Button variant="outline" disabled={!visible.length} title="The trips shown below, as a spreadsheet" onClick={downloadVisible}>
+            <Button variant="outline" disabled={!trips.length} onClick={() => setExportFilters(filters)}>
               <Download size={16} /> Download CSV
             </Button>
             {!readOnly && (
@@ -353,68 +436,14 @@ export default function AdminFinishedTrips({
           </div>
         </div>
         <OlderRecordsNotice />
-        <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, vehicle, form, status, problems].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
-          <DateRangeFilter value={dates} onChange={setDates} />
-          <FormFilter value={form} onChange={setForm} />
-          <label className="field">
-            <span>Driver</span>
-            <Select value={driver} onValueChange={setDriver}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Drivers</SelectItem>
-                {drivers.map((name) => (
-                  <SelectItem value={name} key={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="field">
-            <span>Vehicle</span>
-            <Select value={vehicle} onValueChange={setVehicle}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Vehicles</SelectItem>
-                {vehicles.map((plate) => (
-                  <SelectItem value={plate} key={plate}>
-                    {plate}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="SUBMITTED">{completionLabel.SUBMITTED}</SelectItem>
-                <SelectItem value="DONE">{completionLabel.DONE}</SelectItem>
-                <SelectItem value="UNSUBMITTED">{notSubmitted}</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="field">
-            <span>Problems</span>
-            <Select value={problems} onValueChange={setProblems}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="open">Has open problem</SelectItem>
-                <SelectItem value="none">No open problem</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
+        <FilterFold
+          active={
+            (filters.dates.preset !== "any" ? 1 : 0) +
+            [filters.driver, filters.vehicle, filters.form, filters.status, filters.problems].filter((value) => value !== "all").length +
+            (sort ? 1 : 0)
+          }
+        >
+          {filterFields(filters, setFilters)}
           <SortSelect columns={columns} sort={sort} onSort={setSort} />
         </FilterFold>
         {visible.length ? (
@@ -511,6 +540,27 @@ export default function AdminFinishedTrips({
             </Button>
             <Button className="primary" disabled={busy || !clean.length} onClick={() => void markCleanDone()}>
               {busy ? "Working…" : `Mark ${clean.length} done`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!exportFilters} onOpenChange={(open) => { if (!open) setExportFilters(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Download Finished Trips</DialogTitle>
+            <DialogDescription>Starts from what the screen shows. Choose which trips to save, then download.</DialogDescription>
+          </DialogHeader>
+          {exportFilters && <div className="modal-fields">{filterFields(exportFilters, setExportFilters)}</div>}
+          <DialogFooter>
+            <span className="helper" role="status">
+              {exportRows.length} {exportRows.length === 1 ? "trip" : "trips"}
+            </span>
+            <Button variant="outline" onClick={() => setExportFilters(null)}>
+              Cancel
+            </Button>
+            <Button className="primary" disabled={!exportRows.length} onClick={downloadTrips}>
+              <Download size={16} /> Download
             </Button>
           </DialogFooter>
         </DialogContent>
