@@ -629,7 +629,8 @@ async function refreshAfter<T>(operation: Promise<T>) {
   return result;
 }
 
-export const saveAccount = (account: Account & { password?: string; email?: string }) => refreshAfter(request<Account>(account.id ? `/api/accounts/${encodeURIComponent(account.id)}` : "/api/accounts", { method: account.id ? "PUT" : "POST", body: JSON.stringify(account) }));
+/** Saves an Admin's changes to an account; new accounts come from invites (0072). */
+export const saveAccount = (account: Account & { email?: string }) => refreshAfter(request<Account>(`/api/accounts/${encodeURIComponent(account.id)}`, { method: "PUT", body: JSON.stringify(account) }));
 export const changeAccountPassword = (accountId: string, password: string) => request<void>(`/api/accounts/${encodeURIComponent(accountId)}/password`, { method: "POST", body: JSON.stringify({ password }) });
 /** Every account's email (Admin only, 0072). */
 export const listAccountEmails = () => request<Array<{ accountId: string } & EmailStatus>>("/api/account-emails");
