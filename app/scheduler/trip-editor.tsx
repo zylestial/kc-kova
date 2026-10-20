@@ -26,8 +26,10 @@ import {
   movedTimeIn,
   removeLeg,
   legProblems,
+  legSuggestions,
   setLegTimes,
   tripChecks,
+  tripSuggestions,
   type EditLeg,
 } from "@/lib/scheduling-edit";
 import RemoveLegDialog from "./remove-leg-dialog";
@@ -227,7 +229,8 @@ export default function TripEditor({
     const request = requests.find((item) => item.id === id);
     return request ? stopNumber(request) || request.ownerName : "A stop";
   };
-  const problems = tripChecks(legs, timer, company, nameOf);
+  const problems = tripChecks(legs, timer, company);
+  const suggestions = tripSuggestions(legs, timer, nameOf);
   const removingLeg = removing === null ? null : legs[removing];
 
   return (
@@ -237,6 +240,11 @@ export default function TripEditor({
           ⚠ {problem}
         </div>
       ))}
+      {suggestions.map((suggestion) => (
+        <div key={suggestion} className="sc-check suggestion">
+          Suggestion: {suggestion}
+        </div>
+      ))}
       {legs.map((leg, index) => {
         const done = doneLeg(leg.source ?? leg.key, index === legs.length - 1);
         const missed = missedLeg(leg.source ?? leg.key);
@@ -244,7 +252,7 @@ export default function TripEditor({
         const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
         const lastMovable = legs.length - (legs.at(-1)?.isFinal ? 2 : 1);
-        const warnings = legProblems(legs, index, timer, nameOf).map((problem) => problem + ".");
+        const warnings = [...legProblems(legs, index, timer), ...legSuggestions(legs, index, timer, nameOf)].map((problem) => problem + ".");
         return (
           <div
             key={leg.key}

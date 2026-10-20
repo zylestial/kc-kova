@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ScheduleLeg, TransportRequest } from "@/lib/kova-api";
 import { legTimer } from "@/lib/scheduling-plan";
-import { changeDestination, editInput, editLegs, moveLeg, movedTimeIn, removeLeg, setLegTimes, tripChecks } from "@/lib/scheduling-edit";
+import { changeDestination, editInput, editLegs, moveLeg, movedTimeIn, removeLeg, setLegTimes, tripChecks, tripSuggestions } from "@/lib/scheduling-edit";
 
 // No saved locations: every drive is 30 minutes; a Pick up stays 30.
 const request = (id: string): TransportRequest =>
@@ -78,27 +78,28 @@ describe("edits", () => {
 describe("tripChecks", () => {
   const name = (id: string) => id.toUpperCase();
   it("finds nothing wrong with an estimated trip", () => {
-    expect(tripChecks(editLegs(estimated, timer, "08:00"), timer, false, name)).toEqual([]);
+    expect(tripChecks(editLegs(estimated, timer, "08:00"), timer, false)).toEqual([]);
   });
 
   it("names times that don't work", () => {
     const typed = [estimated[0], leg(2, "b", "09:00", "09:10"), leg(3, null, "09:05", "19:00")];
-    expect(tripChecks(editLegs(typed, timer, "08:00"), timer, false, name)).toEqual([
+    expect(tripChecks(editLegs(typed, timer, "08:00"), timer, false)).toEqual([
       "Leg 2: Time In 9:10 AM is too soon to drive to b",
       "Leg 3: Time Out 9:05 AM is before it arrives at b at 9:10 AM",
     ]);
   });
 
-  it("says when a fixed-time stop is reached", () => {
+  it("suggests, without blocking, when a fixed-time stop is reached off its time", () => {
     const fixed = { ...request("b"), flexibility: "FIXED", fixedTime: "10:00" } as TransportRequest;
     const withFixed = legTimer({ requests: [request("a"), fixed], destinations: [] }, false);
     const legs = editLegs([estimated[0], leg(2, "b", "09:00", "09:30"), leg(3, null, "10:00", "10:30")], withFixed, "08:00");
-    expect(tripChecks(legs, withFixed, false, name)).toEqual(["Leg 2: B asked for 10:00 AM; it arrives 9:30 AM"]);
+    expect(tripChecks(legs, withFixed, false)).toEqual([]);
+    expect(tripSuggestions(legs, withFixed, name)).toEqual(["Leg 2: B asked for 10:00 AM; it arrives 9:30 AM"]);
   });
 
   it("wants a Daily trip to end at ANONANG, not a Company trip", () => {
     const open = editLegs(estimated.slice(0, 2), timer, "08:00");
-    expect(tripChecks(open, timer, false, name)).toEqual(["Must end at ANONANG: the last leg goes to b"]);
-    expect(tripChecks(open, timer, true, name)).toEqual([]);
+    expect(tripChecks(open, timer, false)).toEqual(["Must end at ANONANG: the last leg goes to b"]);
+    expect(tripChecks(open, timer, true)).toEqual([]);
   });
 });

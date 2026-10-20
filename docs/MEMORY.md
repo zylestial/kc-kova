@@ -778,7 +778,9 @@ page"; the owner's calls:
 - **Date strip:** two weeks of date cards from today, Sundays included,
   the month on top, like the old planner's cards.
 - **Warnings block Submit** and name the stop and times, without minute
-  counts.
+  counts. Except (owner, 2026-10-20): a fixed-time stop reached more than
+  5 minutes off its time ("19-A asked for 3:00 PM; it arrives 3:20 PM")
+  is only a suggestion; it shows, but Submit goes through.
 - **Planner:** an any-time stop doesn't go on a leg where the vehicle would
   wait more than 30 minutes for a fixed-time stop. A trip ending by 6 PM
   was preferred, and an end after 6 PM blocked Submit, until the owner
