@@ -629,8 +629,9 @@ export async function pausePushSubscription(endpoint: string) {
 }
 
 /** A test notification to each of the signed-in account's devices; how many it reached. */
-export async function sendTestPush() {
-  return request<{ sent: number; removed: number }>("/api/push/test", { method: "POST" });
+/** A test push to this device only (its endpoint), never the account's other devices. */
+export async function sendTestPush(endpoint: string) {
+  return request<{ sent: number; removed: number }>("/api/push/test", { method: "POST", body: JSON.stringify({ endpoint }) });
 }
 
 async function refreshAfter<T>(operation: Promise<T>) {
