@@ -58,7 +58,9 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
 - **Sidebar** (`app/(app)/sidebar.tsx`): navy (`--brand-navy`), 256px,
   fixed on the left from 1024px up; below that it's a drawer opened from
   the top bar's menu button and closed by the scrim, the X or Escape. It
-  holds the logo, the role's menu (`navItems()` in
+  holds the logo (the navy version, `public/images/kova-sidebar-logo.png`,
+  straight on the sidebar with no white box; kept clear of the X in the
+  drawer) and the KOVA name with no subtitle, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
   Phone notifications (only when push is set up), Help, and the account
   card: its name and avatar open My account (no separate menu item, to
