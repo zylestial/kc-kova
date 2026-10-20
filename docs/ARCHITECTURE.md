@@ -117,10 +117,12 @@ twice at once. Links are built from `APP_URL`, never the Host header.
   email. `/join` sets up the account with the invite's role and
   permissions; the invite is claimed first and released again if the
   account can't be made (say, a taken username). The invited email is
-  stored as confirmed.
-- **Confirm email** (24 hours): a new email waits in `pending_email`, and
-  the confirmed one keeps working until the link is opened. An account
-  with no confirmed email sees `app/(app)/email-step.tsx` instead of KOVA.
+  stored as confirmed. Invites are the only way to make an account; there
+  is no `POST /api/accounts`. Join asks for a Position only when the
+  invite's access needs one (`lib/invite-fields.ts`).
+- **Confirm email** (24 hours): a new email from My account or the Admin's
+  Edit Account waits in `pending_email`, and the confirmed one keeps
+  working until the link is opened.
 - **Reset password** (1 hour): Forgot password takes a username or email
   and always gives the same answer. The reset page checks the password
   before using up the link, so a refused one doesn't cost it.
@@ -453,7 +455,6 @@ Summary, with the implementing route file:
 | GET | `/api/auth/session` | `app/api/auth/session/route.ts` | — |
 | POST | `/api/auth/sign-out` | `app/api/auth/sign-out/route.ts` | any session |
 | GET | `/api/bootstrap` | `app/api/bootstrap/route.ts` | any session |
-| POST | `/api/accounts` | `app/api/accounts/route.ts` | Admin |
 | PUT | `/api/accounts/:accountId` | `app/api/accounts/[accountId]/route.ts` | Admin |
 | POST | `/api/accounts/:accountId/password` | `app/api/accounts/[accountId]/password/route.ts` | Admin |
 | POST | `/api/accounts/:accountId/email-link` | `app/api/accounts/[accountId]/email-link/route.ts` | Admin; sends the pending email's confirm link again |
