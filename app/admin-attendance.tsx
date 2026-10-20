@@ -25,7 +25,7 @@ import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import OlderRecordsNotice from "./older-records-notice";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { atStop, legTimes, placeResolver, type LegTimes } from "@/lib/stop-times";
 import StopTimesTable from "./stop-times-table";
 
@@ -52,6 +52,9 @@ const statusOrder: AttendanceStatus[] = ["MISSING", "STARTED", "COMPLETE"];
 /** A tap's Manila time of day as "HH:MM", so sorting by Start or End finds the earliest and latest taps. */
 const tapTimeLabel24 = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hour12: false });
+
+type AttendanceFilters = { dates: DateFilter; driver: string; status: string };
+const noFilters: AttendanceFilters = { dates: anyDate, driver: "all", status: "all" };
 
 type AttendanceSortKey = "date" | "driver" | "plate" | "start" | "end" | "status";
 const columns: SortColumn<AttendanceSortKey>[] = [
@@ -97,9 +100,9 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
   const placeOf = placeResolver(options.destinations);
   const today = manilaToday();
   const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today), [schedules, attendance, today]);
-  const [dates, setDates] = useState<DateFilter>(anyDate);
-  const [driver, setDriver] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [filters, setFilters] = useState<AttendanceFilters>(noFilters);
+  /** The Download CSV dialog's own filters, starting from the screen's; null while it's closed. */
+  const [exportFilters, setExportFilters] = useState<AttendanceFilters | null>(null);
   const [sort, setSort] = useState<Sort<AttendanceSortKey>>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const timesFor = (row: AttendanceRow) =>
@@ -117,34 +120,79 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
   const stopUnchecked = (row: AttendanceRow) => stopSummary(timesFor(row)).unchecked > 0;
 
   const drivers = [...new Set(rows.map((row) => row.revision.driverName))].sort();
-  const visible = sortRows(
-    rows.filter(
-      (row) =>
-        inDateFilter(row.schedule.date, dates, today) &&
-        (driver === "all" || row.revision.driverName === driver) &&
-        (status === "all" ||
-          (status === "flagged"
-            ? row.flags.length > 0 || stopFlagged(row)
-            : status === "unchecked"
-              ? stopUnchecked(row)
-              : row.status === status)),
-    ),
-    sort,
-    {
-      date: (row) => row.schedule.date,
-      driver: (row) => row.revision.driverName,
-      plate: (row) => row.revision.plate,
-      // A tap's time of day; rows without one go to the end when ascending.
-      start: (row) => (row.attendance ? tapTimeLabel24(row.attendance.start.at) : "99:99"),
-      end: (row) => (row.attendance?.end ? tapTimeLabel24(row.attendance.end.at) : "99:99"),
-      status: (row) => statusOrder.indexOf(row.status),
-    },
-  );
+  /** The rows a set of filters lets through, in the screen's sort order. */
+  const filtered = (f: AttendanceFilters) =>
+    sortRows(
+      rows.filter(
+        (row) =>
+          inDateFilter(row.schedule.date, f.dates, today) &&
+          (f.driver === "all" || row.revision.driverName === f.driver) &&
+          (f.status === "all" ||
+            (f.status === "flagged"
+              ? row.flags.length > 0 || stopFlagged(row)
+              : f.status === "unchecked"
+                ? stopUnchecked(row)
+                : row.status === f.status)),
+      ),
+      sort,
+      {
+        date: (row) => row.schedule.date,
+        driver: (row) => row.revision.driverName,
+        plate: (row) => row.revision.plate,
+        // A tap's time of day; rows without one go to the end when ascending.
+        start: (row) => (row.attendance ? tapTimeLabel24(row.attendance.start.at) : "99:99"),
+        end: (row) => (row.attendance?.end ? tapTimeLabel24(row.attendance.end.at) : "99:99"),
+        status: (row) => statusOrder.indexOf(row.status),
+      },
+    );
+  const visible = filtered(filters);
+  const exportRows = exportFilters ? filtered(exportFilters) : [];
   const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone else";
 
-  /** What the filters show, in the shown order: each tap with its place, and every flag in words. */
-  function downloadVisible() {
-    const rows = visible.map((row) => {
+  /** The filter fields, for the screen and for the Download CSV dialog. */
+  const filterFields = (f: AttendanceFilters, set: (next: AttendanceFilters) => void) => (
+    <>
+      <DateRangeFilter value={f.dates} onChange={(dates) => set({ ...f, dates })} />
+      <label className="field">
+        <span>Driver</span>
+        <Select value={f.driver} onValueChange={(driver) => set({ ...f, driver })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Drivers</SelectItem>
+            {drivers.map((name) => (
+              <SelectItem value={name} key={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="field">
+        <span>Status</span>
+        <Select value={f.status} onValueChange={(status) => set({ ...f, status })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            {(Object.keys(attendanceStatusLabel) as AttendanceStatus[]).map((value) => (
+              <SelectItem value={value} key={value}>
+                {attendanceStatusLabel[value]}
+              </SelectItem>
+            ))}
+            <SelectItem value="flagged">Flagged</SelectItem>
+            <SelectItem value="unchecked">Stops not checked</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
+    </>
+  );
+
+  /** The dialog's rows, in the screen's order: each tap with its place, and every flag in words. */
+  function downloadRows() {
+    const lines = exportRows.map((row) => {
       const { start, end } = row.attendance ?? {};
       const summary = stopSummary(timesFor(row));
       const flags = [
@@ -168,7 +216,8 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
       ];
     });
     const header = ["DATE", "DRIVER", "VEHICLE", "START", "START PLACE", "END", "END PLACE", "STOPS TAPPED", "FLAGS", "STATUS"];
-    downloadCsv(`kova-attendance-${today}.csv`, toCsv(header, rows));
+    downloadCsv(`kova-attendance-${today}.csv`, toCsv(header, lines));
+    setExportFilters(null);
   }
 
   return (
@@ -189,47 +238,19 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
             <h2>Driver attendance</h2>
             <span className="count">{visible.length}</span>
           </div>
-          <Button variant="outline" disabled={!visible.length} title="The rows shown below, as a spreadsheet" onClick={downloadVisible}>
+          <Button variant="outline" disabled={!rows.length} onClick={() => setExportFilters(filters)}>
             <Download size={16} /> Download CSV
           </Button>
         </div>
         <OlderRecordsNotice />
-        <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
-          <DateRangeFilter value={dates} onChange={setDates} />
-          <label className="field">
-            <span>Driver</span>
-            <Select value={driver} onValueChange={setDriver}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Drivers</SelectItem>
-                {drivers.map((name) => (
-                  <SelectItem value={name} key={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {(Object.keys(attendanceStatusLabel) as AttendanceStatus[]).map((value) => (
-                  <SelectItem value={value} key={value}>
-                    {attendanceStatusLabel[value]}
-                  </SelectItem>
-                ))}
-                <SelectItem value="flagged">Flagged</SelectItem>
-                <SelectItem value="unchecked">Stops not checked</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
+        <FilterFold
+          active={
+            (filters.dates.preset !== "any" ? 1 : 0) +
+            [filters.driver, filters.status].filter((value) => value !== "all").length +
+            (sort ? 1 : 0)
+          }
+        >
+          {filterFields(filters, setFilters)}
           <SortSelect columns={columns} sort={sort} onSort={setSort} />
         </FilterFold>
         {visible.length ? (
@@ -311,6 +332,26 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
           </Dialog>
         );
       })()}
+      <Dialog open={!!exportFilters} onOpenChange={(open) => { if (!open) setExportFilters(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Download Attendance</DialogTitle>
+            <DialogDescription>Starts from what the screen shows. Choose which rows to save, then download.</DialogDescription>
+          </DialogHeader>
+          {exportFilters && <div className="modal-fields">{filterFields(exportFilters, setExportFilters)}</div>}
+          <DialogFooter>
+            <span className="helper" role="status">
+              {exportRows.length} {exportRows.length === 1 ? "row" : "rows"}
+            </span>
+            <Button variant="outline" onClick={() => setExportFilters(null)}>
+              Cancel
+            </Button>
+            <Button className="primary" disabled={!exportRows.length} onClick={downloadRows}>
+              <Download size={16} /> Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
