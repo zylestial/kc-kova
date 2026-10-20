@@ -20,7 +20,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     me/                 The signed-in account's own email, username, password (My account)
     invites/            Admin: send a batch of invites, list, resend, cancel
     bootstrap/          GET: one-shot hydration payload for the signed-in role
-    accounts/           Admin: create/update accounts, reset passwords, resend an email link
+    accounts/           Admin: update accounts, reset passwords, resend an email link
     account-emails/     Admin: every account's email for Settings
     vehicles/           Admin: create/rename vehicles
     request-groups/     Requester/Admin: create/edit a request and its stops (Daily or Company)
