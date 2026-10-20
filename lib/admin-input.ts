@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DRIVER_TYPES, type Role } from "@/lib/kova-api";
+import { hasRequestSwitches } from "@/lib/request-access";
 
 /**
  * Body schemas for the Admin-only routes (accounts, vehicles, booking
@@ -22,8 +23,8 @@ const optionalId = z
   .transform((id) => id || null);
 
 /**
- * Who may request what (0051). The Driver-only fields are dropped for
- * other roles; a Truck driver with a switch on, or company trips without a
+ * Who may request what (0051, 0074). The Driver type is dropped for other
+ * roles, and the Daily switch for anyone but Drivers and Schedulers; a Truck driver with a switch on, or company trips without a
  * Position, is refused by the database's constraints.
  */
 const requestAccess = {
@@ -36,7 +37,11 @@ const requestAccess = {
 const optionalEmail = z.string().trim().toLowerCase().catch("");
 
 function forRole<T extends { role: Role; driverType: string; canRequestDaily: boolean }>(body: T) {
-  return body.role === "Driver" ? body : { ...body, driverType: null, canRequestDaily: false };
+  return {
+    ...body,
+    driverType: body.role === "Driver" ? body.driverType : null,
+    canRequestDaily: (body.role === "Driver" || body.role === "Scheduler") && body.canRequestDaily,
+  };
 }
 
 export const updateAccountBody = z
@@ -88,19 +93,19 @@ export function parseEmailList(input: string) {
 /**
  * A batch of invites: one role and set of request permissions for every
  * email in it. Switches the role can't have are turned off here, the same
- * way the Add Account form sends them (0051, 0059).
+ * way the Accounts form sends them (0051, 0059, 0074).
  */
 export const inviteBody = z
   .object({ emails: z.string().catch(""), role: z.enum(ROLES), ...requestAccess })
   .transform(forRole)
   .transform((body) => {
-    const carDriver = body.role === "Driver" && body.driverType === "Company car";
-    const companyAllowed = body.role === "Requester" || body.role === "Admin" || carDriver;
+    const switches = hasRequestSwitches(body);
+    const companyAllowed = body.role === "Requester" || body.role === "Admin" || switches;
     return {
       emails: body.emails,
       role: body.role,
       driverType: body.driverType,
-      canRequestDaily: carDriver && body.canRequestDaily,
+      canRequestDaily: switches && body.canRequestDaily,
       canRequestCompany: companyAllowed && body.canRequestCompany,
     };
   });
