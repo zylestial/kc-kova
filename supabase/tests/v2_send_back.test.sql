@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(15);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -110,8 +110,30 @@ select throws_ok(
   '22023', 'A request in this schedule was sent back to its requester; remove it first',
   'A sent-back request cannot be put in a schedule');
 
--- Moving it to another day puts it back in the pool -------------------------
+-- Any save puts it back in the pool, even on the same day (0073) -----------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000005a');
+select update_request(
+  pg_temp.id('juan'), (select row_version from requests where id = pg_temp.id('juan')),
+  (select requested_date from requests where id = pg_temp.id('juan')), 'REGULAR', null, null,
+  '[{"destinationId":"d55","purposeId":"p55"}]', null);
+select is(
+  (select progress from request_progress where request_id = pg_temp.id('juan')), 'NOT_YET_SCHEDULED',
+  'Saving without a new date clears the send-back');
+
+-- ...but not for a day that has passed
+reset role;
+update requests set requested_date = current_date - 1 where id = pg_temp.id('juan');
+update requests set sent_back_at = now(), sent_back_by_account_id = '00000000-0000-0000-0000-00000000005d'
+where id = pg_temp.id('juan');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000005a');
+select throws_ok(
+  format($$ select update_request(%L::uuid, (select row_version from requests where id = %L::uuid),
+    current_date - 1, 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]', null) $$,
+    pg_temp.id('juan'), pg_temp.id('juan')),
+  '22023', 'That day has passed. Choose a new date to send it to the Scheduler again',
+  'A sent-back request on a past day must be moved first');
+
+-- Moving it to another day puts it back in the pool -------------------------
 select update_request(
   pg_temp.id('juan'), (select row_version from requests where id = pg_temp.id('juan')),
   pg_temp.d(12), 'REGULAR', null, null, '[{"destinationId":"d55","purposeId":"p55"}]', null);
