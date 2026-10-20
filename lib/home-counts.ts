@@ -44,27 +44,25 @@ export function homeCounts(account: Account, data: HomeData, now: Date = new Dat
   const today = manilaToday(now);
   const counts: Partial<Record<HomeCardKey, string>> = {};
 
-  // A Driver may make requests too (0051); the card only shows when they can.
-  if (account.role === "Requester" || account.role === "Admin" || account.role === "Driver") {
-    const open = data.requests.filter(
-      (request) =>
-        request.ownerAccountId === account.id &&
-        request.status === "ACTIVE" &&
-        request.progress !== "COMPLETED" &&
-        request.progress !== "DONE",
-    );
-    const unscheduled = open.filter((request) => request.progress === "NOT_YET_SCHEDULED").length;
-    const sentBack = open.filter((request) => request.progress === "SENT_BACK").length;
-    counts["my-requests"] = open.length
-      ? [
-          `${open.length} open`,
-          unscheduled ? `${unscheduled} not yet scheduled` : "",
-          sentBack ? `${sentBack} sent back` : "",
-        ]
-          .filter(Boolean)
-          .join(" · ")
-      : "No open requests";
-  }
+  // Any role may make requests when allowed (0051, 0074); the card only shows when they can.
+  const open = data.requests.filter(
+    (request) =>
+      request.ownerAccountId === account.id &&
+      request.status === "ACTIVE" &&
+      request.progress !== "COMPLETED" &&
+      request.progress !== "DONE",
+  );
+  const unscheduled = open.filter((request) => request.progress === "NOT_YET_SCHEDULED").length;
+  const sentBack = open.filter((request) => request.progress === "SENT_BACK").length;
+  counts["my-requests"] = open.length
+    ? [
+        `${open.length} open`,
+        unscheduled ? `${unscheduled} not yet scheduled` : "",
+        sentBack ? `${sentBack} sent back` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "No open requests";
 
   if (account.role === "Scheduler") {
     const waiting = data.requests.filter(
