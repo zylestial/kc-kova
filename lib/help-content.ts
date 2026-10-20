@@ -22,6 +22,7 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "Pick the day", detail: "On Scheduling, tap a date card, then Daily trips or Company trips. Urgent stops show on top." },
     { title: "Add stops to a vehicle", detail: "Drag a stop onto a vehicle, or tap it for the best options. Daily trips get the vehicle's Driver." },
     { title: "Any day that week", detail: "Adding such a stop to another day moves it there; the requester is told." },
+    { title: "Can't fit a stop?", detail: "Tap it and choose Send back to requester, with a reason. They fix it and save to send it again." },
     { title: "Check the legs", detail: "Open a vehicle to set each leg's Time Out/In or reorder legs. Fix any warning before you submit." },
     { title: "Take a stop off", detail: "Remove its leg: back to To plan, or back to the requester with a reason." },
     { title: "Submit for approval", detail: "Admin approves or sends it back. Undo reverses your last change; Propose changes edits an approved trip." },
