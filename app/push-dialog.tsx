@@ -14,7 +14,7 @@ const stateText: Record<PushState, string> = {
   on: "On for this device. Each new notification in the bell also shows here.",
 };
 
-/** Turns phone notifications on or off for this device (lib/push-device.ts). */
+/** Turns push notifications on or off for this device (lib/push-device.ts). */
 export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,7 +74,7 @@ export function PushDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     <Dialog open={open} onOpenChange={openChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Phone notifications</DialogTitle>
+          <DialogTitle>Push notifications</DialogTitle>
           <DialogDescription>
             Get KOVA&apos;s notifications on this device, even when KOVA is closed. Turn them on on each phone or computer you
             use.

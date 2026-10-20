@@ -41,10 +41,10 @@ export function catchUpMessages(unread: CatchUpNotification[], findSchedule: Sch
     .map((notification) => pushMessage(notification, findSchedule, role));
 }
 
-/** The test a person sends themselves from the Phone notifications dialog. */
+/** The test a person sends themselves from the Push notifications dialog. */
 export const testPushMessage: PushMessage = {
   title: "KOVA",
-  body: "Phone notifications work on this device.",
+  body: "Push notifications work on this device.",
   url: "/home",
 };
 
