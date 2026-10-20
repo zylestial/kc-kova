@@ -20,7 +20,7 @@ A person has exactly one role; there is no multi-role account.
 | Role | Can do |
 | --- | --- |
 | **Requester** | Ask for transport (a date and one or more stops, each with a purpose). If an Admin allows it, ask for a **Company trip** instead, picking the vehicle and its Company car Driver, and record that trip themselves on **My Trips**. Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
-| **Scheduler** | Plan each day's Daily and Company trips on one **Scheduling** page: add waiting stops to vehicles (a Daily vehicle's assigned Driver comes with it), adjust each trip's legs and times, and submit it for approval. Send back stops that won't fit, or move an "any day that week" stop to another day. Change a trip that's waiting for the Admin, or propose changes to an approved one. The only role that creates schedules. |
+| **Scheduler** | Plan each day's Daily and Company trips on one **Scheduling** page: add waiting stops to vehicles (a Daily vehicle's assigned Driver comes with it), adjust each trip's legs and times, and submit it for approval. Send back stops that won't fit, or move an "any day that week" stop to another day. Change a trip that's waiting for the Admin, or propose changes to an approved one. The only role that creates schedules. An Admin may also let a Scheduler make Daily or Company requests, like a Company car Driver. |
 | **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers and times, handle problem reports, mark Done, print the form), check Drivers' attendance, and manage Accounts, Vehicles and request choices, including who may request Company trips. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
 | **Driver** | Either a **Truck** or a **Company car** Driver. See the approved trips assigned to them ("My Schedule"). On Daily trips, tap Start trip when leaving ANONANG and End trip on returning (their attendance), and Arrived and Leaving at each stop in between; after the trip ends, submit its odometer readings and final-return checks. On Company trips the requester records the trip; the Driver only sees it. Report a problem on a trip at any time. An Admin may let a Company car Driver make requests; a Truck Driver never can. |
 
@@ -122,7 +122,8 @@ A person has exactly one role; there is no multi-role account.
    deletes anything; history stays intact.
 8. **Administer reference data.** An Admin maintains Accounts (Position,
    whether the account may request Company trips, each Driver's type and
-   whether a Company car Driver may make Daily or Company requests),
+   whether a Company car Driver or a Scheduler may make Daily or Company
+   requests),
    Vehicles (each vehicle's assigned Driver, and whether it can be requested
    for company trips) and the request choices (Projects/Sites, Destinations,
    Purposes, which destinations are fuel/errand stops, Urgent reasons,

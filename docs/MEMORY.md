@@ -991,6 +991,18 @@ Gotchas:
   matters (one active inclusion per request, one trip per vehicle a day,
   one open version per trip, `row_version` on every save).
 
+## Schedulers who also request (2026-10-20)
+
+- **Same switches as a Company car Driver.** Some Schedulers also need
+  transport, so an Admin can turn on "Can make Daily Vehicle Trip
+  requests" and "Can request company trips" on a Scheduler's account or
+  invite (0074). Both start off. Company trips still need a Position.
+- **They may schedule their own request.** No separation rule: the Admin
+  approves every submitted trip anyway.
+- An allowed Scheduler gets New request, My requests (and My Trips for
+  company trips) after Finished Trips in the menu and on Home; an Admin
+  viewing as Scheduler sees them too, as with View as Driver.
+
 ## Who owns the hosting accounts (2026-10-20)
 
 Moved the day before the real-staff pilot, so staff data sits in an
