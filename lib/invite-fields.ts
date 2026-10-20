@@ -21,9 +21,11 @@ export function accessSummary(invite: InviteAccess): string {
       ? `${invite.driverType ?? "Truck"} Driver`
       : invite.role === "Scheduler"
         ? "Scheduler · plans the trips"
-        : "Requester";
+        : invite.role === "Finance"
+          ? "Finance · views trips and attendance"
+          : "Requester";
   const parts: string[] = [who];
-  const switches = invite.role === "Scheduler" || invite.driverType === "Company car";
+  const switches = invite.role === "Scheduler" || invite.role === "Finance" || invite.driverType === "Company car";
   const daily = invite.role === "Requester" || (switches && invite.canRequestDaily);
   if (daily) parts.push("Daily requests");
   if (invite.canRequestCompany) parts.push("Company trips");

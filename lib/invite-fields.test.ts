@@ -25,5 +25,9 @@ describe("accessSummary", () => {
     expect(accessSummary({ ...base, role: "Scheduler", canRequestDaily: true, canRequestCompany: true })).toBe(
       "Scheduler · plans the trips · Daily requests · Company trips",
     );
+    expect(accessSummary({ ...base, role: "Finance" })).toBe("Finance · views trips and attendance");
+    expect(accessSummary({ ...base, role: "Finance", canRequestDaily: true })).toBe(
+      "Finance · views trips and attendance · Daily requests",
+    );
   });
 });

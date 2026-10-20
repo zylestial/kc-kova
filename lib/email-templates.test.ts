@@ -12,6 +12,8 @@ describe("account emails", () => {
 
   it("an invite names the role it gives", () => {
     expect(inviteEmail(link, "Driver").text).toContain("as a Driver");
+    expect(inviteEmail(link, "Admin").text).toContain("as an Admin");
+    expect(inviteEmail(link, "Finance").text).toContain("as Finance.");
   });
 
   it("a reset reminds them of their username", () => {
