@@ -124,7 +124,7 @@ An Admin is the operational owner of KOVA. The Admin keeps the system running by
 
 ### Admin workflow
 
-1. Invite people (or add an account directly, with its email) and assign roles.
+1. Invite people, choosing their roles and access; edit accounts in Settings when something changes.
 2. Maintain active and inactive fleet records.
 3. Keep booking choice lists current and consistent.
 4. Review schedule submissions and approve or return them.
