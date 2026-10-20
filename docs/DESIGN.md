@@ -60,8 +60,9 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   the top bar's menu button and closed by the scrim, the X or Escape. It
   holds the logo, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
-  Phone notifications (only when push is set up), My account, Help, the
-  account and Sign out. Menu links are real links, but a plain
+  Phone notifications (only when push is set up), Help, and the account
+  card: its name and avatar open My account (no separate menu item, to
+  keep the menu short), and its icon signs out. Menu links are real links, but a plain
   click goes through `leave()` so unsaved work still asks first. While an
   Admin is viewing as another role, the menu is that role's.
 - **Top bar** (`app/(app)/topbar.tsx`): today's date (wide screens) or
