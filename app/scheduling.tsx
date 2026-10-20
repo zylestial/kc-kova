@@ -14,6 +14,7 @@ import {
   moveRequestDay,
   releaseMissedStop,
   saveScheduleDraft,
+  sendBackRequests,
   submitSchedule,
   type StopDecision,
   type TransportRequest,
@@ -42,6 +43,7 @@ import { dateLabel, fullDate } from "./planner/format";
 import StopCard, { whatText } from "./scheduler/stop-card";
 import StopSheet from "./scheduler/stop-sheet";
 import PlanOptions from "./scheduler/plan-options";
+import SendBackForm from "./scheduler/send-back-form";
 import VehicleCard from "./scheduler/vehicle-card";
 import TripEditor from "./scheduler/trip-editor";
 
@@ -281,6 +283,17 @@ export default function Scheduling({
       setSendingBack(null);
       return `${item.place} sent back to the requester.`;
     }, "clear");
+  }
+  /** Sends waiting stops straight back to their requesters (0038), from their sheet. */
+  function sendBackWaiting(stops: TransportRequest[], reason: string) {
+    void run(async () => {
+      await sendBackRequests(
+        stops.map((stop) => stop.id),
+        reason,
+      );
+      setSheetIds([]);
+      return `${stops.map((stop) => stopNumber(stop) || "Request").join(", ")} sent back to the requester.`;
+    });
   }
   const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
@@ -632,6 +645,11 @@ export default function Scheduling({
               </div>
             )}
             <PlanOptions options={planOptions(sheetStops, rows, context)} stops={sheetStops} requests={requests} busy={busy} onAdd={(option) => add(option, sheetStops)} />
+            <SendBackForm
+              requesters={[...new Set(sheetStops.map((stop) => stop.ownerName))].join(", ")}
+              busy={busy}
+              onSendBack={(reason) => sendBackWaiting(sheetStops, reason)}
+            />
           </>
         )}
       </StopSheet>
