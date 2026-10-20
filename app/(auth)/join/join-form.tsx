@@ -3,17 +3,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { acceptInvite, lookUpInvite, type Role } from "@/lib/kova-api";
+import { acceptInvite, lookUpInvite } from "@/lib/kova-api";
 import { PASSWORD_HINT, passwordError } from "@/lib/password-policy";
 import { USERNAME_HINT, usernameError } from "@/lib/username-policy";
 import KovaBrand from "../../kova-brand";
 
-type Invite = { email: string; role: Role; needsPosition: boolean };
+type Invite = Awaited<ReturnType<typeof lookUpInvite>>;
 
 /**
- * Where an invite link lands: the person picks their own name, username,
- * position and password. The role and request permissions were chosen by
- * the Admin who invited them and only show here.
+ * Where an invite link lands: the person picks their own name, username
+ * and password, plus a Position only when their access needs one
+ * (lib/invite-fields.ts). The role and request permissions were chosen by
+ * the Admin who invited them and only show here; an Admin can change any
+ * of it later in Settings.
  */
 export default function JoinForm({ token }: { token: string }) {
   const router = useRouter();
@@ -37,7 +39,7 @@ export default function JoinForm({ token }: { token: string }) {
     const problem =
       (!form.name.trim() && "Enter your name.") ||
       usernameError(username) ||
-      (invite?.needsPosition && !form.position.trim() && "Add your position; it prints on the Company Trip Form.") ||
+      (invite?.position === "required" && !form.position.trim() && "Add your position; it prints on the Company Trip Form.") ||
       (form.password !== form.confirm && "Passwords do not match.") ||
       passwordError(form.password, username);
     if (problem) {
@@ -83,7 +85,9 @@ export default function JoinForm({ token }: { token: string }) {
         ) : (
           <>
             <p className="helper">
-              You&apos;re joining as a <b>{invite.role}</b> with <b>{invite.email}</b>.
+              You&apos;re joining with <b>{invite.email}</b> as:
+              <br />
+              <b>{invite.access}</b>
             </p>
             <div className="sign-fields">
               <label className="field">
@@ -95,11 +99,18 @@ export default function JoinForm({ token }: { token: string }) {
                 <Input required maxLength={30} autoComplete="username" autoCapitalize="none" {...field("username")} />
                 <small>You&apos;ll sign in with this. {USERNAME_HINT}</small>
               </label>
-              <label className="field">
-                <span>Position{invite.needsPosition ? "" : " (optional)"}</span>
-                <Input required={invite.needsPosition} maxLength={100} autoComplete="organization-title" {...field("position")} />
-                <small>Your job title, e.g. Site Engineer.</small>
-              </label>
+              {invite.position !== "none" && (
+                <label className="field">
+                  <span>Position{invite.position === "required" ? "" : " (optional)"}</span>
+                  <Input
+                    required={invite.position === "required"}
+                    maxLength={100}
+                    autoComplete="organization-title"
+                    {...field("position")}
+                  />
+                  <small>Your job title, e.g. Site Engineer. It prints on the Company Trip Form.</small>
+                </label>
+              )}
               <label className="field">
                 <span>Password</span>
                 <Input required type={showPassword ? "text" : "password"} maxLength={256} autoComplete="new-password" {...field("password")} />

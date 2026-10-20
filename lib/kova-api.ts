@@ -543,9 +543,15 @@ export async function signOut() {
   notify();
 }
 
-/** What an invite link is for (/join), or an error when it no longer works. */
+/**
+ * What an invite link is for (/join): its email, role, what it allows in a
+ * few words, and whether Join asks for a Position. An error when the link
+ * no longer works.
+ */
 export const lookUpInvite = (token: string) =>
-  request<{ email: string; role: Role; needsPosition: boolean }>(`/api/auth/invite?token=${encodeURIComponent(token)}`);
+  request<{ email: string; role: Role; access: string; position: "required" | "optional" | "none" }>(
+    `/api/auth/invite?token=${encodeURIComponent(token)}`,
+  );
 
 /** Sets up the invited account and signs in as it (null when the sign-in itself failed). */
 export async function acceptInvite(input: { token: string; name: string; username: string; position: string; password: string }) {
