@@ -1,23 +1,20 @@
 "use client";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BellRing, CircleHelp, LogOut, X } from "lucide-react";
+import { CircleHelp, LogOut, X } from "lucide-react";
 import { useAccount } from "./providers";
 import { activeHref, navItems } from "./nav-items";
 import { canRequestCompany, canRequestTransport } from "@/lib/request-access";
-import { pushConfigured } from "@/lib/push-device";
 
 export default function Sidebar({
   open,
   onClose,
   onHelp,
-  onPush,
   onSignOut,
 }: {
   open: boolean;
   onClose: () => void;
   onHelp: () => void;
-  onPush: () => void;
   onSignOut: () => void;
 }) {
   const router = useRouter();
@@ -75,12 +72,6 @@ export default function Sidebar({
           ))}
         </nav>
         <div className="sidebar-footer">
-          {pushConfigured && (
-            <button type="button" className="sidebar-link" onClick={onPush}>
-              <BellRing size={18} />
-              <span>Phone notifications</span>
-            </button>
-          )}
           <button type="button" className="sidebar-link" onClick={onHelp}>
             <CircleHelp size={18} />
             <span>Help</span>
