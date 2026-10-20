@@ -12,16 +12,22 @@ const account = (role: Account["role"], over: Partial<Account> = {}) => ({
 });
 
 describe("request access", () => {
-  it("lets Requesters and Admins make Daily requests, but not Schedulers", () => {
+  it("lets Requesters and Admins make Daily requests, but not Schedulers by default", () => {
     expect(canRequestDaily(account("Requester"))).toBe(true);
     expect(canRequestDaily(account("Admin"))).toBe(true);
     expect(canRequestDaily(account("Scheduler"))).toBe(false);
   });
 
+  it("lets a Scheduler ask when an Admin allows it (0074)", () => {
+    expect(canRequestTransport(account("Scheduler"))).toBe(false);
+    expect(canRequestDaily(account("Scheduler", { canRequestDaily: true }))).toBe(true);
+    expect(canRequestCompany(account("Scheduler", { canRequestCompany: true }))).toBe(true);
+    expect(canRequestDaily(account("Scheduler", { canRequestCompany: true }))).toBe(false);
+  });
+
   it("needs the switch for company trips", () => {
     expect(canRequestCompany(account("Requester"))).toBe(false);
     expect(canRequestCompany(account("Requester", { canRequestCompany: true }))).toBe(true);
-    expect(canRequestCompany(account("Scheduler", { canRequestCompany: true }))).toBe(false);
   });
 
   it("lets every Admin request company trips, switch or not (0059)", () => {
