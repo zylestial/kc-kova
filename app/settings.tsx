@@ -18,6 +18,7 @@ import {
 import { canRequestCompany, canRequestDaily, hasRequestSwitches } from "@/lib/request-access";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
+import { useAccount } from "./(app)/providers";
 import BookingOptions from "./booking-options";
 import InvitesPanel from "./invites-panel";
 import { Button } from "@/components/ui/button";
@@ -113,16 +114,18 @@ function Choice<T extends string>({
   value,
   items,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: T;
   items: readonly T[];
   onChange: (s: T) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className="field">
       <span>{label} *</span>
-      <Select value={value} onValueChange={(v) => onChange(v as T)}>
+      <Select value={value} onValueChange={(v) => onChange(v as T)} disabled={disabled}>
         <SelectTrigger>
           <SelectValue />
         </SelectTrigger>
@@ -140,6 +143,7 @@ function Choice<T extends string>({
 export default function Settings() {
   const [tab, setTab] = useState("accounts");
   const { accounts, vehicles } = useKovaData();
+  const { account: me } = useAccount();
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
@@ -514,6 +518,7 @@ export default function Settings() {
               value={account.role}
               items={["Requester", "Scheduler", "Admin", "Driver", "Finance"]}
               onChange={(v) => setAccount({ ...account, role: v })}
+              disabled={accountId === me.id}
             />
             {isDriver && (
               <Choice
@@ -528,7 +533,9 @@ export default function Settings() {
               value={account.status}
               items={["Active", "Inactive"]}
               onChange={(v) => setAccount({ ...account, status: v })}
+              disabled={accountId === me.id}
             />
+            {accountId === me.id && <small>You can&apos;t change your own account type or status. Ask another Admin.</small>}
             <div className="field">
               <span>Requests</span>
               {isDriver && !switches ? (
