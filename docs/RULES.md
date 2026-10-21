@@ -238,7 +238,15 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   submitted.
 - Start opens on the trip's date (Asia/Manila), never before; End needs
   Start. Repeating a tap returns the first one unchanged.
-- The time is always the server's. The position is optional and comes from
+- The time is the server's, except for a tap made with no signal (0077):
+  the phone keeps it with the time it was tapped and sends it once it can,
+  in order, through the RPC's `_at` twin. The database takes that time only
+  within bounds: never after its own now, never before the step it follows
+  (the trip day's midnight for Start; the trip's start or last stop tap for
+  a stop tap or End), and notes when it arrived (`*sent_at`). This applies
+  to every trip tap: Start/End, Arrived/Leaving and a Company trip's. A
+  saved tap KOVA then refuses (the trip was cancelled meanwhile, say) is
+  dropped and listed on the trip screen. The position is optional and comes from
   the phone; the database works out the distance from ANONANG
   (16.103769, 120.436222). A tap that couldn't be within 150 m (its
   distance minus the phone's reported accuracy, counting at most 250 m of
