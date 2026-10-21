@@ -385,6 +385,19 @@ approved version's Driver, `recorded_by_account_id` whoever tapped.
 time (`distance_m()`), null without one. Written only by `record_stop_tap`;
 `authenticated` gets `SELECT` only (the Driver's own rows, Admin all).
 
+**Taps saved offline (0077).** Each tap RPC (`record_trip_attendance`,
+`record_stop_tap`, `start_company_trip`, `record_company_stop`,
+`end_company_trip`) has an `_at` twin taking `p_tapped_at` first. The twin
+sets `kova.tapped_at` for the call and runs the original; the
+`apply_tapped_at` trigger on `trip_attendance`, `stop_taps` and
+`company_trip_runs` then puts that time on the row, bounded by
+`bounded_tap_time()`, and fills `sent_at` / `start_sent_at` /
+`end_sent_at` with the server's time. Without the setting the trigger does
+nothing. The routes call the twin when the body has `tappedAt`
+(`tapRpc`, `lib/attendance-input.ts`). The phone side is
+`lib/saved-taps.ts` (localStorage queue, and the overlay that shows saved
+taps as done) and `sendSavedTaps` in `lib/kova-api.ts`.
+
 With Start/End these are the actual times on the printed form
 (`lib/stop-times.ts`): leg 1 TIME OUT = Start trip, leg N TIME IN =
 Arrived at leg N, leg N+1 TIME OUT = Leaving leg N, final TIME IN = End trip.

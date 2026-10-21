@@ -1070,3 +1070,33 @@ account the company owns from day one.
   Dashboard → Auth → Sign In / Providers → "Allow new users to sign up"). Keep it off: accounts only
   come from invites, which use the service-role key. `config.toml`'s
   `enable_signup = true` is the local stack only.
+
+## Taps with no signal (2026-10-21)
+
+- **The phone's clock is trusted, within bounds.** The user chose to build
+  this after the pre-pilot audit (a tap in a dead zone used to fail, and
+  its retry read late). A saved tap's time is kept between the step
+  before it and the server's now (`bounded_tap_time`, 0077), so a wrong
+  phone clock can only shift a time inside that window, never reorder
+  taps or put one in the future. `*sent_at` shows which taps came late.
+- **`_at` twins plus a trigger, not edited RPCs.** The five tap RPCs are
+  long; copying each into 0077 just to swap `now()` would have been easy
+  to get wrong. The twins set `kova.tapped_at` (transaction-local) and
+  call the original; `apply_tapped_at` reads it. The twins clear it again,
+  so a plain tap later in the same transaction keeps the server's time.
+- **Only a tap that never reached KOVA is saved** (`status` 0). A refusal
+  (4xx) is shown as before. A saved tap that later gets 401, 408, 429 or a
+  5xx waits for the next try; any other refusal drops it and lists it on
+  the trip screen. Resending is safe: every tap RPC returns the first tap
+  on a repeat, so a tap whose answer was lost just comes back unchanged.
+- **Saved taps are per account** (`accountId` on each); another account
+  signed in on the same phone neither sees nor sends them.
+- **`router.replace` needs the network.** It fetches the page's server
+  payload, and when that fails Next reloads the whole page, which offline
+  means a dead screen. My Schedule's `?open=` cleanup now uses
+  `window.history.replaceState` (supported by this Next, see
+  `node_modules/next/dist/docs/01-app/02-guides/single-page-applications.md`).
+- **Port 3000 is reserved on this Windows machine** (excluded range
+  2953–3052), so `pnpm dev` and the Playwright config's web server can't
+  bind it locally. Run `pnpm dev -p 3100` and a Playwright config with
+  `baseURL` on 3100.

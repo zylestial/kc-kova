@@ -45,6 +45,7 @@ import { completionLabel } from "@/lib/status-text";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
+import SavedTapsBanner from "./saved-taps-banner";
 import StopReportForm from "./stop-report-form";
 import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 
@@ -240,17 +241,19 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   // One step of the trip: a fresh position from the phone, then the tap
   // (Start/End trip, or Arrived/Leaving at a stop). A phone that won't share
   // its position still records the time; the Driver is asked to turn it on.
+  // With no signal the tap is saved on the phone with this moment's time (0077).
   async function tapStep(source: TimeSource) {
     if (!selected) return;
+    const tappedAt = new Date().toISOString();
     setBusy(true);
     setBusyStop(stepKey(source));
     setError("");
     try {
       const location = await getPhoneLocation();
       if (!("legId" in source)) {
-        await recordAttendance(selected.schedule.id, { kind: source.kind, location });
+        await recordAttendance(selected.schedule.id, { kind: source.kind, location }, tappedAt);
       } else {
-        await recordStopTap(selected.schedule.id, { legId: source.legId, kind: source.kind, location });
+        await recordStopTap(selected.schedule.id, { legId: source.legId, kind: source.kind, location }, tappedAt);
       }
       setLocationOff(!location);
     } catch (caught) {
@@ -365,6 +368,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {notice}
         </div>
       )}
+      <SavedTapsBanner />
       {/* A Driver with trips gets one card per group, so the groups stand apart. */}
       {!showDriver && trips.length > 0 ? (
         <div className="trip-sections">
@@ -528,6 +532,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           )}
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
+              <SavedTapsBanner />
               <DriverTripSteps
                 steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps), new Set(missedLegs(selected.problems).keys()))}
                 legs={selected.revision.legs}
