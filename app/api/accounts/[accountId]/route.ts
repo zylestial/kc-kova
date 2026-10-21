@@ -22,6 +22,10 @@ export const PUT = authed<{ accountId: string }>(async ({ request, account, para
   const admin = createSupabaseAdminClient();
   const { data: existing } = await admin.from("accounts").select("*").eq("id", accountId).maybeSingle();
   if (!existing) return NextResponse.json({ message: "Account not found." }, { status: 404 });
+  // An Admin can't take away their own access, so there's always an Admin left to manage accounts.
+  if (accountId === account.id && (role !== existing.role || status !== existing.status)) {
+    return NextResponse.json({ message: "You can't change your own account type or status. Ask another Admin." }, { status: 422 });
+  }
 
   if (username.toLowerCase() !== existing.username.toLowerCase()) {
     const refused = await renameAuthUser(admin, accountId, username);

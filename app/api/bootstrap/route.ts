@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authed } from "@/lib/api-route";
 import { toAccount } from "@/lib/supabase/accounts";
 import { parseSince } from "@/lib/bootstrap-window";
+import { allRows } from "@/lib/supabase/all-rows";
 import {
   liveRevisionStatuses,
   toCancellationRequest,
@@ -58,62 +59,123 @@ export const GET = authed(async ({ request, supabase }) => {
     oldCompletionsRes,
     oldProblemsRes,
   ] = await Promise.all([
-    supabase.from("accounts").select("*"),
-    supabase.from("vehicles").select("*"),
-    supabase.from("booking_options").select("*"),
-    supabase.from("destination_locations").select("destination_id, lat, lng"),
-    supabase.from("requests").select(requestSelect).eq("request_destinations.active", true).gte("requested_date", since),
-    supabase.from("request_progress").select("*").gte("requested_date", since),
-    supabase
-      .from("schedules")
-      .select(scheduleSelect)
-      .neq("status", "DISCARDED")
-      .in("schedule_revisions.status", liveRevisionStatuses)
-      .gte("schedule_date", since),
-    supabase
-      .from("request_cancellations")
-      .select("*, requests!request_cancellations_request_id_fkey!inner(requested_date)")
-      .gte("requests.requested_date", since),
-    supabase
-      .from("trip_completions")
-      .select("*, schedules!trip_completions_schedule_id_fkey!inner(schedule_date)")
-      .gte("schedules.schedule_date", since),
-    supabase
-      .from("trip_attendance")
-      .select("*, schedules!trip_attendance_schedule_id_fkey!inner(schedule_date)")
-      .gte("schedules.schedule_date", since),
-    supabase
-      .from("stop_taps")
-      .select("*, schedules!stop_taps_schedule_id_fkey!inner(schedule_date)")
-      .gte("schedules.schedule_date", since),
-    supabase
-      .from("company_trip_runs")
-      .select("*, schedules!company_trip_runs_schedule_id_fkey!inner(schedule_date)")
-      .gte("schedules.schedule_date", since),
-    supabase
-      .from("trip_time_corrections")
-      .select("*, schedules!trip_time_corrections_schedule_id_fkey!inner(schedule_date)")
-      .gte("schedules.schedule_date", since),
-    supabase
-      .from("problem_reports")
-      .select("*, schedules!problem_reports_schedule_id_fkey!inner(schedule_date)")
-      .gte("schedules.schedule_date", since),
+    allRows((from, to) => supabase.from("accounts").select("*").order("id").range(from, to)),
+    allRows((from, to) => supabase.from("vehicles").select("*").order("plate").range(from, to)),
+    allRows((from, to) => supabase.from("booking_options").select("*").order("group").order("id").range(from, to)),
+    allRows((from, to) =>
+      supabase
+        .from("destination_locations")
+        .select("destination_id, lat, lng")
+        .order("destination_group")
+        .order("destination_id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("requests")
+        .select(requestSelect)
+        .eq("request_destinations.active", true)
+        .gte("requested_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase.from("request_progress").select("*").gte("requested_date", since).order("request_id").range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("schedules")
+        .select(scheduleSelect)
+        .neq("status", "DISCARDED")
+        .in("schedule_revisions.status", liveRevisionStatuses)
+        .gte("schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("request_cancellations")
+        .select("*, requests!request_cancellations_request_id_fkey!inner(requested_date)")
+        .gte("requests.requested_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("trip_completions")
+        .select("*, schedules!trip_completions_schedule_id_fkey!inner(schedule_date)")
+        .gte("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("trip_attendance")
+        .select("*, schedules!trip_attendance_schedule_id_fkey!inner(schedule_date)")
+        .gte("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("stop_taps")
+        .select("*, schedules!stop_taps_schedule_id_fkey!inner(schedule_date)")
+        .gte("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("company_trip_runs")
+        .select("*, schedules!company_trip_runs_schedule_id_fkey!inner(schedule_date)")
+        .gte("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("trip_time_corrections")
+        .select("*, schedules!trip_time_corrections_schedule_id_fkey!inner(schedule_date)")
+        .gte("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("problem_reports")
+        .select("*, schedules!problem_reports_schedule_id_fkey!inner(schedule_date)")
+        .gte("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
     supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
-    supabase
-      .from("request_cancellations")
-      .select("*, requests!request_cancellations_request_id_fkey!inner(requested_date)")
-      .eq("status", "PENDING")
-      .lt("requests.requested_date", since),
-    supabase
-      .from("trip_completions")
-      .select("*, schedules!trip_completions_schedule_id_fkey!inner(schedule_date)")
-      .eq("status", "SUBMITTED")
-      .lt("schedules.schedule_date", since),
-    supabase
-      .from("problem_reports")
-      .select("*, schedules!problem_reports_schedule_id_fkey!inner(schedule_date)")
-      .eq("status", "OPEN")
-      .lt("schedules.schedule_date", since),
+    allRows((from, to) =>
+      supabase
+        .from("request_cancellations")
+        .select("*, requests!request_cancellations_request_id_fkey!inner(requested_date)")
+        .eq("status", "PENDING")
+        .lt("requests.requested_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("trip_completions")
+        .select("*, schedules!trip_completions_schedule_id_fkey!inner(schedule_date)")
+        .eq("status", "SUBMITTED")
+        .lt("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
+        .from("problem_reports")
+        .select("*, schedules!problem_reports_schedule_id_fkey!inner(schedule_date)")
+        .eq("status", "OPEN")
+        .lt("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
   ]);
 
   const firstError = [
@@ -163,10 +225,12 @@ export const GET = authed(async ({ request, supabase }) => {
   // review shows (and prints) its actual times.
   const [oldAttendanceRes, oldStopTapsRes, oldCompanyRunsRes, oldCorrectionsRes] = oldScheduleIds.length
     ? await Promise.all([
-        supabase.from("trip_attendance").select("*").in("schedule_id", oldScheduleIds),
-        supabase.from("stop_taps").select("*").in("schedule_id", oldScheduleIds),
-        supabase.from("company_trip_runs").select("*").in("schedule_id", oldScheduleIds),
-        supabase.from("trip_time_corrections").select("*").in("schedule_id", oldScheduleIds),
+        allRows((from, to) => supabase.from("trip_attendance").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to)),
+        allRows((from, to) => supabase.from("stop_taps").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to)),
+        allRows((from, to) => supabase.from("company_trip_runs").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to)),
+        allRows((from, to) =>
+          supabase.from("trip_time_corrections").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to),
+        ),
       ])
     : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
   if (oldAttendanceRes.error || oldStopTapsRes.error || oldCompanyRunsRes.error || oldCorrectionsRes.error) {
@@ -186,8 +250,16 @@ export const GET = authed(async ({ request, supabase }) => {
   ].filter((id) => !loadedRequestIds.has(id));
   const [oldRequestsRes, oldProgressRes] = oldRequestIds.length
     ? await Promise.all([
-        supabase.from("requests").select(requestSelect).eq("request_destinations.active", true).in("id", oldRequestIds),
-        supabase.from("request_progress").select("*").in("request_id", oldRequestIds),
+        allRows((from, to) =>
+          supabase
+            .from("requests")
+            .select(requestSelect)
+            .eq("request_destinations.active", true)
+            .in("id", oldRequestIds)
+            .order("id")
+            .range(from, to),
+        ),
+        allRows((from, to) => supabase.from("request_progress").select("*").in("request_id", oldRequestIds).order("request_id").range(from, to)),
       ])
     : [{ data: [], error: null }, { data: [], error: null }];
   if (oldRequestsRes.error || oldProgressRes.error) {
