@@ -38,7 +38,8 @@ export function parseAttendanceInput(body: unknown): AttendanceInput | null {
 
 const companyRunBody = z.object({
   kind: z.enum(["START", "END"]),
-  odometer: z.number().int().min(0).max(9_999_999),
+  // Null for a vehicle without an odometer (0078); the database says when one is needed.
+  odometer: z.number().int().min(0).max(9_999_999).nullable(),
   location: location.nullable().default(null),
   tappedAt,
 });

@@ -199,6 +199,8 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
   the starting odometer and opens on the trip's date (0056); then Arrived and
   Leaving at each stop but the last, in route order; End trip on arriving
   at the last stop needs the ending odometer, never lower than the start.
+  A vehicle without an odometer (0078) takes no readings at either end;
+  End trip follows Start, so a trip started without one ends without one.
   Server time, optional phone position, flagged never refused; a repeat tap
   returns the first. End trip submits the trip (a `trip_completions` row),
   so it goes to Finished Trips like any other.
@@ -216,6 +218,12 @@ The completion rules:
 - A completion is **one odometer pair for the whole schedule**: whole numbers,
   start ≥ 0, end ≥ start, pinned to the approved version, with a server-set
   `submitted_at`. Repeating a submit returns the existing completion.
+- **Vehicles without an odometer** (`vehicles.has_odometer` off, 0078,
+  Settings → Vehicles → "Has an odometer"): the completion has no readings
+  (both null; never one without the other), Complete trip skips straight to
+  the final return, and screens and printed forms say "No odometer" / "N/A".
+  Whether readings are needed is read from the vehicle when the trip is
+  completed. A vehicle with one still needs both, as before.
 - The trip must be over: the Driver has tapped Start and End (below). Since
   0047 End trip is enough, so a trip back early can be completed before its
   last planned Time In. Problem reports have no such limit, can be filed

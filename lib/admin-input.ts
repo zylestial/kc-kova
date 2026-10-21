@@ -54,6 +54,8 @@ export const passwordBody = z.object({ password: z.string() }).catch({ password:
 
 /** "Can be requested for company trips"; off unless sent (0051). */
 const companyTrips = z.boolean().catch(false);
+/** "Has an odometer"; on unless sent off (0078). */
+const hasOdometer = z.boolean().catch(true);
 
 export const createVehicleBody = z.object({
   plate: required,
@@ -61,9 +63,17 @@ export const createVehicleBody = z.object({
   status: statusOrActive,
   assignedDriverId: optionalId,
   companyTrips,
+  hasOdometer,
 });
 
-export const updateVehicleBody = z.object({ plate: required, name: required, status, assignedDriverId: optionalId, companyTrips });
+export const updateVehicleBody = z.object({
+  plate: required,
+  name: required,
+  status,
+  assignedDriverId: optionalId,
+  companyTrips,
+  hasOdometer,
+});
 
 export const bookingOptionBody = z.object({
   name: required,

@@ -61,8 +61,9 @@ export default function CompanyTripPrint({
           head: group?.head?.name ?? "",
           siteOfficer: group?.siteOfficer ?? "",
           siteCompany: group?.siteCompany ?? "",
-          odometerStart: completion.startOdometer,
-          odometerEnd: completion.endOdometer,
+          odometerStart: completion.startOdometer ?? undefined,
+          odometerEnd: completion.endOdometer ?? undefined,
+          noOdometer: completion.startOdometer === null,
         }}
       />
     </div>,

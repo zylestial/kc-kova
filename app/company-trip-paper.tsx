@@ -31,6 +31,8 @@ export type CompanyTripPaperData = {
   siteCompany: string;
   odometerStart?: number;
   odometerEnd?: number;
+  /** A finished trip in a vehicle without an odometer (0078): the readings say N/A instead of a blank. */
+  noOdometer?: boolean;
 };
 
 /** The paper form has room for this many legs; more rows are added when a trip has more. */
@@ -42,9 +44,10 @@ const paperDate = (date: string) =>
 
 export default function CompanyTripPaper({ data }: { data: CompanyTripPaperData }) {
   const value = (text: string) => text || BLANK;
-  const km = (reading?: number) => (reading === undefined ? BLANK : `${reading} km`);
+  const none = data.noOdometer ? "N/A (no odometer)" : BLANK;
+  const km = (reading?: number) => (reading === undefined ? none : `${reading} km`);
   const distance =
-    data.odometerStart !== undefined && data.odometerEnd !== undefined ? `${data.odometerEnd - data.odometerStart} km` : BLANK;
+    data.odometerStart !== undefined && data.odometerEnd !== undefined ? `${data.odometerEnd - data.odometerStart} km` : none;
   const rows = Array.from({ length: Math.max(PAPER_ROWS, data.legs.length) }, (_, index) => data.legs[index]);
   const info: Array<[string, string]> = [
     ["DATE", paperDate(data.date)],

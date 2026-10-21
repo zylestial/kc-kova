@@ -27,6 +27,7 @@ type VehicleRow = {
   status: "Active" | "Inactive";
   assigned_driver_id: string | null;
   company_trips: boolean;
+  has_odometer: boolean;
 };
 
 export function toVehicle(row: VehicleRow): Vehicle {
@@ -36,6 +37,7 @@ export function toVehicle(row: VehicleRow): Vehicle {
     status: row.status,
     assignedDriverId: row.assigned_driver_id ?? undefined,
     companyTrips: row.company_trips,
+    hasOdometer: row.has_odometer,
   };
 }
 
@@ -239,9 +241,9 @@ type CompletionRow = {
   schedule_id: string;
   revision_id: string;
   driver_id: string;
-  start_odometer: number;
-  end_odometer: number;
-  distance: number;
+  start_odometer: number | null;
+  end_odometer: number | null;
+  distance: number | null;
   submitted_at: string;
   status: TripCompletion["status"];
   done_at?: string | null;
@@ -361,7 +363,7 @@ type CompanyTripRunRow = {
   schedule_id: string;
   revision_id: string;
   start_at: string;
-  start_odometer: number;
+  start_odometer: number | null;
   end_at: string | null;
   end_odometer: number | null;
 };
