@@ -203,6 +203,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `name` | text | |
 | `status` | text | `Active` \| `Inactive` |
 | `company_trips` | boolean | 0051. "Can be requested for company trips": offered on the Company Trip form, never on a Daily trip |
+| `has_odometer` | boolean | 0078, default true. Off for a vehicle with no odometer: `submit_completion` and `start_company_trip` store no readings (`vehicle_has_odometer()`), and `trip_completions` / `company_trip_runs` readings are then null |
 
 ### `booking_options`
 | Column | Type | Notes |
