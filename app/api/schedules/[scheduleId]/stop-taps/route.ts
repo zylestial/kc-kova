@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authed, readJson } from "@/lib/api-route";
-import { parseStopTapInput } from "@/lib/attendance-input";
+import { parseStopTapInput, tapRpc } from "@/lib/attendance-input";
 import { reverseGeocode } from "@/lib/reverse-geocode";
 import { toStopTap } from "@/lib/supabase/mappers";
 import { scheduleErrorResponse } from "@/lib/supabase/schedules";
@@ -16,15 +16,21 @@ export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, p
   }
 
   const address = input.location ? await reverseGeocode(input.location.lat, input.location.lng) : null;
-  const { data, error } = await supabase.rpc("record_stop_tap", {
-    p_schedule_id: scheduleId,
-    p_leg_id: input.legId,
-    p_kind: input.kind,
-    p_lat: input.location?.lat ?? null,
-    p_lng: input.location?.lng ?? null,
-    p_accuracy_m: input.location?.accuracyM ?? null,
-    p_address: address,
-  });
+  const { data, error } = await supabase.rpc(
+    ...tapRpc(
+      "record_stop_tap",
+      {
+        p_schedule_id: scheduleId,
+        p_leg_id: input.legId,
+        p_kind: input.kind,
+        p_lat: input.location?.lat ?? null,
+        p_lng: input.location?.lng ?? null,
+        p_accuracy_m: input.location?.accuracyM ?? null,
+        p_address: address,
+      },
+      input.tappedAt,
+    ),
+  );
   if (error) {
     return scheduleErrorResponse(error, input.kind === "ARRIVE" ? "Could not record arriving." : "Could not record leaving.", error.message);
   }

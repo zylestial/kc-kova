@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authed, readJson } from "@/lib/api-route";
-import { parseAttendanceInput } from "@/lib/attendance-input";
+import { parseAttendanceInput, tapRpc } from "@/lib/attendance-input";
 import { reverseGeocode } from "@/lib/reverse-geocode";
 import { toTripAttendance } from "@/lib/supabase/mappers";
 import { scheduleErrorResponse } from "@/lib/supabase/schedules";
@@ -17,14 +17,20 @@ export const POST = authed<{ scheduleId: string }>(async ({ request, supabase, p
   }
 
   const address = input.location ? await reverseGeocode(input.location.lat, input.location.lng) : null;
-  const { data, error } = await supabase.rpc("record_trip_attendance", {
-    p_schedule_id: scheduleId,
-    p_kind: input.kind,
-    p_lat: input.location?.lat ?? null,
-    p_lng: input.location?.lng ?? null,
-    p_accuracy_m: input.location?.accuracyM ?? null,
-    p_address: address,
-  });
+  const { data, error } = await supabase.rpc(
+    ...tapRpc(
+      "record_trip_attendance",
+      {
+        p_schedule_id: scheduleId,
+        p_kind: input.kind,
+        p_lat: input.location?.lat ?? null,
+        p_lng: input.location?.lng ?? null,
+        p_accuracy_m: input.location?.accuracyM ?? null,
+        p_address: address,
+      },
+      input.tappedAt,
+    ),
+  );
   if (error) return scheduleErrorResponse(error, input.kind === "START" ? "Could not start the trip." : "Could not end the trip.");
 
   return NextResponse.json(toTripAttendance(data));
