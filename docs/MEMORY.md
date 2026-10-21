@@ -1066,7 +1066,7 @@ account the company owns from day one.
   (`/api/accounts/[accountId]`, Edit Account). With one Admin, a slip
   there would have left nobody able to manage accounts. Another Admin
   can still change it.
-- **Self-signup in the hosted project** should be off (Dashboard → Auth
-  → Sign In / Providers → "Allow new users to sign up"); accounts only
+- **Self-signup is off in the hosted project** (turned off 2026-10-21:
+  Dashboard → Auth → Sign In / Providers → "Allow new users to sign up"). Keep it off: accounts only
   come from invites, which use the service-role key. `config.toml`'s
   `enable_signup = true` is the local stack only.
