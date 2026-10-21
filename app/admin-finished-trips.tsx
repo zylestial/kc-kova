@@ -49,6 +49,7 @@ import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import { anyDate, inDateFilter, type DateFilter } from "@/lib/date-range";
 import { manilaToday } from "@/lib/timezone";
+import { kmLabel, readingsLabel } from "@/lib/odometer";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -457,7 +458,7 @@ export default function AdminFinishedTrips({
                     <td>{trip.revision.plate}</td>
                     <td>{trip.revision.driverName}</td>
                     <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
-                    <td>{trip.completion ? `${trip.completion.distance} km` : "—"}</td>
+                    <td>{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
                     <td>
                       <span className={"badge " + (trip.completion?.status === "DONE" ? "complete" : "")}>
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
@@ -523,7 +524,7 @@ export default function AdminFinishedTrips({
                     <td>{dateLabel(trip.schedule.date)}</td>
                     <td>{trip.revision.plate}</td>
                     <td>{trip.revision.driverName}</td>
-                    <td>{trip.completion ? `${trip.completion.distance} km` : "—"}</td>
+                    <td>{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -591,7 +592,7 @@ export default function AdminFinishedTrips({
               {selected.completion ? (
                 <>
                   <p className="helper">
-                    Odometer: {selected.completion.startOdometer} → {selected.completion.endOdometer} ({selected.completion.distance} km) ·{" "}
+                    Odometer: {readingsLabel(selected.completion)} ·{" "}
                     {completionLabel[selected.completion.status]}
                   </p>
                   <p className="helper">{completionMeaning[selected.completion.status]}</p>
@@ -644,17 +645,20 @@ export default function AdminFinishedTrips({
                   </Button>
                   {!readOnly && (
                     <>
-                      <Button
-                        variant="outline"
-                        disabled={isDone}
-                        onClick={() => {
-                          setStart(String(selected.completion!.startOdometer));
-                          setEnd(String(selected.completion!.endOdometer));
-                          setMode("correct");
-                        }}
-                      >
-                        Correct odometers
-                      </Button>
+                      {/* A trip without readings (0078) has none to correct. */}
+                      {selected.completion.startOdometer !== null && (
+                        <Button
+                          variant="outline"
+                          disabled={isDone}
+                          onClick={() => {
+                            setStart(String(selected.completion!.startOdometer));
+                            setEnd(String(selected.completion!.endOdometer));
+                            setMode("correct");
+                          }}
+                        >
+                          Correct odometers
+                        </Button>
+                      )}
                       <Button
                         className="primary"
                         disabled={isDone || selectedMissing > 0}
