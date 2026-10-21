@@ -1049,3 +1049,24 @@ account the company owns from day one.
   out the night before go-live.
 - **Production seed scripts retired.** Production holds real data from
   2026-10-21; never seed or reset it.
+
+## Pre-pilot audit (2026-10-21)
+
+- **Supabase returns at most 1000 rows per query and says nothing**
+  (`max_rows`, `supabase/config.toml`). Any list that can grow goes
+  through `allRows` (`lib/supabase/all-rows.ts`) with an `order()` on a
+  unique column, or it silently loses rows; `/api/bootstrap` does this
+  for every list but the 50 latest notifications.
+- **A password change ends every session by itself.** Checked against
+  local Supabase: after `auth.admin.updateUserById(id, { password })`
+  the old access token and refresh token are both refused. The Admin
+  reset and the emailed reset need no extra sign-out; My account signs
+  the current device in again for this reason.
+- **An Admin can't change their own account type or status**
+  (`/api/accounts/[accountId]`, Edit Account). With one Admin, a slip
+  there would have left nobody able to manage accounts. Another Admin
+  can still change it.
+- **Self-signup in the hosted project** should be off (Dashboard → Auth
+  → Sign In / Providers → "Allow new users to sign up"); accounts only
+  come from invites, which use the service-role key. `config.toml`'s
+  `enable_signup = true` is the local stack only.
