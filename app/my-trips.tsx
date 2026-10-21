@@ -19,6 +19,7 @@ import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
 import { routeChangedAt } from "@/lib/trip-record";
 import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 import StopReportForm from "./stop-report-form";
+import SavedTapsBanner from "./saved-taps-banner";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -79,6 +80,8 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   }
 
   async function tap(trip: Trip, step: CompanyStep) {
+    // With no signal the tap is saved on the phone with this moment's time (0077).
+    const tappedAt = new Date().toISOString();
     const needsOdometer = step.kind === "START" || step.kind === "END";
     const reading = Number(odometer);
     if (needsOdometer && (odometer.trim() === "" || !Number.isInteger(reading) || reading < 0)) {
@@ -95,11 +98,13 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     try {
       const location = await getPhoneLocation();
       if (step.kind === "START" || step.kind === "END") {
-        await recordCompanyRun(trip.schedule.id, { kind: step.kind, odometer: reading, location });
+        const result = await recordCompanyRun(trip.schedule.id, { kind: step.kind, odometer: reading, location }, tappedAt);
         setOdometer("");
-        if (step.kind === "END") setNotice("Trip ended and submitted. Thank you!");
+        if (step.kind === "END") {
+          setNotice(result === "sent" ? "Trip ended and submitted. Thank you!" : "Trip ended. It submits when you have signal. Thank you!");
+        }
       } else {
-        await recordCompanyStop(trip.schedule.id, { legId: step.legId!, kind: step.kind, location });
+        await recordCompanyStop(trip.schedule.id, { legId: step.legId!, kind: step.kind, location }, tappedAt);
       }
       setLocationOff(!location);
     } catch (caught) {
@@ -139,6 +144,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
           {notice}
         </div>
       )}
+      <SavedTapsBanner />
       <section className="schedule-panel">
         <div className="panel-toolbar">
           <div>
