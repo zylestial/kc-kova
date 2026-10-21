@@ -148,6 +148,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
         {step.state === "done" ? <Check size={18} /> : step.state === "skipped" ? <Minus size={18} /> : <Circle size={18} />}
         <span>{text.done}</span>
         {step.state === "done" && step.time.tap && <b>{tapTimeLabel(step.time.tap.at)}</b>}
+        {step.state === "done" && step.time.tap?.saved && <small>waiting for signal</small>}
         {step.state === "skipped" && <small>skipped</small>}
         {step.state === "later" && planned && <small>est. {hhmmLabel(planned)}</small>}
       </div>
