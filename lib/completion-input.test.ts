@@ -40,6 +40,18 @@ describe("parseCompletionInput", () => {
     expect(parseCompletionInput({ startOdometer: "1000", endOdometer: "1042" })).toBeNull();
     expect(parseCompletionInput(null)).toBeNull();
   });
+
+  it("takes no readings at all, for a vehicle without an odometer (0078)", () => {
+    expect(parseCompletionInput({ fullTank: true })).toEqual({
+      startOdometer: null,
+      endOdometer: null,
+      fullTank: true,
+      fleetCardUsed: null,
+      gasReceiptAttached: null,
+    });
+    expect(parseCompletionInput({ startOdometer: null, endOdometer: null })?.startOdometer).toBeNull();
+    expect(parseCompletionInput({ startOdometer: null, endOdometer: 1042 })).toBeNull();
+  });
 });
 
 describe("parseProblemNote", () => {

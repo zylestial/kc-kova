@@ -16,6 +16,7 @@ import { completionLabel, completionMeaning } from "@/lib/status-text";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
+import { kmLabel, readingsLabel } from "@/lib/odometer";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -44,7 +45,7 @@ export default function DriverFinishedTrips() {
     date: (trip) => trip.schedule.date,
     plate: (trip) => trip.revision.plate,
     route: (trip) => trip.revision.legs.map((leg) => leg.destinationName).join(" → "),
-    distance: (trip) => trip.completion.distance,
+    distance: (trip) => trip.completion.distance ?? -1,
     status: (trip) => completionLabel[trip.completion.status],
   });
 
@@ -85,7 +86,7 @@ export default function DriverFinishedTrips() {
                     <td>{dateLabel(trip.schedule.date)}</td>
                     <td>{trip.revision.plate}</td>
                     <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
-                    <td>{trip.completion.distance} km</td>
+                    <td>{kmLabel(trip.completion.distance)}</td>
                     <td>
                       <span className={"badge " + (trip.completion.status === "DONE" ? "complete" : "")}>
                         {completionLabel[trip.completion.status]}
@@ -128,7 +129,7 @@ export default function DriverFinishedTrips() {
             <>
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
               <p className="helper">
-                Odometer: {selected.completion.startOdometer} → {selected.completion.endOdometer} ({selected.completion.distance} km) ·{" "}
+                Odometer: {readingsLabel(selected.completion)} ·{" "}
                 {completionLabel[selected.completion.status]}
               </p>
               <p className="helper">{completionMeaning[selected.completion.status]}</p>

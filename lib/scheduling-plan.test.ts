@@ -52,7 +52,7 @@ const context = (requests: TransportRequest[], patch: Partial<PlanContext> = {})
 });
 const driver = { id: "d1", name: "Mario", role: "Driver", status: "Active" } as Account;
 const row = (trips: VehicleRow["trips"] = [], patch: Partial<VehicleRow> = {}): VehicleRow => ({
-  vehicle: { plate: "V1", name: "Van 1", status: "Active", assignedDriverId: "d1", companyTrips: false },
+  vehicle: { plate: "V1", name: "Van 1", status: "Active", assignedDriverId: "d1", companyTrips: false, hasOdometer: true },
   kind: "DAILY",
   driver,
   trips,
@@ -190,8 +190,8 @@ describe("planOptions", () => {
 
   it("offers a Company stop only on the vehicle the requester asked for", () => {
     const c = stop("c", "bdo", { group: group({ form: "COMPANY", vehiclePlate: "NBC" }) });
-    const company = row([], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true } });
-    const other = row([], { kind: "COMPANY", driver: undefined, vehicle: { plate: "XYZ", name: "Vios", status: "Active", companyTrips: true } });
+    const company = row([], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true, hasOdometer: true } });
+    const other = row([], { kind: "COMPANY", driver: undefined, vehicle: { plate: "XYZ", name: "Vios", status: "Active", companyTrips: true, hasOdometer: true } });
     const [first, second] = planOptions([c], [other, company], context([c]));
     expect(first.row.vehicle.plate).toBe("NBC");
     expect(first.input.legs).toHaveLength(1);
@@ -205,7 +205,7 @@ describe("planOptions", () => {
     const b = stop("b", "bir", { group: companyGroup, stopLetter: "B" });
     const first = trip([leg(1, "wilcon", "08:00", "08:30", ["rd-a"])], ["a"]);
     first.schedule.kind = "COMPANY";
-    const company = row([first], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true } });
+    const company = row([first], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true, hasOdometer: true } });
     const option = planOn([b], company, context([a, b]));
     expect(option.input.legs.map((item) => item.destinationId)).toEqual(["wilcon", "bir"]);
   });
@@ -216,7 +216,7 @@ describe("planOptions", () => {
     const c = stop("c", "bir", { group: group({ id: "g2", number: 53, form: "COMPANY", vehiclePlate: "NBC" }) });
     const first = trip([leg(1, "wilcon", "08:00", "08:30", ["rd-a"])], ["a"], "APPROVED");
     first.schedule.kind = "COMPANY";
-    const company = row([first], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true } });
+    const company = row([first], { kind: "COMPANY", driver: undefined, vehicle: { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true, hasOdometer: true } });
     const option = planOn([c], company, context([a, c], { started: () => true }));
     expect(option).toMatchObject({ blocked: "", arrive: "09:15" });
     expect(option.trip).toBeUndefined();

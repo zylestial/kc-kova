@@ -55,6 +55,7 @@ type Vehicle = {
   status: "Active" | "Inactive";
   assignedDriverId?: string | null;
   companyTrips: boolean;
+  hasOdometer: boolean;
 };
 const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
@@ -74,6 +75,7 @@ const blankVehicle = () => ({
   status: "Active" as Vehicle["status"],
   assignedDriverId: UNASSIGNED,
   companyTrips: false,
+  hasOdometer: true,
 });
 /** What an account may request, for the Accounts list (0051). */
 function requestsLabel(account: Account) {
@@ -255,6 +257,7 @@ export default function Settings() {
       status: v.status,
       assignedDriverId: v.assignedDriverId || UNASSIGNED,
       companyTrips: v.companyTrips,
+      hasOdometer: v.hasOdometer,
     });
     setOriginalPlate(v.plate);
     setVehicleModal("edit");
@@ -279,6 +282,7 @@ export default function Settings() {
               ? undefined
               : vehicle.assignedDriverId,
           companyTrips: vehicle.companyTrips,
+          hasOdometer: vehicle.hasOdometer,
         },
         vehicleModal === "edit" ? originalPlate : undefined,
       );
@@ -441,7 +445,10 @@ export default function Settings() {
                       <td>
                         <b>{v.plate}</b>
                       </td>
-                      <td>{v.name}</td>
+                      <td>
+                        {v.name}
+                        {!v.hasOdometer && <small>No odometer</small>}
+                      </td>
                       <td>{v.companyTrips ? "Can be requested" : "—"}</td>
                       <td>{driverName(v.assignedDriverId)}</td>
                       <td>
@@ -695,6 +702,19 @@ export default function Settings() {
                   Can be requested for company trips
                 </label>
               </div>
+            </div>
+            <div className="field">
+              <span>Odometer</span>
+              <div className="person-projects">
+                <label>
+                  <Checkbox
+                    checked={vehicle.hasOdometer}
+                    onCheckedChange={(v) => setVehicle({ ...vehicle, hasOdometer: v === true })}
+                  />
+                  Has an odometer
+                </label>
+              </div>
+              <small>Turn off for a vehicle without one: its trips are completed without readings.</small>
             </div>
             <label className="field">
               <span>Assigned Driver</span>

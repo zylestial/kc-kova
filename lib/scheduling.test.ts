@@ -119,9 +119,9 @@ describe("trips", () => {
 
   it("lists Daily vehicles first with their Driver, then vehicles for company trips", () => {
     const vehicles: Vehicle[] = [
-      { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true },
-      { plate: "V1", name: "Van 1", status: "Active", assignedDriverId: "d1", companyTrips: false },
-      { plate: "OLD", name: "Old van", status: "Inactive", companyTrips: false },
+      { plate: "NBC", name: "Mirage", status: "Active", companyTrips: true, hasOdometer: true },
+      { plate: "V1", name: "Van 1", status: "Active", assignedDriverId: "d1", companyTrips: false, hasOdometer: true },
+      { plate: "OLD", name: "Old van", status: "Inactive", companyTrips: false, hasOdometer: true },
     ];
     const accounts = [{ id: "d1", name: "Mario", role: "Driver", status: "Active" }] as Account[];
     const rows = vehicleRows(vehicles, accounts, [schedule([revision("DRAFT")])], "2026-10-14");

@@ -63,6 +63,7 @@ describe("vehicle bodies", () => {
       status: "Active",
       assignedDriverId: null,
       companyTrips: false,
+      hasOdometer: true,
     });
   });
 
@@ -70,6 +71,13 @@ describe("vehicle bodies", () => {
     const body = { plate: "ABC 123", name: "Mirage", status: "Active" };
     expect(parseWith(updateVehicleBody, { ...body, companyTrips: true })?.companyTrips).toBe(true);
     expect(parseWith(updateVehicleBody, { ...body, companyTrips: "yes" })?.companyTrips).toBe(false);
+  });
+
+  it("reads 'Has an odometer', on unless sent off (0078)", () => {
+    const body = { plate: "ABC 123", name: "Tricycle", status: "Active" };
+    expect(parseWith(updateVehicleBody, { ...body, hasOdometer: false })?.hasOdometer).toBe(false);
+    expect(parseWith(updateVehicleBody, body)?.hasOdometer).toBe(true);
+    expect(parseWith(createVehicleBody, { ...body, hasOdometer: "no" })?.hasOdometer).toBe(true);
   });
 
   it("needs a known status when editing", () => {
