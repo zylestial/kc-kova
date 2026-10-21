@@ -175,7 +175,12 @@ export type TripAttendance = {
   end?: AttendanceTap;
 };
 /** What a Start/End tap sends: the phone's position, or null when it wouldn't share it. */
-export type AttendanceInput = { kind: "START" | "END"; location: { lat: number; lng: number; accuracyM: number | null } | null };
+export type AttendanceInput = {
+  kind: "START" | "END";
+  location: { lat: number; lng: number; accuracyM: number | null } | null;
+  /** When it was tapped, for a tap saved on the phone without signal (0077). */
+  tappedAt?: string;
+};
 /** Where the phone was at an Arrived/Leaving tap; distanceM is null when the destination has no saved position. */
 export type StopTapLocation = Omit<AttendanceLocation, "distanceM"> & { distanceM: number | null };
 /**
@@ -204,9 +209,9 @@ export type CompanyTripRun = {
   endOdometer?: number;
 };
 /** What Start trip / End trip on a Company trip sends. */
-export type CompanyRunInput = { kind: "START" | "END"; odometer: number; location: AttendanceInput["location"] };
+export type CompanyRunInput = { kind: "START" | "END"; odometer: number; location: AttendanceInput["location"]; tappedAt?: string };
 /** What an Arrived/Leaving tap sends. */
-export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"] };
+export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"]; tappedAt?: string };
 /** A problem at one stop (0061); `skip` skips a blocked road instead of waiting. */
 /** requestIds: some of the requests at the stop, for Not available or Wrong address (0067); left out for all of them. */
 export type StopReportInput = {

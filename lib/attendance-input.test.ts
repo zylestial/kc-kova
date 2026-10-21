@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAttendanceInput, parseCompanyRunInput, parseStopTapInput, parseTripTimeInput } from "@/lib/attendance-input";
+import { parseAttendanceInput, parseCompanyRunInput, parseStopTapInput, parseTripTimeInput, tapRpc } from "@/lib/attendance-input";
 
 describe("parseAttendanceInput", () => {
   it("accepts a tap with a position", () => {
@@ -72,5 +72,29 @@ describe("parseCompanyRunInput", () => {
     expect(parseCompanyRunInput({ kind: "END" })).toBeNull();
     expect(parseCompanyRunInput({ kind: "END", odometer: -1 })).toBeNull();
     expect(parseCompanyRunInput({ kind: "END", odometer: 12.5 })).toBeNull();
+  });
+});
+
+describe("taps saved on the phone (0077)", () => {
+  const legId = "7d9f2c1e-4b8a-4c3d-9e6f-1a2b3c4d5e6f";
+  it("keeps the time a saved tap was made", () => {
+    const tappedAt = "2026-10-22T01:15:00.000Z";
+    expect(parseAttendanceInput({ kind: "START", tappedAt })?.tappedAt).toBe(tappedAt);
+    expect(parseStopTapInput({ legId, kind: "ARRIVE", tappedAt })?.tappedAt).toBe(tappedAt);
+    expect(parseCompanyRunInput({ kind: "END", odometer: 5, tappedAt })?.tappedAt).toBe(tappedAt);
+    expect(parseAttendanceInput({ kind: "START", tappedAt: "2026-10-22T09:15:00+08:00" })?.tappedAt).toBe("2026-10-22T09:15:00+08:00");
+  });
+
+  it("refuses a time it can't read", () => {
+    expect(parseAttendanceInput({ kind: "START", tappedAt: "yesterday" })).toBeNull();
+    expect(parseStopTapInput({ legId, kind: "LEAVE", tappedAt: 1761095700000 })).toBeNull();
+  });
+
+  it("calls the _at twin only for a saved tap", () => {
+    expect(tapRpc("record_stop_tap", { p_kind: "ARRIVE" }, undefined)).toEqual(["record_stop_tap", { p_kind: "ARRIVE" }]);
+    expect(tapRpc("record_stop_tap", { p_kind: "ARRIVE" }, "2026-10-22T01:15:00.000Z")).toEqual([
+      "record_stop_tap_at",
+      { p_tapped_at: "2026-10-22T01:15:00.000Z", p_kind: "ARRIVE" },
+    ]);
   });
 });
