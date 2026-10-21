@@ -1100,3 +1100,20 @@ account the company owns from day one.
   2953–3052), so `pnpm dev` and the Playwright config's web server can't
   bind it locally. Run `pnpm dev -p 3100` and a Playwright config with
   `baseURL` on 3100.
+
+## Vehicles without an odometer (2026-10-21)
+
+- **A per-vehicle switch, not optional readings everywhere.** The owner
+  chose "Has an odometer" on each vehicle, so a Driver can't skip the
+  reading on a vehicle that has one.
+- **Decided when the readings would be taken.** A Daily trip checks its
+  vehicle at Complete trip. A Company trip checks at Start trip, and End
+  trip follows whatever Start did (`start_odometer` null or not), so
+  flipping the switch mid-trip can't leave a trip that can't end.
+- **Readings come as a pair.** `trip_completions` and an ended
+  `company_trip_runs` row have both readings or neither (0078 checks);
+  `distance` is then null too. Screens use `kmLabel` / `readingsLabel`,
+  prints use `printKm` (`lib/odometer.ts`); a raw `${x} km` would print
+  "null km".
+- **The `company_trip_runs` check 0078 replaced had a generated name**, so
+  the migration finds it by its definition rather than guessing the name.

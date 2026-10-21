@@ -2,8 +2,9 @@ import { z } from "zod";
 import { parseWith } from "@/lib/validation";
 
 export type CompletionInput = {
-  startOdometer: number;
-  endOdometer: number;
+  /** Both null for a vehicle without an odometer (0078). */
+  startOdometer: number | null;
+  endOdometer: number | null;
   fullTank: boolean | null;
   fleetCardUsed: boolean | null;
   gasReceiptAttached: boolean | null;
@@ -16,19 +17,22 @@ const optionalBoolean = z.boolean().nullable().catch(null);
 
 const completionBody = z
   .object({
-    startOdometer: reading.min(0),
-    endOdometer: reading,
+    startOdometer: reading.min(0).nullable().default(null),
+    endOdometer: reading.nullable().default(null),
     fullTank: optionalBoolean,
     fleetCardUsed: optionalBoolean,
     gasReceiptAttached: optionalBoolean,
   })
-  .refine((body) => body.endOdometer >= body.startOdometer);
+  .refine(({ startOdometer: start, endOdometer: end }) =>
+    start === null || end === null ? start === end : end >= start,
+  );
 
 /**
  * Shape-checks a Complete trip body before it reaches submit_completion.
- * Odometers must be whole numbers, start no lower than 0 and end no lower
- * than start; whether the trip has ended and who may complete it are
- * enforced in Postgres. The three return checks are optional and never
+ * Odometers are both left out (a vehicle without one, 0078) or both whole
+ * numbers, start no lower than 0 and end no lower than start; whether the
+ * vehicle needs them, whether the trip has ended and who may complete it
+ * are enforced in Postgres. The three return checks are optional and never
  * required to complete a trip. Returns null when the body isn't usable.
  */
 export function parseCompletionInput(body: unknown): CompletionInput | null {

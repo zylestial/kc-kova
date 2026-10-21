@@ -11,14 +11,14 @@ export const POST = authed(async ({ request, supabase, account }) => {
   if (!body) {
     return NextResponse.json({ message: "Plate and name are required." }, { status: 422 });
   }
-  const { plate, name, status, assignedDriverId, companyTrips } = body;
+  const { plate, name, status, assignedDriverId, companyTrips, hasOdometer } = body;
 
   // vehicles_admin_write RLS policy enforces the Admin check server-side too;
   // the assigned_driver_id triggers enforce it must be an active Driver and
   // not already assigned elsewhere.
   const { data, error } = await supabase
     .from("vehicles")
-    .insert({ plate, name, status, assigned_driver_id: assignedDriverId, company_trips: companyTrips })
+    .insert({ plate, name, status, assigned_driver_id: assignedDriverId, company_trips: companyTrips, has_odometer: hasOdometer })
     .select("*")
     .single();
   if (error || !data) {

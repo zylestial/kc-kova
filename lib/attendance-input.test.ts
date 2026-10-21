@@ -68,6 +68,10 @@ describe("parseCompanyRunInput", () => {
     expect(parseCompanyRunInput({ kind: "START", odometer: 48215 })).toEqual({ kind: "START", odometer: 48215, location: null });
   });
 
+  it("accepts no reading for a vehicle without an odometer (0078)", () => {
+    expect(parseCompanyRunInput({ kind: "START", odometer: null })).toEqual({ kind: "START", odometer: null, location: null });
+  });
+
   it("rejects a missing, negative or fractional reading", () => {
     expect(parseCompanyRunInput({ kind: "END" })).toBeNull();
     expect(parseCompanyRunInput({ kind: "END", odometer: -1 })).toBeNull();

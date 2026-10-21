@@ -34,6 +34,8 @@ export type Vehicle = {
   assignedDriverId?: string | null;
   /** "Can be requested for company trips": offered on the Company Trip form (0051). */
   companyTrips: boolean;
+  /** Off for a vehicle with no odometer: its trips record no readings (0078). */
+  hasOdometer: boolean;
 };
 export type BookingOption = {
   id: string;
@@ -148,9 +150,10 @@ export type TripCompletion = {
   scheduleId: string;
   revisionId: string;
   driverId: string;
-  startOdometer: number;
-  endOdometer: number;
-  distance: number;
+  /** The readings and distance are null for a vehicle without an odometer (0078). */
+  startOdometer: number | null;
+  endOdometer: number | null;
+  distance: number | null;
   submittedAt: string;
   status: "SUBMITTED" | "DONE";
   doneAt?: string;
@@ -213,14 +216,16 @@ export type CompanyTripRun = {
   scheduleId: string;
   revisionId: string;
   startAt: string;
-  startOdometer: number;
+  /** Null for a vehicle without an odometer (0078), and so is the end. */
+  startOdometer: number | null;
   endAt?: string;
-  endOdometer?: number;
+  endOdometer?: number | null;
   /** Start or End trip was tapped with no signal and is still on the phone (0077). */
   saved?: boolean;
 };
 /** What Start trip / End trip on a Company trip sends. */
-export type CompanyRunInput = { kind: "START" | "END"; odometer: number; location: AttendanceInput["location"]; tappedAt?: string };
+/** odometer is null for a vehicle without one (0078). */
+export type CompanyRunInput = { kind: "START" | "END"; odometer: number | null; location: AttendanceInput["location"]; tappedAt?: string };
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"]; tappedAt?: string };
 /** A problem at one stop (0061); `skip` skips a blocked road instead of waiting. */
@@ -708,7 +713,8 @@ export const submitSchedule = (id: string, rowVersion: number) => refreshAfter(r
 export const approveSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const returnSchedule = (id: string, rowVersion: number, comment: string) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/return`, { method: "POST", body: JSON.stringify({ rowVersion, comment }) }));
 export const discardScheduleDraft =(id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/discard`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
-export const submitCompletion = (id: string, startOdometer: number, endOdometer: number, checks?: ReturnChecks) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer, ...checks }) }));
+/** Readings are null for a vehicle without an odometer (0078). */
+export const submitCompletion = (id: string, startOdometer: number | null, endOdometer: number | null, checks?: ReturnChecks) => refreshAfter(request<TripCompletion>(`/api/schedules/${encodeURIComponent(id)}/completion`, { method: "POST", body: JSON.stringify({ startOdometer, endOdometer, ...checks }) }));
 /**
  * Records a trip tap, or keeps it on the phone when there's no signal
  * (lib/saved-taps.ts, 0077): "saved" means it shows as done and sends
