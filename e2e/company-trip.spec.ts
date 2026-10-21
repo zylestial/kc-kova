@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { pageFor } from "./helpers";
 
@@ -74,7 +75,19 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   await scheduler.goto(`/scheduling?date=${today}&type=COMPANY`);
   for (const letter of ["A", "B"]) {
     await scheduler.locator(".sc-panel .sc-stop").filter({ hasText: `${number}-${letter}` }).click();
-    await scheduler.locator(".sc-option").filter({ hasText: "Mirage" }).getByRole("button", { name: "Add" }).click();
+    const add = scheduler.locator(".sc-option").filter({ hasText: "Mirage" }).getByRole("button", { name: "Add" });
+    // This has failed in CI for stop B (the Mirage never offered Add) and
+    // couldn't be reproduced; on a failure, keep what the Scheduler saw.
+    try {
+      await expect(add).toBeEnabled(saved);
+    } catch (caught) {
+      // Written into test-results, which CI uploads on a failure.
+      const sheet = await scheduler.getByRole("dialog").allInnerTexts().catch(() => []);
+      writeFileSync(test.info().outputPath(`scheduler-stop-${letter}.txt`), sheet.join("\n----\n") || "(no dialog open)");
+      await scheduler.screenshot({ path: test.info().outputPath(`scheduler-stop-${letter}.png`), fullPage: true });
+      throw caught;
+    }
+    await add.click();
     await expect(scheduler.locator(".notice.success")).toContainText("Added to", saved);
   }
   const card = scheduler.locator(".sc-vehicle").filter({ hasText: "NBC-4821" });
