@@ -177,8 +177,10 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
 `create_company_trip` and the triggers in 0054):
 
 - A Company Trip request names a starting point, a vehicle that can be
-  requested for company trips, an active Company car
-  Driver, an Immediate Supervisor and a PM / CM / Dept. Head; the site
+  requested for company trips, a Driver who can drive company trips
+  (`can_drive_company`, 0079: a Company car Driver, or any account an Admin
+  switched "Can drive company trips" on, the requester included; never a
+  Truck driver), an Immediate Supervisor and a PM / CM / Dept. Head; the site
   officer and site company are optional. All its stops have one Project /
   Site, and that is its department / site (0058, owner's call 2026-10-15):
   it prints as the department and decides the "one department per trip"
@@ -193,9 +195,11 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
 - A vehicle may take several Company trips a day as long as their times
   don't overlap (`schedule_reservations`). Approval, return, revision and
   cancellation work as for Daily trips.
-- **The requester records it** (`start_company_trip`,
-  `record_company_stop`, `end_company_trip`, 0055): anyone with a stop on
-  the trip, or an Admin for them (audited as an override). Start trip needs
+- **Its Driver records it** (`start_company_trip`,
+  `record_company_stop`, `end_company_trip`; 0055, Driver since 0079): the
+  trip's Driver, or an Admin for them (audited as an override). A trip its
+  requester started before 0079 can still be finished by whoever started
+  it. Start trip needs
   the starting odometer and opens on the trip's date (0056); then Arrived and
   Leaving at each stop but the last, in route order; End trip on arriving
   at the last stop needs the ending odometer, never lower than the start.
@@ -204,8 +208,11 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
   Server time, optional phone position, flagged never refused; a repeat tap
   returns the first. End trip submits the trip (a `trip_completions` row),
   so it goes to Finished Trips like any other.
-- **Not in Attendance**: the Driver's Start/End trip refuses a Company trip
-  (trigger `trip_attendance_daily_only`), and the Driver only sees it.
+- **Its own Start / End**: the Daily Start/End trip refuses a Company trip
+  (trigger `trip_attendance_daily_only`); its taps are in
+  `company_trip_runs` and `stop_taps`. The Attendance screen shows its
+  Start / End trip as that row's attendance (0079), never flagged as away
+  from ANONANG, and its Form filter can leave Company trips out.
 - On the Company Trip Form leg 1 TIME OUT is Start trip, leg N TIME IN is
   Arrived at leg N (End trip for the last), leg N+1 TIME OUT is Leaving
   leg N. `trip_times_missing` counts them the same way, so Done needs them
@@ -316,7 +323,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   approval refuses otherwise. On Scheduling, legs after the last one
   reached stay editable.
 - **Reporting a stop**: whoever records the trip (the Driver on a Daily
-  trip, the requester on a Company trip, or an Admin) can report the
+  trip, its Driver on a Company trip, or an Admin) can report the
   current stop after Start trip and before End trip: Not available, Wrong
   address / closed, Road blocked / weather, Vehicle problem, or Other.
   Schedulers and Admins get STOP_REPORTED. A report is a problem report

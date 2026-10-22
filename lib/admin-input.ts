@@ -46,8 +46,18 @@ function forRole<T extends { role: Role; driverType: string; canRequestDaily: bo
 }
 
 export const updateAccountBody = z
-  .object({ name: required, username: required, role: z.enum(ROLES), status, email: optionalEmail, ...requestAccess })
-  .transform(forRole);
+  .object({
+    name: required,
+    username: required,
+    role: z.enum(ROLES),
+    status,
+    email: optionalEmail,
+    ...requestAccess,
+    // "Can drive company trips" (0079); a Driver's comes from the Driver type.
+    canDriveCompany: z.boolean().catch(false),
+  })
+  .transform(forRole)
+  .transform((body) => ({ ...body, canDriveCompany: body.role !== "Driver" && body.canDriveCompany }));
 
 /** Any string; the password policy gives the message for a bad one. */
 export const passwordBody = z.object({ password: z.string() }).catch({ password: "" });

@@ -48,6 +48,7 @@ type Account = {
   driverType?: DriverType;
   canRequestDaily: boolean;
   canRequestCompany: boolean;
+  canDriveCompany: boolean;
 };
 type Vehicle = {
   plate: string;
@@ -68,6 +69,7 @@ const blankAccount = () => ({
   driverType: "Truck" as DriverType,
   canRequestDaily: false,
   canRequestCompany: false,
+  canDriveCompany: false,
 });
 const blankVehicle = () => ({
   plate: "",
@@ -207,6 +209,7 @@ export default function Settings() {
       driverType: a.driverType ?? "Truck",
       canRequestDaily: a.canRequestDaily,
       canRequestCompany: a.canRequestCompany,
+      canDriveCompany: a.canDriveCompany,
     });
     setAccountId(a.id);
     setAccountModal("edit");
@@ -234,6 +237,7 @@ export default function Settings() {
         driverType: isDriver ? account.driverType : undefined,
         canRequestDaily: switches && account.canRequestDaily,
         canRequestCompany: companyAllowed && account.canRequestCompany,
+        canDriveCompany: !isDriver && account.canDriveCompany,
       });
       setAccountModal(null);
       setNotice("Account saved.");
@@ -572,6 +576,25 @@ export default function Settings() {
                       Can request company trips
                     </label>
                   )}
+                </div>
+              )}
+            </div>
+            <div className="field">
+              <span>Driving</span>
+              {isDriver ? (
+                // A Driver's comes from the Driver type (0079).
+                <small>
+                  {account.driverType === "Company car" ? "Can drive company trips." : "Truck drivers don't drive company trips."}
+                </small>
+              ) : (
+                <div className="person-projects">
+                  <label>
+                    <Checkbox
+                      checked={account.canDriveCompany}
+                      onCheckedChange={(v) => setAccount({ ...account, canDriveCompany: v === true })}
+                    />
+                    Can drive company trips
+                  </label>
                 </div>
               )}
             </div>

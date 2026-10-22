@@ -193,13 +193,13 @@ insert into ids select 'trip', (create_company_trip(pg_temp.today(), 'TM',
 select submit_schedule(pg_temp.id('trip'), pg_temp.rv(pg_temp.id('trip')));
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select approve_schedule(pg_temp.id('trip'), pg_temp.rv(pg_temp.id('trip')));
-select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select start_company_trip(pg_temp.id('trip'), 1000);
 select lives_ok($$ select report_stop(pg_temp.id('trip'), pg_temp.leg('trip', 1), 'WRONG_ADDRESS', 'Office moved') $$,
-  'The requester reports the first stop closed');
+  'The Driver reports the first stop closed');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select answer_stop_report((select id from problem_reports where schedule_id = pg_temp.id('trip')), 'SKIP');
-select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select lives_ok($$ select end_company_trip(pg_temp.id('trip'), 1012) $$, 'and ends the trip at the last stop without tapping the first');
 select is((select count(*)::int from problem_reports where schedule_id = pg_temp.id('trip')), 1, 'The requester sees their report');
 

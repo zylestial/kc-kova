@@ -1,4 +1,4 @@
-import type { AttendanceTap, Schedule, ScheduleRevision, TripAttendance } from "@/lib/kova-api";
+import type { AttendanceTap, CompanyTripRun, Schedule, ScheduleRevision, TripAttendance } from "@/lib/kova-api";
 import { dateInBusinessTimezone } from "@/lib/timezone";
 
 /** How far from ANONANG a tap may be and still count as at base, in metres. */
@@ -32,12 +32,13 @@ export const tapFlagLabel: Record<TapFlag, string> = {
 /**
  * Flags for one Start/End tap. Away from base is a position that couldn't be
  * within BASE_RADIUS_M even allowing for the phone's error margin; late is a
- * tap on a later Asia/Manila day than the trip.
+ * tap on a later Asia/Manila day than the trip. A Company trip starts and
+ * ends away from ANONANG, so `company` taps are never flagged as away.
  */
-export function tapFlags(tap: AttendanceTap, scheduleDate: string): TapFlag[] {
+export function tapFlags(tap: AttendanceTap, scheduleDate: string, company = false): TapFlag[] {
   const flags: TapFlag[] = [];
   if (!tap.location) flags.push("no-location");
-  else if (!couldBeAtBase(tap.location)) flags.push("off-base");
+  else if (!company && !couldBeAtBase(tap.location)) flags.push("off-base");
   if (dateInBusinessTimezone(tap.at) > scheduleDate) flags.push("late");
   return flags;
 }
@@ -52,9 +53,11 @@ export function tapTimeLabel(iso: string): string {
  * location". Past BASE_RADIUS_M the phone's error margin is shown, so a rough
  * reading is easy to tell from a Driver who really was elsewhere.
  */
-export function tapPlaceLabel(tap: AttendanceTap): string {
+export function tapPlaceLabel(tap: AttendanceTap, company = false): string {
   const location = tap.location;
   if (!location) return "no location";
+  // Not measured from ANONANG (0079); the address, when the lookup found one.
+  if (company) return location.address ? `near ${location.address}` : "on the map";
   if (location.distanceM <= BASE_RADIUS_M) return "at ANONANG";
   const margin = location.accuracyM === null ? "" : ` (±${distanceLabel(location.accuracyM)})`;
   return `${distanceLabel(location.distanceM)} from ANONANG${margin}`;
@@ -83,7 +86,7 @@ export const attendanceStatusLabel: Record<AttendanceStatus, string> = {
   MISSING: "Not started",
 };
 
-/** One Driver's day on one schedule, for the Admin's Attendance screen. */
+/** One Driver's day on one schedule, for the Admin's Attendance screen; a Company trip's are its Start / End trip (0079). */
 export type AttendanceRow = {
   schedule: Schedule;
   revision: ScheduleRevision;
@@ -98,15 +101,26 @@ export type AttendanceRow = {
  * any), newest first. A trip still ahead isn't listed: nobody can be absent
  * from it yet.
  */
-export function buildAttendanceRows(schedules: Schedule[], attendance: TripAttendance[], today: string): AttendanceRow[] {
+export function buildAttendanceRows(
+  schedules: Schedule[],
+  attendance: TripAttendance[],
+  today: string,
+  companyRuns: CompanyTripRun[] = [],
+): AttendanceRow[] {
   const rows = schedules.flatMap((schedule) => {
     if (schedule.status !== "ACTIVE" || schedule.date > today) return [];
     const revision = schedule.revisions.find((item) => item.id === schedule.publishedRevisionId);
     if (!revision) return [];
-    const taps = attendance.find((item) => item.scheduleId === schedule.id) ?? null;
+    const company = schedule.kind === "COMPANY";
+    const run = company ? companyRuns.find((item) => item.scheduleId === schedule.id) : undefined;
+    const taps: TripAttendance | null = company
+      ? run?.startTap
+        ? { id: run.id, scheduleId: schedule.id, revisionId: run.revisionId, driverId: revision.driverId, start: run.startTap, end: run.endTap }
+        : null
+      : (attendance.find((item) => item.scheduleId === schedule.id) ?? null);
     const status: AttendanceStatus = !taps ? "MISSING" : taps.end ? "COMPLETE" : "STARTED";
     const flags = taps
-      ? [...new Set([...tapFlags(taps.start, schedule.date), ...(taps.end ? tapFlags(taps.end, schedule.date) : [])])]
+      ? [...new Set([...tapFlags(taps.start, schedule.date, company), ...(taps.end ? tapFlags(taps.end, schedule.date, company) : [])])]
       : [];
     return [{ schedule, revision, attendance: taps, status, flags }];
   });

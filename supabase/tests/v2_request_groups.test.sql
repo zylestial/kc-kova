@@ -118,7 +118,7 @@ select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"ve
   'This vehicle can''t be requested for company trips', 'and one that can be requested for company trips');
 select throws_ok(
   $$ select create_request_group('COMPANY', pg_temp.company('{"driverId":"00000000-0000-0000-0000-0000000000d2"}')) $$,
-  '22023', 'Select an active Company car driver', 'A Truck driver cannot be picked');
+  '22023', 'Select someone who can drive company trips', 'A Truck driver cannot be picked');
 select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"headId":""}')) $$, '22023',
   'Project Manager / Construction Manager / Dept. Head is required', 'The PM / CM / Dept. Head is required');
 select throws_ok(

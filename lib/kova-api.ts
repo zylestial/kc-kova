@@ -24,6 +24,8 @@ export type Account = {
   canRequestDaily: boolean;
   /** An Admin allowed this account to request company trips. */
   canRequestCompany: boolean;
+  /** An Admin allowed this account to drive company trips (0079); a Company car Driver always can. */
+  canDriveCompany: boolean;
 };
 export const DRIVER_TYPES = ["Truck", "Company car"] as const;
 export type DriverType = (typeof DRIVER_TYPES)[number];
@@ -222,6 +224,9 @@ export type CompanyTripRun = {
   endOdometer?: number | null;
   /** Start or End trip was tapped with no signal and is still on the phone (0077). */
   saved?: boolean;
+  /** Start and End trip as Attendance taps (0079); not measured from ANONANG. */
+  startTap?: AttendanceTap;
+  endTap?: AttendanceTap;
 };
 /** What Start trip / End trip on a Company trip sends. */
 /** odometer is null for a vehicle without one (0078). */

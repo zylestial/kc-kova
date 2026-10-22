@@ -14,7 +14,7 @@ export const PUT = authed<{ accountId: string }>(async ({ request, account, para
   if (!body) {
     return NextResponse.json({ message: "Name, username, role, and status are required." }, { status: 422 });
   }
-  const { name, username, role, status, email, position, driverType, canRequestDaily, canRequestCompany } = body;
+  const { name, username, role, status, email, position, driverType, canRequestDaily, canRequestCompany, canDriveCompany } = body;
   if (email && !z.email().safeParse(email).success) {
     return NextResponse.json({ message: "Enter a valid email address." }, { status: 422 });
   }
@@ -43,6 +43,7 @@ export const PUT = authed<{ accountId: string }>(async ({ request, account, para
       driver_type: driverType,
       can_request_daily: canRequestDaily,
       can_request_company: canRequestCompany,
+      can_drive_company: canDriveCompany,
     })
     .eq("id", accountId)
     .select("*")

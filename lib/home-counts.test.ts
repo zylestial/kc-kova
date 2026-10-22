@@ -14,6 +14,7 @@ const account = (role: Account["role"], id = "u1"): Account => ({
   position: "",
   canRequestDaily: false,
   canRequestCompany: false,
+  canDriveCompany: false,
 });
 const empty: HomeData = { requests: [], schedules: [], cancellations: [], completions: [], problems: [] };
 

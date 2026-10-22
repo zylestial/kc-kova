@@ -35,6 +35,9 @@ so far (plus the old `v1.2-stable`).
 
 ## Outstanding / follow-ups
 
+- [ ] **"Can drive company trips" on invites** (0079): today it's set in Settings after the person joins.
+- [x] **Company trip Drivers (`feat/company-trip-drivers`, 2026-10-22, 0079)**: the trip's Driver records it on My Trips; "Can drive company trips" lets any account be a Company trip's Driver; sidebar grouped, New request moved to My requests; Company trips' Start/End on Attendance with a Form filter.
+
 - [x] **Zod boundary validation**: every API route that takes a body checks it with a Zod schema (`lib/validation.ts`, `lib/*-input.ts`), with the same messages and status codes as before.
 - [x] **Password policy**: 8+ characters with a letter and a number, not containing the username (`lib/password-policy.ts`, enforced in both account routes). Stronger rules (length, expiry) still need a decision from the organization.
 - [ ] **Rate limiting** only covers sign-in. If abuse becomes a concern on other write endpoints, the `login_attempts` pattern could be extended.

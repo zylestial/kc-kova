@@ -364,9 +364,29 @@ type CompanyTripRunRow = {
   revision_id: string;
   start_at: string;
   start_odometer: number | null;
+  start_lat?: number | null;
+  start_lng?: number | null;
+  start_accuracy_m?: number | null;
+  start_address?: string | null;
+  started_by_account_id?: string;
   end_at: string | null;
   end_odometer: number | null;
+  end_lat?: number | null;
+  end_lng?: number | null;
+  end_accuracy_m?: number | null;
+  end_address?: string | null;
+  ended_by_account_id?: string | null;
 };
+
+// A Company trip starts at its own starting point, so its taps aren't
+// measured from ANONANG: distanceM is 0 and Attendance never flags them as away.
+function companyTap(at: string, by: string, lat?: number | null, lng?: number | null, accuracyM?: number | null, address?: string | null) {
+  return {
+    at,
+    recordedByAccountId: by,
+    location: lat == null || lng == null ? null : { lat, lng, accuracyM: accuracyM ?? null, distanceM: 0, address: address ?? null },
+  };
+}
 
 export function toCompanyTripRun(row: CompanyTripRunRow): CompanyTripRun {
   return {
@@ -377,6 +397,11 @@ export function toCompanyTripRun(row: CompanyTripRunRow): CompanyTripRun {
     startOdometer: row.start_odometer,
     endAt: row.end_at ?? undefined,
     endOdometer: row.end_odometer ?? undefined,
+    startTap: companyTap(row.start_at, row.started_by_account_id ?? "", row.start_lat, row.start_lng, row.start_accuracy_m, row.start_address),
+    endTap:
+      row.end_at && row.ended_by_account_id
+        ? companyTap(row.end_at, row.ended_by_account_id, row.end_lat, row.end_lng, row.end_accuracy_m, row.end_address)
+        : undefined,
   };
 }
 

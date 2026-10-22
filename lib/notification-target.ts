@@ -37,8 +37,11 @@ export function notificationTarget(
       const schedule = findSchedule(relatedScheduleId);
       return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
     }
-    case "TRIP_PUBLISHED":
-      return relatedScheduleId ? `/my-schedule?open=${encodeURIComponent(relatedScheduleId)}` : "/my-schedule";
+    case "TRIP_PUBLISHED": {
+      // A Company trip is driven from My Trips, whoever drives it (0079).
+      const page = relatedScheduleId && findSchedule(relatedScheduleId)?.kind === "COMPANY" ? "/my-trips" : "/my-schedule";
+      return relatedScheduleId ? `${page}?open=${encodeURIComponent(relatedScheduleId)}` : page;
+    }
     case "STOP_REPORTED": {
       // A Scheduler handles it on Scheduling; an Admin sees it with the trip's problems.
       if (!relatedScheduleId) return role === "Scheduler" ? "/scheduling" : "/finished";
@@ -48,8 +51,9 @@ export function notificationTarget(
     }
     case "TRIP_CHANGED":
     case "STOP_ANSWERED": {
-      // The Driver's trip, or the Company trip a requester records (0055).
-      const page = role === "Driver" ? "/my-schedule" : "/my-trips";
+      // A Company trip is recorded on My Trips (0079); a Driver's Daily trip on My Schedule.
+      const company = !!relatedScheduleId && findSchedule(relatedScheduleId)?.kind === "COMPANY";
+      const page = company || role !== "Driver" ? "/my-trips" : "/my-schedule";
       return relatedScheduleId ? `${page}?open=${encodeURIComponent(relatedScheduleId)}` : page;
     }
     default:

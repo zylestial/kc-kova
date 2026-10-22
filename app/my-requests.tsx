@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -201,6 +201,10 @@ export default function MyRequests({
           </h1>
           <p>Every transport request you&apos;ve submitted, and how far along it is.</p>
         </div>
+        {/* New request lives here and on Home, not in the menu. */}
+        <Button className="primary" onClick={() => router.push("/requests/new")}>
+          <FilePlus2 size={16} /> New request
+        </Button>
       </div>
       {notice && (
         <div className="notice success" role="status">
