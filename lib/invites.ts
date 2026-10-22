@@ -36,8 +36,9 @@ export function inviteLink() {
   return { hash, expiresAt: expiresIn(INVITE_TTL_MS), url: appUrl(`/join?token=${encodeURIComponent(raw)}`) };
 }
 
-export async function emailInvite(email: string, role: Role, url: string) {
-  await sendMail({ to: email, ...inviteEmail(url, role) });
+/** `invitedBy` is the sending Admin's name, shown in the subject. */
+export async function emailInvite(email: string, role: Role, url: string, invitedBy: string) {
+  await sendMail({ to: email, ...inviteEmail(url, { role, email, invitedBy }) });
 }
 
 /**

@@ -42,8 +42,10 @@ export async function sendEmailConfirmation(
     return { code: 422, message: "Could not save the email." };
   }
   try {
+    const { data: account } = await admin.from("accounts").select("username").eq("id", accountId).single();
     const token = await issueAccountToken(admin, accountId, "confirm_email", email);
-    await sendMail({ to: email, ...confirmEmail(appUrl(`/confirm-email?token=${encodeURIComponent(token)}`)) });
+    const link = appUrl(`/confirm-email?token=${encodeURIComponent(token)}`);
+    await sendMail({ to: email, ...confirmEmail(link, { username: account?.username ?? "", email }) });
   } catch (caught) {
     console.error("[account-email] confirm email failed:", caught);
     return { code: 502, message: "Could not send the email. Try again in a moment." };
