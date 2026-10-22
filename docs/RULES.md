@@ -208,9 +208,11 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
   Server time, optional phone position, flagged never refused; a repeat tap
   returns the first. End trip submits the trip (a `trip_completions` row),
   so it goes to Finished Trips like any other.
-- **Not in Attendance**: the Daily Start/End trip refuses a Company trip
+- **Its own Start / End**: the Daily Start/End trip refuses a Company trip
   (trigger `trip_attendance_daily_only`); its taps are in
-  `company_trip_runs` and `stop_taps`.
+  `company_trip_runs` and `stop_taps`. The Attendance screen shows its
+  Start / End trip as that row's attendance (0079), never flagged as away
+  from ANONANG, and its Form filter can leave Company trips out.
 - On the Company Trip Form leg 1 TIME OUT is Start trip, leg N TIME IN is
   Arrived at leg N (End trip for the last), leg N+1 TIME OUT is Leaving
   leg N. `trip_times_missing` counts them the same way, so Done needs them
