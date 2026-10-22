@@ -63,6 +63,7 @@ export const POST = authed(async ({ request, account }) => {
         driver_type: body.driverType,
         can_request_daily: body.canRequestDaily,
         can_request_company: body.canRequestCompany,
+        can_drive_company: body.canDriveCompany,
         token_hash: link.hash,
         expires_at: link.expiresAt,
         invited_by: account.id,

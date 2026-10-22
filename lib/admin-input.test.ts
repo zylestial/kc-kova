@@ -115,6 +115,13 @@ describe("invites", () => {
     expect(car).toMatchObject({ canRequestDaily: true });
   });
 
+  it("keeps Can drive company trips for anyone but a Driver (0080)", () => {
+    expect(parseWith(inviteBody, { emails: "a@b.co", role: "Requester", canDriveCompany: true })).toMatchObject({ canDriveCompany: true });
+    expect(parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Truck", canDriveCompany: true })).toMatchObject({
+      canDriveCompany: false,
+    });
+  });
+
   it("invites Finance with its switches (0075)", () => {
     const finance = parseWith(inviteBody, { emails: "a@b.co", role: "Finance", canRequestDaily: true, canRequestCompany: true });
     expect(finance).toMatchObject({ role: "Finance", driverType: null, canRequestDaily: true, canRequestCompany: true });

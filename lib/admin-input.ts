@@ -117,7 +117,7 @@ export function parseEmailList(input: string) {
  * way the Accounts form sends them (0051, 0059, 0074).
  */
 export const inviteBody = z
-  .object({ emails: z.string().catch(""), role: z.enum(ROLES), ...requestAccess })
+  .object({ emails: z.string().catch(""), role: z.enum(ROLES), ...requestAccess, canDriveCompany: z.boolean().catch(false) })
   .transform(forRole)
   .transform((body) => {
     const switches = hasRequestSwitches(body);
@@ -128,5 +128,7 @@ export const inviteBody = z
       driverType: body.driverType,
       canRequestDaily: switches && body.canRequestDaily,
       canRequestCompany: companyAllowed && body.canRequestCompany,
+      // A Driver's comes from the Driver type (0079).
+      canDriveCompany: body.role !== "Driver" && body.canDriveCompany,
     };
   });
