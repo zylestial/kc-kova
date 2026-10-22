@@ -1146,3 +1146,14 @@ account the company owns from day one.
   instead. The Form filter leaves them out; the CSV has a FORM column.
 - **Not done yet**: the switch isn't on invites (set it in Settings after
   the person joins).
+
+## CI minutes (2026-10-22)
+
+- **The free plan's 2,000 Actions minutes ran out** on 2026-10-22 and jobs
+  stopped starting ("recent account payments have failed or your spending
+  limit needs to be increased"); the code was fine. CI now skips docs-only
+  changes, cancels a superseded run, and runs e2e only on master and by
+  hand (Actions → CI → Run workflow). Run e2e by hand before merging a PR
+  that changes screens.
+- If master ever requires the CI checks, a docs-only PR leaves them
+  waiting (skipped workflows never report), so merge it as an admin.
