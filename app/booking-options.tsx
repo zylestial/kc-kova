@@ -2,7 +2,7 @@
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { stillNeeded } from "@/lib/missing-fields";
 import { useState } from "react";
-import { ListChecks, Plus } from "lucide-react";
+import { ListChecks, MapPin, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +24,8 @@ import { saveBookingOption, type BookingOption, type OptionGroup } from "@/lib/k
 import { coordinatesLabel, mapUrl } from "@/lib/attendance";
 import { parseCoordinates } from "@/lib/coordinates";
 import { useKovaData } from "@/lib/use-kova-data";
+import { CHOICE_LISTS, activeCount, choiceGaps, gapEffect, needLabel } from "@/lib/choice-lists";
+import { ListLayout, PaneHead, PaneTools, SearchResults, SetupBanner, matchesSearch, type StatusFilter } from "./settings-lists";
 
 type Group = OptionGroup;
 type Draft = {
@@ -34,20 +36,15 @@ type Draft = {
   /** As typed or pasted: coordinates or a Google Maps link. */
   location: string;
 };
-const groups: [Group, string, string, string][] = [
-  ["projects", "Projects / Sites", "Project / Site", "Add"],
-  ["destinations", "Destinations", "Destination", "Add Destination"],
-  ["purposes", "Purposes", "Purpose", "Add Purpose"],
-  // Per-stop Urgent and the Company Trip form (0051).
-  ["urgent_reasons", "Urgent reasons", "Urgent reason", "Add Reason"],
-  // Departments / Sites is no longer asked for: a Company Trip's is its Project / Site (0058).
-  ["starting_points", "Starting points", "Starting point", "Add"],
-  ["suppliers", "Suppliers", "Supplier", "Add Supplier"],
-  ["supervisors", "Immediate Supervisors", "Immediate Supervisor", "Add Supervisor"],
-  ["heads", "PM / CM / Dept. Heads", "PM / CM / Dept. Head", "Add"],
-];
+/** Settings → Request choices: one list at a time, picked from the rail (lib/choice-lists.ts). */
 export default function BookingOptions() {
   const { options } = useKovaData();
+  const [selected, setSelected] = useState<Group>("projects");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("Active");
+  const [searchAll, setSearchAll] = useState("");
+  /** A list is open on its own (phones show one or the other). */
+  const [open, setOpen] = useState(false);
   const [modal, setModal] = useState<{
     group: Group;
     mode: "add" | "edit";
@@ -63,7 +60,7 @@ export default function BookingOptions() {
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
-  function open(group: Group, mode: "add" | "edit", item?: BookingOption) {
+  function openModal(group: Group, mode: "add" | "edit", item?: BookingOption) {
     setModal({ group, mode });
     setDraft(
       item
@@ -114,98 +111,180 @@ export default function BookingOptions() {
       setBusy(false);
     }
   }
-  const title = groups.find((g) => g[0] === modal?.group)?.[2] || "";
+  const title = CHOICE_LISTS.find((list) => list.group === modal?.group)?.one || "";
+  const list = CHOICE_LISTS.find((item) => item.group === selected)!;
+  const items = options[selected];
+  const term = search.trim().toLowerCase();
+  const shown = items
+    .filter((item) => (status === "all" || item.status === status) && matchesSearch(term, item.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const gaps = choiceGaps(options);
+  const isDestinations = selected === "destinations";
+  const noLocation = isDestinations ? items.filter((item) => item.status === "Active" && !item.location).length : 0;
+  const allTerm = searchAll.trim().toLowerCase();
+  function pick(group: Group, query = "") {
+    setSelected(group);
+    setSearch(query);
+    setStatus(query ? "all" : "Active");
+    setSearchAll("");
+    setOpen(true);
+  }
+  const add = (
+    <Button className="primary" onClick={() => openModal(selected, "add")}>
+      <Plus size={16} /> Add {list.one}
+    </Button>
+  );
   return (
     <div className="booking-options">
-      <div className="page-heading">
-        <div>
-          <h2>Request choices</h2>
-          <p>Manage choices used when creating requests.</p>
-        </div>
-      </div>
       {notice && (
         <div className="notice success" role="status">
           {notice}
         </div>
       )}
-      <div className="booking-option-groups">
-        {groups.map(([group, label, , addLabel]) => {
-          const items = options[group];
-          return (
-            <section className="schedule-panel" key={group}>
-              <div className="panel-toolbar">
-                <div>
-                  <h2>{label}</h2>
-                  <span className="count">{items.length}</span>
+      {gaps.length > 0 && (
+        <SetupBanner title={`${gaps.length} list${gaps.length === 1 ? " still needs" : "s still need"} a choice.`}>
+          {gaps.some((gap) => gap.need === "every") && "Nobody can send a request until Projects / Sites, Destinations and Purposes each have one. "}
+          Missing: {gaps.map((gap) => gap.label).join(", ")}.
+        </SetupBanner>
+      )}
+      <ListLayout
+        items={CHOICE_LISTS.map((item) => ({
+          id: item.group,
+          section: item.section,
+          label: item.label,
+          count: activeCount(options, item.group),
+          warn: gaps.includes(item),
+          note: gaps.includes(item) ? needLabel[item.need] : undefined,
+        }))}
+        selected={selected}
+        onSelect={(id) => pick(id as Group)}
+        search={searchAll}
+        onSearch={setSearchAll}
+        searchLabel="Search all choices"
+        open={open || !!allTerm}
+      >
+        {allTerm ? (
+          <SearchResults
+            term={searchAll.trim()}
+            onBack={() => {
+              setSearchAll("");
+              setOpen(false);
+            }}
+            hits={CHOICE_LISTS.flatMap((choice) =>
+              options[choice.group]
+                .filter((item) => matchesSearch(allTerm, item.name))
+                .map((item) => ({
+                  key: choice.group + item.id,
+                  title: item.name,
+                  detail: `${choice.label} · ${item.status}`,
+                  open: () => pick(choice.group, item.name),
+                })),
+            )}
+          />
+        ) : (
+          <>
+            <PaneHead
+              title={list.label}
+              tag={<span className={"settings-tag" + (list.need === "optional" ? "" : " required")}>{needLabel[list.need]}</span>}
+              about={list.about}
+              onBack={() => setOpen(false)}
+              action={add}
+            />
+            {items.length > 0 && (
+              <PaneTools
+                search={search}
+                onSearch={setSearch}
+                searchLabel={`Search ${list.label.toLowerCase()}`}
+                status={status}
+                onStatus={setStatus}
+              />
+            )}
+            {gaps.includes(list) && items.length > 0 && (
+              <div className="notice">Every {list.one.toLowerCase()} is Inactive, so nobody can pick one. Make one Active or add a new one.</div>
+            )}
+            {noLocation > 0 && (
+              <div className="notice">
+                {noLocation} active destination{noLocation === 1 ? " has" : "s have"} no location, so Drivers&apos; taps there can&apos;t be
+                checked.
+              </div>
+            )}
+            {!items.length ? (
+              <div className="empty">
+                <div className="empty-icon">
+                  <ListChecks size={30} />
                 </div>
-                <Button className="primary" onClick={() => open(group, "add")}>
-                  <Plus size={16} /> {addLabel}
+                <h3>No {list.label.toLowerCase()} yet</h3>
+                <p>{list.need === "optional" ? "Optional. Add one if requesters need it." : `Add at least one. ${gapEffect(list)}`}</p>
+                {add}
+              </div>
+            ) : !shown.length ? (
+              <div className="empty">
+                <h3>Nothing matches</h3>
+                <p>No {list.label.toLowerCase()} match this search and status.</p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearch("");
+                    setStatus("all");
+                  }}
+                >
+                  Clear filters
                 </Button>
               </div>
-              {items.length ? (
-                <div className="schedule-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>NAME</th>
-                        {group === "destinations" && <th>LOCATION</th>}
-                        <th>STATUS</th>
-                        <th />
+            ) : (
+              <div className="schedule-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>NAME</th>
+                      {isDestinations && <th>LOCATION</th>}
+                      <th>STATUS</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <b>{item.name}</b>
+                          {isDestinations && item.isOtherStop && <small>Fuel or errand stop</small>}
+                        </td>
+                        {isDestinations && (
+                          <td>
+                            {item.location ? (
+                              <a href={mapUrl(item.location.lat, item.location.lng)} target="_blank" rel="noreferrer">
+                                <MapPin size={13} /> {coordinatesLabel(item.location)}
+                              </a>
+                            ) : (
+                              <small>No location</small>
+                            )}
+                          </td>
+                        )}
+                        <td>
+                          <span className={"badge " + (item.status === "Active" ? "complete" : "")}>{item.status}</span>
+                        </td>
+                        <td>
+                          <Button variant="outline" onClick={() => openModal(selected, "edit", item)}>
+                            Edit
+                          </Button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            <b>{item.name}</b>
-                          </td>
-                          {group === "destinations" && (
-                            <td>
-                              {item.location ? (
-                                <a href={mapUrl(item.location.lat, item.location.lng)} target="_blank" rel="noreferrer">
-                                  {coordinatesLabel(item.location)}
-                                </a>
-                              ) : (
-                                <small>Not set</small>
-                              )}
-                            </td>
-                          )}
-                          <td>
-                            <span
-                              className={
-                                "badge " +
-                                (item.status === "Active" ? "complete" : "")
-                              }
-                            >
-                              {item.status}
-                            </span>
-                          </td>
-                          <td>
-                            <Button
-                              variant="outline"
-                              onClick={() => open(group, "edit", item)}
-                            >
-                              Edit
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="empty">
-                  <div className="empty-icon">
-                    <ListChecks size={30} />
-                  </div>
-                  <h3>No {label.toLowerCase()} yet</h3>
-                  <p>Add one to make it available for new requests.</p>
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {items.length > 0 && (
+              <div className="panel-foot">
+                <span>
+                  {activeCount(options, selected)} active · {items.length - activeCount(options, selected)} inactive
+                </span>
+                <span>Inactive choices stay on old requests.</span>
+              </div>
+            )}
+          </>
+        )}
+      </ListLayout>
       <Dialog
         open={!!modal}
         onOpenChange={(v) => {

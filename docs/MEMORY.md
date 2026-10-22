@@ -1147,7 +1147,25 @@ account the company owns from day one.
 - **On invites too** (0080, `account_invites.can_drive_company`), sent off
   for Drivers like on the account. Settings got filters the same day
   (owner): Accounts by search / type / status / access, Vehicles by status /
-  company trips (`lib/settings-filters.ts`).
+  company trips (`lib/settings-filters.ts`). The Settings lists below
+  replaced those filters the same day.
+
+## Settings lists (2026-10-22)
+
+- **From the owner's prototype** ("Request choices" artifact, applied to
+  Accounts and Vehicles too): a rail of lists on the left, one list on the
+  right, a search across the tab. The rail replaces the Filters fold.
+- **Invites**: the owner wanted Invite people at the top (beside the tabs)
+  and the invites as the rail's last list, not a panel above Accounts.
+- **Counts are Active only**, except the Inactive and Pending invites
+  lists; a list opens on Active, with Inactive / All in its filter.
+- **What a list needs** (`lib/choice-lists.ts`) mirrors the
+  `resolve_choice` calls in 0052 / 0058: Projects / Sites, Destinations and
+  Purposes for every request, Urgent reasons for an Urgent stop, Starting
+  points, Supervisors and Heads for a Company Trip; Suppliers optional.
+- **A company vehicle keeps no assigned Driver**: Edit hides the field and
+  saving clears it, since 0079 takes a Company trip's Driver from the
+  request.
 
 ## Sign in with email (2026-10-22)
 
