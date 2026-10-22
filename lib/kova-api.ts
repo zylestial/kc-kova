@@ -224,6 +224,9 @@ export type CompanyTripRun = {
   endOdometer?: number | null;
   /** Start or End trip was tapped with no signal and is still on the phone (0077). */
   saved?: boolean;
+  /** Start and End trip as Attendance taps (0079); not measured from ANONANG. */
+  startTap?: AttendanceTap;
+  endTap?: AttendanceTap;
 };
 /** What Start trip / End trip on a Company trip sends. */
 /** odometer is null for a vehicle without one (0078). */
