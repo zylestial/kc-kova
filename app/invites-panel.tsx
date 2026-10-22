@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { MailPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +17,7 @@ import {
   type Role,
 } from "@/lib/kova-api";
 import { hasRequestSwitches } from "@/lib/request-access";
+import { accessLabels } from "@/lib/settings-filters";
 
 const ROLES: Role[] = ["Requester", "Scheduler", "Admin", "Driver", "Finance"];
 const blankBatch = () => ({
@@ -29,24 +29,14 @@ const blankBatch = () => ({
   canDriveCompany: false,
 });
 
-const roleLabel = (invite: Pick<Invite, "role" | "driverType">) =>
+export const roleLabel = (invite: Pick<Invite, "role" | "driverType">) =>
   invite.role === "Driver" ? `Driver · ${invite.driverType ?? "Truck"}` : invite.role;
 
-/**
- * Settings → Accounts: invite people by email in batches, each batch with
- * one account type and set of request permissions, and the invites still
- * waiting to be accepted. The invited person sets up their own name,
- * username, position and password from the emailed link (0072).
- */
-export default function InvitesPanel({ onNotice }: { onNotice: (message: string) => void }) {
+/** The invites still waiting to be accepted, with Resend and Cancel (0072). */
+export function useInvites(onNotice: (message: string) => void) {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loadError, setLoadError] = useState("");
-  const [open, setOpen] = useState(false);
-  const [batch, setBatch] = useState(blankBatch());
-  const [result, setResult] = useState<InviteResult | null>(null);
-  const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState("");
-
   const load = useCallback(() => {
     listInvites()
       .then((list) => {
@@ -57,19 +47,112 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
   }, []);
   useEffect(load, [load]);
 
+  async function act(invite: Invite, action: "resend" | "cancel") {
+    setBusy(`${action}:${invite.id}`);
+    try {
+      if (action === "resend") await resendInvite(invite.id);
+      else await cancelInvite(invite.id);
+      onNotice(action === "resend" ? `Invite sent again to ${invite.email}.` : `Invite to ${invite.email} cancelled.`);
+    } catch (caught) {
+      onNotice((caught as Error).message);
+    } finally {
+      setBusy("");
+      load();
+    }
+  }
+  return { invites, loadError, load, busy, act };
+}
+
+/** Settings → Accounts → Pending invites. */
+export function InviteTable({
+  invites,
+  busy,
+  onAct,
+}: {
+  invites: Invite[];
+  busy: string;
+  onAct: (invite: Invite, action: "resend" | "cancel") => void;
+}) {
+  return (
+    <div className="schedule-table">
+      <table>
+        <thead>
+          <tr>
+            <th>EMAIL</th>
+            <th>ACCOUNT TYPE</th>
+            <th>ACCESS</th>
+            <th>SENT</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {invites.map((invite) => {
+            const access = accessLabels({ ...invite, status: "Active" });
+            return (
+              <tr key={invite.id}>
+                <td>
+                  <b>{invite.email}</b>
+                </td>
+                <td>{roleLabel(invite)}</td>
+                <td>
+                  {access.length ? (
+                    <div className="settings-chips">
+                      {access.map((label) => (
+                        <span className="settings-tag" key={label}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>
+                  {new Date(invite.sentAt).toLocaleDateString()}
+                  {invite.expired && <span className="status-pill pending">Link expired</span>}
+                </td>
+                <td>
+                  <div className="modal-actions">
+                    <Button variant="outline" disabled={!!busy} onClick={() => onAct(invite, "resend")}>
+                      {busy === `resend:${invite.id}` ? "Sending…" : "Resend"}
+                    </Button>
+                    <Button variant="ghost" disabled={!!busy} onClick={() => onAct(invite, "cancel")}>
+                      {busy === `cancel:${invite.id}` ? "Cancelling…" : "Cancel"}
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Invite people (Settings → Accounts, beside the tabs): invite by email in
+ * batches, each batch with one account type and set of permissions. The
+ * invited person sets up their own name, username, position and password
+ * from the emailed link (0072). Mount it with a new key per opening for a fresh batch.
+ */
+export function InviteDialog({ open, onOpenChange, onSent }: { open: boolean; onOpenChange: (open: boolean) => void; onSent: () => void }) {
+  const [batch, setBatch] = useState(blankBatch());
+  const [result, setResult] = useState<InviteResult | null>(null);
+  const [formError, setFormError] = useState("");
+  const [busy, setBusy] = useState("");
+
   // The same rules as the Accounts form (0051, 0059, 0074).
   const isDriver = batch.role === "Driver";
   const switches = hasRequestSwitches(batch);
   const companyAllowed = batch.role === "Requester" || batch.role === "Admin" || switches;
-  const count = new Set(batch.emails.split(/[\s,;]+/).filter((item) => item.includes("@"))).size;
+  const count = new Set(batch.emails.split(/[s,;]+/).filter((item) => item.includes("@"))).size;
 
   function start() {
     setBatch(blankBatch());
     setResult(null);
     setFormError("");
-    setOpen(true);
   }
-
   async function send() {
     if (!count) {
       setFormError("Add at least one email address.");
@@ -87,7 +170,7 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
         canDriveCompany: !isDriver && batch.canDriveCompany,
       });
       setResult(sent);
-      load();
+      onSent();
     } catch (caught) {
       setFormError((caught as Error).message);
     } finally {
@@ -95,79 +178,8 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
     }
   }
 
-  async function act(invite: Invite, action: "resend" | "cancel") {
-    setBusy(`${action}:${invite.id}`);
-    try {
-      if (action === "resend") await resendInvite(invite.id);
-      else await cancelInvite(invite.id);
-      onNotice(action === "resend" ? `Invite sent again to ${invite.email}.` : `Invite to ${invite.email} cancelled.`);
-    } catch (caught) {
-      onNotice((caught as Error).message);
-    } finally {
-      setBusy("");
-      load();
-    }
-  }
-
   return (
-    <section className="schedule-panel">
-      <div className="panel-toolbar">
-        <div>
-          <h2>Pending invites</h2>
-          <span className="count">{invites.length}</span>
-          <p>People who were emailed an invite and haven&apos;t set up their account yet.</p>
-        </div>
-        <Button className="primary" onClick={start}>
-          <MailPlus size={17} /> Invite people
-        </Button>
-      </div>
-      {loadError && (
-        <div className="notice" role="alert">
-          {loadError}{" "}
-          <Button variant="ghost" onClick={load}>
-            Retry
-          </Button>
-        </div>
-      )}
-      {invites.length > 0 && (
-        <div className="schedule-table">
-          <table>
-            <thead>
-              <tr>
-                <th>EMAIL</th>
-                <th>ACCOUNT TYPE</th>
-                <th>SENT</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {invites.map((invite) => (
-                <tr key={invite.id}>
-                  <td>
-                    <b>{invite.email}</b>
-                  </td>
-                  <td>{roleLabel(invite)}</td>
-                  <td>
-                    {new Date(invite.sentAt).toLocaleDateString()}
-                    {invite.expired && <span className="badge"> Link expired</span>}
-                  </td>
-                  <td>
-                    <div className="modal-actions">
-                      <Button variant="outline" disabled={!!busy} onClick={() => act(invite, "resend")}>
-                        {busy === `resend:${invite.id}` ? "Sending…" : "Resend"}
-                      </Button>
-                      <Button variant="ghost" disabled={!!busy} onClick={() => act(invite, "cancel")}>
-                        {busy === `cancel:${invite.id}` ? "Cancelling…" : "Cancel"}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Invite people</DialogTitle>
@@ -194,7 +206,7 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
                 <Button variant="outline" onClick={start}>
                   Invite more
                 </Button>
-                <Button className="primary" onClick={() => setOpen(false)}>
+                <Button className="primary" onClick={() => onOpenChange(false)}>
                   Done
                 </Button>
               </div>
@@ -301,7 +313,7 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
                 </p>
               )}
               <div className="modal-actions">
-                <Button variant="outline" onClick={() => setOpen(false)}>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Go back
                 </Button>
                 <Button className="primary" disabled={busy === "send"} onClick={send}>
@@ -312,6 +324,5 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
           )}
         </DialogContent>
       </Dialog>
-    </section>
   );
 }
