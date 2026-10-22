@@ -37,12 +37,13 @@ export default function SignInForm({ passwordReset = false }: { passwordReset?: 
         )}
         <div className="sign-fields">
           <label className="field">
-            <span>Username</span>
+            <span>Username or email</span>
             <Input
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              autoCapitalize="none"
             />
           </label>
           <label className="field">
