@@ -39,6 +39,9 @@ function plainText(mail: Layout) {
   );
 }
 
+/** Invisible filler after the preheader, so the inbox snippet stops there instead of running into the body. */
+const PREHEADER_FILL = "&#847;&zwnj;&nbsp;".repeat(90);
+
 /** Table layout and inline styles only: that's what every mail app renders the same. */
 function html(mail: Layout) {
   const e = escapeHtml;
@@ -54,7 +57,7 @@ function html(mail: Layout) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(mail.subject)}</title></head>
 <body style="margin:0;padding:0;background:#eef1f7;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${e(mail.preheader)}</div>
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${e(mail.preheader)}${PREHEADER_FILL}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f7;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
 <tr><td style="background:#1b2e6e;padding:18px 28px;border-radius:8px 8px 0 0;${font}">
