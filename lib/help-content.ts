@@ -52,7 +52,7 @@ export const howItWorks: Record<Role, HelpStep[]> = {
     { title: "View only", detail: "You see trips and attendance; you can't change them." },
     { title: "Schedules", detail: "Every trip by day, week or all dates, and where each one stands." },
     { title: "Finished Trips", detail: "Odometers, distance and times per trip. Open one and tap Print for its form." },
-    { title: "Attendance", detail: "When each Driver started and ended, and their taps at each stop." },
+    { title: "Attendance", detail: "When each Driver started and ended, and their taps at each stop. Company trips are there too; the Form filter leaves them out." },
     { title: "Download", detail: "Download CSV on Finished Trips or Attendance: pick the dates and filters, then save it for Excel." },
     { title: "Requests", detail: "If an Admin allows it, make Daily or Company trip requests like a Requester." },
   ],
