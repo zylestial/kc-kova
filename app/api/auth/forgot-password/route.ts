@@ -8,33 +8,23 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
 import { parseWith } from "@/lib/validation";
 
-const forgotBody = z.object({ login: z.string().trim().min(1).max(254) });
+// Email only (owner, 2026-10-22): text that isn't an email address is turned away.
+const forgotBody = z.object({ login: z.string().trim().toLowerCase().pipe(z.email().max(254)) });
 
 /** The same answer whatever happened, so this can't be used to find out who has an account. */
-const ANSWER = { message: "If that account has an email, a link to reset the password is on its way. Check your inbox and spam folder." };
-
-/** Escapes ilike's wildcards, so a username matches only itself. */
-const literal = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
+const ANSWER = { message: "If an account has that email, a link to reset the password is on its way. Check your inbox and spam folder." };
 
 /**
- * Emails a reset link to an Active account's confirmed email, found by
- * username or by that email. Limited per account through login_attempts
- * (a "reset:" key), so nobody can flood someone's inbox.
+ * Emails a reset link to the Active account whose confirmed email it is.
+ * Limited per account through login_attempts (a "reset:" key), so nobody can flood someone's inbox.
  */
 export async function POST(request: Request) {
   const body = parseWith(forgotBody, await readJson(request));
-  if (!body) return NextResponse.json({ message: "Enter your username or email." }, { status: 422 });
-  const login = body.login.toLowerCase();
+  if (!body) return NextResponse.json({ message: "Enter a valid email address." }, { status: 422 });
 
   const admin = createSupabaseAdminClient();
-  let accountId: string | undefined;
-  if (login.includes("@")) {
-    const { data } = await admin.from("account_emails").select("account_id").eq("email", login).maybeSingle();
-    accountId = data?.account_id;
-  } else {
-    const { data } = await admin.from("accounts").select("id").ilike("username", literal(login)).maybeSingle();
-    accountId = data?.id;
-  }
+  const { data: found } = await admin.from("account_emails").select("account_id").eq("email", body.login).maybeSingle();
+  const accountId = found?.account_id;
   if (!accountId) return NextResponse.json(ANSWER);
 
   const [{ data: account }, { data: email }] = await Promise.all([
