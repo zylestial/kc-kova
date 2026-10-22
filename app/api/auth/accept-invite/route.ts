@@ -71,6 +71,7 @@ export async function POST(request: Request) {
     driverType: invite.driver_type ?? null,
     canRequestDaily: invite.can_request_daily,
     canRequestCompany: invite.can_request_company,
+    canDriveCompany: invite.can_drive_company,
   });
   if ("message" in created) {
     await release();

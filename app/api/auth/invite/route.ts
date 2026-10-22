@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     driverType: invite.driver_type,
     canRequestDaily: invite.can_request_daily,
     canRequestCompany: invite.can_request_company,
+    canDriveCompany: invite.can_drive_company,
   };
   return NextResponse.json({
     email: invite.email,

@@ -1,6 +1,12 @@
 import type { DriverType, Role } from "@/lib/kova-api";
 
-type InviteAccess = { role: Role; driverType?: DriverType | null; canRequestDaily: boolean; canRequestCompany: boolean };
+type InviteAccess = {
+  role: Role;
+  driverType?: DriverType | null;
+  canRequestDaily: boolean;
+  canRequestCompany: boolean;
+  canDriveCompany?: boolean;
+};
 
 /**
  * Whether the Join page asks for a Position, from the invite's role and
@@ -29,5 +35,6 @@ export function accessSummary(invite: InviteAccess): string {
   const daily = invite.role === "Requester" || (switches && invite.canRequestDaily);
   if (daily) parts.push("Daily requests");
   if (invite.canRequestCompany) parts.push("Company trips");
+  if (invite.role !== "Driver" && invite.canDriveCompany) parts.push("Drives company trips");
   return parts.join(" · ");
 }
