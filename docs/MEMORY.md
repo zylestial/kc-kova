@@ -942,6 +942,12 @@ sends invites, and people set up and look after their own sign-in.
   Auth's mailer, which would need the real email as the Auth email. Owner
   chose a **Gmail account with an App password** (no domain yet; 500
   emails a day). A domain plus Resend later only changes env vars.
+- **Keeping them out of spam (2026-10-22).** Each email is HTML plus the
+  same words as plain text, with a sender name, the company and the
+  reason it was sent, one button with the full link under it, and no
+  images or tracking. A free Gmail sender can still land in spam: ask
+  early recipients to mark it "Not spam"; a company domain with SPF, DKIM
+  and DMARC is the lasting fix.
 - **Every account needs a confirmed email** (owner: "from now on we need
   to have an email for everyone"). On 2026-10-20 the owner dropped both
   the blocking Add your email step and Add Account: **invites are the only

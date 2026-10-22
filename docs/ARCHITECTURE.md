@@ -52,7 +52,7 @@ lib/
     login-rate-limit.ts    Sign-in throttling backed by the login_attempts table
     verify-password.ts     Checks a current password without touching the session
   mailer.ts             Account emails over SMTP (Gmail in prod, Mailpit locally); appUrl()
-  email-templates.ts    The invite, confirm-email and reset-password texts
+  email-templates.ts    The invite, confirm-email and reset-password emails (text + HTML)
   account-tokens.ts     One-time email links: random token out, only its sha256 stored
   account-email.ts      Pending email + confirm link; an account's email status
   invites.ts            Invite links and rows

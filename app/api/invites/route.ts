@@ -77,7 +77,7 @@ export const POST = authed(async ({ request, account }) => {
       continue;
     }
     try {
-      await emailInvite(email, body.role, link.url);
+      await emailInvite(email, body.role, link.url, account.name);
       result.sent.push(email);
     } catch (caught) {
       console.error("[api/invites] email failed:", caught);

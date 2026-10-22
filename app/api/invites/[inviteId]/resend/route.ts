@@ -18,7 +18,7 @@ export const POST = authed<{ inviteId: string }>(async ({ account, params: { inv
   if (!data) return NextResponse.json({ message: "This invite was already accepted or cancelled." }, { status: 409 });
   const invite = data as InviteRow;
   try {
-    await emailInvite(invite.email, invite.role, link.url);
+    await emailInvite(invite.email, invite.role, link.url, account.name);
   } catch (caught) {
     console.error("[api/invites/resend] email failed:", caught);
     return NextResponse.json({ message: "Could not send the email. Try again in a moment." }, { status: 502 });
