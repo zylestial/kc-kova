@@ -35,6 +35,10 @@ so far (plus the old `v1.2-stable`).
 
 ## Outstanding / follow-ups
 
+- [ ] **Company trips in Attendance** (owner, 2026-10-22): the Driver's Start/End trip on a Company trip should show on Attendance with a Daily / Company filter, for every account that drove, not just Drivers. Build the rows from `company_trip_runs` (needs its tap locations in the app's data).
+- [ ] **"Can drive company trips" on invites** (0079): today it's set in Settings after the person joins.
+- [x] **Company trip Drivers (`feat/company-trip-drivers`, 2026-10-22, 0079)**: the trip's Driver records it on My Trips; "Can drive company trips" lets any account be a Company trip's Driver; sidebar grouped, New request moved to My requests.
+
 - [x] **Zod boundary validation**: every API route that takes a body checks it with a Zod schema (`lib/validation.ts`, `lib/*-input.ts`), with the same messages and status codes as before.
 - [x] **Password policy**: 8+ characters with a letter and a number, not containing the username (`lib/password-policy.ts`, enforced in both account routes). Stronger rules (length, expiry) still need a decision from the organization.
 - [ ] **Rate limiting** only covers sign-in. If abuse becomes a concern on other write endpoints, the `login_attempts` pattern could be extended.
