@@ -1117,3 +1117,27 @@ account the company owns from day one.
   "null km".
 - **The `company_trip_runs` check 0078 replaced had a generated name**, so
   the migration finds it by its definition rather than guessing the name.
+
+## Company trip Drivers (2026-10-22)
+
+- **The trip's Driver records a Company trip, not the requester** (owner,
+  2026-10-22; replaces "The requester records the Company trip" above).
+  `company_trip_for_recording` (0079) checks the revision's `driver_id`.
+- **Anyone an Admin allows can drive**: "Can drive company trips"
+  (`accounts.can_drive_company`, off by default) on a Requester,
+  Scheduler, Finance or Admin. A Company car Driver always can, a Truck
+  driver never; `can_drive_company()` and `canDriveCompany` in
+  `lib/request-access.ts` hold the rule. A requester can pick themselves.
+- **Trips started before 0079** stay with whoever started them
+  (`company_trip_runs.started_by_account_id`), so a pilot trip on the road
+  during the deploy can still end. My Trips shows a requester such a trip
+  until it ends.
+- **My Trips is where every Company trip is driven**, whatever the role;
+  My Schedule stays Daily only. TRIP_PUBLISHED / TRIP_CHANGED /
+  STOP_ANSWERED for a Company trip open My Trips.
+- **Sidebar**: New request moved to a button on My requests (and Home);
+  Settings sits in the footer with Help; links are grouped under headings
+  (Driving / Scheduling / Records, My work) only when there are two groups.
+- **Not done yet**: the switch isn't on invites (set it in Settings after
+  the person joins), and Company trips aren't in Attendance yet. The owner
+  wants them there, marked so they can be filtered out.
