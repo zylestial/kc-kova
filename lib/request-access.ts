@@ -30,6 +30,12 @@ export function canRequestCompany(account: Who): boolean {
   return account.canRequestCompany && (account.role === "Requester" || hasRequestSwitches(account));
 }
 
+/** Can be a Company trip's Driver (0079): a Company car Driver, or an account an Admin allowed. */
+export function canDriveCompany(account: Pick<Account, "role" | "status" | "driverType" | "canDriveCompany">): boolean {
+  if (account.status !== "Active") return false;
+  return account.role === "Driver" ? account.driverType === "Company car" : account.canDriveCompany;
+}
+
 /** Either kind, so the request screens (New request, My requests) show. */
 export function canRequestTransport(account: Who): boolean {
   return canRequestDaily(account) || canRequestCompany(account);

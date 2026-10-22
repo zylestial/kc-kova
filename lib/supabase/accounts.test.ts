@@ -23,6 +23,7 @@ describe("toAccount", () => {
       driver_type: null,
       can_request_daily: false,
       can_request_company: true,
+      can_drive_company: true,
     });
     expect(account).toEqual({
       id: "11111111-1111-1111-1111-111111111111",
@@ -34,6 +35,7 @@ describe("toAccount", () => {
       driverType: undefined,
       canRequestDaily: false,
       canRequestCompany: true,
+      canDriveCompany: true,
     });
   });
 });

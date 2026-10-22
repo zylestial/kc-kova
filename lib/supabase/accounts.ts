@@ -34,6 +34,7 @@ type AccountRow = {
   driver_type: DriverType | null;
   can_request_daily: boolean;
   can_request_company: boolean;
+  can_drive_company: boolean;
 };
 
 export function toAccount(row: AccountRow): Account {
@@ -47,6 +48,7 @@ export function toAccount(row: AccountRow): Account {
     driverType: row.driver_type ?? undefined,
     canRequestDaily: row.can_request_daily,
     canRequestCompany: row.can_request_company,
+    canDriveCompany: row.can_drive_company,
   };
 }
 

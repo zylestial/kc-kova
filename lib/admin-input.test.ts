@@ -24,6 +24,7 @@ describe("account bodies", () => {
       driverType: "Truck",
       canRequestDaily: false,
       canRequestCompany: false,
+      canDriveCompany: false,
     });
   });
 
