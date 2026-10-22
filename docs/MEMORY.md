@@ -1148,3 +1148,13 @@ account the company owns from day one.
   for Drivers like on the account. Settings got filters the same day
   (owner): Accounts by search / type / status / access, Vehicles by status /
   company trips (`lib/settings-filters.ts`).
+
+## Sign in with email (2026-10-22)
+
+- **Sign In takes a username or email** (owner): an "@" is looked up as a
+  confirmed email (`account_emails.email`, not a pending one) and signs in
+  as that account's username; with no match it's tried as a username, since
+  usernames have no format rule. Attempts are limited per username either way.
+- **Forgot password is email only** (owner chose it over "username or
+  email, block junk"): `z.email()` in the form and the route. Any domain:
+  staff aren't limited to Gmail; Gmail is only the account KOVA sends from.
