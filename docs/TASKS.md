@@ -35,8 +35,8 @@ so far (plus the old `v1.2-stable`).
 
 ## Outstanding / follow-ups
 
-- [ ] **"Can drive company trips" on invites** (0079): today it's set in Settings after the person joins.
-- [x] **Company trip Drivers (`feat/company-trip-drivers`, 2026-10-22, 0079)**: the trip's Driver records it on My Trips; "Can drive company trips" lets any account be a Company trip's Driver; sidebar grouped, New request moved to My requests; Company trips' Start/End on Attendance with a Form filter.amp; Merged (PR #171); 0079 on production 2026-10-22.
+- [x] **"Can drive company trips" on invites and Settings filters (`feat/invite-drive-switch`, 2026-10-22, 0080)**: the invite form has the switch and accepting carries it to the account; Settings' Accounts list filters by search, type, status and access (who can request / drive company trips) and Vehicles by status and company trips.
+- [x] **Company trip Drivers (`feat/company-trip-drivers`, 2026-10-22, 0079)**: the trip's Driver records it on My Trips; "Can drive company trips" lets any account be a Company trip's Driver; sidebar grouped, New request moved to My requests; Company trips' Start/End on Attendance with a Form filter. Merged (PR #171); 0079 on production 2026-10-22.
 
 - [x] **Zod boundary validation**: every API route that takes a body checks it with a Zod schema (`lib/validation.ts`, `lib/*-input.ts`), with the same messages and status codes as before.
 - [x] **Password policy**: 8+ characters with a letter and a number, not containing the username (`lib/password-policy.ts`, enforced in both account routes). Stronger rules (length, expiry) still need a decision from the organization.

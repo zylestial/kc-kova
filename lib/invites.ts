@@ -11,6 +11,7 @@ export type InviteRow = {
   driver_type: Invite["driverType"] | null;
   can_request_daily: boolean;
   can_request_company: boolean;
+  can_drive_company: boolean;
   sent_at: string;
   expires_at: string;
 };
@@ -23,6 +24,7 @@ export function toInvite(row: InviteRow): Invite {
     driverType: row.driver_type ?? undefined,
     canRequestDaily: row.can_request_daily,
     canRequestCompany: row.can_request_company,
+    canDriveCompany: row.can_drive_company,
     sentAt: row.sent_at,
     expired: new Date(row.expires_at).getTime() <= Date.now(),
   };

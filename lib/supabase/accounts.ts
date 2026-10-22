@@ -62,6 +62,7 @@ export type NewAccount = {
   driverType: DriverType | null;
   canRequestDaily: boolean;
   canRequestCompany: boolean;
+  canDriveCompany?: boolean;
 };
 
 /**
@@ -97,6 +98,7 @@ export async function createAccount(
       driver_type: input.driverType,
       can_request_daily: input.canRequestDaily,
       can_request_company: input.canRequestCompany,
+      can_drive_company: input.canDriveCompany ?? false,
     })
     .select("*")
     .single();

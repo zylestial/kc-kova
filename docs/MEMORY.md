@@ -1144,5 +1144,7 @@ account the company owns from day one.
   database's `trip_attendance_daily_only` stays). They start and end away
   from ANONANG, so they're never flagged as away and show the address
   instead. The Form filter leaves them out; the CSV has a FORM column.
-- **Not done yet**: the switch isn't on invites (set it in Settings after
-  the person joins).
+- **On invites too** (0080, `account_invites.can_drive_company`), sent off
+  for Drivers like on the account. Settings got filters the same day
+  (owner): Accounts by search / type / status / access, Vehicles by status /
+  company trips (`lib/settings-filters.ts`).

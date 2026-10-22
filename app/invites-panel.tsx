@@ -26,6 +26,7 @@ const blankBatch = () => ({
   driverType: "Truck" as DriverType,
   canRequestDaily: false,
   canRequestCompany: false,
+  canDriveCompany: false,
 });
 
 const roleLabel = (invite: Pick<Invite, "role" | "driverType">) =>
@@ -83,6 +84,7 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
         driverType: isDriver ? batch.driverType : undefined,
         canRequestDaily: switches && batch.canRequestDaily,
         canRequestCompany: companyAllowed && batch.canRequestCompany,
+        canDriveCompany: !isDriver && batch.canDriveCompany,
       });
       setResult(sent);
       load();
@@ -270,6 +272,25 @@ export default function InvitesPanel({ onNotice }: { onNotice: (message: string)
                           Can request company trips
                         </label>
                       )}
+                    </div>
+                  )}
+                </div>
+                <div className="field">
+                  <span>Driving</span>
+                  {isDriver ? (
+                    // A Driver's comes from the Driver type (0079).
+                    <small>
+                      {batch.driverType === "Company car" ? "Can drive company trips." : "Truck drivers don't drive company trips."}
+                    </small>
+                  ) : (
+                    <div className="person-projects">
+                      <label>
+                        <Checkbox
+                          checked={batch.canDriveCompany}
+                          onCheckedChange={(v) => setBatch({ ...batch, canDriveCompany: v === true })}
+                        />
+                        Can drive company trips
+                      </label>
                     </div>
                   )}
                 </div>
