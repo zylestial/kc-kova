@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, Vehicle } from "@/lib/kova-api";
-import { VEHICLE_VIEWS, accountFiltersSet, accountMatches, noAccountFilters, vehicleNeedsDriver } from "@/lib/settings-filters";
+import { ACCOUNT_VIEWS, VEHICLE_VIEWS, accessLabels, vehicleNeedsDriver } from "@/lib/settings-filters";
 
 const account = (over: Partial<Account> = {}): Account => ({
   id: "a1",
@@ -16,25 +16,29 @@ const account = (over: Partial<Account> = {}): Account => ({
 });
 const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({ plate: "V1", name: "Vios", status: "Active", companyTrips: false, hasOdometer: true, ...over }) as Vehicle;
 
-describe("accountMatches", () => {
-  it("searches name, username and email", () => {
-    expect(accountMatches(account(), { ...noAccountFilters, search: "SANTOS" })).toBe(true);
-    expect(accountMatches(account(), { ...noAccountFilters, search: "@kc.ph" }, "rhea@kc.ph")).toBe(true);
-    expect(accountMatches(account(), { ...noAccountFilters, search: "jun" })).toBe(false);
+describe("account views", () => {
+  const view = (id: string) => ACCOUNT_VIEWS.find((v) => v.id === id)!;
+
+  it("groups people by account type", () => {
+    expect(view("Requester").test(account())).toBe(true);
+    expect(view("Driver").test(account())).toBe(false);
   });
 
-  it("filters by type, status and who can drive or request company trips", () => {
-    expect(accountMatches(account(), { ...noAccountFilters, role: "Driver" })).toBe(false);
-    expect(accountMatches(account({ status: "Inactive" }), { ...noAccountFilters, status: "Active" })).toBe(false);
-    const drive = { ...noAccountFilters, access: "drive-company" as const };
-    expect(accountMatches(account({ canDriveCompany: true }), drive)).toBe(true);
-    expect(accountMatches(account({ role: "Driver", driverType: "Company car" }), drive)).toBe(true);
-    expect(accountMatches(account({ role: "Driver", driverType: "Truck" }), drive)).toBe(false);
-    expect(accountMatches(account({ canRequestCompany: true }), { ...noAccountFilters, access: "request-company" })).toBe(true);
+  it("lists who can drive or request company trips", () => {
+    expect(view("drive-company").test(account({ canDriveCompany: true }))).toBe(true);
+    expect(view("drive-company").test(account({ role: "Driver", driverType: "Company car" }))).toBe(true);
+    expect(view("drive-company").test(account({ role: "Driver", driverType: "Truck", canDriveCompany: true }))).toBe(false);
+    expect(view("request-company").test(account({ canRequestCompany: true }))).toBe(true);
+    expect(view("request-company").test(account({ role: "Admin" }))).toBe(true);
   });
+});
 
-  it("counts the filters set", () => {
-    expect(accountFiltersSet({ ...noAccountFilters, search: " x ", role: "Admin" })).toBe(2);
+describe("accessLabels", () => {
+  it("says what an account may do", () => {
+    expect(accessLabels(account())).toEqual(["Daily requests"]);
+    expect(accessLabels(account({ role: "Admin", canDriveCompany: true }))).toEqual(["Daily requests", "Company trip requests", "Drives company trips"]);
+    expect(accessLabels(account({ role: "Driver", driverType: "Truck" }))).toEqual([]);
+    expect(accessLabels(account({ status: "Inactive" }))).toEqual([]);
   });
 });
 
