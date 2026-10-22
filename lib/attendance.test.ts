@@ -114,6 +114,16 @@ describe("buildAttendanceRows", () => {
     expect(row.flags).toEqual(["off-base", "no-location"]);
   });
 
+  it("takes a Company trip's Start and End trip, never flagged as away from ANONANG (0079)", () => {
+    const company = { ...schedule("c", today), kind: "COMPANY" as const };
+    const far = { ...atBase, location: { ...atBase.location!, distanceM: 0, address: "BDO Ortigas" } };
+    const run = { id: "run", scheduleId: "c", revisionId: "r-c", startAt: far.at, startOdometer: 10, startTap: far, endTap: far };
+    const [row] = buildAttendanceRows([company], [taps("c", atBase)], today, [run]);
+    expect([row.status, row.flags, row.attendance?.id]).toEqual(["COMPLETE", [], "run"]);
+    expect(tapPlaceLabel(far, true)).toBe("near BDO Ortigas");
+    expect(buildAttendanceRows([company], [], today)[0].status).toBe("MISSING");
+  });
+
   it("orders drivers by name within a day", () => {
     const rows = buildAttendanceRows([schedule("b", today, "Zed"), schedule("a", today, "Ana")], [], today);
     expect(rows.map((row) => row.revision.driverName)).toEqual(["Ana", "Zed"]);
