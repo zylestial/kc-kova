@@ -6,7 +6,7 @@ v2.5 is in [`archive/TASKS-history.md`](archive/TASKS-history.md).
 
 ## Status: v2.9 (2026-10-20)
 
-v2 is live, with every migration through 0076 applied to production.
+v2 is live, with every migration through 0079 applied to production.
 `tsc --noEmit`, `eslint`, `vitest`, `next build`, the pgTAP suite,
 `concurrency.sh` and the Playwright suite (`e2e`) all run in CI on every PR.
 Production was reset on 2026-10-20 for the pilot: real staff start on
