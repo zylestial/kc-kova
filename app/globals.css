@@ -120,6 +120,8 @@ table[data-stack] td[data-label=""]{display:flex;justify-content:flex-end}
 .sidebar-close:hover{background:rgba(255,255,255,.1)}
 .sidebar-nav{display:flex;flex-direction:column;gap:4px;padding-top:10px}
 .sidebar-section{padding:6px 12px;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9fb0e3}
+.sidebar-group{display:flex;flex-direction:column;gap:4px}
+.sidebar-group+.sidebar-group{margin-top:10px}
 .sidebar-link{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:#dde3f6;font:inherit;font-size:15px;font-weight:600;text-decoration:none;text-align:left;cursor:pointer;transition:background .15s,color .15s}
 .sidebar-link:hover{background:rgba(255,255,255,.08);color:#fff}
 .sidebar-link.active{background:#fff;color:var(--brand-blue);box-shadow:0 4px 14px rgba(9,18,54,.25)}

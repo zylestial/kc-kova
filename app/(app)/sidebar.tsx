@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CircleHelp, LogOut, X } from "lucide-react";
 import { useAccount } from "./providers";
-import { activeHref, navItems } from "./nav-items";
-import { canRequestCompany, canRequestTransport } from "@/lib/request-access";
+import { activeHref, navItems, navLinks, type NavItem } from "./nav-items";
+import { canDriveCompany, canRequestTransport } from "@/lib/request-access";
 
 export default function Sidebar({
   open,
@@ -20,8 +20,8 @@ export default function Sidebar({
   const router = useRouter();
   const pathname = usePathname();
   const { account, viewAs, viewRole, leave } = useAccount();
-  const items = navItems(viewRole, canRequestTransport(account), canRequestCompany(account));
-  const active = activeHref(items, pathname);
+  const nav = navItems(viewRole, canRequestTransport(account), canDriveCompany(account));
+  const active = activeHref(navLinks(nav), pathname);
 
   // The phone drawer closes on Escape.
   useEffect(() => {
@@ -42,6 +42,19 @@ export default function Sidebar({
     if (href !== pathname) leave(() => router.push(href));
   }
 
+  const link = ({ href, label, icon: Icon }: NavItem) => (
+    <a
+      key={href}
+      href={href}
+      className={"sidebar-link" + (href === active ? " active" : "")}
+      aria-current={href === active ? "page" : undefined}
+      onClick={(event) => go(event, href)}
+    >
+      <Icon size={18} />
+      <span>{label}</span>
+    </a>
+  );
+
   return (
     <>
       <div className={"sidebar-scrim" + (open ? " open" : "")} onClick={onClose} aria-hidden="true" />
@@ -56,21 +69,16 @@ export default function Sidebar({
           </button>
         </div>
         <nav className="sidebar-nav">
-          <span className="sidebar-section">{viewAs ? `Viewing as ${viewAs}` : "Menu"}</span>
-          {items.map(({ href, label, icon: Icon }) => (
-            <a
-              key={href}
-              href={href}
-              className={"sidebar-link" + (href === active ? " active" : "")}
-              aria-current={href === active ? "page" : undefined}
-              onClick={(event) => go(event, href)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </a>
+          {viewAs && <span className="sidebar-section">Viewing as {viewAs}</span>}
+          {nav.groups.map((group, index) => (
+            <div key={group.heading ?? index} className="sidebar-group">
+              {group.heading && <span className="sidebar-section">{group.heading}</span>}
+              {group.items.map(link)}
+            </div>
           ))}
         </nav>
         <div className="sidebar-footer">
+          {nav.footer.map(link)}
           <button type="button" className="sidebar-link" onClick={onHelp}>
             <CircleHelp size={18} />
             <span>Help</span>
