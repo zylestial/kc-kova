@@ -15,7 +15,18 @@ import {
   type DriverType,
   type Role,
 } from "@/lib/kova-api";
-import { canRequestCompany, canRequestDaily, hasRequestSwitches } from "@/lib/request-access";
+import { canDriveCompany, canRequestCompany, canRequestDaily, hasRequestSwitches } from "@/lib/request-access";
+import {
+  accountFiltersSet,
+  accountMatches,
+  noAccountFilters,
+  noVehicleFilters,
+  vehicleFiltersSet,
+  vehicleMatches,
+  type AccountFilters,
+  type VehicleFilters,
+} from "@/lib/settings-filters";
+import FilterFold from "./filter-fold";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
 import { useAccount } from "./(app)/providers";
@@ -79,10 +90,44 @@ const blankVehicle = () => ({
   companyTrips: false,
   hasOdometer: true,
 });
-/** What an account may request, for the Accounts list (0051). */
+/** What an account may request, and whether it drives company trips, for the Accounts list (0051, 0079). */
 function requestsLabel(account: Account) {
   const kinds = [canRequestDaily(account) && "Daily", canRequestCompany(account) && "Company trips"].filter(Boolean);
   return kinds.length ? kinds.join(" · ") : "—";
+}
+const ALL_ROLES: Account["role"][] = ["Requester", "Scheduler", "Admin", "Driver", "Finance"];
+/** One filter dropdown: a label, its value, and the choices after "All". */
+function FilterSelect<T extends string>({
+  label,
+  value,
+  onChange,
+  all,
+  choices,
+}: {
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  all: string;
+  choices: [T, string][];
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <Select value={value} onValueChange={(next) => onChange(next as T)}>
+        <SelectTrigger aria-label={label + " filter"}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{all}</SelectItem>
+          {choices.map(([key, text]) => (
+            <SelectItem value={key} key={key}>
+              {text}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </label>
+  );
 }
 function TextField({
   label,
@@ -146,6 +191,8 @@ function Choice<T extends string>({
 }
 export default function Settings() {
   const [tab, setTab] = useState("accounts");
+  const [accountFilters, setAccountFilters] = useState<AccountFilters>(noAccountFilters);
+  const [vehicleFilters, setVehicleFilters] = useState<VehicleFilters>(noVehicleFilters);
   const { accounts, vehicles } = useKovaData();
   const { account: me } = useAccount();
   const [error, setError] = useState("");
@@ -182,6 +229,8 @@ export default function Settings() {
       setResending("");
     }
   }
+  const shownAccounts = accounts.filter((a) => accountMatches(a, accountFilters, emails[a.id]?.email ?? ""));
+  const shownVehicles = vehicles.filter((v) => vehicleMatches(v, vehicleFilters));
   const drivers = accounts.filter(
     (a) => a.role === "Driver" && a.status === "Active",
   );
@@ -360,10 +409,47 @@ export default function Settings() {
           <div className="panel-toolbar">
             <div>
               <h2>Accounts</h2>
-              <span className="count">{accounts.length}</span>
+              <span className="count">{shownAccounts.length}</span>
               <p>People who can sign in. To add someone, use Invite people above.</p>
             </div>
           </div>
+          <FilterFold active={accountFiltersSet(accountFilters)}>
+            <label className="field">
+              <span>Search</span>
+              <Input
+                value={accountFilters.search}
+                placeholder="Name, username or email"
+                onChange={(event) => setAccountFilters({ ...accountFilters, search: event.target.value })}
+              />
+            </label>
+            <FilterSelect
+              label="Account type"
+              value={accountFilters.role}
+              onChange={(role) => setAccountFilters({ ...accountFilters, role })}
+              all="All types"
+              choices={ALL_ROLES.map((role) => [role, role])}
+            />
+            <FilterSelect
+              label="Status"
+              value={accountFilters.status}
+              onChange={(status) => setAccountFilters({ ...accountFilters, status })}
+              all="All"
+              choices={[
+                ["Active", "Active"],
+                ["Inactive", "Inactive"],
+              ]}
+            />
+            <FilterSelect
+              label="Access"
+              value={accountFilters.access}
+              onChange={(access) => setAccountFilters({ ...accountFilters, access })}
+              all="Everyone"
+              choices={[
+                ["request-company", "Can request company trips"],
+                ["drive-company", "Can drive company trips"],
+              ]}
+            />
+          </FilterFold>
           <div className="schedule-table">
             <table>
               <thead>
@@ -378,7 +464,7 @@ export default function Settings() {
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((a) => (
+                {shownAccounts.map((a) => (
                   <tr key={a.id}>
                     <td>
                       <b>{a.name}</b>
@@ -396,7 +482,10 @@ export default function Settings() {
                       )}
                     </td>
                     <td>{a.role === "Driver" ? `Driver · ${a.driverType ?? "Truck"}` : a.role}</td>
-                    <td>{requestsLabel(a)}</td>
+                    <td>
+                      {requestsLabel(a)}
+                      {canDriveCompany(a) && <small>Drives company trips</small>}
+                    </td>
                     <td>
                       <span
                         className={
@@ -423,13 +512,35 @@ export default function Settings() {
           <div className="panel-toolbar">
             <div>
               <h2>Vehicles</h2>
-              <span className="count">{vehicles.length}</span>
+              <span className="count">{shownVehicles.length}</span>
               <p>Manage company vehicles.</p>
             </div>
             <Button className="primary" onClick={addVehicle}>
               <Plus size={17} /> Add Vehicle
             </Button>
           </div>
+          <FilterFold active={vehicleFiltersSet(vehicleFilters)}>
+            <FilterSelect
+              label="Status"
+              value={vehicleFilters.status}
+              onChange={(status) => setVehicleFilters({ ...vehicleFilters, status })}
+              all="All"
+              choices={[
+                ["Active", "Active"],
+                ["Inactive", "Inactive"],
+              ]}
+            />
+            <FilterSelect
+              label="Company trips"
+              value={vehicleFilters.companyTrips}
+              onChange={(companyTrips) => setVehicleFilters({ ...vehicleFilters, companyTrips })}
+              all="All vehicles"
+              choices={[
+                ["yes", "Can be requested"],
+                ["no", "Daily trips only"],
+              ]}
+            />
+          </FilterFold>
           {vehicles.length ? (
             <div className="schedule-table">
               <table>
@@ -444,7 +555,7 @@ export default function Settings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {vehicles.map((v) => (
+                  {shownVehicles.map((v) => (
                     <tr key={v.plate}>
                       <td>
                         <b>{v.plate}</b>
