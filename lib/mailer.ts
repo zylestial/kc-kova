@@ -1,6 +1,10 @@
 import nodemailer, { type Transporter } from "nodemailer";
 
-export type Mail = { to: string; subject: string; text: string };
+/** `html` goes alongside `text`, never instead of it: both say the same thing. */
+export type Mail = { to: string; subject: string; text: string; html?: string };
+
+/** The name shown next to the sender address in the inbox. */
+export const SENDER_NAME = "KOVA · Kayelen's Construction";
 
 let transporter: Transporter | undefined;
 
@@ -34,7 +38,17 @@ export async function sendMail(mail: Mail) {
     console.info(`[mail] to ${mail.to}: ${mail.subject}\n${mail.text}`);
     return;
   }
-  await smtp.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, ...mail });
+  await smtp.sendMail({ from: sender(), ...mail });
+}
+
+/**
+ * MAIL_FROM as given when it already carries a name ("Name <address>");
+ * a bare address, or SMTP_USER, gets SENDER_NAME so the inbox never shows
+ * an unnamed Gmail address.
+ */
+function sender() {
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER || "";
+  return from.includes("<") ? from : { name: SENDER_NAME, address: from };
 }
 
 /**
