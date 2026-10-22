@@ -29,11 +29,12 @@ const timeLabel = (iso: string) =>
 type Trip = { schedule: Schedule; revision: ScheduleRevision };
 
 /**
- * My Trips (Company Trip Flow prototype, "Drive"): the requester's approved
- * Company trips. The requester taps Start trip at the starting point with
- * the odometer, Arrived and Leaving at each stop, and End trip on reaching
- * the last stop with the odometer again; End trip submits the trip. The
- * Driver drives; nothing goes into Attendance (0055). A problem at a stop
+ * My Trips (Company Trip Flow prototype, "Drive"): the approved Company
+ * trips you drive (0079). The Driver taps Start trip at the starting point
+ * with the odometer, Arrived and Leaving at each stop, and End trip on
+ * reaching the last stop with the odometer again; End trip submits the
+ * trip. A trip its requester started before 0079 stays here for them to
+ * finish. A problem at a stop
  * is reported here too (0061): a missed stop is passed over, and a vehicle
  * problem pauses the trip until Resume trip.
  */
@@ -45,7 +46,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     .filter((schedule) => schedule.kind === "COMPANY" && schedule.status === "ACTIVE")
     .flatMap((schedule) => {
       const revision = schedule.revisions.find((item) => item.id === schedule.publishedRevisionId);
-      return revision && revision.requestIds.some((id) => mine.has(id)) ? [{ schedule, revision }] : [];
+      if (!revision) return [];
+      const run = companyRuns.find((item) => item.scheduleId === schedule.id);
+      const drives = revision.driverId === accountId;
+      const startedAsRequester = !!run && !run.endAt && revision.requestIds.some((id) => mine.has(id));
+      return drives || startedAsRequester ? [{ schedule, revision }] : [];
     })
     .sort((a, b) => a.schedule.date.localeCompare(b.schedule.date));
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
@@ -141,7 +146,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
           <h1>
             My Trips<span className="title-dot">.</span>
           </h1>
-          <p>Your approved Company trips. You record each one: Start trip (with the odometer, if the vehicle has one), each stop, then End trip.</p>
+          <p>The approved Company trips you drive. You record each one: Start trip (with the odometer, if the vehicle has one), each stop, then End trip.</p>
         </div>
       </div>
       {notice && (
@@ -307,7 +312,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
               <Car size={30} />
             </div>
             <h3>No trips yet</h3>
-            <p>Your Company trips appear here once an Admin approves them.</p>
+            <p>Company trips you drive appear here once an Admin approves them.</p>
           </div>
         )}
       </section>
