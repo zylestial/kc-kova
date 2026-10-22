@@ -3,7 +3,6 @@ import { useAutoClear } from "@/lib/use-auto-clear";
 import { PASSWORD_HINT, passwordError } from "@/lib/password-policy";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
 import { useCallback, useEffect, useState } from "react";
-import { Car, Plus } from "lucide-react";
 import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
@@ -20,11 +19,7 @@ import {
   accountFiltersSet,
   accountMatches,
   noAccountFilters,
-  noVehicleFilters,
-  vehicleFiltersSet,
-  vehicleMatches,
   type AccountFilters,
-  type VehicleFilters,
 } from "@/lib/settings-filters";
 import FilterFold from "./filter-fold";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +27,7 @@ import { useKovaData } from "@/lib/use-kova-data";
 import { useAccount } from "./(app)/providers";
 import BookingOptions from "./booking-options";
 import InvitesPanel from "./invites-panel";
+import VehicleList from "./settings-vehicles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -192,7 +188,6 @@ function Choice<T extends string>({
 export default function Settings() {
   const [tab, setTab] = useState("accounts");
   const [accountFilters, setAccountFilters] = useState<AccountFilters>(noAccountFilters);
-  const [vehicleFilters, setVehicleFilters] = useState<VehicleFilters>(noVehicleFilters);
   const { accounts, vehicles } = useKovaData();
   const { account: me } = useAccount();
   const [error, setError] = useState("");
@@ -230,12 +225,9 @@ export default function Settings() {
     }
   }
   const shownAccounts = accounts.filter((a) => accountMatches(a, accountFilters, emails[a.id]?.email ?? ""));
-  const shownVehicles = vehicles.filter((v) => vehicleMatches(v, vehicleFilters));
   const drivers = accounts.filter(
     (a) => a.role === "Driver" && a.status === "Active",
   );
-  const driverName = (id?: string | null) =>
-    (id && accounts.find((a) => a.id === id)?.name) || "No Driver assigned";
   // Who may request what (0051, 0074): a Truck driver never; a Scheduler or
   // Company car driver only with the switches below; Requesters and Admins
   // always make Daily requests, and company trips with their switch.
@@ -298,8 +290,8 @@ export default function Settings() {
       setBusy(false);
     }
   }
-  function addVehicle() {
-    setVehicle(blankVehicle());
+  function addVehicle(companyTrips: boolean) {
+    setVehicle({ ...blankVehicle(), companyTrips });
     setVehicleModal("add");
     setFormError("");
   }
@@ -330,8 +322,9 @@ export default function Settings() {
           plate: vehicle.plate,
           name: vehicle.name.trim(),
           status: vehicle.status,
+          // A company trip vehicle's Driver is picked per request (0079).
           assignedDriverId:
-            vehicle.assignedDriverId === UNASSIGNED
+            vehicle.companyTrips || vehicle.assignedDriverId === UNASSIGNED
               ? undefined
               : vehicle.assignedDriverId,
           companyTrips: vehicle.companyTrips,
@@ -508,96 +501,7 @@ export default function Settings() {
         </section>
         </>
       ) : tab === "vehicles" ? (
-        <section className="schedule-panel">
-          <div className="panel-toolbar">
-            <div>
-              <h2>Vehicles</h2>
-              <span className="count">{shownVehicles.length}</span>
-              <p>Manage company vehicles.</p>
-            </div>
-            <Button className="primary" onClick={addVehicle}>
-              <Plus size={17} /> Add Vehicle
-            </Button>
-          </div>
-          <FilterFold active={vehicleFiltersSet(vehicleFilters)}>
-            <FilterSelect
-              label="Status"
-              value={vehicleFilters.status}
-              onChange={(status) => setVehicleFilters({ ...vehicleFilters, status })}
-              all="All"
-              choices={[
-                ["Active", "Active"],
-                ["Inactive", "Inactive"],
-              ]}
-            />
-            <FilterSelect
-              label="Company trips"
-              value={vehicleFilters.companyTrips}
-              onChange={(companyTrips) => setVehicleFilters({ ...vehicleFilters, companyTrips })}
-              all="All vehicles"
-              choices={[
-                ["yes", "Can be requested"],
-                ["no", "Daily trips only"],
-              ]}
-            />
-          </FilterFold>
-          {vehicles.length ? (
-            <div className="schedule-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>PLATE NUMBER</th>
-                    <th>VEHICLE NAME / MODEL</th>
-                    <th>COMPANY TRIPS</th>
-                    <th>ASSIGNED DRIVER</th>
-                    <th>STATUS</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shownVehicles.map((v) => (
-                    <tr key={v.plate}>
-                      <td>
-                        <b>{v.plate}</b>
-                      </td>
-                      <td>
-                        {v.name}
-                        {!v.hasOdometer && <small>No odometer</small>}
-                      </td>
-                      <td>{v.companyTrips ? "Can be requested" : "—"}</td>
-                      <td>{driverName(v.assignedDriverId)}</td>
-                      <td>
-                        <span
-                          className={
-                            "badge " + (v.status === "Active" ? "complete" : "")
-                          }
-                        >
-                          {v.status}
-                        </span>
-                      </td>
-                      <td>
-                        <Button
-                          variant="outline"
-                          onClick={() => editVehicle(v)}
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty">
-              <div className="empty-icon">
-                <Car size={30} />
-              </div>
-              <h3>No vehicles yet</h3>
-              <p>Add the first vehicle to make it available in Schedule.</p>
-            </div>
-          )}
-        </section>
+        <VehicleList vehicles={vehicles} accounts={accounts} onAdd={addVehicle} onEdit={editVehicle} />
       ) : (
         <BookingOptions />
       )}
@@ -850,6 +754,7 @@ export default function Settings() {
               </div>
               <small>Turn off for a vehicle without one: its trips are completed without readings.</small>
             </div>
+            {!vehicle.companyTrips && (
             <label className="field">
               <span>Assigned Driver</span>
               <Select
@@ -870,7 +775,9 @@ export default function Settings() {
                   ))}
                 </SelectContent>
               </Select>
+              <small>Drives this vehicle&apos;s Daily trips.</small>
             </label>
+            )}
             <Choice
               label="Status"
               value={vehicle.status}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, Vehicle } from "@/lib/kova-api";
-import { accountFiltersSet, accountMatches, noAccountFilters, noVehicleFilters, vehicleMatches } from "@/lib/settings-filters";
+import { VEHICLE_VIEWS, accountFiltersSet, accountMatches, noAccountFilters, vehicleNeedsDriver } from "@/lib/settings-filters";
 
 const account = (over: Partial<Account> = {}): Account => ({
   id: "a1",
@@ -38,10 +38,22 @@ describe("accountMatches", () => {
   });
 });
 
-describe("vehicleMatches", () => {
-  it("filters by status and company trips", () => {
-    expect(vehicleMatches(vehicle(), { ...noVehicleFilters, companyTrips: "yes" })).toBe(false);
-    expect(vehicleMatches(vehicle({ companyTrips: true }), { ...noVehicleFilters, companyTrips: "yes" })).toBe(true);
-    expect(vehicleMatches(vehicle({ status: "Inactive" }), { ...noVehicleFilters, status: "Active" })).toBe(false);
+describe("vehicle views", () => {
+  const drivers = new Set(["d1"]);
+  const view = (id: string) => VEHICLE_VIEWS.find((v) => v.id === id)!;
+
+  it("splits vehicles by what they're used for", () => {
+    expect(view("company").test(vehicle({ companyTrips: true }), drivers)).toBe(true);
+    expect(view("daily").test(vehicle({ companyTrips: true }), drivers)).toBe(false);
+    expect(view("no-odometer").test(vehicle({ hasOdometer: false }), drivers)).toBe(true);
+    expect(view("inactive").test(vehicle({ status: "Inactive" }), drivers)).toBe(true);
+  });
+
+  it("flags an active Daily vehicle without an active Driver", () => {
+    expect(vehicleNeedsDriver(vehicle(), drivers)).toBe(true);
+    expect(vehicleNeedsDriver(vehicle({ assignedDriverId: "gone" }), drivers)).toBe(true);
+    expect(vehicleNeedsDriver(vehicle({ assignedDriverId: "d1" }), drivers)).toBe(false);
+    expect(vehicleNeedsDriver(vehicle({ companyTrips: true }), drivers)).toBe(false);
+    expect(vehicleNeedsDriver(vehicle({ status: "Inactive" }), drivers)).toBe(false);
   });
 });

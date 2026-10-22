@@ -10,9 +10,59 @@ export type AccountFilters = {
 };
 export const noAccountFilters: AccountFilters = { search: "", role: "all", status: "all", access: "all" };
 
-/** The Vehicles list's filters on Settings. */
-export type VehicleFilters = { status: "all" | Vehicle["status"]; companyTrips: "all" | "yes" | "no" };
-export const noVehicleFilters: VehicleFilters = { status: "all", companyTrips: "all" };
+type VehicleFacts = Pick<Vehicle, "status" | "companyTrips" | "hasOdometer" | "assignedDriverId">;
+
+/** An active Daily vehicle whose Driver isn't an active Driver can't go on a Daily trip (0079). */
+export const vehicleNeedsDriver = (vehicle: VehicleFacts, activeDriverIds: ReadonlySet<string>) =>
+  vehicle.status === "Active" && !vehicle.companyTrips && !(vehicle.assignedDriverId && activeDriverIds.has(vehicle.assignedDriverId));
+
+/** Settings → Vehicles' rail: views over the vehicles (owner's prototype, 2026-10-22). */
+export type VehicleView = {
+  id: string;
+  section: string;
+  label: string;
+  about: string;
+  test: (vehicle: VehicleFacts, activeDriverIds: ReadonlySet<string>) => boolean;
+  /** Its vehicles need the Admin, so a count shows as a warning. */
+  warn?: boolean;
+  /** Add vehicle shows here; the company view adds one already ticked. */
+  canAdd?: boolean;
+};
+export const VEHICLE_VIEWS: VehicleView[] = [
+  { id: "all", section: "Vehicles", label: "All vehicles", about: "Every company vehicle.", test: () => true, canAdd: true },
+  {
+    id: "company",
+    section: "Kind",
+    label: "Can be requested for company trips",
+    about: "Offered on the Company Trip form, with the Driver the requester picks. Never put on a Daily trip.",
+    test: (vehicle) => vehicle.companyTrips,
+    canAdd: true,
+  },
+  {
+    id: "daily",
+    section: "Kind",
+    label: "Daily trips only",
+    about: "Planned by the Scheduler on Daily trips, driven by the vehicle's assigned Driver.",
+    test: (vehicle) => !vehicle.companyTrips,
+    canAdd: true,
+  },
+  {
+    id: "no-driver",
+    section: "Needs attention",
+    label: "No Driver assigned",
+    about: "An active Daily vehicle with no active Driver can't be put on a Daily trip.",
+    test: vehicleNeedsDriver,
+    warn: true,
+  },
+  { id: "no-odometer", section: "Needs attention", label: "No odometer", about: "Trips on these vehicles take no odometer readings.", test: (vehicle) => !vehicle.hasOdometer },
+  {
+    id: "inactive",
+    section: "Needs attention",
+    label: "Inactive",
+    about: "Retired vehicles. They stay on old trips but can't be planned.",
+    test: (vehicle) => vehicle.status === "Inactive",
+  },
+];
 
 /** Whether an account passes the filters; the search matches its name, username or email. */
 export function accountMatches(account: Account, f: AccountFilters, email = ""): boolean {
@@ -27,13 +77,6 @@ export function accountMatches(account: Account, f: AccountFilters, email = ""):
   return true;
 }
 
-export function vehicleMatches(vehicle: Pick<Vehicle, "status" | "companyTrips">, f: VehicleFilters): boolean {
-  if (f.status !== "all" && vehicle.status !== f.status) return false;
-  if (f.companyTrips !== "all" && vehicle.companyTrips !== (f.companyTrips === "yes")) return false;
-  return true;
-}
-
 /** How many filters are set, for the phone's Filters button. */
 export const accountFiltersSet = (f: AccountFilters) =>
   (f.search.trim() ? 1 : 0) + [f.role, f.status, f.access].filter((value) => value !== "all").length;
-export const vehicleFiltersSet = (f: VehicleFilters) => [f.status, f.companyTrips].filter((value) => value !== "all").length;
