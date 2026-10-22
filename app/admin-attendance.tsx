@@ -22,6 +22,7 @@ import { manilaToday } from "@/lib/timezone";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
+import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import OlderRecordsNotice from "./older-records-notice";
 import { Button } from "@/components/ui/button";
@@ -53,8 +54,8 @@ const statusOrder: AttendanceStatus[] = ["MISSING", "STARTED", "COMPLETE"];
 const tapTimeLabel24 = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hour12: false });
 
-type AttendanceFilters = { dates: DateFilter; driver: string; status: string };
-const noFilters: AttendanceFilters = { dates: anyDate, driver: "all", status: "all" };
+type AttendanceFilters = { dates: DateFilter; form: FormFilterValue; driver: string; status: string };
+const noFilters: AttendanceFilters = { dates: anyDate, form: "all", driver: "all", status: "all" };
 
 type AttendanceSortKey = "date" | "driver" | "plate" | "start" | "end" | "status";
 const columns: SortColumn<AttendanceSortKey>[] = [
@@ -70,16 +71,17 @@ const columns: SortColumn<AttendanceSortKey>[] = [
 /** One Start or End tap: its time, where it was (linked to a map), its flags and who tapped if not the Driver. */
 function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap; nameOf: (id: string) => string }) {
   if (!tap) return <>—</>;
+  const company = row.schedule.kind === "COMPANY";
   return (
     <div className="attendance-tap">
       <b>{tapTimeLabel(tap.at)}</b>
       {tap.location && (
         <a href={mapUrl(tap.location.lat, tap.location.lng)} target="_blank" rel="noreferrer">
-          <MapPin size={13} /> {tapPlaceLabel(tap)}
+          <MapPin size={13} /> {tapPlaceLabel(tap, company)}
         </a>
       )}
       {tap.location && <small className="attendance-coordinates">{coordinatesLabel(tap.location)}</small>}
-      {tapFlags(tap, row.schedule.date).map((flag) => (
+      {tapFlags(tap, row.schedule.date, company).map((flag) => (
         <small className="attendance-flag" key={flag}>
           {tapFlagLabel[flag]}
         </small>
@@ -96,10 +98,10 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
  * sees the same screen (`eyebrow` names whose it is); it has no actions.
  */
 export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: string } = {}) {
-  const { schedules, attendance, stopTaps, timeCorrections, accounts, options } = useKovaData();
+  const { schedules, attendance, companyRuns, stopTaps, timeCorrections, accounts, options } = useKovaData();
   const placeOf = placeResolver(options.destinations);
   const today = manilaToday();
-  const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today), [schedules, attendance, today]);
+  const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today, companyRuns), [schedules, attendance, today, companyRuns]);
   const [filters, setFilters] = useState<AttendanceFilters>(noFilters);
   /** The Download CSV dialog's own filters, starting from the screen's; null while it's closed. */
   const [exportFilters, setExportFilters] = useState<AttendanceFilters | null>(null);
@@ -126,6 +128,7 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
       rows.filter(
         (row) =>
           inDateFilter(row.schedule.date, f.dates, today) &&
+          formMatches(f.form, row.schedule.kind) &&
           (f.driver === "all" || row.revision.driverName === f.driver) &&
           (f.status === "all" ||
             (f.status === "flagged"
@@ -153,6 +156,8 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
   const filterFields = (f: AttendanceFilters, set: (next: AttendanceFilters) => void) => (
     <>
       <DateRangeFilter value={f.dates} onChange={(dates) => set({ ...f, dates })} />
+      {/* Company trips are in Attendance too (0079); this leaves them out. */}
+      <FormFilter value={f.form} onChange={(form) => set({ ...f, form })} />
       <label className="field">
         <span>Driver</span>
         <Select value={f.driver} onValueChange={(driver) => set({ ...f, driver })}>
@@ -194,28 +199,30 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
   function downloadRows() {
     const lines = exportRows.map((row) => {
       const { start, end } = row.attendance ?? {};
+      const company = row.schedule.kind === "COMPANY";
       const summary = stopSummary(timesFor(row));
       const flags = [
-        ...(start ? tapFlags(start, row.schedule.date).map((flag) => `Start: ${tapFlagLabel[flag]}`) : []),
-        ...(end ? tapFlags(end, row.schedule.date).map((flag) => `End: ${tapFlagLabel[flag]}`) : []),
+        ...(start ? tapFlags(start, row.schedule.date, company).map((flag) => `Start: ${tapFlagLabel[flag]}`) : []),
+        ...(end ? tapFlags(end, row.schedule.date, company).map((flag) => `End: ${tapFlagLabel[flag]}`) : []),
         summary.away ? `${summary.away} stop taps away from the stop` : "",
         summary.noLocation ? `${summary.noLocation} stop taps without a location` : "",
         summary.unchecked ? `${summary.unchecked} stop taps not checked` : "",
       ].filter(Boolean);
       return [
         row.schedule.date,
+        company ? "Company Trip" : "Daily Vehicle Trip",
         row.revision.driverName,
         row.revision.plate,
         start ? tapTimeLabel(start.at) : null,
-        start ? tapPlaceLabel(start) : null,
+        start ? tapPlaceLabel(start, company) : null,
         end ? tapTimeLabel(end.at) : null,
-        end ? tapPlaceLabel(end) : null,
+        end ? tapPlaceLabel(end, company) : null,
         summary.expected ? `${summary.tapped} of ${summary.expected}` : null,
         flags.join("; "),
         attendanceStatusLabel[row.status],
       ];
     });
-    const header = ["DATE", "DRIVER", "VEHICLE", "START", "START PLACE", "END", "END PLACE", "STOPS TAPPED", "FLAGS", "STATUS"];
+    const header = ["DATE", "FORM", "DRIVER", "VEHICLE", "START", "START PLACE", "END", "END PLACE", "STOPS TAPPED", "FLAGS", "STATUS"];
     downloadCsv(`kova-attendance-${today}.csv`, toCsv(header, lines));
     setExportFilters(null);
   }
@@ -228,7 +235,7 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
           <h1>
             Attendance<span className="title-dot">.</span>
           </h1>
-          <p>When each Driver started and ended their trip at ANONANG, and their taps at each stop. Taps away from the place or without a location are flagged.</p>
+          <p>When each Driver started and ended their trip, at ANONANG for Daily trips, and their taps at each stop. Taps away from the place or without a location are flagged.</p>
         </div>
       </div>
       <section className="schedule-panel">
@@ -246,7 +253,7 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
         <FilterFold
           active={
             (filters.dates.preset !== "any" ? 1 : 0) +
-            [filters.driver, filters.status].filter((value) => value !== "all").length +
+            [filters.form, filters.driver, filters.status].filter((value) => value !== "all").length +
             (sort ? 1 : 0)
           }
         >
