@@ -171,10 +171,10 @@ reset role;
 -- Yesterday, so a few hours back is still on the trip's day.
 update schedules set schedule_date = pg_temp.yesterday() where id = pg_temp.id('trip');
 
-select pg_temp.act_as('00000000-0000-0000-0000-0000000007a6');
-select throws_ok($$ select start_company_trip_at(now() - interval '5 hours', pg_temp.id('trip'), 48215) $$, 'P0002', 'Trip not found',
-  'The Driver can''t record a Company trip with a saved tap');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000007a5');
+select throws_ok($$ select start_company_trip_at(now() - interval '5 hours', pg_temp.id('trip'), 48215) $$, 'P0002', 'Trip not found',
+  'The requester can''t record a Company trip with a saved tap');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000007a6');
 select start_company_trip_at(now() - interval '5 hours', pg_temp.id('trip'), 48215);
 select record_company_stop_at(now() - interval '6 hours', pg_temp.id('trip'), pg_temp.leg('trip', 1), 'ARRIVE');
 select record_company_stop_at(now() - interval '4 hours', pg_temp.id('trip'), pg_temp.leg('trip', 1), 'LEAVE');

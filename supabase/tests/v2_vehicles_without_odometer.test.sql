@@ -146,14 +146,14 @@ select throws_ok($$ update trip_completions set end_odometer = 12 where schedule
   'A trip can''t have one reading without the other');
 
 -- Company trips --------------------------------------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-0000000007a5');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000007a6');
 select lives_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, 'A Company trip without an odometer starts with no reading');
 select record_company_stop(pg_temp.id('trip'), pg_temp.leg('trip', 1), 'ARRIVE');
 select record_company_stop(pg_temp.id('trip'), pg_temp.leg('trip', 1), 'LEAVE');
 reset role;
 -- Turning the switch on mid-trip doesn't ask for an end reading.
 update vehicles set has_odometer = true where plate = 'WM';
-select pg_temp.act_as('00000000-0000-0000-0000-0000000007a5');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000007a6');
 select lives_ok($$ select end_company_trip(pg_temp.id('trip'), null) $$, 'and ends with none, following its start');
 reset role;
 select is((select array[start_odometer, end_odometer] from company_trip_runs where schedule_id = pg_temp.id('trip')), array[null, null]::int[],
@@ -167,7 +167,7 @@ reset role;
 delete from trip_completions where schedule_id = pg_temp.id('trip');
 delete from stop_taps where schedule_id = pg_temp.id('trip');
 delete from company_trip_runs where schedule_id = pg_temp.id('trip');
-select pg_temp.act_as('00000000-0000-0000-0000-0000000007a5');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000007a6');
 select throws_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, '22023',
   'Enter the starting odometer reading, in whole kilometres', 'A Company trip with an odometer needs the start reading');
 
