@@ -509,7 +509,6 @@ Summary, with the implementing route file:
 | POST | `/api/me/password` | `app/api/me/password/route.ts` | any session; `{ currentPassword, newPassword }` |
 | POST | `/api/vehicles` | `app/api/vehicles/route.ts` | Admin |
 | PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
-| POST | `/api/requests` | `app/api/requests/route.ts` | Requester, Admin |
 | PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
 | POST | `/api/request-groups` | `app/api/request-groups/route.ts` | Who may make that form (`can_request_daily` / `can_request_company`); `{ form: "DAILY" \| "COMPANY", date, stops, … }` → the stops |
 | PUT | `/api/request-groups/:groupId` | `app/api/request-groups/[groupId]/route.ts` | Owner, Admin; `rowVersion` required |
