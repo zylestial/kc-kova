@@ -438,7 +438,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   invites and resends (150 an hour per Admin) and test pushes (10 an hour).
   The numbers live in `lib/supabase/login-rate-limit.ts`; see
   `docs/ARCHITECTURE.md`.
-- **Phone notifications** (0069–0071) repeat the bell: every notification
+- **Push notifications** (0069–0071) repeat the bell: every notification
   goes to each of the recipient's devices that turned them on, and nothing
   else is ever pushed. Any role may turn them on, per device. A device
   belongs to whoever turned it on there last. Signing out pauses it;

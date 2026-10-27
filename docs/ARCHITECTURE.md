@@ -448,7 +448,7 @@ causes the event (`submit_schedule`, `approve_schedule`, `return_schedule`,
 itself, and `read_at` is only ever set by the `mark_notification_read`/
 `mark_all_notifications_read` RPCs.
 
-### `push_subscriptions` and phone notifications (migrations 0069–0071)
+### `push_subscriptions` and push notifications (migrations 0069–0071)
 
 Web Push, so the bell's notifications also pop up on a device with KOVA
 closed. One row per device: its push `endpoint` (unique), keys `p256dh`
@@ -591,7 +591,7 @@ Configuration is entirely in environment variables (`.env.example`):
   the browser.
 - `NEXT_PUBLIC_KOVA_API_BASE_URL` — left blank when the API is same-origin
   (the default; this repo serves both frontend and API from one Next.js app).
-- Phone notifications (optional; push is off while they're blank):
+- Push notifications (optional; push is off while they're blank):
   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and the server-only `VAPID_PRIVATE_KEY`
   (a pair from `pnpm dlx web-push generate-vapid-keys`), `VAPID_SUBJECT`
   (a `mailto:` or `https:` contact for push services, not a secret;

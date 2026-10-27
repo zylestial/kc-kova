@@ -95,7 +95,7 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   browser, can't, or, on an iPhone or iPad not opened from the Home
   Screen, how to add it there first), with **Turn on**, or **Turn off**
   and **Send a test** (to this device only). It's per device, so the copy says to turn it on on
-  each phone or computer. A phone notification reads "KOVA" over the
+  each phone or computer. A push notification reads "KOVA" over the
   bell's text, with the app icon.
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
