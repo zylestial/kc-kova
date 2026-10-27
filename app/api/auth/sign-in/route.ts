@@ -4,7 +4,13 @@ import { readJson } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
-import { clearLoginAttempts, isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
+import {
+  clearLoginAttempts,
+  clientIp,
+  isLoginRateLimited,
+  recordFailedLogin,
+  SIGN_IN_IP_LIMIT,
+} from "@/lib/supabase/login-rate-limit";
 import { parseWith } from "@/lib/validation";
 
 const signInBody = z.object({ username: z.string().trim().min(1).max(254), password: z.string().min(1) });
@@ -31,12 +37,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Username or email, and password, are required." }, { status: 422 });
   }
   const { password } = body;
-  // Limited per account, whichever way it was typed.
+  // Limited per account, whichever way it was typed, and per network, so
+  // one password can't be tried against every username.
   const username = await usernameFor(body.username);
+  const ip = clientIp(request);
+  const ipKey = ip ? `ip:${ip}` : null;
 
-  if (await isLoginRateLimited(username)) {
-    return NextResponse.json({ message: "Too many sign-in attempts. Try again later." }, { status: 429 });
+  if ((ipKey && (await isLoginRateLimited(ipKey, SIGN_IN_IP_LIMIT))) || (await isLoginRateLimited(username))) {
+    return NextResponse.json({ message: "Too many sign-in attempts. Try again in 15 minutes." }, { status: 429 });
   }
+  const recordFailure = async () => {
+    await recordFailedLogin(username);
+    if (ipKey) await recordFailedLogin(ipKey, SIGN_IN_IP_LIMIT);
+  };
 
   const supabase = await createSupabaseServerClient();
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -44,14 +57,14 @@ export async function POST(request: Request) {
     password,
   });
   if (authError || !authData.user) {
-    await recordFailedLogin(username);
+    await recordFailure();
     return NextResponse.json({ message: INVALID }, { status: 401 });
   }
 
   const { data: accountRow } = await supabase.from("accounts").select("*").eq("id", authData.user.id).maybeSingle();
   if (!accountRow || accountRow.status !== "Active") {
     await supabase.auth.signOut();
-    await recordFailedLogin(username);
+    await recordFailure();
     const message = accountRow ? "This account is inactive." : INVALID;
     return NextResponse.json({ message }, { status: accountRow ? 403 : 401 });
   }
