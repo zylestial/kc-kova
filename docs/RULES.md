@@ -33,8 +33,9 @@ should be written, for both humans and AI agents.)
   password on My account, each with their current password; wrong ones
   count toward the sign-in lockout. A new username can't be inside the
   current password. Forgot password emails a link (1 hour, once) to the
-  confirmed email, found by username or email, and answers the same
-  whether or not the account exists; at most 5 such emails per account per
+  confirmed email, found by email, and answers the same whether or not
+  the account exists, even when the email can't be sent (that's logged,
+  and the try doesn't count); at most 5 such emails per account per
   15 minutes. Setting a password from the link also lifts a sign-in lockout.
 - A username someone chooses themselves is 3–30 letters, numbers, dots,
   dashes or underscores (`lib/username-policy.ts`).
