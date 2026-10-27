@@ -16,6 +16,12 @@ export function notificationTarget(
   const { type, relatedRequestId, relatedScheduleId } = notification;
   switch (type) {
     case "REQUEST_SCHEDULED":
+      // A Company trip's requester records it on My Trips (0055); approve_schedule
+      // names the schedule, not the request.
+      if (relatedScheduleId && findSchedule(relatedScheduleId)?.kind === "COMPANY") {
+        return `/my-trips?open=${encodeURIComponent(relatedScheduleId)}`;
+      }
+      return relatedRequestId ? `/requests?open=${encodeURIComponent(relatedRequestId)}` : "/requests";
     case "REQUEST_RETURNED":
     case "REQUEST_SENT_BACK":
     case "REQUEST_SPLIT":

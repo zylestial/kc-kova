@@ -754,7 +754,11 @@ The prototypes were the spec; these are the calls made on top of them.
   done"; it passed on every re-run.
 
 **Known gaps** (tell the owner before relying on them):
-- "Propose a change" on an approved Company trip hasn't been tried.
+- ~~"Propose a change" on an approved Company trip hasn't been tried.~~
+  Tried 2026-10-27 and it works, before the trip starts and on the road
+  (taps kept); now covered by `e2e/company-trip-revision.spec.ts`. Before
+  it starts the Scheduler presses Propose changes on the card first; on the
+  road the legs not reached yet are open straight away.
 - ~~A sent-back stop can't change its date while other stops of its group
   are being scheduled (the group shares the date).~~ Fixed 2026-10-27
   (0081, `fix/move-sent-back-stop`): once its day passed it could never be
@@ -764,8 +768,11 @@ The prototypes were the spec; these are the calls made on top of them.
   group's on the next edit (only a moved "any day that week" stop keeps it).
 - A request made with the old `create_request` and a vehicle can't be
   scheduled; the app no longer uses it.
-- The REQUEST_SCHEDULED notification for a Company trip links to My
-  requests, not My Trips.
+- ~~The REQUEST_SCHEDULED notification for a Company trip links to My
+  requests, not My Trips.~~ Fixed 2026-10-27 (`fix/company-notif-link`):
+  `approve_schedule` names the schedule, so the link checks its kind. A
+  Daily one still opens My requests without a request open (no request id
+  on that notification).
 
 ## Scheduling page (2026-10-14/15)
 

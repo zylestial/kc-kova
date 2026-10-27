@@ -10,6 +10,11 @@ describe("notificationTarget", () => {
     expect(notificationTarget({ type: "REQUEST_MOVED" }, find, "Requester")).toBe("/requests");
   });
 
+  it("opens a scheduled Company trip on My Trips, where its requester records it", () => {
+    expect(notificationTarget({ type: "REQUEST_SCHEDULED", relatedScheduleId: "s1" }, find, "Requester")).toBe("/my-trips?open=s1");
+    expect(notificationTarget({ type: "REQUEST_SCHEDULED", relatedScheduleId: "daily" }, find, "Requester")).toBe("/requests");
+  });
+
   it("opens a returned schedule on Scheduling, on its day and kind", () => {
     expect(notificationTarget({ type: "SCHEDULE_RETURNED", relatedScheduleId: "s1" }, find, "Scheduler")).toBe(
       "/scheduling?date=2026-10-20&type=COMPANY&trip=s1",
