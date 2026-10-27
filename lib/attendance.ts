@@ -21,18 +21,59 @@ export function couldBeAtBase(location: NonNullable<AttendanceTap["location"]>):
 }
 
 /** Why a tap needs an Admin's eye; an empty list means it was at base, on the day. */
-export type TapFlag = "off-base" | "no-location" | "late";
+export type TapFlag = "off-base" | "no-location" | "late" | "sent-later";
 
 export const tapFlagLabel: Record<TapFlag, string> = {
   "off-base": "Away from ANONANG",
   "no-location": "No location",
   late: "Tapped after the trip day",
+  "sent-later": "Saved on the phone, sent later",
 };
+
+/**
+ * How long after its time a tap saved on the phone (0077) may reach KOVA
+ * before it's flagged. The phone's time is trusted only between the step
+ * before and the moment KOVA got it, so a tap sent much later could also be
+ * one given an earlier time on purpose: the Admin judges which.
+ */
+export const SENT_LATER_AFTER_MS = 5 * 60 * 1000;
+
+/** Whether a tap reached KOVA at least SENT_LATER_AFTER_MS after the time it carries. */
+export function sentLater(tap: { at: string; sentAt?: string }): boolean {
+  return !!tap.sentAt && new Date(tap.sentAt).getTime() - new Date(tap.at).getTime() >= SENT_LATER_AFTER_MS;
+}
+
+/** "40 min", "2 h 5 min", "1 d 3 h". */
+function durationLabel(ms: number): string {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+  return hours % 24 ? `${Math.floor(hours / 24)} d ${hours % 24} h` : `${Math.floor(hours / 24)} d`;
+}
+
+/**
+ * What a flagged tap says about when it arrived, e.g. "Saved on the phone,
+ * sent 8:40 AM (40 min later)", with the date when it came on a later
+ * Manila day. "" when it isn't flagged.
+ */
+export function sentLaterLabel(tap: { at: string; sentAt?: string }): string {
+  if (!sentLater(tap)) return "";
+  const sentAt = tap.sentAt!;
+  const day =
+    dateInBusinessTimezone(sentAt) === dateInBusinessTimezone(tap.at)
+      ? ""
+      : `${new Date(sentAt).toLocaleDateString("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric" })}, `;
+  const gap = durationLabel(new Date(sentAt).getTime() - new Date(tap.at).getTime());
+  return `Saved on the phone, sent ${day}${tapTimeLabel(sentAt)} (${gap} later)`;
+}
 
 /**
  * Flags for one Start/End tap. Away from base is a position that couldn't be
  * within BASE_RADIUS_M even allowing for the phone's error margin; late is a
- * tap on a later Asia/Manila day than the trip. A Company trip starts and
+ * tap on a later Asia/Manila day than the trip; sent later is a tap saved on
+ * the phone that reached KOVA SENT_LATER_AFTER_MS or more after its time
+ * (0077). A Company trip starts and
  * ends away from ANONANG, so `company` taps are never flagged as away.
  */
 export function tapFlags(tap: AttendanceTap, scheduleDate: string, company = false): TapFlag[] {
@@ -40,6 +81,7 @@ export function tapFlags(tap: AttendanceTap, scheduleDate: string, company = fal
   if (!tap.location) flags.push("no-location");
   else if (!company && !couldBeAtBase(tap.location)) flags.push("off-base");
   if (dateInBusinessTimezone(tap.at) > scheduleDate) flags.push("late");
+  if (sentLater(tap)) flags.push("sent-later");
   return flags;
 }
 
