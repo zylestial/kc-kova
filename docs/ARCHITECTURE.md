@@ -500,6 +500,7 @@ Summary, with the implementing route file:
 | POST | `/api/request-groups` | `app/api/request-groups/route.ts` | Who may make that form (`can_request_daily` / `can_request_company`); `{ form: "DAILY" \| "COMPANY", date, stops, … }` → the stops |
 | PUT | `/api/request-groups/:groupId` | `app/api/request-groups/[groupId]/route.ts` | Owner, Admin; `rowVersion` required |
 | POST | `/api/requests/:requestId/move` | `app/api/requests/[requestId]/move/route.ts` | Scheduler; an "any day that week" stop, `{ date }` |
+| POST | `/api/requests/:requestId/new-day` | `app/api/requests/[requestId]/new-day/route.ts` | The requester; their sent-back stop while the rest of its request is being scheduled, `{ date }` → `204` (`move_sent_back_stop`, 0081) |
 | POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403); `kind: "COMPANY"` starts a Company trip |
 | PUT | `/api/schedules/:scheduleId` | `app/api/schedules/[scheduleId]/route.ts` | Scheduler (DRAFT/RETURNED, or SUBMITTED, which goes back to DRAFT; 0057), Admin (SUBMITTED) |
 | POST | `/api/schedules/:scheduleId/submit` | `app/api/schedules/[scheduleId]/submit/route.ts` | Scheduler |
