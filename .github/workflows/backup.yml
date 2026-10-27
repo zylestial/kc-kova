@@ -32,6 +32,10 @@ jobs:
       - name: Upload to Google Drive
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq rclone > /dev/null
+          # GDRIVE_TOKEN is the line `rclone authorize` prints: base64 JSON
+          # with the OAuth client and its token.
+          settings="$(node scripts/gdrive-env.mjs)"
+          eval "$settings"
           rclone copy backups "gdrive:KOVA backups"
           # Only after tonight's copy is up, so a run of failures never
           # empties the folder.
@@ -39,4 +43,4 @@ jobs:
         env:
           RCLONE_CONFIG_GDRIVE_TYPE: drive
           RCLONE_CONFIG_GDRIVE_SCOPE: drive.file
-          RCLONE_CONFIG_GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+          GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
