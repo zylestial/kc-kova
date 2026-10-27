@@ -3,8 +3,9 @@ import { z } from "zod";
 import { authed, readJson } from "@/lib/api-route";
 import { emailStatus, sendEmailConfirmation } from "@/lib/account-email";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { renameAuthUser, requestAccessError, toAccount } from "@/lib/supabase/accounts";
+import { requestAccessError, saveWithRename, toAccount } from "@/lib/supabase/accounts";
 import { updateAccountBody } from "@/lib/admin-input";
+import { usernameError } from "@/lib/username-policy";
 import { parseWith } from "@/lib/validation";
 
 export const PUT = authed<{ accountId: string }>(async ({ request, account, params: { accountId } }) => {
@@ -27,27 +28,34 @@ export const PUT = authed<{ accountId: string }>(async ({ request, account, para
     return NextResponse.json({ message: "You can't change your own account type or status. Ask another Admin." }, { status: 422 });
   }
 
-  if (username.toLowerCase() !== existing.username.toLowerCase()) {
-    const refused = await renameAuthUser(admin, accountId, username);
-    if (refused) return NextResponse.json({ message: refused.message }, { status: refused.status });
+  // A new username follows the same rule as one people choose themselves;
+  // an older one that doesn't is left alone when only other fields change.
+  if (username !== existing.username) {
+    const problem = usernameError(username);
+    if (problem) return NextResponse.json({ message: problem }, { status: 422 });
   }
 
-  const { data: accountRow, error: updateError } = await admin
-    .from("accounts")
-    .update({
-      name,
-      username,
-      role,
-      status,
-      position,
-      driver_type: driverType,
-      can_request_daily: canRequestDaily,
-      can_request_company: canRequestCompany,
-      can_drive_company: canDriveCompany,
-    })
-    .eq("id", accountId)
-    .select("*")
-    .single();
+  // If the row is refused, the sign-in username is put back too.
+  const saved = await saveWithRename(admin, accountId, existing.username, username, () =>
+    admin
+      .from("accounts")
+      .update({
+        name,
+        username,
+        role,
+        status,
+        position,
+        driver_type: driverType,
+        can_request_daily: canRequestDaily,
+        can_request_company: canRequestCompany,
+        can_drive_company: canDriveCompany,
+      })
+      .eq("id", accountId)
+      .select("*")
+      .single(),
+  );
+  if ("refused" in saved) return NextResponse.json({ message: saved.refused.message }, { status: saved.refused.status });
+  const { data: accountRow, error: updateError } = saved.result;
   if (updateError || !accountRow) {
     const isDuplicate = updateError?.code === "23505";
     const message = isDuplicate ? "Username already exists." : (requestAccessError(updateError) ?? "Could not update the account.");
