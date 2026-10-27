@@ -267,7 +267,11 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   a stop tap or End), and notes when it arrived (`*sent_at`). This applies
   to every trip tap: Start/End, Arrived/Leaving and a Company trip's. A
   saved tap KOVA then refuses (the trip was cancelled meanwhile, say) is
-  dropped and listed on the trip screen. The position is optional and comes from
+  dropped and listed on the trip screen. Since the phone's time can't be
+  checked, a tap that reached KOVA 5 minutes or more after its time is
+  flagged on Attendance and the Admin's times table ("Saved on the phone,
+  sent 10:18 AM (40 min later)"), never refused: a dead zone and a time
+  set earlier on purpose look alike, so the Admin judges. The position is optional and comes from
   the phone; the database works out the distance from ANONANG
   (16.103769, 120.436222). A tap that couldn't be within 150 m (its
   distance minus the phone's reported accuracy, counting at most 250 m of

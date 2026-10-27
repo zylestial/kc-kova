@@ -1194,3 +1194,17 @@ account the company owns from day one.
 - **Forgot password is email only** (owner chose it over "username or
   email, block junk"): `z.email()` in the form and the route. Any domain:
   staff aren't limited to Gmail; Gmail is only the account KOVA sends from.
+
+## Taps sent late are flagged (2026-10-27)
+
+- **Found in a QA pass**: every tap route takes the phone's `tappedAt`
+  (0077), and the database keeps it between the step before and its own
+  now, but the `sent_at` / `start_sent_at` / `end_sent_at` it records were
+  never loaded, so a tap given an earlier time on purpose looked the same
+  as one made on time. The server can't tell a dead zone from that.
+- **Flag, don't refuse** (same as away-from-base): a tap that reached KOVA
+  `SENT_LATER_AFTER_MS` (5 min) or more after its time gets the flag
+  "Saved on the phone, sent … (… later)" on Attendance (Start / End
+  cells, a Stops count, the Flagged filter, the download) and on the
+  Admin's times table (Finished Trips, Attendance → View). Under 5 min is
+  a brief signal drop, not worth the Admin's eye. Drivers never see it.
