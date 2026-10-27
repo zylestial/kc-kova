@@ -1,0 +1,42 @@
+name: Backup
+
+# Nightly encrypted copy of the production database, kept 30 days in the
+# company's Google Drive ("KOVA backups"). Setup and restore: docs/BACKUPS.md.
+on:
+  schedule:
+    - cron: "0 18 * * *" # 2:00 AM in Manila
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: backup
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - name: Dump and encrypt
+        run: bash scripts/backup-db.sh backups
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+
+      - name: Upload to Google Drive
+        run: |
+          sudo apt-get install -y -qq rclone > /dev/null
+          rclone copy backups "gdrive:KOVA backups"
+          # Only after tonight's copy is up, so a run of failures never
+          # empties the folder.
+          rclone delete "gdrive:KOVA backups" --min-age 30d
+        env:
+          RCLONE_CONFIG_GDRIVE_TYPE: drive
+          RCLONE_CONFIG_GDRIVE_SCOPE: drive.file
+          RCLONE_CONFIG_GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
