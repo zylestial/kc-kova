@@ -754,7 +754,11 @@ The prototypes were the spec; these are the calls made on top of them.
   done"; it passed on every re-run.
 
 **Known gaps** (tell the owner before relying on them):
-- "Propose a change" on an approved Company trip hasn't been tried.
+- ~~"Propose a change" on an approved Company trip hasn't been tried.~~
+  Tried 2026-10-27 and it works, before the trip starts and on the road
+  (taps kept); now covered by `e2e/company-trip-revision.spec.ts`. Before
+  it starts the Scheduler presses Propose changes on the card first; on the
+  road the legs not reached yet are open straight away.
 - A sent-back stop can't change its date while other stops of its group
   are being scheduled (the group shares the date).
 - A request made with the old `create_request` and a vehicle can't be
