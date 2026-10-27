@@ -1194,3 +1194,12 @@ account the company owns from day one.
 - **Forgot password is email only** (owner chose it over "username or
   email, block junk"): `z.email()` in the form and the route. Any domain:
   staff aren't limited to Gmail; Gmail is only the account KOVA sends from.
+
+## A failed load shows an error, not Sign In (2026-10-27)
+
+- **Found in a QA pass**: when `/api/bootstrap` failed with the session still
+  valid, the layout treated it as signed out and went to `/sign-in`; proxy.ts
+  saw the cookie and sent it back to `/home`, round and round (locally: 36
+  session calls in 12 s and climbing). Now the layout shows "Couldn't load
+  KOVA" with Try again and Sign out (4 calls, then none). A 401 still signs
+  out, which clears the cookie, so that path can't loop either.
