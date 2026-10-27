@@ -1208,3 +1208,12 @@ account the company owns from day one.
 - **Fails open**: if the function can't be reached the request is allowed and
   logged, so a missing migration can't lock everyone out. Apply 0082 to
   production before merging the code that calls it.
+
+## A failed load shows an error, not Sign In (2026-10-27)
+
+- **Found in a QA pass**: when `/api/bootstrap` failed with the session still
+  valid, the layout treated it as signed out and went to `/sign-in`; proxy.ts
+  saw the cookie and sent it back to `/home`, round and round (locally: 36
+  session calls in 12 s and climbing). Now the layout shows "Couldn't load
+  KOVA" with Try again and Sign out (4 calls, then none). A 401 still signs
+  out, which clears the cookie, so that path can't loop either.

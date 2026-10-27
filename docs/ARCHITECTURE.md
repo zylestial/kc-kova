@@ -149,6 +149,12 @@ one in again.
 `proxy.ts` lets `/join`, `/forgot-password`, `/reset-password` and
 `/confirm-email` open without a session.
 
+`proxy.ts` only checks that a session cookie is there, and sends a signed-in
+browser from `/sign-in` to `/home`. So the app's layout never sends a
+failed load to Sign In (that loops between the two pages): if the session
+or data can't be loaded it shows "Couldn't load KOVA" with Try again and
+Sign out; only a 401 signs out and goes to Sign In.
+
 ## Authorization: two enforcement layers
 
 KOVA enforces permissions in two places, and both must independently hold:
