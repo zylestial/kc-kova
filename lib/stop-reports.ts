@@ -82,6 +82,18 @@ export function stopChoices(leg: Pick<ScheduleLeg, "stops"> | undefined, request
 export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds" | "decision">) =>
   report.missed || (!!report.requestIds?.length && report.decision === "SKIP");
 
+/**
+ * Where an open stop report stands, for Finished Trips. It closes with its
+ * answer on Scheduling, never with Mark handled (0083); "" once handled.
+ */
+export function stopReportStatus(report: Pick<ProblemReport, "status" | "decision" | "missed" | "requestIds">): string {
+  if (report.status === "HANDLED") return "";
+  if (plansAgain(report)) return "Missed: waiting for the Scheduler to plan it again on Scheduling.";
+  if (!report.decision) return "Waiting for an answer on Scheduling. The trip is held until then.";
+  if (report.decision === "CHANGE") return "Answered: change the route. Waiting for an Admin to approve the change.";
+  return "Open on Scheduling.";
+}
+
 /** How a report reads on the trip, e.g. "Missed: Not available". */
 export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed" | "requestIds" | "decision">): string {
   const label =

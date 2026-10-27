@@ -159,7 +159,9 @@ select throws_ok($$ select approve_schedule(pg_temp.id('s1'), pg_temp.rv()) $$, 
   'The Driver has already reached a stop this change moves. Return it to the Scheduler to redo', 'A missed leg can''t change, like a reached one');
 
 -- Other stop reports, and sending back -------------------------------------------------
-select lives_ok($$ select handle_problem(pg_temp.id('waiting'), 'Driver waited it out') $$, 'A Scheduler marks a stop report handled');
+-- Answered first: an unanswered one holds the trip and can't be marked handled (0083).
+select answer_stop_report(pg_temp.id('waiting'), 'WAIT');
+select lives_ok($$ select handle_problem(pg_temp.id('waiting'), 'Driver waited it out') $$, 'A Scheduler marks an answered stop report handled');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 insert into ids select 'whole', id from report_problem(pg_temp.id('s1'), 'Aircon broke');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');

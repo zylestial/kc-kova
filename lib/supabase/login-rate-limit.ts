@@ -6,6 +6,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
  * "prefix:" key (usernames can't hold a ":"). RLS grants no policies on
  * that table, so it is only ever touched here through the service-role
  * client.
+ *
+ * An attempt is taken before it's made, in one step in the database
+ * (add_login_attempts, 0082), so requests sent at the same moment can't all
+ * slip under the limit: each sees the count the one before it left.
  */
 export type Limit = { max: number; windowMs: number };
 
@@ -23,33 +27,40 @@ export const PUSH_TEST_LIMIT: Limit = { max: 10, windowMs: 60 * MINUTE };
 
 const normalize = (key: string) => key.trim().toLowerCase();
 
-async function current(key: string, limit: Limit) {
-  const admin = createSupabaseAdminClient();
-  const { data } = await admin.from("login_attempts").select("count, window_start").eq("key", key).maybeSingle();
-  const withinWindow = !!data && Date.now() - new Date(data.window_start).getTime() < limit.windowMs;
-  return { admin, count: withinWindow ? (data.count as number) : 0, withinWindow };
-}
-
-/** How many more attempts `key` has in its window. */
-export async function attemptsLeft(key: string, limit: Limit = SIGN_IN_LIMIT) {
-  const { count } = await current(normalize(key), limit);
-  return Math.max(0, limit.max - count);
-}
-
-export async function isLoginRateLimited(key: string, limit: Limit = SIGN_IN_LIMIT) {
-  return (await attemptsLeft(key, limit)) === 0;
-}
-
-/** Counts `by` attempts against `key`, starting a new window if the last one ran out. */
-export async function recordFailedLogin(key: string, limit: Limit = SIGN_IN_LIMIT, by = 1) {
-  if (by <= 0) return;
-  const normalized = normalize(key);
-  const { admin, count, withinWindow } = await current(normalized, limit);
-  if (withinWindow) {
-    await admin.from("login_attempts").update({ count: count + by }).eq("key", normalized);
-  } else {
-    await admin.from("login_attempts").upsert({ key: normalized, count: by, window_start: new Date().toISOString() });
+/**
+ * Adds `by` attempts to `key` (a negative `by` gives them back) and returns
+ * its count in the current window. Null when the database couldn't be asked,
+ * which callers treat as allowed: a broken limiter mustn't lock everyone out.
+ */
+async function addAttempts(key: string, by: number, limit: Limit): Promise<number | null> {
+  const { data, error } = await createSupabaseAdminClient().rpc("add_login_attempts", {
+    p_key: normalize(key),
+    p_by: by,
+    p_window_seconds: Math.round(limit.windowMs / 1000),
+  });
+  if (error) {
+    console.error("[login-rate-limit] add_login_attempts failed:", error.message);
+    return null;
   }
+  return data as number;
+}
+
+/**
+ * Takes `by` attempts from `key`'s allowance before they're made. `ok` when
+ * they fit; otherwise they're given straight back, so a refused try doesn't
+ * count, and `left` says how many still would fit.
+ */
+export async function takeAttempts(key: string, limit: Limit = SIGN_IN_LIMIT, by = 1): Promise<{ ok: boolean; left: number }> {
+  const count = await addAttempts(key, by, limit);
+  if (count === null) return { ok: true, left: limit.max };
+  if (count <= limit.max) return { ok: true, left: limit.max - count };
+  await addAttempts(key, -by, limit);
+  return { ok: false, left: Math.max(0, limit.max - (count - by)) };
+}
+
+/** Gives back attempts taken for something that didn't happen or didn't count (a sign-in that worked). */
+export async function giveBackAttempts(key: string, limit: Limit = SIGN_IN_LIMIT, by = 1) {
+  if (by > 0) await addAttempts(key, -by, limit);
 }
 
 export async function clearLoginAttempts(key: string) {

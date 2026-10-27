@@ -250,6 +250,11 @@ The completion rules:
 - Handling a problem report needs a note and may name a follow-up schedule,
   which must be a different, active schedule. A `DONE` trip can still have
   problem reports handled.
+- **A stop report closes with its answer** (0083): Mark handled on Finished
+  Trips is for whole-trip problems only. A stop report shows where it
+  stands there (waiting for an answer, a route change, or planning again),
+  and `handle_problem` refuses one while it holds the trip; Scheduling's
+  answer is what lifts the hold and tells the Driver.
 
 The attendance rules (`record_trip_attendance`, migration 0042):
 
