@@ -130,3 +130,30 @@ export async function renameAuthUser(admin: SupabaseClient, accountId: string, u
   const isDuplicate = error.code === "email_exists" || /already been registered/i.test(error.message ?? "");
   return isDuplicate ? { status: 409, message: "Username already exists." } : { status: 422, message: "Could not update the account." };
 }
+
+/**
+ * Saves an account whose username may change: its Auth user moves to the
+ * new made-up email first, then `save` writes the `accounts` row. If the
+ * row is refused, the Auth user is moved back, so sign-in keeps matching
+ * the username the account still shows. A change of case only needs the
+ * row. `refused` is why the Auth side said no (nothing was saved).
+ */
+export async function saveWithRename<R extends { error: unknown }>(
+  admin: SupabaseClient,
+  accountId: string,
+  from: string,
+  to: string,
+  save: () => PromiseLike<R>,
+): Promise<{ refused: { status: number; message: string } } | { result: R }> {
+  const moved = to.trim().toLowerCase() !== from.trim().toLowerCase();
+  if (moved) {
+    const refused = await renameAuthUser(admin, accountId, to);
+    if (refused) return { refused };
+  }
+  const result = await save();
+  if (result.error && moved) {
+    const undone = await renameAuthUser(admin, accountId, from);
+    if (undone) console.error("[accounts] couldn't move the Auth user back after a refused save:", accountId, undone.message);
+  }
+  return { result };
+}
