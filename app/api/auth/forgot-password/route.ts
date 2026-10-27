@@ -5,7 +5,7 @@ import { issueAccountToken } from "@/lib/account-tokens";
 import { resetPasswordEmail } from "@/lib/email-templates";
 import { appUrl, sendMail } from "@/lib/mailer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
+import { clientIp, FORGOT_IP_LIMIT, isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
 import { parseWith } from "@/lib/validation";
 
 // Email only (owner, 2026-10-22): text that isn't an email address is turned away.
@@ -16,11 +16,20 @@ const ANSWER = { message: "If an account has that email, a link to reset the pas
 
 /**
  * Emails a reset link to the Active account whose confirmed email it is.
- * Limited per account through login_attempts (a "reset:" key), so nobody can flood someone's inbox.
+ * Limited per account through login_attempts (a "reset:" key), so nobody can flood someone's inbox,
+ * and per network (a "forgot-ip:" key), so nobody can sweep every address.
  */
 export async function POST(request: Request) {
   const body = parseWith(forgotBody, await readJson(request));
   if (!body) return NextResponse.json({ message: "Enter a valid email address." }, { status: 422 });
+
+  const ip = clientIp(request);
+  if (ip) {
+    if (await isLoginRateLimited(`forgot-ip:${ip}`, FORGOT_IP_LIMIT)) {
+      return NextResponse.json({ message: "Too many requests. Try again in 15 minutes." }, { status: 429 });
+    }
+    await recordFailedLogin(`forgot-ip:${ip}`, FORGOT_IP_LIMIT);
+  }
 
   const admin = createSupabaseAdminClient();
   const { data: found } = await admin.from("account_emails").select("account_id").eq("email", body.login).maybeSingle();
