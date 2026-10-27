@@ -176,6 +176,8 @@ export type AttendanceTap = {
   location: AttendanceLocation | null;
   /** Tapped with no signal and still on the phone, waiting to send (0077). */
   saved?: boolean;
+  /** When KOVA got it, for a tap saved on the phone and sent later (0077); left out when it arrived as tapped. */
+  sentAt?: string;
 };
 /** A Driver's Start and End taps for a whole schedule, their attendance that day (0042). */
 export type TripAttendance = {
@@ -211,6 +213,8 @@ export type StopTap = {
   location: StopTapLocation | null;
   /** Tapped with no signal and still on the phone, waiting to send (0077). */
   saved?: boolean;
+  /** When KOVA got it, for a tap saved on the phone and sent later (0077); left out when it arrived as tapped. */
+  sentAt?: string;
 };
 /** A requester's record of their Company trip: Start and End trip, each with the odometer (0055). */
 export type CompanyTripRun = {

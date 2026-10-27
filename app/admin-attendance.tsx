@@ -10,8 +10,11 @@ import {
   buildAttendanceRows,
   coordinatesLabel,
   mapUrl,
+  sentLater,
+  sentLaterLabel,
   tapFlagLabel,
   tapFlags,
+  type TapFlag,
   tapPlaceLabel,
   tapTimeLabel,
   type AttendanceRow,
@@ -39,6 +42,8 @@ function stopSummary(times: LegTimes[]) {
     tapped: taps.length,
     away: taps.filter((tap) => atStop(tap.location) === false).length,
     noLocation: taps.filter((tap) => !tap.location).length,
+    // Saved on the phone and sent 5+ minutes after the time it carries (0077).
+    sentLater: taps.filter(sentLater).length,
     // Has a position, but the place has no saved location to check it against.
     unchecked: taps.filter((tap) => tap.location && tap.location.distanceM === null).length,
   };
@@ -68,6 +73,9 @@ const columns: SortColumn<AttendanceSortKey>[] = [
   { label: "STATUS", key: "status" },
 ];
 
+/** A flag in words; a tap sent later also says when it reached KOVA. */
+const flagText = (flag: TapFlag, tap: AttendanceTap) => (flag === "sent-later" ? sentLaterLabel(tap) : tapFlagLabel[flag]);
+
 /** One Start or End tap: its time, where it was (linked to a map), its flags and who tapped if not the Driver. */
 function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap; nameOf: (id: string) => string }) {
   if (!tap) return <>—</>;
@@ -83,7 +91,7 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
       {tap.location && <small className="attendance-coordinates">{coordinatesLabel(tap.location)}</small>}
       {tapFlags(tap, row.schedule.date, company).map((flag) => (
         <small className="attendance-flag" key={flag}>
-          {tapFlagLabel[flag]}
+          {flagText(flag, tap)}
         </small>
       ))}
       {tap.recordedByAccountId !== row.revision.driverId && <small>Tapped by {nameOf(tap.recordedByAccountId)}</small>}
@@ -117,7 +125,7 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
     );
   const stopFlagged = (row: AttendanceRow) => {
     const summary = stopSummary(timesFor(row));
-    return summary.away + summary.noLocation + summary.unchecked > 0;
+    return summary.away + summary.noLocation + summary.unchecked + summary.sentLater > 0;
   };
   const stopUnchecked = (row: AttendanceRow) => stopSummary(timesFor(row)).unchecked > 0;
 
@@ -202,11 +210,12 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
       const company = row.schedule.kind === "COMPANY";
       const summary = stopSummary(timesFor(row));
       const flags = [
-        ...(start ? tapFlags(start, row.schedule.date, company).map((flag) => `Start: ${tapFlagLabel[flag]}`) : []),
-        ...(end ? tapFlags(end, row.schedule.date, company).map((flag) => `End: ${tapFlagLabel[flag]}`) : []),
+        ...(start ? tapFlags(start, row.schedule.date, company).map((flag) => `Start: ${flagText(flag, start)}`) : []),
+        ...(end ? tapFlags(end, row.schedule.date, company).map((flag) => `End: ${flagText(flag, end)}`) : []),
         summary.away ? `${summary.away} stop taps away from the stop` : "",
         summary.noLocation ? `${summary.noLocation} stop taps without a location` : "",
         summary.unchecked ? `${summary.unchecked} stop taps not checked` : "",
+        summary.sentLater ? `${summary.sentLater} stop taps saved on the phone, sent later` : "",
       ].filter(Boolean);
       return [
         row.schedule.date,
@@ -235,7 +244,7 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
           <h1>
             Attendance<span className="title-dot">.</span>
           </h1>
-          <p>When each Driver started and ended their trip, at ANONANG for Daily trips, and their taps at each stop. Taps away from the place or without a location are flagged.</p>
+          <p>When each Driver started and ended their trip, at ANONANG for Daily trips, and their taps at each stop. Taps away from the place or without a location are flagged, and so are taps saved on the phone that reached KOVA later.</p>
         </div>
       </div>
       <section className="schedule-panel">
@@ -288,6 +297,7 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
                             {summary.away > 0 && <small className="attendance-flag">{summary.away} away from the stop</small>}
                             {summary.noLocation > 0 && <small className="attendance-flag">{summary.noLocation} without a location</small>}
                             {summary.unchecked > 0 && <small className="attendance-flag">{summary.unchecked} not checked (no place location)</small>}
+                            {summary.sentLater > 0 && <small className="attendance-flag">{summary.sentLater} saved on the phone, sent later</small>}
                             {row.attendance && (
                               <Button variant="outline" size="sm" onClick={() => setOpenId(row.schedule.id)}>
                                 View
