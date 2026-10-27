@@ -165,6 +165,12 @@ The request rules (`create_request_group`, `update_request_group`,
 - Once any stop is being scheduled, the group's date and trip fields can't
   change; a stop already being scheduled can't be edited or removed (ask
   for its cancellation instead).
+- **A sent-back stop on another day** (`move_sent_back_stop`, 0081): while
+  another stop of its request is being scheduled, the requester may move
+  their sent-back stop to any day from today (Admin: any day). It becomes a
+  request of its own (a new number, stop A) with the same form and trip
+  details, and goes back to the Scheduler's pool. Otherwise they edit the
+  request's date as usual.
 - **Moving a stop** (`move_request_day`, 0053): only a Scheduler, only a
   stop the requester marked "any day that week", only to Monday–Saturday of
   that week, not a past day, and not while it's in a schedule. The
