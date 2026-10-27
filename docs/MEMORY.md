@@ -1079,3 +1079,23 @@ account the company owns from day one.
   `BACKEND_INTEGRATION.md`. Older migrations' comments still say
   `docs/v2/…`; applied migrations are never edited, so look under
   `docs/archive/v2/`.
+
+## Database backups (2026-10-27)
+
+- **Google Drive, not GitHub.** The repo is public, so backups can't sit
+  in it, and the company's free 15 GB Drive keeps them with the company
+  after the handover. rclone uploads with the `drive.file` scope (only
+  files it made) on rclone's own OAuth app, whose refresh tokens don't
+  expire after 7 days the way an unpublished app's do.
+- **Supabase's own dump, four files.** Roles, schema, data and migration
+  history, as Supabase's backup guide does it (`scripts/backup-db.sh`).
+  Data is only `public` and `auth`: restoring `storage` was refused
+  (`permission denied for table buckets_vectors`) and KOVA keeps no files
+  there. The script fails if `accounts`, `auth.users` or the migration
+  history is missing, so an empty dump is never uploaded.
+- **Gotcha: restore into the same Auth version or newer.** A test Supabase
+  that came up on gotrue v2.196 refused production-shaped data from v2.197
+  (`auth.mfa_recovery_code_sets` missing). A new cloud project is always
+  current, so this only bites in local tests: copy `supabase/.temp/*-version`
+  into the test project first. `roles.sql` runs on its own, since its
+  `GRANT SET ON PARAMETER` line needs a superuser.
