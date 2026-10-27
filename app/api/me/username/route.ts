@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authed, readJson } from "@/lib/api-route";
 import { passwordError } from "@/lib/password-policy";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { renameAuthUser, toAccount } from "@/lib/supabase/accounts";
+import { saveWithRename, toAccount } from "@/lib/supabase/accounts";
 import { PASSWORD_CHECK_MESSAGE, verifyCurrentPassword } from "@/lib/supabase/verify-password";
 import { usernameError } from "@/lib/username-policy";
 import { parseWith } from "@/lib/validation";
@@ -30,14 +30,13 @@ export const PUT = authed(async ({ request, account }) => {
   }
 
   const admin = createSupabaseAdminClient();
-  if (username.toLowerCase() !== account.username.toLowerCase()) {
-    const refused = await renameAuthUser(admin, account.id, username);
-    if (refused) return NextResponse.json({ message: refused.message }, { status: refused.status });
-  }
-  const { data: row, error } = await admin.from("accounts").update({ username }).eq("id", account.id).select("*").single();
+  // If the row is refused, the sign-in username is put back too.
+  const saved = await saveWithRename(admin, account.id, account.username, username, () =>
+    admin.from("accounts").update({ username }).eq("id", account.id).select("*").single(),
+  );
+  if ("refused" in saved) return NextResponse.json({ message: saved.refused.message }, { status: saved.refused.status });
+  const { data: row, error } = saved.result;
   if (error || !row) {
-    // Put the Auth side back so sign-in still matches the old username.
-    await renameAuthUser(admin, account.id, account.username);
     const isDuplicate = error?.code === "23505";
     return NextResponse.json({ message: isDuplicate ? "Username already exists." : "Could not change the username." }, { status: isDuplicate ? 409 : 422 });
   }

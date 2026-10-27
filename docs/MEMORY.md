@@ -1246,3 +1246,15 @@ account the company owns from day one.
   cells, a Stops count, the Flagged filter, the download) and on the
   Admin's times table (Finished Trips, Attendance → View). Under 5 min is
   a brief signal drop, not worth the Admin's eye. Drivers never see it.
+
+## An Admin's rename is undone if the save fails (2026-10-27)
+
+- **Found in a QA pass**: Settings → Accounts moved the Auth user to the new
+  username's made-up email before saving the row, and didn't undo it when
+  the row was refused (say, company trips on with no Position). Locally:
+  renaming grace to grace.t that way left `grace` unable to sign in (401)
+  and `grace.t` working, while the account still showed "grace".
+- `saveWithRename` (`lib/supabase/accounts.ts`) now does both renames, My
+  account's and the Admin's: Auth first, then the row, Auth moved back if
+  the row is refused. The Admin's route also applies `usernameError` to a
+  new username (a space used to fail with "Could not update the account").
