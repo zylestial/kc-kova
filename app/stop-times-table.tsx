@@ -2,7 +2,7 @@
 import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BASE } from "@/lib/trip-record";
-import { coordinatesLabel, mapUrl, tapTimeLabel } from "@/lib/attendance";
+import { coordinatesLabel, mapUrl, sentLaterLabel, tapTimeLabel } from "@/lib/attendance";
 import { atStop, hhmmLabel, stopPlaceLabel, type FormTime, type LegTimes } from "@/lib/stop-times";
 
 type Props = {
@@ -28,6 +28,7 @@ export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Prop
     if (!tap) return null;
     const place = "place" in time.source ? time.source.place : BASE;
     const at = atStop(tap.location);
+    const sent = sentLaterLabel(tap);
     return (
       <>
         {tap.location && (
@@ -41,6 +42,7 @@ export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Prop
         {tap.location && tap.location.distanceM === null && (
           <small className="attendance-flag">No location set for {place}; set it in Request choices to check</small>
         )}
+        {sent && <small className="attendance-flag">{sent}</small>}
         {tap.recordedByAccountId !== driverId && <small>Tapped by {nameOf(tap.recordedByAccountId)}</small>}
       </>
     );
