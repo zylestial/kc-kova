@@ -5,7 +5,7 @@ import { issueAccountToken } from "@/lib/account-tokens";
 import { resetPasswordEmail } from "@/lib/email-templates";
 import { appUrl, sendMail } from "@/lib/mailer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { clientIp, FORGOT_IP_LIMIT, takeAttempts } from "@/lib/supabase/login-rate-limit";
+import { clientIp, FORGOT_IP_LIMIT, giveBackAttempts, takeAttempts } from "@/lib/supabase/login-rate-limit";
 import { parseWith } from "@/lib/validation";
 
 // Email only (owner, 2026-10-22): text that isn't an email address is turned away.
@@ -39,15 +39,18 @@ export async function POST(request: Request) {
   ]);
   if (!account || account.status !== "Active" || !email?.email) return NextResponse.json(ANSWER);
 
-  if (!(await takeAttempts(`reset:${accountId}`)).ok) return NextResponse.json(ANSWER);
+  const limitKey = `reset:${accountId}`;
+  if (!(await takeAttempts(limitKey)).ok) return NextResponse.json(ANSWER);
 
   try {
     const token = await issueAccountToken(admin, accountId, "reset_password", email.email);
     const link = appUrl(`/reset-password?token=${encodeURIComponent(token)}`);
     await sendMail({ to: email.email, ...resetPasswordEmail(link, account.username) });
   } catch (caught) {
+    // Same answer as ever: a different one here would say the account
+    // exists. The attempt is given back, so asking again costs nothing.
     console.error("[api/auth/forgot-password] reset email failed:", caught);
-    return NextResponse.json({ message: "Could not send the email. Try again in a moment." }, { status: 502 });
+    await giveBackAttempts(limitKey);
   }
   return NextResponse.json(ANSWER);
 }
