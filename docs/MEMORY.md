@@ -725,7 +725,7 @@ branch and migrations (0069-0071) so it can come out cleanly.
   unread notifications since the pause: last 24 hours, up to 3, else one
   summary (owner approved those limits).
 - Tested by the owner on desktop Chrome against local Supabase, since a
-  Vercel preview shares production's database. Not yet on a phone.
+  Vercel preview shares production's database. Not yet on a phone (the owner tested it on phones by 2026-10-27).
 
 Gotchas:
 
