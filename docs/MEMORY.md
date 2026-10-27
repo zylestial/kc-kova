@@ -1194,3 +1194,17 @@ account the company owns from day one.
 - **Forgot password is email only** (owner chose it over "username or
   email, block junk"): `z.email()` in the form and the route. Any domain:
   staff aren't limited to Gmail; Gmail is only the account KOVA sends from.
+
+## Rate limits counted in one step (2026-10-27)
+
+- **Found in a QA pass**: the limiter read a count and wrote count + 1 in a
+  second call, so 20 wrong passwords sent at once for one account all got
+  tried (checked locally: 20 × 401, no 429). `add_login_attempts` (0082)
+  does the add in one upsert; the same race now gets 5 × 401, 15 × 429.
+- **Taken before, not recorded after**: each route takes its attempt before
+  the try and gives it back when it shouldn't count (refused, a sign-in that
+  worked on the `ip:` key, an invite that wasn't sent), so counts still mean
+  failures and an office signing in together isn't limited.
+- **Fails open**: if the function can't be reached the request is allowed and
+  logged, so a missing migration can't lock everyone out. Apply 0082 to
+  production before merging the code that calls it.

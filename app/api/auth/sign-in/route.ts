@@ -7,9 +7,9 @@ import { toAccount, usernameToAuthEmail } from "@/lib/supabase/accounts";
 import {
   clearLoginAttempts,
   clientIp,
-  isLoginRateLimited,
-  recordFailedLogin,
+  giveBackAttempts,
   SIGN_IN_IP_LIMIT,
+  takeAttempts,
 } from "@/lib/supabase/login-rate-limit";
 import { parseWith } from "@/lib/validation";
 
@@ -43,32 +43,30 @@ export async function POST(request: Request) {
   const ip = clientIp(request);
   const ipKey = ip ? `ip:${ip}` : null;
 
-  if ((ipKey && (await isLoginRateLimited(ipKey, SIGN_IN_IP_LIMIT))) || (await isLoginRateLimited(username))) {
-    return NextResponse.json({ message: "Too many sign-in attempts. Try again in 15 minutes." }, { status: 429 });
+  // Each try is taken from both allowances before it's made, so tries sent
+  // at once can't all get through; one that works gives them back.
+  const tooMany = () => NextResponse.json({ message: "Too many sign-in attempts. Try again in 15 minutes." }, { status: 429 });
+  if (ipKey && !(await takeAttempts(ipKey, SIGN_IN_IP_LIMIT)).ok) return tooMany();
+  if (!(await takeAttempts(username)).ok) {
+    if (ipKey) await giveBackAttempts(ipKey, SIGN_IN_IP_LIMIT);
+    return tooMany();
   }
-  const recordFailure = async () => {
-    await recordFailedLogin(username);
-    if (ipKey) await recordFailedLogin(ipKey, SIGN_IN_IP_LIMIT);
-  };
 
   const supabase = await createSupabaseServerClient();
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: usernameToAuthEmail(username),
     password,
   });
-  if (authError || !authData.user) {
-    await recordFailure();
-    return NextResponse.json({ message: INVALID }, { status: 401 });
-  }
+  if (authError || !authData.user) return NextResponse.json({ message: INVALID }, { status: 401 });
 
   const { data: accountRow } = await supabase.from("accounts").select("*").eq("id", authData.user.id).maybeSingle();
   if (!accountRow || accountRow.status !== "Active") {
     await supabase.auth.signOut();
-    await recordFailure();
     const message = accountRow ? "This account is inactive." : INVALID;
     return NextResponse.json({ message }, { status: accountRow ? 403 : 401 });
   }
 
   await clearLoginAttempts(username);
+  if (ipKey) await giveBackAttempts(ipKey, SIGN_IN_IP_LIMIT);
   return NextResponse.json({ account: toAccount(accountRow) });
 }

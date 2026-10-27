@@ -110,6 +110,13 @@ address); `forgot-ip:<address>`, 30 Forgot password requests / 15 minutes;
 `429`. The address comes from `x-forwarded-for` (set by Vercel); with none,
 the per-network limits are skipped.
 
+An attempt is taken before it's made, through `add_login_attempts` (0082),
+which adds to a key's count and returns the new one in one statement, so
+requests sent at once can't all slip under the limit. A refused attempt is
+given back, and so is a sign-in that works (from the `ip:` count), so the
+counts still mean failures. If the function can't be reached the request is
+allowed and the error logged.
+
 ### Real emails, invites and email links (migration 0072)
 
 The synthetic Auth email stays the sign-in identity. Each account's real
@@ -257,7 +264,8 @@ route were removed. The table and its rows stay (nothing is hard-deleted).
 | `count` | integer | |
 | `window_start` | timestamptz | |
 
-Touched only by the service-role client (`lib/supabase/login-rate-limit.ts`)
+Touched only by the service-role client (`lib/supabase/login-rate-limit.ts`),
+counted through `add_login_attempts` (0082, service role only)
 — no RLS policy is granted to any other role.
 
 ### `account_emails`, `account_invites`, `account_tokens` (migration 0072)
