@@ -67,8 +67,8 @@ export type NewAccount = {
 
 /**
  * Creates the Auth user (on the made-up email) and its `accounts` row,
- * removing the Auth user again if the row is refused. Used by the Admin's
- * Add Account and by accepting an invite. `admin` is the service-role
+ * removing the Auth user again if the row is refused. Used when someone
+ * accepts an invite. `admin` is the service-role
  * client; the password policy is the caller's to check first.
  */
 export async function createAccount(

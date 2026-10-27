@@ -1,5 +1,5 @@
 // Creates the first Admin account on an empty KOVA database. After that,
-// the Admin creates everyone else in Settings. Refuses to run once any
+// the Admin invites everyone else from Settings. Refuses to run once any
 // Admin exists.
 //
 // Usage: node scripts/create-admin.mjs

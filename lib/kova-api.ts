@@ -419,7 +419,7 @@ export type ScheduleRevision = {
 export type Schedule = {
   id: string;
   date: string;
-  /** A Daily trip, or a Company trip planned on the Company trip planner (0054). */
+  /** A Daily trip, or a Company trip (0054), both planned on Scheduling. */
   kind: "DAILY" | "COMPANY";
   createdByAccountId: string;
   status: "ACTIVE" | "DISCARDED" | "CANCELLED";
