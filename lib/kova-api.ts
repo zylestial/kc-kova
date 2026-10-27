@@ -707,6 +707,8 @@ export const updateRequest = (id: string, rowVersion: number, input: RequestInpu
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));
 export const moveRequestDay = (id: string, date: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/move`, { method: "POST", body: JSON.stringify({ date }) }));
+/** The requester's sent-back stop, while the rest of its request is being scheduled, becomes its own request on `date` (0081). */
+export const moveSentBackStop = (id: string, date: string) => refreshAfter(request<void>(`/api/requests/${encodeURIComponent(id)}/new-day`, { method: "POST", body: JSON.stringify({ date }) }));
 export const requestCancellation =(id: string, reason: string) => refreshAfter(request<CancellationRequest>(`/api/requests/${encodeURIComponent(id)}/cancellation`, { method: "POST", body: JSON.stringify({ reason }) }));
 export const confirmCancellation = (id: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/confirm`, { method: "POST" }));
 export const declineCancellation = (id: string, note: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/decline`, { method: "POST", body: JSON.stringify({ note }) }));
