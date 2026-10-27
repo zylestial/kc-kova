@@ -759,8 +759,11 @@ The prototypes were the spec; these are the calls made on top of them.
   are being scheduled (the group shares the date).
 - A request made with the old `create_request` and a vehicle can't be
   scheduled; the app no longer uses it.
-- The REQUEST_SCHEDULED notification for a Company trip links to My
-  requests, not My Trips.
+- ~~The REQUEST_SCHEDULED notification for a Company trip links to My
+  requests, not My Trips.~~ Fixed 2026-10-27 (`fix/company-notif-link`):
+  `approve_schedule` names the schedule, so the link checks its kind. A
+  Daily one still opens My requests without a request open (no request id
+  on that notification).
 
 ## Scheduling page (2026-10-14/15)
 
