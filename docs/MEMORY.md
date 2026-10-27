@@ -1067,3 +1067,15 @@ account the company owns from day one.
   account's and the Admin's: Auth first, then the row, Auth moved back if
   the row is refused. The Admin's route also applies `usernameError` to a
   new username (a space used to fail with "Could not update the account").
+
+## Cleanup (2026-10-27)
+
+- **Removed two API routes nothing called:** `POST /api/requests` (one
+  request at a time; every form creates through `/api/request-groups` since
+  0052) and `POST /api/requests/:id/split`. Their RPCs, `create_request` and
+  `split_request`, stay in the database: dropping them would need a
+  migration for no gain.
+- **Old plans moved to `docs/archive/`:** the v2.0 plan, `docs/v2/` and
+  `BACKEND_INTEGRATION.md`. Older migrations' comments still say
+  `docs/v2/…`; applied migrations are never edited, so look under
+  `docs/archive/v2/`.
