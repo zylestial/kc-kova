@@ -9,3 +9,6 @@ overrides:
   browserslist: ">=4.28.7"
   "@babel/core": ">=7.29.6"
   baseline-browser-mapping: ">=2.11.0"
+  # Vite advisories (Dependabot 16–21), via vitest. Remove once vitest
+  # depends on vite >=8.3.3 itself.
+  vite: ">=8.3.3"
