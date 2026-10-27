@@ -146,7 +146,8 @@ database stays the authority; these are the page's own rules:
   moved "any day that week" stops included; it can't undo a submit or a
   send-back.
 - Older requests with several destinations can't be split on this page
-  (`split_request` stays in the API); every request since 0052 has one stop.
+  (`split_request` is still in the database, with no route); every
+  request since 0052 has one stop.
 
 The request rules (`create_request_group`, `update_request_group`,
 `write_request_stop`, 0052; owner's calls 2026-10-14):

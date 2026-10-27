@@ -24,7 +24,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     account-emails/     Admin: every account's email for Settings
     vehicles/           Admin: create/rename vehicles
     request-groups/     Requester/Admin: create/edit a request and its stops (Daily or Company)
-    requests/           Per-stop actions: cancel, send back, split, move to another day
+    requests/           Per-stop actions: cancel, send back, move to another day
     schedules/          Scheduler: create, save, submit, discard; Admin: approve, return;
                          Company trip recording (company-run, company-stops)
     booking-options/    Admin: Projects/Destinations/Purposes
@@ -309,8 +309,8 @@ or by any requester save through `update_request` or `update_request_group`
 `schedule_requests` stops any schedule from including it.
 `split_request` (migration 0039) moves stops a vehicle can't fit off a request
 into a new request for the same requester and day. It's only for requests
-made before request groups (0052), which can hold several stops; the
-Scheduling page doesn't offer it.
+made before request groups (0052), which can hold several stops. Nothing
+calls it any more (its API route was removed); it stays in the database.
 
 On the road (0060–0064): `schedule_legs.source_leg_id` (no foreign key)
 names the leg of the route the Driver follows that a draft leg came from.
@@ -523,7 +523,6 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/cancel` | `app/api/schedules/[scheduleId]/cancel/route.ts` | Admin (reason required) |
 | POST | `/api/requests/:requestId/cancel` | `app/api/requests/[requestId]/cancel/route.ts` | Owner, unscheduled request |
 | POST | `/api/requests/send-back` | `app/api/requests/send-back/route.ts` | Scheduler, Admin (as Scheduler); unplaced requests only, all or nothing |
-| POST | `/api/requests/:requestId/split` | `app/api/requests/[requestId]/split/route.ts` | Scheduler, Admin (as Scheduler); stops not on any live route, at least one stop left |
 | POST | `/api/requests/:requestId/cancellation` | `app/api/requests/[requestId]/cancellation/route.ts` | Owner, request in a schedule |
 | POST | `/api/cancellations/:cancellationId/confirm` | `app/api/cancellations/[cancellationId]/confirm/route.ts` | Admin |
 | POST | `/api/cancellations/:cancellationId/decline` | `app/api/cancellations/[cancellationId]/decline/route.ts` | Admin (note required) |
