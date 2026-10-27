@@ -47,7 +47,7 @@ should be written, for both humans and AI agents.)
   email's uniqueness).
 - `role` is exactly one of `Requester`, `Scheduler`, `Admin`, `Driver`. The
   retired v1.2 value `Booker` is rejected everywhere, never accepted as an
-  alias (see `docs/v2/phase-3-schema.md`).
+  alias (see `docs/archive/v2/phase-3-schema.md`).
 - `status` is `Active` or `Inactive`. Accounts are never hard-deleted.
 - An inactive account cannot sign in (`sign-in` and `session` both treat a
   non-Active account as "no session" and sign it out).
@@ -101,7 +101,7 @@ should be written, for both humans and AI agents.)
 The v1.2 booking and Daily Vehicle Record rules were retired with their code
 and tables (migration 0032). Request and schedule rules (dates, states,
 approval, cancellation, conflicts) are enforced in the RPCs and documented
-per phase in `docs/v2/` — `phase-3-schema.md` has the permission matrix and
+per phase in `docs/archive/v2/` — `phase-3-schema.md` has the permission matrix and
 state transitions.
 
 **One trip per vehicle per day** (migration 0048, owner's call 2026-10-09;
@@ -146,7 +146,8 @@ database stays the authority; these are the page's own rules:
   moved "any day that week" stops included; it can't undo a submit or a
   send-back.
 - Older requests with several destinations can't be split on this page
-  (`split_request` stays in the API); every request since 0052 has one stop.
+  (`split_request` is still in the database, with no route); every
+  request since 0052 has one stop.
 
 The request rules (`create_request_group`, `update_request_group`,
 `write_request_stop`, 0052; owner's calls 2026-10-14):
@@ -426,7 +427,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
 
 - **Every** permission and conflict check runs inside the backend request,
   never only in the UI. Hiding a button is not a security control.
-- HTTP status conventions (see `BACKEND_INTEGRATION.md`): `401` no valid
+- HTTP status conventions: `401` no valid
   session, `403` role/ownership denial, `409` scheduling or uniqueness
   conflict, `422` validation failure. Successful writes return the saved
   resource as JSON, or `204` where documented (sign-out, cancel, password
@@ -437,7 +438,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   invites and resends (150 an hour per Admin) and test pushes (10 an hour).
   The numbers live in `lib/supabase/login-rate-limit.ts`; see
   `docs/ARCHITECTURE.md`.
-- **Phone notifications** (0069–0071) repeat the bell: every notification
+- **Push notifications** (0069–0071) repeat the bell: every notification
   goes to each of the recipient's devices that turned them on, and nothing
   else is ever pushed. Any role may turn them on, per device. A device
   belongs to whoever turned it on there last. Signing out pauses it;

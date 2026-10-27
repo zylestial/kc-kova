@@ -47,10 +47,6 @@ const newRow = () => ({
   purposeOtherMode: false,
 });
 
-export function emptyDraft(date: string): RequestDraft {
-  return { date, projectId: "", projectOther: "", projectOtherMode: false, destinations: [newRow()] };
-}
-
 export function draftFromRequest(request: TransportRequest): RequestDraft {
   return {
     date: request.date,

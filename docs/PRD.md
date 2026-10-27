@@ -156,7 +156,7 @@ A person has exactly one role; there is no multi-role account.
 - No mobile app; KOVA is a responsive web app only.
 - No multi-tenant support — this is a single organization's fleet.
 - No email notifications. KOVA emails only about accounts (an invite, a
-  link to confirm an email, a password reset). Phone notifications only
+  link to confirm an email, a password reset). Push notifications only
   repeat the bell; they never carry anything the bell doesn't.
 
 ## Key constraints carried into every design decision

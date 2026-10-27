@@ -419,7 +419,7 @@ export type ScheduleRevision = {
 export type Schedule = {
   id: string;
   date: string;
-  /** A Daily trip, or a Company trip planned on the Company trip planner (0054). */
+  /** A Daily trip, or a Company trip (0054), both planned on Scheduling. */
   kind: "DAILY" | "COMPANY";
   createdByAccountId: string;
   status: "ACTIVE" | "DISCARDED" | "CANCELLED";
@@ -701,7 +701,6 @@ export const resendInvite = (id: string) => request<Invite>(`/api/invites/${enco
 export const cancelInvite = (id: string) => request<void>(`/api/invites/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const saveVehicle =(vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
 export const saveBookingOption = (group: OptionGroup, option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
-export const createRequest = (input: RequestInput) => refreshAfter(request<TransportRequest>("/api/requests", { method: "POST", body: JSON.stringify(input) }));
 /** Returns the group's stops, A first. */
 export const createRequestGroup = (form: RequestForm, input: RequestGroupInput) =>
   refreshAfter(request<TransportRequest[]>("/api/request-groups", { method: "POST", body: JSON.stringify({ ...input, form }) }));

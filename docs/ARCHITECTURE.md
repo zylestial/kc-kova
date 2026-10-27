@@ -24,7 +24,7 @@ app/                    Next.js App Router: pages (client components) + API rout
     account-emails/     Admin: every account's email for Settings
     vehicles/           Admin: create/rename vehicles
     request-groups/     Requester/Admin: create/edit a request and its stops (Daily or Company)
-    requests/           Per-stop actions: cancel, send back, split, move to another day
+    requests/           Per-stop actions: cancel, send back, move to another day
     schedules/          Scheduler: create, save, submit, discard; Admin: approve, return;
                          Company trip recording (company-run, company-stops)
     booking-options/    Admin: Projects/Destinations/Purposes
@@ -58,8 +58,7 @@ lib/
   invites.ts            Invite links and rows
 supabase/
   migrations/            Schema + RLS policies + RPC functions, applied in order
-docs/                    This documentation set
-BACKEND_INTEGRATION.md  The API contract the frontend adapter was built against
+docs/                    This documentation set (archive/ holds history)
 ```
 
 ## Request flow
@@ -178,7 +177,7 @@ KOVA enforces permissions in two places, and both must independently hold:
      `submit_completion`, `correct_completion`, `handle_problem` and the
      rest) — the only write path for the request, schedule, completion and
      problem tables. Each locks the schedule row first so concurrent calls
-     serialize; see `docs/v2/phase-3-schema.md`.
+     serialize; see `docs/archive/v2/phase-3-schema.md`.
    - `rename_vehicle` (`0003_vehicle_rename.sql`, latest in `0032`) — moves
      a vehicle's plate across `vehicles`, `schedule_revisions` and
      `schedule_reservations` in one transaction, since those plates have no
@@ -294,7 +293,7 @@ on `account_tokens`.
 view. `authenticated` gets `SELECT` only (filtered by RLS); every write
 goes through a `security definer` RPC. The schema diagram, state
 transitions, permission matrix and release order live in
-`docs/v2/phase-3-schema.md`, the single source for them. The v1.2
+`docs/archive/v2/phase-3-schema.md`, the single source for them. The v1.2
 `bookings`, `booking_slots`, `vehicle_records` and `vehicle_aliases`
 tables, their functions and their trigger functions were dropped by
 migration 0032 (release-time only; there was no legacy data to carry over).
@@ -309,8 +308,8 @@ or by any requester save through `update_request` or `update_request_group`
 `schedule_requests` stops any schedule from including it.
 `split_request` (migration 0039) moves stops a vehicle can't fit off a request
 into a new request for the same requester and day. It's only for requests
-made before request groups (0052), which can hold several stops; the
-Scheduling page doesn't offer it.
+made before request groups (0052), which can hold several stops. Nothing
+calls it any more (its API route was removed); it stays in the database.
 
 On the road (0060–0064): `schedule_legs.source_leg_id` (no foreign key)
 names the leg of the route the Driver follows that a draft leg came from.
@@ -448,7 +447,7 @@ causes the event (`submit_schedule`, `approve_schedule`, `return_schedule`,
 itself, and `read_at` is only ever set by the `mark_notification_read`/
 `mark_all_notifications_read` RPCs.
 
-### `push_subscriptions` and phone notifications (migrations 0069–0071)
+### `push_subscriptions` and push notifications (migrations 0069–0071)
 
 Web Push, so the bell's notifications also pop up on a device with KOVA
 closed. One row per device: its push `endpoint` (unique), keys `p256dh`
@@ -481,10 +480,10 @@ unread notifications since it was paused, from the last 24 hours: up to
 
 ## API contract
 
-The authoritative, human-readable version of this table lives in
-`BACKEND_INTEGRATION.md` at the repo root (written before implementation, as
-the target the frontend adapter — `lib/kova-api.ts` — was built against).
-Summary, with the implementing route file:
+This table is the maintained list of routes, with the implementing route
+file. The original contract the frontend adapter (`lib/kova-api.ts`) was
+built against, written before implementation, is kept for history in
+`docs/archive/BACKEND_INTEGRATION.md` and is no longer updated.
 
 | Method | Path | Route file | Auth |
 | --- | --- | --- | --- |
@@ -509,7 +508,6 @@ Summary, with the implementing route file:
 | POST | `/api/me/password` | `app/api/me/password/route.ts` | any session; `{ currentPassword, newPassword }` |
 | POST | `/api/vehicles` | `app/api/vehicles/route.ts` | Admin |
 | PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
-| POST | `/api/requests` | `app/api/requests/route.ts` | Requester, Admin |
 | PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
 | POST | `/api/request-groups` | `app/api/request-groups/route.ts` | Who may make that form (`can_request_daily` / `can_request_company`); `{ form: "DAILY" \| "COMPANY", date, stops, … }` → the stops |
 | PUT | `/api/request-groups/:groupId` | `app/api/request-groups/[groupId]/route.ts` | Owner, Admin; `rowVersion` required |
@@ -524,7 +522,6 @@ Summary, with the implementing route file:
 | POST | `/api/schedules/:scheduleId/cancel` | `app/api/schedules/[scheduleId]/cancel/route.ts` | Admin (reason required) |
 | POST | `/api/requests/:requestId/cancel` | `app/api/requests/[requestId]/cancel/route.ts` | Owner, unscheduled request |
 | POST | `/api/requests/send-back` | `app/api/requests/send-back/route.ts` | Scheduler, Admin (as Scheduler); unplaced requests only, all or nothing |
-| POST | `/api/requests/:requestId/split` | `app/api/requests/[requestId]/split/route.ts` | Scheduler, Admin (as Scheduler); stops not on any live route, at least one stop left |
 | POST | `/api/requests/:requestId/cancellation` | `app/api/requests/[requestId]/cancellation/route.ts` | Owner, request in a schedule |
 | POST | `/api/cancellations/:cancellationId/confirm` | `app/api/cancellations/[cancellationId]/confirm/route.ts` | Admin |
 | POST | `/api/cancellations/:cancellationId/decline` | `app/api/cancellations/[cancellationId]/decline/route.ts` | Admin (note required) |
@@ -593,7 +590,7 @@ Configuration is entirely in environment variables (`.env.example`):
   the browser.
 - `NEXT_PUBLIC_KOVA_API_BASE_URL` — left blank when the API is same-origin
   (the default; this repo serves both frontend and API from one Next.js app).
-- Phone notifications (optional; push is off while they're blank):
+- Push notifications (optional; push is off while they're blank):
   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and the server-only `VAPID_PRIVATE_KEY`
   (a pair from `pnpm dlx web-push generate-vapid-keys`), `VAPID_SUBJECT`
   (a `mailto:` or `https:` contact for push services, not a secret;
