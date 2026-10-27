@@ -31,7 +31,7 @@ jobs:
 
       - name: Upload to Google Drive
         run: |
-          sudo apt-get install -y -qq rclone > /dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq rclone > /dev/null
           rclone copy backups "gdrive:KOVA backups"
           # Only after tonight's copy is up, so a run of failures never
           # empties the folder.
