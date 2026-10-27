@@ -4,7 +4,8 @@
 // Safe to re-run: every insert is skipped if the row already exists.
 //
 // Usage: node scripts/seed-uat.mjs
-// Reads Supabase credentials from .env.local (same file `next dev` uses).
+// Reads Supabase credentials from .env.local (same file `next dev` uses),
+// and refuses anything but a local Supabase.
 
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -21,6 +22,14 @@ loadEnvLocal();
 const UAT_PASSWORD = "test1234";
 const AUTH_EMAIL_DOMAIN = "accounts.kova.internal";
 const usernameToAuthEmail = (username) => `${username.toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
+
+// Local Supabase only: its accounts all get the shared password above, an
+// Admin among them, and existing ones of the same name get it reset. On a
+// hosted project that would be a way in for anyone who knows the password.
+if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")) {
+  console.error(`${process.env.NEXT_PUBLIC_SUPABASE_URL} is not local. This seed is for local Supabase only.`);
+  process.exit(1);
+}
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,

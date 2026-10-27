@@ -10,9 +10,7 @@
 // as each seed persona -- exactly what the app itself does -- so triggers,
 // checks and in-app notifications all fire for real, not just direct table
 // inserts. Reads Supabase credentials from .env.local, same as
-// seed-uat.mjs. Local Supabase only: this script does not check which
-// project .env.local points at, so don't point it at a project with real
-// data.
+// seed-uat.mjs. Local Supabase only: it refuses any other project.
 //
 // Usage: node scripts/seed-v2-demo.mjs
 //
@@ -36,6 +34,14 @@ loadEnvLocal();
 const PASSWORD = "test1234";
 const AUTH_EMAIL_DOMAIN = "accounts.kova.internal";
 const usernameToAuthEmail = (username) => `${username.toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
+
+// Local Supabase only: its accounts all get the shared password above, an
+// Admin among them, and existing ones of the same name get it reset. On a
+// hosted project that would be a way in for anyone who knows the password.
+if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")) {
+  console.error(`${process.env.NEXT_PUBLIC_SUPABASE_URL} is not local. This seed is for local Supabase only.`);
+  process.exit(1);
+}
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
