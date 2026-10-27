@@ -87,5 +87,6 @@ and never returned by this app's own code.
 - [docs/roles/README.md](docs/roles/README.md) — consolidated role guide for Requesters, Schedulers, Admins, and Drivers
 - [docs/roles/admin-guide.md](docs/roles/admin-guide.md) — single combined workflow from Admin setup through Driver completion
 - [docs/TASKS.md](docs/TASKS.md) — what's done vs. outstanding
+- [docs/BACKUPS.md](docs/BACKUPS.md) — nightly database backups: setup and restore
 - [docs/MEMORY.md](docs/MEMORY.md) — decision log, gotchas, open questions
 - [docs/archive/](docs/archive/) — history: the older decision log and task history, the v2.0 plan and phase notes, and the original API contract

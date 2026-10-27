@@ -624,7 +624,10 @@ request to `main`/`master`, and a second job starts a local Supabase
 database (`supabase db start`, every migration from `0001`) and runs the
 pgTAP suite (`supabase test db`) and `supabase/tests/concurrency.sh`
 against it. Dependabot (`.github/dependabot.yml`) opens
-weekly PRs for npm and GitHub Actions dependency updates.
+weekly PRs for npm and GitHub Actions dependency updates. The Backup
+workflow (`.github/workflows/backup.yml`, `scripts/backup-db.sh`) puts an
+encrypted copy of the production database in the company's Google Drive
+every night; setup and restore are in `docs/BACKUPS.md`.
 
 Schema changes are new files in `supabase/migrations/`, applied in order,
 never edited once applied anywhere (see `docs/RULES.md`). The intended flow
