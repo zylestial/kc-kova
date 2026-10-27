@@ -49,7 +49,7 @@ lib/
     accounts.ts          username <-> synthetic-email mapping, DB row -> Account mapping
     session.ts           requireAccount(): resolve the signed-in Account or null
     mappers.ts            snake_case DB rows -> the camelCase types in kova-api.ts
-    login-rate-limit.ts    Sign-in throttling backed by the login_attempts table
+    login-rate-limit.ts    Attempt limits (sign-in, emails, test pushes) on login_attempts
     verify-password.ts     Checks a current password without touching the session
   mailer.ts             Account emails over SMTP (Gmail in prod, Mailpit locally); appUrl()
   email-templates.ts    The invite, confirm-email and reset-password emails (text + HTML)
@@ -101,7 +101,14 @@ separate KOVA session table.
 Sign-in attempts are rate-limited (5 failures / 15 minutes per username) via
 the `login_attempts` table, touched only through the service-role client
 since RLS grants it no policies at all. The same table, with `reset:<id>`
-and `confirm:<id>` keys, limits reset and confirm emails per account.
+and `confirm:<id>` keys, limits reset and confirm emails per account. Other
+keys (limits in `lib/supabase/login-rate-limit.ts`): `ip:<address>`, 30
+failed sign-ins / 15 minutes per network (high, since an office shares one
+address); `forgot-ip:<address>`, 30 Forgot password requests / 15 minutes;
+`invite:<admin id>`, 150 invite emails an hour per Admin, resends included;
+`push-test:<account id>`, 10 test pushes an hour. A limited request gets
+`429`. The address comes from `x-forwarded-for` (set by Vercel); with none,
+the per-network limits are skipped.
 
 ### Real emails, invites and email links (migration 0072)
 
@@ -246,7 +253,7 @@ route were removed. The table and its rows stay (nothing is hard-deleted).
 ### `login_attempts`
 | Column | Type | Notes |
 | --- | --- | --- |
-| `key` | text PK | Lowercased username |
+| `key` | text PK | Lowercased username, or a `prefix:` key (usernames can't hold `:`) |
 | `count` | integer | |
 | `window_start` | timestamptz | |
 
