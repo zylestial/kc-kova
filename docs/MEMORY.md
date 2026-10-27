@@ -1217,3 +1217,18 @@ account the company owns from day one.
   session calls in 12 s and climbing). Now the layout shows "Couldn't load
   KOVA" with Try again and Sign out (4 calls, then none). A 401 still signs
   out, which clears the cookie, so that path can't loop either.
+
+## Stop reports close with their answer, not Mark handled (2026-10-27)
+
+- **Found in a QA pass** (the user spotted Mark handled on a "Not available"
+  report): Finished Trips offered Mark handled on every open report. On a
+  stop report still waiting for its answer it closed the report but left
+  the trip held (`handle_problem` was from 0063, before 0068's hold), so
+  the Driver was stuck, Scheduling no longer listed it, and the answer was
+  refused as "already answered". Only End trip got the Driver going.
+- **User's understanding, confirmed**: Mark handled is for whole-trip
+  problems (vehicle damage and the like, from "Report a problem"). Stop
+  reports close through the answer (Wait / End at once, Skip once planned
+  again, Change once approved, or End trip). Finished Trips now shows a
+  stop report's status instead of the button (`stopReportStatus`), and 0083
+  refuses `handle_problem` on one that holds the trip.

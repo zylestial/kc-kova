@@ -42,7 +42,7 @@ import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import StopTimesTable from "./stop-times-table";
 import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
-import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
+import { missedLegs, stopReportLabel, stopReportStatus } from "@/lib/stop-reports";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -614,17 +614,23 @@ export default function AdminFinishedTrips({
                 <p className="helper">
                   {readOnly
                     ? "The Driver reported a problem but hasn't submitted this trip yet; its odometers show once it's submitted."
-                    : "The Driver reported a problem but hasn't submitted this trip yet. You can handle the problem now; the odometers can be reviewed once it's submitted."}
+                    : selected.problems.some((item) => !item.legId && item.status === "OPEN")
+                      ? "The Driver reported a problem but hasn't submitted this trip yet. You can handle the problem now; the odometers can be reviewed once it's submitted."
+                      : "The Driver reported a problem at a stop but hasn't submitted this trip yet. Stop reports are answered on Scheduling; the odometers can be reviewed once it's submitted."}
                 </p>
               )}
               {selected.problems.map((item) => (
                 <div className="helper" key={item.id}>
-                  <strong>{item.status === "OPEN" ? "Open problem" : "Handled problem"}:</strong>{" "}
+                  <strong>
+                    {item.status === "OPEN" ? "Open" : "Handled"} {item.legId ? "stop report" : "problem"}:
+                  </strong>{" "}
                   {item.legId &&
                     `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}${item.note ? ": " : ""}`}
                   {item.note}
                   {item.status === "HANDLED" && <div>Handled: {item.handlingNote}</div>}
-                  {item.status === "OPEN" && !readOnly && (
+                  {/* A stop report closes with its answer on Scheduling, never here (0083). */}
+                  {item.status === "OPEN" && item.legId && <div>{stopReportStatus(item)}</div>}
+                  {item.status === "OPEN" && !item.legId && !readOnly && (
                     <Button
                       variant="outline"
                       onClick={() => {
