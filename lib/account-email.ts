@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { issueAccountToken } from "@/lib/account-tokens";
 import { confirmEmail } from "@/lib/email-templates";
 import { appUrl, sendMail } from "@/lib/mailer";
-import { isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
+import { takeAttempts } from "@/lib/supabase/login-rate-limit";
 
 /** An account's email (0072): `email` once confirmed; `pendingEmail` while its link waits to be opened. */
 export type EmailStatus = { email: string | null; pendingEmail: string | null };
@@ -30,9 +30,7 @@ export async function sendEmailConfirmation(
   const current = await emailStatus(admin, accountId);
   if (current.email === email) return { code: 422, message: "That's already the confirmed email." };
 
-  const limitKey = `confirm:${accountId}`;
-  if (await isLoginRateLimited(limitKey)) return { code: 429, message: "Too many emails sent. Try again in 15 minutes." };
-  await recordFailedLogin(limitKey);
+  if (!(await takeAttempts(`confirm:${accountId}`)).ok) return { code: 429, message: "Too many emails sent. Try again in 15 minutes." };
 
   const { error } = await admin
     .from("account_emails")

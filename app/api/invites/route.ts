@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authed, readJson } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { attemptsLeft, INVITE_LIMIT, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
+import { giveBackAttempts, INVITE_LIMIT, takeAttempts } from "@/lib/supabase/login-rate-limit";
 import { inviteBody, parseEmailList } from "@/lib/admin-input";
 import { emailInvite, inviteLink, toInvite, type InviteRow } from "@/lib/invites";
 import type { InviteResult } from "@/lib/kova-api";
@@ -48,8 +48,9 @@ export const POST = authed(async ({ request, account }) => {
 
   const limitKey = `invite:${account.id}`;
   const toSend = valid.filter((email) => !hasAccount.has(email) && !invited.has(email)).length;
-  const left = await attemptsLeft(limitKey, INVITE_LIMIT);
-  if (toSend > left) {
+  // Taken before sending, so two batches at once can't both fit; what isn't sent is given back.
+  const { ok, left } = await takeAttempts(limitKey, INVITE_LIMIT, toSend);
+  if (!ok) {
     const message = left
       ? `You can send ${left} more invite${left === 1 ? "" : "s"} this hour. Send fewer, or try again later.`
       : "You've sent the most invites allowed in an hour. Try again later.";
@@ -97,6 +98,6 @@ export const POST = authed(async ({ request, account }) => {
       result.failed.push(email);
     }
   }
-  await recordFailedLogin(limitKey, INVITE_LIMIT, result.sent.length);
+  await giveBackAttempts(limitKey, INVITE_LIMIT, toSend - result.sent.length);
   return NextResponse.json(result);
 });

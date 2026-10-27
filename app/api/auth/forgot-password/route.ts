@@ -5,7 +5,7 @@ import { issueAccountToken } from "@/lib/account-tokens";
 import { resetPasswordEmail } from "@/lib/email-templates";
 import { appUrl, sendMail } from "@/lib/mailer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { clientIp, FORGOT_IP_LIMIT, isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
+import { clientIp, FORGOT_IP_LIMIT, takeAttempts } from "@/lib/supabase/login-rate-limit";
 import { parseWith } from "@/lib/validation";
 
 // Email only (owner, 2026-10-22): text that isn't an email address is turned away.
@@ -24,11 +24,8 @@ export async function POST(request: Request) {
   if (!body) return NextResponse.json({ message: "Enter a valid email address." }, { status: 422 });
 
   const ip = clientIp(request);
-  if (ip) {
-    if (await isLoginRateLimited(`forgot-ip:${ip}`, FORGOT_IP_LIMIT)) {
-      return NextResponse.json({ message: "Too many requests. Try again in 15 minutes." }, { status: 429 });
-    }
-    await recordFailedLogin(`forgot-ip:${ip}`, FORGOT_IP_LIMIT);
+  if (ip && !(await takeAttempts(`forgot-ip:${ip}`, FORGOT_IP_LIMIT)).ok) {
+    return NextResponse.json({ message: "Too many requests. Try again in 15 minutes." }, { status: 429 });
   }
 
   const admin = createSupabaseAdminClient();
@@ -42,9 +39,7 @@ export async function POST(request: Request) {
   ]);
   if (!account || account.status !== "Active" || !email?.email) return NextResponse.json(ANSWER);
 
-  const limitKey = `reset:${accountId}`;
-  if (await isLoginRateLimited(limitKey)) return NextResponse.json(ANSWER);
-  await recordFailedLogin(limitKey);
+  if (!(await takeAttempts(`reset:${accountId}`)).ok) return NextResponse.json(ANSWER);
 
   try {
     const token = await issueAccountToken(admin, accountId, "reset_password", email.email);
