@@ -291,6 +291,8 @@ type AttendanceRow = {
   end_distance_m: number | null;
   end_address?: string | null;
   end_recorded_by_account_id: string | null;
+  start_sent_at?: string | null;
+  end_sent_at?: string | null;
 };
 
 function toAttendanceLocation(
@@ -313,6 +315,7 @@ export function toTripAttendance(row: AttendanceRow): TripAttendance {
       at: row.start_at,
       recordedByAccountId: row.start_recorded_by_account_id,
       location: toAttendanceLocation(row.start_lat, row.start_lng, row.start_accuracy_m, row.start_distance_m, row.start_address),
+      sentAt: row.start_sent_at ?? undefined,
     },
     end:
       row.end_at && row.end_recorded_by_account_id
@@ -320,6 +323,7 @@ export function toTripAttendance(row: AttendanceRow): TripAttendance {
             at: row.end_at,
             recordedByAccountId: row.end_recorded_by_account_id,
             location: toAttendanceLocation(row.end_lat, row.end_lng, row.end_accuracy_m, row.end_distance_m, row.end_address),
+            sentAt: row.end_sent_at ?? undefined,
           }
         : undefined,
   };
@@ -339,6 +343,7 @@ type StopTapRow = {
   distance_m: number | null;
   address: string | null;
   recorded_by_account_id: string;
+  sent_at?: string | null;
 };
 
 export function toStopTap(row: StopTapRow): StopTap {
@@ -355,6 +360,7 @@ export function toStopTap(row: StopTapRow): StopTap {
       row.lat === null || row.lng === null
         ? null
         : { lat: row.lat, lng: row.lng, accuracyM: row.accuracy_m, distanceM: row.distance_m, address: row.address },
+    sentAt: row.sent_at ?? undefined,
   };
 }
 
@@ -376,15 +382,26 @@ type CompanyTripRunRow = {
   end_accuracy_m?: number | null;
   end_address?: string | null;
   ended_by_account_id?: string | null;
+  start_sent_at?: string | null;
+  end_sent_at?: string | null;
 };
 
 // A Company trip starts at its own starting point, so its taps aren't
 // measured from ANONANG: distanceM is 0 and Attendance never flags them as away.
-function companyTap(at: string, by: string, lat?: number | null, lng?: number | null, accuracyM?: number | null, address?: string | null) {
+function companyTap(
+  at: string,
+  by: string,
+  lat?: number | null,
+  lng?: number | null,
+  accuracyM?: number | null,
+  address?: string | null,
+  sentAt?: string | null,
+) {
   return {
     at,
     recordedByAccountId: by,
     location: lat == null || lng == null ? null : { lat, lng, accuracyM: accuracyM ?? null, distanceM: 0, address: address ?? null },
+    sentAt: sentAt ?? undefined,
   };
 }
 
@@ -397,10 +414,10 @@ export function toCompanyTripRun(row: CompanyTripRunRow): CompanyTripRun {
     startOdometer: row.start_odometer,
     endAt: row.end_at ?? undefined,
     endOdometer: row.end_odometer ?? undefined,
-    startTap: companyTap(row.start_at, row.started_by_account_id ?? "", row.start_lat, row.start_lng, row.start_accuracy_m, row.start_address),
+    startTap: companyTap(row.start_at, row.started_by_account_id ?? "", row.start_lat, row.start_lng, row.start_accuracy_m, row.start_address, row.start_sent_at),
     endTap:
       row.end_at && row.ended_by_account_id
-        ? companyTap(row.end_at, row.ended_by_account_id, row.end_lat, row.end_lng, row.end_accuracy_m, row.end_address)
+        ? companyTap(row.end_at, row.ended_by_account_id, row.end_lat, row.end_lng, row.end_accuracy_m, row.end_address, row.end_sent_at)
         : undefined,
   };
 }

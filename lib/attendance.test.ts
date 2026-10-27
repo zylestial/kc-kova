@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildAttendanceRows, coordinatesLabel, distanceLabel, tapFlags, tapPlaceLabel, tapTimeLabel } from "@/lib/attendance";
+import {
+  buildAttendanceRows,
+  coordinatesLabel,
+  distanceLabel,
+  sentLaterLabel,
+  tapFlags,
+  tapPlaceLabel,
+  tapTimeLabel,
+} from "@/lib/attendance";
 import type { AttendanceTap, Schedule, ScheduleRevision, TripAttendance } from "@/lib/kova-api";
 
 const revision = (id: string, driverName = "Dan"): ScheduleRevision => ({
@@ -146,5 +154,27 @@ describe("tapTimeLabel and tapPlaceLabel", () => {
 describe("coordinatesLabel", () => {
   it("shows the position to 6 decimals", () => {
     expect(coordinatesLabel({ lat: 16.1069131, lng: 120.436222 })).toBe("16.106913, 120.436222");
+  });
+});
+
+describe("taps saved on the phone and sent later (0077)", () => {
+  // 8:00 AM in Manila.
+  const tap = { ...atBase, at: "2026-10-07T00:00:00Z" };
+
+  it("flags a tap that reached KOVA 5 minutes or more after its time", () => {
+    expect(tapFlags({ ...tap, sentAt: "2026-10-07T00:05:00Z" }, "2026-10-07")).toEqual(["sent-later"]);
+    expect(tapFlags({ ...tap, sentAt: "2026-10-07T00:04:59Z" }, "2026-10-07")).toEqual([]);
+    expect(tapFlags(tap, "2026-10-07")).toEqual([]);
+  });
+
+  it("says when it was sent and how much later", () => {
+    expect(sentLaterLabel({ ...tap, sentAt: "2026-10-07T00:40:00Z" })).toBe("Saved on the phone, sent 8:40 AM (40 min later)");
+    expect(sentLaterLabel({ ...tap, sentAt: "2026-10-07T02:05:00Z" })).toBe("Saved on the phone, sent 10:05 AM (2 h 5 min later)");
+    expect(sentLaterLabel({ ...tap, sentAt: "2026-10-08T03:00:00Z" })).toBe("Saved on the phone, sent Oct 8, 11:00 AM (1 d 3 h later)");
+  });
+
+  it("says nothing for a tap that came in time", () => {
+    expect(sentLaterLabel({ ...tap, sentAt: "2026-10-07T00:01:00Z" })).toBe("");
+    expect(sentLaterLabel(tap)).toBe("");
   });
 });
