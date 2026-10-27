@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authed, readJson } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { attemptsLeft, INVITE_LIMIT, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
 import { inviteBody, parseEmailList } from "@/lib/admin-input";
 import { emailInvite, inviteLink, toInvite, type InviteRow } from "@/lib/invites";
 import type { InviteResult } from "@/lib/kova-api";
@@ -25,7 +26,8 @@ export const GET = authed(async ({ supabase, account }) => {
  * Invites a batch of emails with one role and set of permissions. Emails
  * that already have an account or an open invite are skipped (Resend is
  * for the latter); one that couldn't be emailed is cancelled again so it
- * can simply be tried later.
+ * can simply be tried later. Each Admin can send INVITE_LIMIT emails an
+ * hour, resends included, so a stolen session can't spam from our address.
  */
 export const POST = authed(async ({ request, account }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
@@ -43,6 +45,16 @@ export const POST = authed(async ({ request, account }) => {
   ]);
   const hasAccount = new Set((taken ?? []).map((row) => row.email as string));
   const invited = new Set((open ?? []).map((row) => row.email as string));
+
+  const limitKey = `invite:${account.id}`;
+  const toSend = valid.filter((email) => !hasAccount.has(email) && !invited.has(email)).length;
+  const left = await attemptsLeft(limitKey, INVITE_LIMIT);
+  if (toSend > left) {
+    const message = left
+      ? `You can send ${left} more invite${left === 1 ? "" : "s"} this hour. Send fewer, or try again later.`
+      : "You've sent the most invites allowed in an hour. Try again later.";
+    return NextResponse.json({ message }, { status: 429 });
+  }
 
   const result: InviteResult = { sent: [], skipped: [], invalid, failed: [] };
   for (const email of valid) {
@@ -85,5 +97,6 @@ export const POST = authed(async ({ request, account }) => {
       result.failed.push(email);
     }
   }
+  await recordFailedLogin(limitKey, INVITE_LIMIT, result.sent.length);
   return NextResponse.json(result);
 });

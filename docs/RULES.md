@@ -408,8 +408,12 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   conflict, `422` validation failure. Successful writes return the saved
   resource as JSON, or `204` where documented (sign-out, cancel, password
   reset).
-- Sign-in is rate-limited (5 failed attempts / 15 minutes per username) to
-  slow down credential guessing.
+- Sign-in is rate-limited (5 failed attempts / 15 minutes per username, 30
+  per network) to slow down credential guessing. Anything that sends email
+  or a push on request is capped too: Forgot password, email confirmation,
+  invites and resends (150 an hour per Admin) and test pushes (10 an hour).
+  The numbers live in `lib/supabase/login-rate-limit.ts`; see
+  `docs/ARCHITECTURE.md`.
 - **Phone notifications** (0069–0071) repeat the bell: every notification
   goes to each of the recipient's devices that turned them on, and nothing
   else is ever pushed. Any role may turn them on, per device. A device

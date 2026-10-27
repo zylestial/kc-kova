@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { authed } from "@/lib/api-route";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { INVITE_LIMIT, isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
 import { emailInvite, inviteLink, toInvite, type InviteRow } from "@/lib/invites";
 
-/** Emails an open invite again with a new 7-day link; the old link stops working (Admin only). */
+/** Emails an open invite again with a new 7-day link; the old link stops working (Admin only). Counts toward INVITE_LIMIT. */
 export const POST = authed<{ inviteId: string }>(async ({ account, params: { inviteId } }) => {
   if (account.role !== "Admin") return NextResponse.json({ message: "Admin access required." }, { status: 403 });
+  const limitKey = `invite:${account.id}`;
+  if (await isLoginRateLimited(limitKey, INVITE_LIMIT)) {
+    return NextResponse.json({ message: "You've sent the most invites allowed in an hour. Try again later." }, { status: 429 });
+  }
   const link = inviteLink();
   const { data } = await createSupabaseAdminClient()
     .from("account_invites")
@@ -23,5 +28,6 @@ export const POST = authed<{ inviteId: string }>(async ({ account, params: { inv
     console.error("[api/invites/resend] email failed:", caught);
     return NextResponse.json({ message: "Could not send the email. Try again in a moment." }, { status: 502 });
   }
+  await recordFailedLogin(limitKey, INVITE_LIMIT);
   return NextResponse.json(toInvite(invite));
 });
