@@ -283,7 +283,11 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   once by the API route from OpenStreetMap (Nominatim), never taken from
   the browser. A failed or slow lookup (over 4 seconds) saves the tap
   without one; a tap without a position never has one.
-- Only Admin and the Driver themself can read a Driver's attendance.
+- A Driver's attendance and stop taps can be read by the Driver themself,
+  Admins, Finance (0076, read-only) and Schedulers (0062, so Scheduling can
+  tell how far a trip on the road has got; their screens show no positions
+  or flags). A Company trip's stop taps can also be read by whoever can see
+  that trip (0055). Nobody else can.
 
 The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
 0044–0046):
@@ -309,7 +313,7 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   Driver who forgot one taps the next as usual; the missed one shows as
   skipped and the Admin fills it in. "End trip now" (with a second tap to
   confirm) ends a trip cut short. Drivers never see distances, coordinates
-  or flags; only the Admin does.
+  or flags; only the Admin and Finance do, on Attendance and Finished Trips.
 - After the Driver submits, an Admin can fill in a missing time or correct
   one (`set_trip_time`, to the minute, Manila time). It prints instead of
   the tap; the tap stays on record. Clearing it brings back the tap (or the
