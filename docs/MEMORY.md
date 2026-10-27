@@ -755,8 +755,13 @@ The prototypes were the spec; these are the calls made on top of them.
 
 **Known gaps** (tell the owner before relying on them):
 - "Propose a change" on an approved Company trip hasn't been tried.
-- A sent-back stop can't change its date while other stops of its group
-  are being scheduled (the group shares the date).
+- ~~A sent-back stop can't change its date while other stops of its group
+  are being scheduled (the group shares the date).~~ Fixed 2026-10-27
+  (0081, `fix/move-sent-back-stop`): once its day passed it could never be
+  sent again, only cancelled. Now "Move to this day" in My requests makes
+  it a request of its own on the new day. Split off rather than given its
+  own date, because `write_request_stop` resets a stop's date to the
+  group's on the next edit (only a moved "any day that week" stop keeps it).
 - A request made with the old `create_request` and a vehicle can't be
   scheduled; the app no longer uses it.
 - The REQUEST_SCHEDULED notification for a Company trip links to My
