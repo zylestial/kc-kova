@@ -655,3 +655,202 @@ Decided by the project owner at the start of Phase 5:
 - **CI runs vitest, so run it locally too.** `tsc`, lint and build passed
   before the push, but two `tripChecklist` tests had gone stale after
   `ac04d82` moved checklist details onto each leg; fixed in `521e664`.
+
+*Moved from `docs/MEMORY.md` on 2026-10-27, verbatim: the Phase 2 hardening pass (v1 records code), "Docs vs. code" (superseded), the v2.2 close-out, release numbering, the v2 stacked-PR merge order, and the old Planner's notes (it was replaced by the Scheduling page).*
+
+## Phase 2 security/perf hardening pass (2026-09-21)
+
+A repo-wide audit (see `docs/TASKS.md`) surfaced and this pass fixed:
+
+- **`PUT /api/records/:recordId` didn't verify a Driver's request `date`/
+  `plate` matched the linked booking's actual `date`/`plate`** — only that
+  `bookingId` referenced one of the Driver's own bookings. A Driver could
+  therefore plant a fabricated `vehicle_records` row (including a forged
+  `SUBMITTED FOR REVIEW` state) for a vehicle/day unrelated to any real
+  trip. Fixed by adding `matchesBookingKey()` (`lib/supabase/records.ts`)
+  and calling it before any write in the Driver branch.
+- **`GET /api/bootstrap` never checked the `error` half of any of its six
+  parallel Supabase queries** — a failing query silently rendered as empty
+  data (e.g. "0 vehicles") instead of a visible error. Fixed by checking
+  all six results before responding.
+- **`is_admin()` was never revoked from `PUBLIC`**, so any authenticated
+  user could call it directly (not just via RLS policy evaluation) to
+  probe whether an arbitrary uuid belonged to an active Admin. Revoked
+  from `PUBLIC`, granted only to `authenticated` (still required for RLS
+  policies that call it, since policy evaluation checks the querying
+  role's own `EXECUTE` privilege regardless of the callee being
+  `security definer`).
+- **Every `security definer` function used `search_path = public`**, which
+  was already safe against the classic mutable-search-path hijack (it was
+  fixed, not mutable) but not the stricter recommended form. All five
+  (`is_admin`, `create_booking`, `update_booking`, `cancel_booking`,
+  `rename_vehicle`) now use `search_path = ''` with every table reference
+  schema-qualified as `public.<table>` — see `0006_harden_definer_functions.sql`.
+- **RLS policies weren't split per-operation and called `auth.uid()`/
+  `auth.role()` unwrapped**, re-evaluating per row instead of once per
+  statement. `0007_rls_policies_per_operation.sql` splits every `for all`
+  admin-write policy into explicit insert/update/delete policies (same
+  predicates, so this is semantics-preserving, not a permission change)
+  and wraps every auth function call as `(select auth.uid())`.
+- **No indexes existed on any foreign-key or RLS-filtered column**
+  (`bookings.driver_id`/`requested_by_account_id`/`created_by_account_id`/
+  `plate`, `booking_slots.booking_id`, `people.account_id`,
+  `vehicle_aliases.new_plate`, and the `(data->>'bookingId')::uuid`
+  expression on `vehicle_records`) — added in
+  `0008_indexes_for_rls_and_fks.sql`.
+
+**None of migrations 0006–0009 change any table's columns**, so no
+generated-types regeneration was needed (this repo hand-writes its
+Supabase row types in `lib/supabase/mappers.ts`/route files rather than
+using `supabase gen types typescript`, and that remains unaffected).
+
+## Docs vs. code as source of truth
+
+`BACKEND_INTEGRATION.md` (repo root) was written *before* any backend code,
+as the contract the frontend adapter (`lib/kova-api.ts`) was built against.
+It remains the primary contract reference. `docs/ARCHITECTURE.md`'s API
+table (moved there from `docs/DESIGN.md` during the Phase 3 docs pass — see
+below) is a derived summary pointing at the implementing route files — if
+the two ever disagree, treat that as a bug to fix, not a reason to trust
+one over the other blindly; check which one the frontend actually relies
+on.
+
+*(2026-10-27: superseded. `BACKEND_INTEGRATION.md` had long stopped being
+updated; it moved to `docs/archive/`, and `docs/ARCHITECTURE.md`'s API
+table is now the one maintained list.)*
+
+## v2.2 closed out (2026-09-29)
+
+`docs/TASKS.md`'s v2.2 section had gone stale: every feature branch it
+listed as "code complete, not yet merged" (planner-request-pool,
+admin-role-override, notifications, topbar-declutter,
+route-based-navigation, other-destination-purpose, return-tank-confirmation,
+plus `fix/session-loop-and-logo`) had in fact already merged to `master` via
+PRs #49–#56 between 2026-09-28 and 2026-09-29 — confirmed against
+`git branch -r --merged origin/master` and `gh pr list --state merged`
+rather than trusting the doc. Corrected in place rather than left to drift
+further.
+
+**"Today view / Copy for chat"**, the last item in v2.2's originally agreed
+scope order, was dropped by the owner 2026-09-29 before any work started on
+it. Not deferred to a later version — out of scope entirely unless
+re-requested.
+
+No `v2.2` git tag exists yet (`v2.0` and `v2.1` do). Tagging the release is
+a separate step, not yet done as of this entry.
+
+## Release numbering cleaned up (2026-10-09)
+
+Releases v2.2 to v2.6 shipped without git tags, and v2.3/v2.4 were listed
+as one row, so "what version are we on" had no clear answer. Each release
+now ends at a named `master` merge in `docs/TASKS.md`'s Releases table
+(v2.6 ends at PR #107; `feat/stop-times` will be v2.7). The tags themselves
+are still not created. `package.json` still says `1.0.0` and nothing reads
+it. `v1.2-stable` is a leftover tag on the v1 line (v1.2 itself was
+superseded by v2); left in place, since a pushed tag may be in use.
+
+## Stacked PR merge order (2026-09-25)
+
+- **Merge a stack top-down, deepest child first.** #32 (`feat/v2-approval` →
+  `feat/v2-scheduling`) was squash-merged 18 seconds before #33
+  (`feat/v2-cancellation` → `feat/v2-approval`), and #31 (Phase 8) landed on
+  `feat/v2-cancellation` after that. Phases 7 and 8 were left on branches
+  that no open PR fed into the chain, and Phases 9 and 9b were stacked on
+  top of them.
+- **Squash merges make later merges conflict.** The same change exists under
+  new commits, so a plain merge of the child into the parent conflicts in
+  files both touched (docs, `page.tsx`, `kova-api.ts`, `schedules.tsx`).
+  The fix used here: merge `origin/feat/v2-scheduling` into a sync branch
+  (`chore/v2-sync-scheduling`) built on the stack head, resolve once, and open
+  one PR into `feat/v2-scheduling`. Every conflicting hunk was the older
+  placeholder against the complete text, so the resolved tree is identical to
+  the stack head.
+- **Before opening a stacked PR, check that its base is still open**
+  (`gh pr list --state all`) and that the parent's PR has not already merged.
+
+## v2.2 Planner: request-pool rewrite (2026-09-28)
+
+- **The request pool went from an input to a status display.** Previously
+  the Scheduler ticked which requests to include, then separately built
+  each leg and ticked which stop it served. Now ticking is gone entirely:
+  the pool just shows what's done/waiting, and legs are built by picking a
+  destination via "Add stop" (`lib/trip-record.ts`'s `addPoolLeg`), which
+  pulls in every matching unplaced stop automatically. `requestIds` is no
+  longer state — it's derived each render from which stops are on a leg
+  (`servedRequestIds`), which also simplified opening an existing draft for
+  edit (no separate sync step needed).
+- **A stop-less leg needed a real database rule, not just a UI one.**
+  Before this pass, "Add leg" let a Scheduler pick any Active destination
+  regardless of whether a request needed it; a client bug or a direct API
+  call could always do the same. `write_revision_content` now rejects a
+  non-final leg with zero request stops unless its destination has the new
+  `booking_options.is_other_stop` flag, so the fuel/errand-stop escape
+  hatch is real and audited, not just a client convention.
+- **Leg times are optional to save a draft, required to submit.** This
+  needed `schedule_legs.planned_time_out`/`planned_time_in` to become
+  nullable (they were `not null` with a `check (planned_time_in >
+  planned_time_out)` — that check already tolerates nulls on either side,
+  so only the `not null` constraints needed dropping, plus a new
+  `check ((planned_time_out is null) = (planned_time_in is null))` so a leg
+  can't have just one of the two). `write_revision_content` only records a
+  `schedule_reservations` row once every leg in the revision is fully
+  timed; `assert_revision_complete` (called by `submit_schedule`) is where
+  missing times now actually block progress.
+- **pgTAP test gotcha:** a temp table created with `create temp table`
+  inside a test file needs an explicit `grant select, insert on <table> to
+  authenticated` before a function running `act_as()`'d as a test account
+  can read or write it — easy to forget when copying a fixture pattern from
+  a test file that never switches role before touching its temp id table.
+
+## Planner feedback (2026-10-08)
+
+- **Gotcha: nothing placed after the form shows above a fixed
+  `.booking-bottom` bar.** The Planner's "Draft saved" and save errors sat
+  below the form, under the bar on desktop and off-screen on phones, so a
+  save looked like it did nothing. They now render inside the bar
+  (`.planner-bar-notice`). Check other screens with a bottom bar for the
+  same pattern before adding a notice below the form.
+- **Create schedule opens on the first day with requests waiting**, not
+  today. The Dashboard tile counts every waiting request from today on, so
+  a request weeks out showed "none" on all 14 days of the strip. Waiting
+  days outside the strip are listed under it ("Also waiting").
+- **A Time Out with no Time In counts as no times yet.** The Planner fills
+  in Time Outs by itself (08:00 on Leg 1, the previous leg's Time In via
+  `addLeg`, `setLegTimeIn` and `reflowFinalLegTimeOut`), and the database
+  stores a leg's times both or neither (0033). The half-filled legs that
+  produced blocked Save draft with no visible reason. Now `tripProblems`
+  treats such a leg like an untimed one (a Submit problem, not a Save one),
+  and `toScheduleInput` sends it with no times, so the lone Time Out isn't
+  kept; the leg says so in a grey note. A Time In with no Time Out still
+  blocks Save. An untimed draft reserves no time (0033 reserves only when
+  every leg is timed).
+- **Gotcha: a draft leg with no times broke loading the app.** `hhmm()` in
+  `lib/supabase/mappers.ts` called `.slice` on the null times, so
+  `/api/bootstrap` answered 500 for everyone who could see that schedule.
+  Untimed legs were possible since 0033 but rare until the change above.
+  Fixed. Production had no such draft legs when checked on 2026-10-08, so
+  no one was affected.
+
+## Scheduler follow-ups (2026-10-08)
+
+- **A clash blocks Save draft, not just Submit.** The server's reservation
+  check (0033) refuses to save a draft over another schedule's time, so the
+  Planner adds the clash to its save problems and to the checklist's
+  vehicle item. It used to show "Ready to submit" beside the red clash
+  text.
+- **Discard has three meanings** (`DiscardKind` in
+  `app/planner/discard-dialog.tsx`): unsaved changes to an approved
+  schedule (nothing on the server), a saved revision (the approved version
+  and its requests stay; `sync_schedule_inclusions` releases only requests
+  the revision added), and a new draft (everything released).
+- **"REQUESTOR" stays on the printed form** (`finished-trip-print.tsx`),
+  which copies the company's official paper form; screens say
+  "Requester".
+- **Phone filters fold** through `FilterFold` (`app/filter-fold.tsx`), on
+  every filter row with more than a Sort by picker. A sort-only row stays
+  as it is: one field isn't worth a button.
+- **Gotcha: `next build` while `next dev` runs in the same folder** can
+  leave the dev server unable to compile new routes ("Jest worker
+  encountered 2 child process exceptions"); restart it. To test a build
+  without touching someone's dev server, `next start -p <other port>` and
+  point Playwright at it with a config outside the repo.
