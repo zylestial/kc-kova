@@ -12,7 +12,36 @@ should be written, for both humans and AI agents.)
 
 ## Accounts
 
-- Only an Admin may create, edit, or reset the password of an account.
+- Only an Admin may invite people, edit an account's name, role, status,
+  position and request permissions, or reset its password. An invite is
+  the only way to make an account (there is no Add Account).
+- **Invites** (0072): an Admin invites a batch of emails with one role and
+  set of request permissions. The person sets up their own name, username
+  and password from the link, plus a Position only when their access needs
+  one: required with company trips, optional for an Admin, not asked
+  otherwise (`lib/invite-fields.ts`). They can never change their role or
+  permissions there. A link works once, for 7 days; Resend makes a new one
+  and the old stops working. An email that already has an account, or an
+  open invite, is skipped.
+- **Every account has a confirmed email** (0072): the invited one, since
+  invites are the only way in. (Accounts from before 0072 have none until
+  they add one on My account; the site is to be reset before real use.)
+  A new email stays pending, and the confirmed one keeps working, until
+  its link is opened. Two accounts can't share an email. Only the account
+  itself and Admins can see it.
+- **Self-service** (0072): anyone can change their own username, email and
+  password on My account, each with their current password; wrong ones
+  count toward the sign-in lockout. A new username can't be inside the
+  current password. Forgot password emails a link (1 hour, once) to the
+  confirmed email, found by email, and answers the same whether or not
+  the account exists, even when the email can't be sent (that's logged,
+  and the try doesn't count); at most 5 such emails per account per
+  15 minutes. Setting a password from the link also lifts a sign-in lockout.
+- A new username, chosen by the person or set by an Admin, is 3–30
+  letters, numbers, dots, dashes or underscores (`lib/username-policy.ts`);
+  an older one that doesn't fit stays until it's changed. A rename moves the
+  sign-in first and is undone if the account can't be saved
+  (`saveWithRename`), so the username shown always signs in.
 - `username` is unique across all accounts (enforced by the `accounts`
   table's `unique` constraint and, transitively, by the synthetic Auth
   email's uniqueness).
@@ -24,7 +53,7 @@ should be written, for both humans and AI agents.)
   non-Active account as "no session" and sign it out).
 - Passwords are never stored or returned by KOVA's own code — Supabase Auth
   owns the credential.
-- **Who may request what** (0051; `can_request_daily`,
+- **Who may request what** (0051, 0074; `can_request_daily`,
   `can_request_company`, `can_request_transport`, mirrored for the menus in
   `lib/request-access.ts`): Requesters and Admins can always make Daily
   requests. Every Admin can make Company trips too (0059, owner's call
@@ -37,6 +66,17 @@ should be written, for both humans and AI agents.)
   separately. A Truck Driver can never be allowed. Someone who stops being
   a Driver loses the Driver-only fields (trigger
   `accounts_normalize_driver_fields`).
+- A **Scheduler** gets the same two switches as a Company car Driver
+  (0074, owner's call 2026-10-20), both off until an Admin turns them on.
+  A Scheduler may plan a trip that carries their own request; the Admin
+  still approves it. Someone who stops being a Scheduler or Driver loses
+  the Daily switch.
+- **Finance** (0075, 0076, owner's call 2026-10-20) is its own account
+  type. It reads every trip, its finished-trip details (odometers, fuel
+  checks, corrected times, problem reports, stop taps) and attendance, and
+  prints and downloads them, but changes nothing: every write RPC checks
+  the role and refuses it. Cancellation asks and audit events stay
+  Admin-only. It has the same two request switches as a Scheduler.
 
 ## Vehicles
 
@@ -129,6 +169,12 @@ The request rules (`create_request_group`, `update_request_group`,
 - Once any stop is being scheduled, the group's date and trip fields can't
   change; a stop already being scheduled can't be edited or removed (ask
   for its cancellation instead).
+- **A sent-back stop on another day** (`move_sent_back_stop`, 0081): while
+  another stop of its request is being scheduled, the requester may move
+  their sent-back stop to any day from today (Admin: any day). It becomes a
+  request of its own (a new number, stop A) with the same form and trip
+  details, and goes back to the Scheduler's pool. Otherwise they edit the
+  request's date as usual.
 - **Moving a stop** (`move_request_day`, 0053): only a Scheduler, only a
   stop the requester marked "any day that week", only to Monday–Saturday of
   that week, not a past day, and not while it's in a schedule. The
@@ -141,8 +187,10 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
 `create_company_trip` and the triggers in 0054):
 
 - A Company Trip request names a starting point, a vehicle that can be
-  requested for company trips, an active Company car
-  Driver, an Immediate Supervisor and a PM / CM / Dept. Head; the site
+  requested for company trips, a Driver who can drive company trips
+  (`can_drive_company`, 0079: a Company car Driver, or any account an Admin
+  switched "Can drive company trips" on, the requester included; never a
+  Truck driver), an Immediate Supervisor and a PM / CM / Dept. Head; the site
   officer and site company are optional. All its stops have one Project /
   Site, and that is its department / site (0058, owner's call 2026-10-15):
   it prints as the department and decides the "one department per trip"
@@ -157,17 +205,24 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
 - A vehicle may take several Company trips a day as long as their times
   don't overlap (`schedule_reservations`). Approval, return, revision and
   cancellation work as for Daily trips.
-- **The requester records it** (`start_company_trip`,
-  `record_company_stop`, `end_company_trip`, 0055): anyone with a stop on
-  the trip, or an Admin for them (audited as an override). Start trip needs
+- **Its Driver records it** (`start_company_trip`,
+  `record_company_stop`, `end_company_trip`; 0055, Driver since 0079): the
+  trip's Driver, or an Admin for them (audited as an override). A trip its
+  requester started before 0079 can still be finished by whoever started
+  it. Start trip needs
   the starting odometer and opens on the trip's date (0056); then Arrived and
   Leaving at each stop but the last, in route order; End trip on arriving
   at the last stop needs the ending odometer, never lower than the start.
+  A vehicle without an odometer (0078) takes no readings at either end;
+  End trip follows Start, so a trip started without one ends without one.
   Server time, optional phone position, flagged never refused; a repeat tap
   returns the first. End trip submits the trip (a `trip_completions` row),
   so it goes to Finished Trips like any other.
-- **Not in Attendance**: the Driver's Start/End trip refuses a Company trip
-  (trigger `trip_attendance_daily_only`), and the Driver only sees it.
+- **Its own Start / End**: the Daily Start/End trip refuses a Company trip
+  (trigger `trip_attendance_daily_only`); its taps are in
+  `company_trip_runs` and `stop_taps`. The Attendance screen shows its
+  Start / End trip as that row's attendance (0079), never flagged as away
+  from ANONANG, and its Form filter can leave Company trips out.
 - On the Company Trip Form leg 1 TIME OUT is Start trip, leg N TIME IN is
   Arrived at leg N (End trip for the last), leg N+1 TIME OUT is Leaving
   leg N. `trip_times_missing` counts them the same way, so Done needs them
@@ -180,6 +235,12 @@ The completion rules:
 - A completion is **one odometer pair for the whole schedule**: whole numbers,
   start ≥ 0, end ≥ start, pinned to the approved version, with a server-set
   `submitted_at`. Repeating a submit returns the existing completion.
+- **Vehicles without an odometer** (`vehicles.has_odometer` off, 0078,
+  Settings → Vehicles → "Has an odometer"): the completion has no readings
+  (both null; never one without the other), Complete trip skips straight to
+  the final return, and screens and printed forms say "No odometer" / "N/A".
+  Whether readings are needed is read from the vehicle when the trip is
+  completed. A vehicle with one still needs both, as before.
 - The trip must be over: the Driver has tapped Start and End (below). Since
   0047 End trip is enough, so a trip back early can be completed before its
   last planned Time In. Problem reports have no such limit, can be filed
@@ -193,6 +254,11 @@ The completion rules:
 - Handling a problem report needs a note and may name a follow-up schedule,
   which must be a different, active schedule. A `DONE` trip can still have
   problem reports handled.
+- **A stop report closes with its answer** (0083): Mark handled on Finished
+  Trips is for whole-trip problems only. A stop report shows where it
+  stands there (waiting for an answer, a route change, or planning again),
+  and `handle_problem` refuses one while it holds the trip; Scheduling's
+  answer is what lifts the hold and tells the Driver.
 
 The attendance rules (`record_trip_attendance`, migration 0042):
 
@@ -202,7 +268,19 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   submitted.
 - Start opens on the trip's date (Asia/Manila), never before; End needs
   Start. Repeating a tap returns the first one unchanged.
-- The time is always the server's. The position is optional and comes from
+- The time is the server's, except for a tap made with no signal (0077):
+  the phone keeps it with the time it was tapped and sends it once it can,
+  in order, through the RPC's `_at` twin. The database takes that time only
+  within bounds: never after its own now, never before the step it follows
+  (the trip day's midnight for Start; the trip's start or last stop tap for
+  a stop tap or End), and notes when it arrived (`*sent_at`). This applies
+  to every trip tap: Start/End, Arrived/Leaving and a Company trip's. A
+  saved tap KOVA then refuses (the trip was cancelled meanwhile, say) is
+  dropped and listed on the trip screen. Since the phone's time can't be
+  checked, a tap that reached KOVA 5 minutes or more after its time is
+  flagged on Attendance and the Admin's times table ("Saved on the phone,
+  sent 10:18 AM (40 min later)"), never refused: a dead zone and a time
+  set earlier on purpose look alike, so the Admin judges. The position is optional and comes from
   the phone; the database works out the distance from ANONANG
   (16.103769, 120.436222). A tap that couldn't be within 150 m (its
   distance minus the phone's reported accuracy, counting at most 250 m of
@@ -213,7 +291,11 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   once by the API route from OpenStreetMap (Nominatim), never taken from
   the browser. A failed or slow lookup (over 4 seconds) saves the tap
   without one; a tap without a position never has one.
-- Only Admin and the Driver themself can read a Driver's attendance.
+- A Driver's attendance and stop taps can be read by the Driver themself,
+  Admins, Finance (0076, read-only) and Schedulers (0062, so Scheduling can
+  tell how far a trip on the road has got; their screens show no positions
+  or flags). A Company trip's stop taps can also be read by whoever can see
+  that trip (0055). Nobody else can.
 
 The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
 0044–0046):
@@ -239,7 +321,7 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   Driver who forgot one taps the next as usual; the missed one shows as
   skipped and the Admin fills it in. "End trip now" (with a second tap to
   confirm) ends a trip cut short. Drivers never see distances, coordinates
-  or flags; only the Admin does.
+  or flags; only the Admin and Finance do, on Attendance and Finished Trips.
 - After the Driver submits, an Admin can fill in a missing time or correct
   one (`set_trip_time`, to the minute, Manila time). It prints instead of
   the tap; the tap stays on record. Clearing it brings back the tap (or the
@@ -264,7 +346,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   approval refuses otherwise. On Scheduling, legs after the last one
   reached stay editable.
 - **Reporting a stop**: whoever records the trip (the Driver on a Daily
-  trip, the requester on a Company trip, or an Admin) can report the
+  trip, its Driver on a Company trip, or an Admin) can report the
   current stop after Start trip and before End trip: Not available, Wrong
   address / closed, Road blocked / weather, Vehicle problem, or Other.
   Schedulers and Admins get STOP_REPORTED. A report is a problem report
@@ -349,8 +431,21 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   conflict, `422` validation failure. Successful writes return the saved
   resource as JSON, or `204` where documented (sign-out, cancel, password
   reset).
-- Sign-in is rate-limited (5 failed attempts / 15 minutes per username) to
-  slow down credential guessing.
+- Sign-in is rate-limited (5 failed attempts / 15 minutes per username, 30
+  per network) to slow down credential guessing. Anything that sends email
+  or a push on request is capped too: Forgot password, email confirmation,
+  invites and resends (150 an hour per Admin) and test pushes (10 an hour).
+  The numbers live in `lib/supabase/login-rate-limit.ts`; see
+  `docs/ARCHITECTURE.md`.
+- **Phone notifications** (0069–0071) repeat the bell: every notification
+  goes to each of the recipient's devices that turned them on, and nothing
+  else is ever pushed. Any role may turn them on, per device. A device
+  belongs to whoever turned it on there last. Signing out pauses it;
+  signing back in as the same account sends the unread notifications from
+  while it was paused, from the last 24 hours (up to 3, else one "You have
+  N new notifications"); signing in as another account moves the device
+  without catching up. Inactive accounts get no pushes. A push never
+  delays or fails the action behind it.
 
 ## Engineering & agent conventions
 
@@ -460,6 +555,8 @@ audit — see `docs/MEMORY.md` and `docs/archive/MEMORY-history.md` for the full
   history. If one is exposed this way, rotate it.
 - Passwords are never stored or returned by KOVA's own code; Supabase Auth
   owns the credential.
+- Emailed links store only a hash of their token, and are built from
+  `APP_URL`, never from the request's Host header (`lib/mailer.ts`).
 
 ### Testing
 

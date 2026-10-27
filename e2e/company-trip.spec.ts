@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { pageFor } from "./helpers";
 
@@ -73,8 +74,24 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   const scheduler = await pageFor(browser, "sched1");
   await scheduler.goto(`/scheduling?date=${today}&type=COMPANY`);
   for (const letter of ["A", "B"]) {
-    await scheduler.locator(".sc-panel .sc-stop").filter({ hasText: `${number}-${letter}` }).click();
-    await scheduler.locator(".sc-option").filter({ hasText: "Mirage" }).getByRole("button", { name: "Add" }).click();
+    const stop = scheduler.locator(".sc-panel .sc-stop").filter({ hasText: `${number}-${letter}` });
+    const add = scheduler.locator(".sc-option").filter({ hasText: "Mirage" }).getByRole("button", { name: "Add" });
+    // Stop B's tap can land while the list redraws after stop A was added,
+    // and no options open (CI, 2026-10-22), so tap again until they do. On a
+    // failure, keep what the Scheduler saw.
+    try {
+      await expect(async () => {
+        if (!(await add.isVisible())) await stop.click();
+        await expect(add).toBeEnabled({ timeout: 5_000 });
+      }).toPass(saved);
+    } catch (caught) {
+      // Written into test-results, which CI uploads on a failure.
+      const sheet = await scheduler.getByRole("dialog").allInnerTexts().catch(() => []);
+      writeFileSync(test.info().outputPath(`scheduler-stop-${letter}.txt`), sheet.join("\n----\n") || "(no dialog open)");
+      await scheduler.screenshot({ path: test.info().outputPath(`scheduler-stop-${letter}.png`), fullPage: true });
+      throw caught;
+    }
+    await add.click();
     await expect(scheduler.locator(".notice.success")).toContainText("Added to", saved);
   }
   const card = scheduler.locator(".sc-vehicle").filter({ hasText: "NBC-4821" });
@@ -95,25 +112,30 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   await admin.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(admin.getByText(/approved and published/i)).toBeVisible(saved);
 
-  // req1 records it on My Trips: Start trip with the odometer, the first
-  // stop, End trip on reaching the second with the odometer again.
-  await requester.context().grantPermissions(["geolocation"]);
-  await requester.context().setGeolocation({ latitude: 16.103769, longitude: 120.436222, accuracy: 10 });
-  await requester.goto(`/my-trips?open=${trip.id}`);
-  const action = requester.locator(".my-trip-action .trip-step-button");
-  await requester.getByLabel("Starting odometer (km)").fill("48215");
+  // Jun, its Driver, records it on My Trips (0079): Start trip with the
+  // odometer, the first stop, End trip on reaching the second with the
+  // odometer again. req1 only drives trips they're the Driver of, so My
+  // Trips doesn't list this one for them.
+  await requester.goto("/my-trips");
+  await expect(requester.getByText("No trips yet")).toBeVisible(saved);
+  const driver = await pageFor(browser, "carjun");
+  await driver.context().grantPermissions(["geolocation"]);
+  await driver.context().setGeolocation({ latitude: 16.103769, longitude: 120.436222, accuracy: 10 });
+  await driver.goto(`/my-trips?open=${trip.id}`);
+  const action = driver.locator(".my-trip-action .trip-step-button");
+  await driver.getByLabel("Starting odometer (km)").fill("48215");
   await action.click();
   await expect(action).toHaveText("Arrived at UAT Destination", saved);
   await action.click();
   await expect(action).toHaveText("Leaving UAT Destination", saved);
   await action.click();
   await expect(action).toHaveText("Arrived at UAT Second Destination · End trip", saved);
-  await requester.getByLabel("Ending odometer (km)").fill("48000");
+  await driver.getByLabel("Ending odometer (km)").fill("48000");
   await action.click();
-  await expect(requester.locator(".modal-error")).toContainText("can't be lower than the start (48215 km)");
-  await requester.getByLabel("Ending odometer (km)").fill("48262");
+  await expect(driver.locator(".modal-error")).toContainText("can't be lower than the start (48215 km)");
+  await driver.getByLabel("Ending odometer (km)").fill("48262");
   await action.click();
-  await expect(requester.getByText("Trip ended and submitted.")).toBeVisible(saved);
+  await expect(driver.getByText("Trip ended and submitted.")).toBeVisible(saved);
 
   // admin1 finds it under Company Trips in Finished Trips, prints the
   // Company Trip Form, and marks it done: every time is filled from the taps.

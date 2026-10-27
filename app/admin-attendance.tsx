@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
-import { MapPin } from "lucide-react";
+import { Download, MapPin } from "lucide-react";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { AttendanceTap } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
@@ -9,8 +10,11 @@ import {
   buildAttendanceRows,
   coordinatesLabel,
   mapUrl,
+  sentLater,
+  sentLaterLabel,
   tapFlagLabel,
   tapFlags,
+  type TapFlag,
   tapPlaceLabel,
   tapTimeLabel,
   type AttendanceRow,
@@ -21,10 +25,11 @@ import { manilaToday } from "@/lib/timezone";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
+import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import OlderRecordsNotice from "./older-records-notice";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { atStop, legTimes, placeResolver, type LegTimes } from "@/lib/stop-times";
 import StopTimesTable from "./stop-times-table";
 
@@ -37,6 +42,8 @@ function stopSummary(times: LegTimes[]) {
     tapped: taps.length,
     away: taps.filter((tap) => atStop(tap.location) === false).length,
     noLocation: taps.filter((tap) => !tap.location).length,
+    // Saved on the phone and sent 5+ minutes after the time it carries (0077).
+    sentLater: taps.filter(sentLater).length,
     // Has a position, but the place has no saved location to check it against.
     unchecked: taps.filter((tap) => tap.location && tap.location.distanceM === null).length,
   };
@@ -52,6 +59,9 @@ const statusOrder: AttendanceStatus[] = ["MISSING", "STARTED", "COMPLETE"];
 const tapTimeLabel24 = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hour12: false });
 
+type AttendanceFilters = { dates: DateFilter; form: FormFilterValue; driver: string; status: string };
+const noFilters: AttendanceFilters = { dates: anyDate, form: "all", driver: "all", status: "all" };
+
 type AttendanceSortKey = "date" | "driver" | "plate" | "start" | "end" | "status";
 const columns: SortColumn<AttendanceSortKey>[] = [
   { label: "DATE", key: "date" },
@@ -63,21 +73,25 @@ const columns: SortColumn<AttendanceSortKey>[] = [
   { label: "STATUS", key: "status" },
 ];
 
+/** A flag in words; a tap sent later also says when it reached KOVA. */
+const flagText = (flag: TapFlag, tap: AttendanceTap) => (flag === "sent-later" ? sentLaterLabel(tap) : tapFlagLabel[flag]);
+
 /** One Start or End tap: its time, where it was (linked to a map), its flags and who tapped if not the Driver. */
 function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap; nameOf: (id: string) => string }) {
   if (!tap) return <>—</>;
+  const company = row.schedule.kind === "COMPANY";
   return (
     <div className="attendance-tap">
       <b>{tapTimeLabel(tap.at)}</b>
       {tap.location && (
         <a href={mapUrl(tap.location.lat, tap.location.lng)} target="_blank" rel="noreferrer">
-          <MapPin size={13} /> {tapPlaceLabel(tap)}
+          <MapPin size={13} /> {tapPlaceLabel(tap, company)}
         </a>
       )}
       {tap.location && <small className="attendance-coordinates">{coordinatesLabel(tap.location)}</small>}
-      {tapFlags(tap, row.schedule.date).map((flag) => (
+      {tapFlags(tap, row.schedule.date, company).map((flag) => (
         <small className="attendance-flag" key={flag}>
-          {tapFlagLabel[flag]}
+          {flagText(flag, tap)}
         </small>
       ))}
       {tap.recordedByAccountId !== row.revision.driverId && <small>Tapped by {nameOf(tap.recordedByAccountId)}</small>}
@@ -88,16 +102,17 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
 /**
  * Admin Attendance: each Driver's Start and End taps at ANONANG, one row per
  * published trip up to today. A tap away from base, without a location or on
- * a later day is flagged, not refused, so the Admin judges it here.
+ * a later day is flagged, not refused, so the Admin judges it here. Finance
+ * sees the same screen (`eyebrow` names whose it is); it has no actions.
  */
-export default function AdminAttendance() {
-  const { schedules, attendance, stopTaps, timeCorrections, accounts, options } = useKovaData();
+export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: string } = {}) {
+  const { schedules, attendance, companyRuns, stopTaps, timeCorrections, accounts, options } = useKovaData();
   const placeOf = placeResolver(options.destinations);
   const today = manilaToday();
-  const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today), [schedules, attendance, today]);
-  const [dates, setDates] = useState<DateFilter>(anyDate);
-  const [driver, setDriver] = useState("all");
-  const [status, setStatus] = useState("all");
+  const rows = useMemo(() => buildAttendanceRows(schedules, attendance, today, companyRuns), [schedules, attendance, today, companyRuns]);
+  const [filters, setFilters] = useState<AttendanceFilters>(noFilters);
+  /** The Download CSV dialog's own filters, starting from the screen's; null while it's closed. */
+  const [exportFilters, setExportFilters] = useState<AttendanceFilters | null>(null);
   const [sort, setSort] = useState<Sort<AttendanceSortKey>>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const timesFor = (row: AttendanceRow) =>
@@ -110,45 +125,126 @@ export default function AdminAttendance() {
     );
   const stopFlagged = (row: AttendanceRow) => {
     const summary = stopSummary(timesFor(row));
-    return summary.away + summary.noLocation + summary.unchecked > 0;
+    return summary.away + summary.noLocation + summary.unchecked + summary.sentLater > 0;
   };
   const stopUnchecked = (row: AttendanceRow) => stopSummary(timesFor(row)).unchecked > 0;
 
   const drivers = [...new Set(rows.map((row) => row.revision.driverName))].sort();
-  const visible = sortRows(
-    rows.filter(
-      (row) =>
-        inDateFilter(row.schedule.date, dates, today) &&
-        (driver === "all" || row.revision.driverName === driver) &&
-        (status === "all" ||
-          (status === "flagged"
-            ? row.flags.length > 0 || stopFlagged(row)
-            : status === "unchecked"
-              ? stopUnchecked(row)
-              : row.status === status)),
-    ),
-    sort,
-    {
-      date: (row) => row.schedule.date,
-      driver: (row) => row.revision.driverName,
-      plate: (row) => row.revision.plate,
-      // A tap's time of day; rows without one go to the end when ascending.
-      start: (row) => (row.attendance ? tapTimeLabel24(row.attendance.start.at) : "99:99"),
-      end: (row) => (row.attendance?.end ? tapTimeLabel24(row.attendance.end.at) : "99:99"),
-      status: (row) => statusOrder.indexOf(row.status),
-    },
-  );
+  /** The rows a set of filters lets through, in the screen's sort order. */
+  const filtered = (f: AttendanceFilters) =>
+    sortRows(
+      rows.filter(
+        (row) =>
+          inDateFilter(row.schedule.date, f.dates, today) &&
+          formMatches(f.form, row.schedule.kind) &&
+          (f.driver === "all" || row.revision.driverName === f.driver) &&
+          (f.status === "all" ||
+            (f.status === "flagged"
+              ? row.flags.length > 0 || stopFlagged(row)
+              : f.status === "unchecked"
+                ? stopUnchecked(row)
+                : row.status === f.status)),
+      ),
+      sort,
+      {
+        date: (row) => row.schedule.date,
+        driver: (row) => row.revision.driverName,
+        plate: (row) => row.revision.plate,
+        // A tap's time of day; rows without one go to the end when ascending.
+        start: (row) => (row.attendance ? tapTimeLabel24(row.attendance.start.at) : "99:99"),
+        end: (row) => (row.attendance?.end ? tapTimeLabel24(row.attendance.end.at) : "99:99"),
+        status: (row) => statusOrder.indexOf(row.status),
+      },
+    );
+  const visible = filtered(filters);
+  const exportRows = exportFilters ? filtered(exportFilters) : [];
   const nameOf = (id: string) => accounts.find((item) => item.id === id)?.name ?? "someone else";
+
+  /** The filter fields, for the screen and for the Download CSV dialog. */
+  const filterFields = (f: AttendanceFilters, set: (next: AttendanceFilters) => void) => (
+    <>
+      <DateRangeFilter value={f.dates} onChange={(dates) => set({ ...f, dates })} />
+      {/* Company trips are in Attendance too (0079); this leaves them out. */}
+      <FormFilter value={f.form} onChange={(form) => set({ ...f, form })} />
+      <label className="field">
+        <span>Driver</span>
+        <Select value={f.driver} onValueChange={(driver) => set({ ...f, driver })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Drivers</SelectItem>
+            {drivers.map((name) => (
+              <SelectItem value={name} key={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="field">
+        <span>Status</span>
+        <Select value={f.status} onValueChange={(status) => set({ ...f, status })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            {(Object.keys(attendanceStatusLabel) as AttendanceStatus[]).map((value) => (
+              <SelectItem value={value} key={value}>
+                {attendanceStatusLabel[value]}
+              </SelectItem>
+            ))}
+            <SelectItem value="flagged">Flagged</SelectItem>
+            <SelectItem value="unchecked">Stops not checked</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
+    </>
+  );
+
+  /** The dialog's rows, in the screen's order: each tap with its place, and every flag in words. */
+  function downloadRows() {
+    const lines = exportRows.map((row) => {
+      const { start, end } = row.attendance ?? {};
+      const company = row.schedule.kind === "COMPANY";
+      const summary = stopSummary(timesFor(row));
+      const flags = [
+        ...(start ? tapFlags(start, row.schedule.date, company).map((flag) => `Start: ${flagText(flag, start)}`) : []),
+        ...(end ? tapFlags(end, row.schedule.date, company).map((flag) => `End: ${flagText(flag, end)}`) : []),
+        summary.away ? `${summary.away} stop taps away from the stop` : "",
+        summary.noLocation ? `${summary.noLocation} stop taps without a location` : "",
+        summary.unchecked ? `${summary.unchecked} stop taps not checked` : "",
+        summary.sentLater ? `${summary.sentLater} stop taps saved on the phone, sent later` : "",
+      ].filter(Boolean);
+      return [
+        row.schedule.date,
+        company ? "Company Trip" : "Daily Vehicle Trip",
+        row.revision.driverName,
+        row.revision.plate,
+        start ? tapTimeLabel(start.at) : null,
+        start ? tapPlaceLabel(start, company) : null,
+        end ? tapTimeLabel(end.at) : null,
+        end ? tapPlaceLabel(end, company) : null,
+        summary.expected ? `${summary.tapped} of ${summary.expected}` : null,
+        flags.join("; "),
+        attendanceStatusLabel[row.status],
+      ];
+    });
+    const header = ["DATE", "FORM", "DRIVER", "VEHICLE", "START", "START PLACE", "END", "END PLACE", "STOPS TAPPED", "FLAGS", "STATUS"];
+    downloadCsv(`kova-attendance-${today}.csv`, toCsv(header, lines));
+    setExportFilters(null);
+  }
 
   return (
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">ADMIN</div>
+          <div className="eyebrow">{eyebrow}</div>
           <h1>
             Attendance<span className="title-dot">.</span>
           </h1>
-          <p>When each Driver started and ended their trip at ANONANG, and their taps at each stop. Taps away from the place or without a location are flagged.</p>
+          <p>When each Driver started and ended their trip, at ANONANG for Daily trips, and their taps at each stop. Taps away from the place or without a location are flagged, and so are taps saved on the phone that reached KOVA later.</p>
         </div>
       </div>
       <section className="schedule-panel">
@@ -158,44 +254,19 @@ export default function AdminAttendance() {
             <h2>Driver attendance</h2>
             <span className="count">{visible.length}</span>
           </div>
+          <Button variant="outline" disabled={!rows.length} onClick={() => setExportFilters(filters)}>
+            <Download size={16} /> Download CSV
+          </Button>
         </div>
         <OlderRecordsNotice />
-        <FilterFold active={(dates.preset !== "any" ? 1 : 0) + [driver, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
-          <DateRangeFilter value={dates} onChange={setDates} />
-          <label className="field">
-            <span>Driver</span>
-            <Select value={driver} onValueChange={setDriver}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Drivers</SelectItem>
-                {drivers.map((name) => (
-                  <SelectItem value={name} key={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {(Object.keys(attendanceStatusLabel) as AttendanceStatus[]).map((value) => (
-                  <SelectItem value={value} key={value}>
-                    {attendanceStatusLabel[value]}
-                  </SelectItem>
-                ))}
-                <SelectItem value="flagged">Flagged</SelectItem>
-                <SelectItem value="unchecked">Stops not checked</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
+        <FilterFold
+          active={
+            (filters.dates.preset !== "any" ? 1 : 0) +
+            [filters.form, filters.driver, filters.status].filter((value) => value !== "all").length +
+            (sort ? 1 : 0)
+          }
+        >
+          {filterFields(filters, setFilters)}
           <SortSelect columns={columns} sort={sort} onSort={setSort} />
         </FilterFold>
         {visible.length ? (
@@ -226,6 +297,7 @@ export default function AdminAttendance() {
                             {summary.away > 0 && <small className="attendance-flag">{summary.away} away from the stop</small>}
                             {summary.noLocation > 0 && <small className="attendance-flag">{summary.noLocation} without a location</small>}
                             {summary.unchecked > 0 && <small className="attendance-flag">{summary.unchecked} not checked (no place location)</small>}
+                            {summary.sentLater > 0 && <small className="attendance-flag">{summary.sentLater} saved on the phone, sent later</small>}
                             {row.attendance && (
                               <Button variant="outline" size="sm" onClick={() => setOpenId(row.schedule.id)}>
                                 View
@@ -277,6 +349,26 @@ export default function AdminAttendance() {
           </Dialog>
         );
       })()}
+      <Dialog open={!!exportFilters} onOpenChange={(open) => { if (!open) setExportFilters(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Download Attendance</DialogTitle>
+            <DialogDescription>Starts from what the screen shows. Choose which rows to save, then download.</DialogDescription>
+          </DialogHeader>
+          {exportFilters && <div className="modal-fields">{filterFields(exportFilters, setExportFilters)}</div>}
+          <DialogFooter>
+            <span className="helper" role="status">
+              {exportRows.length} {exportRows.length === 1 ? "row" : "rows"}
+            </span>
+            <Button variant="outline" onClick={() => setExportFilters(null)}>
+              Cancel
+            </Button>
+            <Button className="primary" disabled={!exportRows.length} onClick={downloadRows}>
+              <Download size={16} /> Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

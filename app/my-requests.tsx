@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, FilePlus2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,12 +24,14 @@ import {
   currentAccount,
   cancelRequest,
   hydrateKovaData,
+  moveSentBackStop,
   requestCancellation,
   updateRequest,
   type RequestProgress,
   type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
+import { requestScheduledBy } from "@/lib/scheduled-by";
 import { manilaToday, requestDateError, requestTypeFor } from "@/lib/timezone";
 import RequestFields, {
   draftComplete,
@@ -86,7 +88,7 @@ export default function MyRequests({
   const router = useRouter();
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
-  const { requests: allRequests, options, cancellations } = useKovaData();
+  const { requests: allRequests, options, cancellations, schedules, accounts } = useKovaData();
   const requests = useMemo(
     () =>
       allRequests
@@ -104,6 +106,8 @@ export default function MyRequests({
   // cancelled on the spot; one a schedule holds goes to an Admin.
   const [cancelling, setCancelling] = useState<TransportRequest | null>(null);
   const [reason, setReason] = useState("");
+  const [newDay, setNewDay] = useState("");
+  const [moved, setMoved] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [dates, setDates] = useState<DateFilter>(anyDate);
@@ -131,6 +135,31 @@ export default function MyRequests({
 
   // Keep the details modal showing the latest copy after a refresh.
   const shown = selected ? requests.find((item) => item.id === selected.id) ?? selected : null;
+  const shownBy = shown && requestScheduledBy(shown.id, schedules, accounts);
+  // A sent-back stop whose request is partly being scheduled can't change
+  // the request's date, so it can go on another day as a request of its own (0081).
+  const canMoveDay =
+    !!shown?.group &&
+    shown.status === "ACTIVE" &&
+    shown.progress === "SENT_BACK" &&
+    requests.some((item) => item.group?.id === shown.group!.id && item.id !== shown.id && item.status === "ACTIVE" && !unscheduled(item));
+
+  async function moveToNewDay() {
+    if (!shown || !newDay) return;
+    setBusy(true);
+    setError("");
+    try {
+      await moveSentBackStop(shown.id, newDay);
+      setMoved(`Stop ${stopNumber(shown)} is now a request of its own on ${dateLabel(newDay)}, back with the Scheduler.`);
+      setSelected(null);
+      setNewDay("");
+    } catch (caught) {
+      setError((caught as Error).message);
+      await hydrateKovaData().catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function openEdit(request: TransportRequest) {
     // A request made on the new form opens there, with all its stops.
@@ -199,10 +228,14 @@ export default function MyRequests({
           </h1>
           <p>Every transport request you&apos;ve submitted, and how far along it is.</p>
         </div>
+        {/* New request lives here and on Home, not in the menu. */}
+        <Button className="primary" onClick={() => router.push("/requests/new")}>
+          <FilePlus2 size={16} /> New request
+        </Button>
       </div>
-      {notice && (
+      {(moved || notice) && (
         <div className="notice success" role="status">
-          {notice}
+          {moved || notice}
         </div>
       )}
       {error && !editing && (
@@ -283,7 +316,7 @@ export default function MyRequests({
                     <td>
                       <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
                       {request.cancellationPending && <small>Cancellation requested</small>}
-                      {request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Pick another day</small>}
+                      {request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Fix it and save to resend</small>}
                     </td>
                     <td>{submittedLabel(request.createdAt)}</td>
                     <td>
@@ -340,6 +373,7 @@ export default function MyRequests({
                   ["Requested by", shown.ownerName],
                   ["Project / Site", projectText(shown)],
                   ["Progress", requestProgressLabel[shown.progress]],
+                  ...(shownBy ? [[shownBy.label, shownBy.name]] : []),
                   ["Submitted", submittedLabel(shown.createdAt)],
                 ].map(([label, value]) => (
                   <div key={label}>
@@ -353,6 +387,26 @@ export default function MyRequests({
                 <p className="helper">
                   <b>Scheduler&apos;s note:</b> {shown.sentBack.reason}
                 </p>
+              )}
+              {canMoveDay && (
+                <div className="move-day">
+                  <p className="helper">
+                    The rest of request {shown.group!.number} is being scheduled, so its date can&apos;t change. To ask for this
+                    stop on another day, pick the day: it becomes a request of its own and goes back to the Scheduler.
+                  </p>
+                  <label className="field">
+                    <span>New day</span>
+                    <Input type="date" min={today} value={newDay} onChange={(event) => setNewDay(event.target.value)} />
+                  </label>
+                  {error && (
+                    <p className="modal-error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                  <Button className="primary" disabled={busy || !newDay || (newDay < today && !isAdmin)} onClick={moveToNewDay}>
+                    {busy ? "Moving…" : "Move to this day"}
+                  </Button>
+                </div>
               )}
               <span className="summary-label">Destinations</span>
               <ol className="request-review-list">
@@ -406,7 +460,7 @@ export default function MyRequests({
                 )}
                 {editable(shown) && (
                   <Button className="primary" onClick={() => openEdit(shown)}>
-                    {shown.progress === "SENT_BACK" ? "Pick another day" : "Edit"}
+                    Edit
                   </Button>
                 )}
               </DialogFooter>
@@ -483,9 +537,9 @@ export default function MyRequests({
             <>
               {editing.progress === "SENT_BACK" && (
                 <p className="helper" role="status">
-                  {draft.date === editing.date
-                    ? "This day had no room. Choose a new date to put the request back in the Scheduler's pool."
-                    : "Saving puts the request back in the Scheduler's pool for the new date."}
+                  {draft.date < manilaToday()
+                    ? "That day has passed. Choose a new date to send it to the Scheduler again."
+                    : "Saving sends the request back to the Scheduler's pool."}
                 </p>
               )}
               <label className="field">

@@ -355,7 +355,13 @@ superseded by v2); left in place, since a pushed tag may be in use.
   (`sent_back_at`/`_by_account_id`/`_reason`). Two triggers keep it honest
   without new copies of `update_request` or `write_revision_content`: a
   date change clears it, and `schedule_requests` refuses an inclusion of a
-  sent-back request. Editing without changing the date keeps it sent back.
+  sent-back request. ~~Editing without changing the date keeps it sent
+  back.~~ Changed 2026-10-20 (0073): **any save by the requester resends
+  it**, same day or not. A tester fixed a sent-back request's details and
+  saved three times, and it stayed sent back; Schedulers also send requests
+  back for details to fix, not only for a full day. A sent-back request on
+  a day that has passed still has to be moved first (Admin excepted).
+  0073 skips 0072, which is `feat/self-service-account`'s.
 - **Urgent priority is guidance, not a rule.** The pool sorts Urgent first
   and submit warns about an unplaced Urgent request, but nothing blocks
   submitting without it: it may belong on another vehicle's schedule.
@@ -748,13 +754,25 @@ The prototypes were the spec; these are the calls made on top of them.
   done"; it passed on every re-run.
 
 **Known gaps** (tell the owner before relying on them):
-- "Propose a change" on an approved Company trip hasn't been tried.
-- A sent-back stop can't change its date while other stops of its group
-  are being scheduled (the group shares the date).
+- ~~"Propose a change" on an approved Company trip hasn't been tried.~~
+  Tried 2026-10-27 and it works, before the trip starts and on the road
+  (taps kept); now covered by `e2e/company-trip-revision.spec.ts`. Before
+  it starts the Scheduler presses Propose changes on the card first; on the
+  road the legs not reached yet are open straight away.
+- ~~A sent-back stop can't change its date while other stops of its group
+  are being scheduled (the group shares the date).~~ Fixed 2026-10-27
+  (0081, `fix/move-sent-back-stop`): once its day passed it could never be
+  sent again, only cancelled. Now "Move to this day" in My requests makes
+  it a request of its own on the new day. Split off rather than given its
+  own date, because `write_request_stop` resets a stop's date to the
+  group's on the next edit (only a moved "any day that week" stop keeps it).
 - A request made with the old `create_request` and a vehicle can't be
   scheduled; the app no longer uses it.
-- The REQUEST_SCHEDULED notification for a Company trip links to My
-  requests, not My Trips.
+- ~~The REQUEST_SCHEDULED notification for a Company trip links to My
+  requests, not My Trips.~~ Fixed 2026-10-27 (`fix/company-notif-link`):
+  `approve_schedule` names the schedule, so the link checks its kind. A
+  Daily one still opens My requests without a request open (no request id
+  on that notification).
 
 ## Scheduling page (2026-10-14/15)
 
@@ -772,7 +790,9 @@ page"; the owner's calls:
 - **Date strip:** two weeks of date cards from today, Sundays included,
   the month on top, like the old planner's cards.
 - **Warnings block Submit** and name the stop and times, without minute
-  counts.
+  counts. Except (owner, 2026-10-20): a fixed-time stop reached more than
+  5 minutes off its time ("19-A asked for 3:00 PM; it arrives 3:20 PM")
+  is only a suggestion; it shows, but Submit goes through.
 - **Planner:** an any-time stop doesn't go on a leg where the vehicle would
   wait more than 30 minutes for a fixed-time stop. A trip ending by 6 PM
   was preferred, and an end after 6 PM blocked Submit, until the owner
@@ -874,3 +894,367 @@ Gotchas:
   on Resubmit); late at night the trip may still not fit before midnight.
   Demo:
   `node scripts/seed-live-trip-demo.mjs` (driver4 / UAT-004).
+
+## Phone notifications (2026-10-16 to 10-19)
+
+The owner asked for notifications that arrive with the browser closed,
+free of charge ("maybe I'll remove later"), so it's Web Push with the
+`web-push` library and VAPID keys: no paid service, kept in its own
+branch and migrations (0069-0071) so it can come out cleanly.
+
+- **Every bell notification is pushed, to every role.** The owner went
+  through the list of types and recipients (2026-10-19) and kept them all.
+- **The switch is in the side menu, not Settings**, because Settings is
+  Admin-only and every role needs it.
+- **Sending is a trigger, not code in each RPC.** One `after insert` on
+  `notifications` covers all ~50 `notify()` calls. `pg_net` queues the
+  call and sends after commit; the URL and secret live in Vault so the
+  migration is the same everywhere and does nothing until set.
+- **Sign-out pauses, it doesn't turn off** (owner's choice over turning
+  it off for shared devices): the next sign-in resumes the device for
+  whoever signs in. Signing back in as the same account catches up on
+  unread notifications since the pause: last 24 hours, up to 3, else one
+  summary (owner approved those limits).
+- Tested by the owner on desktop Chrome against local Supabase, since a
+  Vercel preview shares production's database. Not yet on a phone.
+
+Gotchas:
+
+- `serviceWorker.register()` resolves while the worker is still
+  installing; `pushManager.subscribe()` then fails with "no active Service
+  Worker". Wait for `navigator.serviceWorker.ready` (with a timeout, since
+  a worker stuck behind an old one never gets there).
+- `WindowClient.navigate()` refuses a tab the worker doesn't control (one
+  opened before it started), so `sw.js` falls back to `openWindow()`.
+- DevTools' "Update on reload" installs a new worker on every reload, so
+  one always shows "waiting to activate". Untick it when testing.
+- Locally, the database reaches `next dev` at
+  `http://host.docker.internal:3000/api/push/send`. pgTAP tests that set
+  the Vault secrets delete any real ones first (inside their transaction).
+- Windows may drop Chrome's notifications from the notification centre;
+  that's a Windows setting, not KOVA.
+- **Apple refuses every push when `VAPID_SUBJECT` is malformed**, while
+  Chrome and Windows accept it (2026-10-20: the iPhone said "None of your
+  devices could be reached" until the subject was re-set to
+  `https://kc-kova.vercel.app` and redeployed). The sender now tidies it
+  (`vapidSubject`) and logs the service's status and reply
+  (`pushFailure`), so check Vercel's logs for "Push failed" first.
+
+## Invites and self-service sign-in (2026-10-19)
+
+The owner wanted less Admin work: staff collect everyone's email, an Admin
+sends invites, and people set up and look after their own sign-in.
+
+- **Real email next to the synthetic one, not instead of it.** The Auth
+  email stays `<username>@accounts.kova.internal`, so sign-in, renames and
+  "Auth identity" above are unchanged. The real email sits in its own
+  table (0072) so other users can't read it through `accounts`' broad
+  select policy.
+- **KOVA sends its own emails** over SMTP rather than through Supabase
+  Auth's mailer, which would need the real email as the Auth email. Owner
+  chose a **Gmail account with an App password** (no domain yet; 500
+  emails a day). A domain plus Resend later only changes env vars.
+- **Keeping them out of spam (2026-10-22).** Each email is HTML plus the
+  same words as plain text, with a sender name, the company and the
+  reason it was sent, one button with the full link under it, and no
+  images or tracking. A free Gmail sender can still land in spam: ask
+  early recipients to mark it "Not spam"; a company domain with SPF, DKIM
+  and DMARC is the lasting fix.
+- **Every account needs a confirmed email** (owner: "from now on we need
+  to have an email for everyone"). On 2026-10-20 the owner dropped both
+  the blocking Add your email step and Add Account: **invites are the only
+  way to make an account**, so every account gets its email from its
+  invite. The site will be reset before real use, so old accounts without
+  an email don't matter.
+- **Only Admins invite, and the role and permissions are set per batch at
+  invite time.** On 2026-10-20 the owner briefly considered assigning the
+  role after sign-up, then settled on role-first: "they must have a role
+  already, then based on their role and access they enter the needed
+  information; Admin can still edit in Settings." So Join asks name,
+  username and password, plus Position only when the access needs it
+  (`lib/invite-fields.ts`). My account lets them change username, email
+  and password, not their name.
+- Links: invite 7 days, confirm email 24 hours, reset 1 hour; each works
+  once and stores only a hash.
+
+Gotchas:
+
+- Supabase's project template grants ALL on new tables to `anon` and
+  `authenticated`; without 0072's explicit revokes, a write with no
+  policy silently affects 0 rows instead of failing. (See 0020.)
+- `auth.admin.updateUserById` answers a taken email with a bare 500
+  ("Error updating user"), not `email_exists`, so a rename checks
+  `accounts` for the username first (`renameAuthUser`). This was also
+  why Edit Account said "Could not update the account." for a taken
+  username.
+- Changing a password with `updateUserById` ends that account's
+  sessions, so `/api/me/password` signs the person in again.
+- Locally, Mailpit's SMTP port 54325 is only exposed with
+  `smtp_port = 54325` in `supabase/config.toml` and a `supabase stop/start`.
+- React Strict Mode runs effects twice in development; the confirm-email
+  page guards with a ref so its one-time link isn't used up by the first
+  run.
+
+## Who scheduled a trip, and two Schedulers (2026-10-20)
+
+- **"Drafted by" vs "Scheduled by".** A draft or returned version names
+  whoever drafted it (`created_by_account_id`); once submitted, whoever
+  submitted it (`submitted_by_account_id`). Both were already stored, so
+  this was client-only (`lib/scheduled-by.ts`).
+- **Another Scheduler's draft: a warning, not a lock.** Asked how two
+  Schedulers keep from overlapping, the owner picked a warning over "only
+  the drafter edits, others Take over": changing a trip someone else is
+  planning asks "Sam is drafting this trip. Edit anyway?", once per trip
+  until the page reloads. The database already keeps them apart where it
+  matters (one active inclusion per request, one trip per vehicle a day,
+  one open version per trip, `row_version` on every save).
+
+## Schedulers who also request (2026-10-20)
+
+- **Same switches as a Company car Driver.** Some Schedulers also need
+  transport, so an Admin can turn on "Can make Daily Vehicle Trip
+  requests" and "Can request company trips" on a Scheduler's account or
+  invite (0074). Both start off. Company trips still need a Position.
+- **They may schedule their own request.** No separation rule: the Admin
+  approves every submitted trip anyway.
+- An allowed Scheduler gets New request, My requests (and My Trips for
+  company trips) after Finished Trips in the menu and on Home; an Admin
+  viewing as Scheduler sees them too, as with View as Driver.
+
+## Finance (2026-10-20)
+
+- **Its own account type, not a switch** (owner's pick). The owner
+  briefly wanted another name, then kept "Finance".
+- **Reads, never writes.** 0076 adds Finance to the `can_view_*` helpers
+  and to the read policies on completions, time corrections, problem
+  reports, stop taps and attendance. No write RPC was touched: they all
+  name the roles they allow, so Finance is refused (pgTAP
+  `v2_finance_read`). Cancellation asks and audit events stay Admin-only.
+- **Screens are the Admin's, minus the actions.** Schedules with
+  `canEdit`/`canReview` off; `AdminFinishedTrips readOnly` (Print stays,
+  the owner asked for it); Attendance as is. Finance gets no
+  notifications.
+- **Download CSV** (Finished Trips, Attendance; Admins too) opens a dialog
+  with the screen's filters (owner asked to filter first) and saves what
+  the filters show, built in the browser (`lib/csv.ts`, UTF-8 BOM for
+  Excel, a leading ' on formula-like text). Columns as the owner approved.
+  Fuel costs and liters aren't recorded, so they aren't exported.
+- **Request switches** like a Scheduler's (0075).
+- The Company Trip Form got the logo in the same pass (owner spotted it
+  missing while testing Print).
+
+## Who owns the hosting accounts (2026-10-20)
+
+Moved the day before the real-staff pilot, so staff data sits in an
+account the company owns from day one.
+
+- **Supabase:** the production project (`rhzqdtgruhpdhopkksuf`) is in an
+  organization owned by the company's account, `kayelens.kova@gmail.com`.
+  The developer is an Administrator there, which is enough to push
+  migrations; the CLI login must be the developer's own account, now a
+  member of that organization. The project's Supabase GitHub integration
+  had to be disabled for the transfer. KOVA never used it (migrations go
+  out with `supabase db push`), so don't reconnect it.
+- **Vercel and GitHub:** stay on the developer's accounts (Vercel Hobby)
+  until the company decides to keep KOVA. They move together then: Hobby
+  can't deploy a private repo owned by a GitHub organization, so moving
+  the repo first would stop deploys. Moving Vercel to a company team needs
+  Pro.
+- **Account emails:** already sent from the company's Gmail
+  (`kayelens.kova@gmail.com`); nothing to move.
+- **Keys weren't rotated.** None had left the developer's machine and
+  Vercel, and rotating the Supabase JWT secret would have signed everyone
+  out the night before go-live.
+- **Production seed scripts retired.** Production holds real data from
+  2026-10-21; never seed or reset it.
+
+## Pre-pilot audit (2026-10-21)
+
+- **Supabase returns at most 1000 rows per query and says nothing**
+  (`max_rows`, `supabase/config.toml`). Any list that can grow goes
+  through `allRows` (`lib/supabase/all-rows.ts`) with an `order()` on a
+  unique column, or it silently loses rows; `/api/bootstrap` does this
+  for every list but the 50 latest notifications.
+- **A password change ends every session by itself.** Checked against
+  local Supabase: after `auth.admin.updateUserById(id, { password })`
+  the old access token and refresh token are both refused. The Admin
+  reset and the emailed reset need no extra sign-out; My account signs
+  the current device in again for this reason.
+- **An Admin can't change their own account type or status**
+  (`/api/accounts/[accountId]`, Edit Account). With one Admin, a slip
+  there would have left nobody able to manage accounts. Another Admin
+  can still change it.
+- **Self-signup is off in the hosted project** (turned off 2026-10-21:
+  Dashboard → Auth → Sign In / Providers → "Allow new users to sign up"). Keep it off: accounts only
+  come from invites, which use the service-role key. `config.toml`'s
+  `enable_signup = true` is the local stack only.
+
+## Taps with no signal (2026-10-21)
+
+- **The phone's clock is trusted, within bounds.** The user chose to build
+  this after the pre-pilot audit (a tap in a dead zone used to fail, and
+  its retry read late). A saved tap's time is kept between the step
+  before it and the server's now (`bounded_tap_time`, 0077), so a wrong
+  phone clock can only shift a time inside that window, never reorder
+  taps or put one in the future. `*sent_at` shows which taps came late.
+- **`_at` twins plus a trigger, not edited RPCs.** The five tap RPCs are
+  long; copying each into 0077 just to swap `now()` would have been easy
+  to get wrong. The twins set `kova.tapped_at` (transaction-local) and
+  call the original; `apply_tapped_at` reads it. The twins clear it again,
+  so a plain tap later in the same transaction keeps the server's time.
+- **Only a tap that never reached KOVA is saved** (`status` 0). A refusal
+  (4xx) is shown as before. A saved tap that later gets 401, 408, 429 or a
+  5xx waits for the next try; any other refusal drops it and lists it on
+  the trip screen. Resending is safe: every tap RPC returns the first tap
+  on a repeat, so a tap whose answer was lost just comes back unchanged.
+- **Saved taps are per account** (`accountId` on each); another account
+  signed in on the same phone neither sees nor sends them.
+- **`router.replace` needs the network.** It fetches the page's server
+  payload, and when that fails Next reloads the whole page, which offline
+  means a dead screen. My Schedule's `?open=` cleanup now uses
+  `window.history.replaceState` (supported by this Next, see
+  `node_modules/next/dist/docs/01-app/02-guides/single-page-applications.md`).
+- **Port 3000 is reserved on this Windows machine** (excluded range
+  2953–3052), so `pnpm dev` and the Playwright config's web server can't
+  bind it locally. Run `pnpm dev -p 3100` and a Playwright config with
+  `baseURL` on 3100.
+
+## Vehicles without an odometer (2026-10-21)
+
+- **A per-vehicle switch, not optional readings everywhere.** The owner
+  chose "Has an odometer" on each vehicle, so a Driver can't skip the
+  reading on a vehicle that has one.
+- **Decided when the readings would be taken.** A Daily trip checks its
+  vehicle at Complete trip. A Company trip checks at Start trip, and End
+  trip follows whatever Start did (`start_odometer` null or not), so
+  flipping the switch mid-trip can't leave a trip that can't end.
+- **Readings come as a pair.** `trip_completions` and an ended
+  `company_trip_runs` row have both readings or neither (0078 checks);
+  `distance` is then null too. Screens use `kmLabel` / `readingsLabel`,
+  prints use `printKm` (`lib/odometer.ts`); a raw `${x} km` would print
+  "null km".
+- **The `company_trip_runs` check 0078 replaced had a generated name**, so
+  the migration finds it by its definition rather than guessing the name.
+
+## Company trip Drivers (2026-10-22)
+
+- **The trip's Driver records a Company trip, not the requester** (owner,
+  2026-10-22; replaces "The requester records the Company trip" above).
+  `company_trip_for_recording` (0079) checks the revision's `driver_id`.
+- **Anyone an Admin allows can drive**: "Can drive company trips"
+  (`accounts.can_drive_company`, off by default) on a Requester,
+  Scheduler, Finance or Admin. A Company car Driver always can, a Truck
+  driver never; `can_drive_company()` and `canDriveCompany` in
+  `lib/request-access.ts` hold the rule. A requester can pick themselves.
+- **Trips started before 0079** stay with whoever started them
+  (`company_trip_runs.started_by_account_id`), so a pilot trip on the road
+  during the deploy can still end. My Trips shows a requester such a trip
+  until it ends.
+- **My Trips is where every Company trip is driven**, whatever the role;
+  My Schedule stays Daily only. TRIP_PUBLISHED / TRIP_CHANGED /
+  STOP_ANSWERED for a Company trip open My Trips.
+- **Sidebar**: New request moved to a button on My requests (and Home);
+  Settings sits in the footer with Help; links are grouped under headings
+  (Driving / Scheduling / Records, My work) only when there are two groups.
+- **Company trips are in Attendance** (owner: "same attendance but can be
+  filtered out"): the row's taps are the trip's Start / End trip
+  (`company_trip_runs`, built in the app by `buildAttendanceRows`; the
+  database's `trip_attendance_daily_only` stays). They start and end away
+  from ANONANG, so they're never flagged as away and show the address
+  instead. The Form filter leaves them out; the CSV has a FORM column.
+- **On invites too** (0080, `account_invites.can_drive_company`), sent off
+  for Drivers like on the account. Settings got filters the same day
+  (owner): Accounts by search / type / status / access, Vehicles by status /
+  company trips (`lib/settings-filters.ts`). The Settings lists below
+  replaced those filters the same day.
+
+## Settings lists (2026-10-22)
+
+- **From the owner's prototype** ("Request choices" artifact, applied to
+  Accounts and Vehicles too): a rail of lists on the left, one list on the
+  right, a search across the tab. The rail replaces the Filters fold.
+- **Invites**: the owner wanted Invite people at the top (beside the tabs)
+  and the invites as the rail's last list, not a panel above Accounts.
+- **Counts are Active only**, except the Inactive and Pending invites
+  lists; a list opens on Active, with Inactive / All in its filter.
+- **What a list needs** (`lib/choice-lists.ts`) mirrors the
+  `resolve_choice` calls in 0052 / 0058: Projects / Sites, Destinations and
+  Purposes for every request, Urgent reasons for an Urgent stop, Starting
+  points, Supervisors and Heads for a Company Trip; Suppliers optional.
+- **A company vehicle keeps no assigned Driver**: Edit hides the field and
+  saving clears it, since 0079 takes a Company trip's Driver from the
+  request.
+
+## Sign in with email (2026-10-22)
+
+- **Sign In takes a username or email** (owner): an "@" is looked up as a
+  confirmed email (`account_emails.email`, not a pending one) and signs in
+  as that account's username; with no match it's tried as a username, since
+  usernames have no format rule. Attempts are limited per username either way.
+- **Forgot password is email only** (owner chose it over "username or
+  email, block junk"): `z.email()` in the form and the route. Any domain:
+  staff aren't limited to Gmail; Gmail is only the account KOVA sends from.
+
+## Rate limits counted in one step (2026-10-27)
+
+- **Found in a QA pass**: the limiter read a count and wrote count + 1 in a
+  second call, so 20 wrong passwords sent at once for one account all got
+  tried (checked locally: 20 × 401, no 429). `add_login_attempts` (0082)
+  does the add in one upsert; the same race now gets 5 × 401, 15 × 429.
+- **Taken before, not recorded after**: each route takes its attempt before
+  the try and gives it back when it shouldn't count (refused, a sign-in that
+  worked on the `ip:` key, an invite that wasn't sent), so counts still mean
+  failures and an office signing in together isn't limited.
+- **Fails open**: if the function can't be reached the request is allowed and
+  logged, so a missing migration can't lock everyone out. Apply 0082 to
+  production before merging the code that calls it.
+
+## A failed load shows an error, not Sign In (2026-10-27)
+
+- **Found in a QA pass**: when `/api/bootstrap` failed with the session still
+  valid, the layout treated it as signed out and went to `/sign-in`; proxy.ts
+  saw the cookie and sent it back to `/home`, round and round (locally: 36
+  session calls in 12 s and climbing). Now the layout shows "Couldn't load
+  KOVA" with Try again and Sign out (4 calls, then none). A 401 still signs
+  out, which clears the cookie, so that path can't loop either.
+
+## Stop reports close with their answer, not Mark handled (2026-10-27)
+
+- **Found in a QA pass** (the user spotted Mark handled on a "Not available"
+  report): Finished Trips offered Mark handled on every open report. On a
+  stop report still waiting for its answer it closed the report but left
+  the trip held (`handle_problem` was from 0063, before 0068's hold), so
+  the Driver was stuck, Scheduling no longer listed it, and the answer was
+  refused as "already answered". Only End trip got the Driver going.
+- **User's understanding, confirmed**: Mark handled is for whole-trip
+  problems (vehicle damage and the like, from "Report a problem"). Stop
+  reports close through the answer (Wait / End at once, Skip once planned
+  again, Change once approved, or End trip). Finished Trips now shows a
+  stop report's status instead of the button (`stopReportStatus`), and 0083
+  refuses `handle_problem` on one that holds the trip.
+
+## Taps sent late are flagged (2026-10-27)
+
+- **Found in a QA pass**: every tap route takes the phone's `tappedAt`
+  (0077), and the database keeps it between the step before and its own
+  now, but the `sent_at` / `start_sent_at` / `end_sent_at` it records were
+  never loaded, so a tap given an earlier time on purpose looked the same
+  as one made on time. The server can't tell a dead zone from that.
+- **Flag, don't refuse** (same as away-from-base): a tap that reached KOVA
+  `SENT_LATER_AFTER_MS` (5 min) or more after its time gets the flag
+  "Saved on the phone, sent … (… later)" on Attendance (Start / End
+  cells, a Stops count, the Flagged filter, the download) and on the
+  Admin's times table (Finished Trips, Attendance → View). Under 5 min is
+  a brief signal drop, not worth the Admin's eye. Drivers never see it.
+
+## An Admin's rename is undone if the save fails (2026-10-27)
+
+- **Found in a QA pass**: Settings → Accounts moved the Auth user to the new
+  username's made-up email before saving the row, and didn't undo it when
+  the row was refused (say, company trips on with no Position). Locally:
+  renaming grace to grace.t that way left `grace` unable to sign in (401)
+  and `grace.t` working, while the account still showed "grace".
+- `saveWithRename` (`lib/supabase/accounts.ts`) now does both renames, My
+  account's and the Admin's: Auth first, then the row, Auth moved back if
+  the row is refused. The Admin's route also applies `usernameError` to a
+  new username (a space used to fail with "Could not update the account").

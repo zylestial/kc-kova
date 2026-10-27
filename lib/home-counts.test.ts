@@ -14,6 +14,7 @@ const account = (role: Account["role"], id = "u1"): Account => ({
   position: "",
   canRequestDaily: false,
   canRequestCompany: false,
+  canDriveCompany: false,
 });
 const empty: HomeData = { requests: [], schedules: [], cancellations: [], completions: [], problems: [] };
 
@@ -45,6 +46,11 @@ describe("homeCounts", () => {
   it("counts a Driver's own requests too", () => {
     const data = { ...empty, requests: [request({ id: "a", ownerAccountId: "d1" }), request({ id: "b" })] };
     expect(homeCounts(account("Driver", "d1"), data, NOW)["my-requests"]).toBe("1 open · 1 not yet scheduled");
+  });
+
+  it("counts a Scheduler's own requests, apart from the ones they schedule (0074)", () => {
+    const data = { ...empty, requests: [request({ id: "a", ownerAccountId: "s1" }), request({ id: "b" })] };
+    expect(homeCounts(account("Scheduler", "s1"), data, NOW)["my-requests"]).toBe("1 open · 1 not yet scheduled");
   });
 
   it("tells a Requester how many requests were sent back, and keeps them out of the Scheduler's count", () => {

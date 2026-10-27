@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(32);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -118,7 +118,7 @@ select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"ve
   'This vehicle can''t be requested for company trips', 'and one that can be requested for company trips');
 select throws_ok(
   $$ select create_request_group('COMPANY', pg_temp.company('{"driverId":"00000000-0000-0000-0000-0000000000d2"}')) $$,
-  '22023', 'Select an active Company car driver', 'A Truck driver cannot be picked');
+  '22023', 'Select someone who can drive company trips', 'A Truck driver cannot be picked');
 select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"headId":""}')) $$, '22023',
   'Project Manager / Construction Manager / Dept. Head is required', 'The PM / CM / Dept. Head is required');
 select throws_ok(
@@ -169,6 +169,17 @@ select update_request_group(pg_temp.id('g1'), 3, pg_temp.daily(jsonb_build_array
   jsonb_build_object('id', pg_temp.id('a')) || pg_temp.stop(), jsonb_build_object('id', pg_temp.id('c')) || pg_temp.stop())));
 reset role;
 
+-- So does any save on the same day (0073)
+update requests set sent_back_at = now(), sent_back_by_account_id = '00000000-0000-0000-0000-0000000000dd', sent_back_reason = 'Wrong site'
+where id = pg_temp.id('c');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000da');
+select update_request_group(pg_temp.id('g1'), 4, pg_temp.daily(jsonb_build_array(
+  jsonb_build_object('id', pg_temp.id('a')) || pg_temp.stop(),
+  jsonb_build_object('id', pg_temp.id('c')) || pg_temp.stop('{"details":"Fixed site"}'))));
+reset role;
+select ok((select sent_back_at is null and sent_back_reason = '' from requests where id = pg_temp.id('c')),
+  'Fixing a sent-back stop and saving on the same day clears it');
+
 -- Once a stop is scheduled, it and the date stay
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000dd');
 select save_schedule_draft(null, null, pg_temp.d()::date, 'VD', array[pg_temp.id('a')], jsonb_build_array(
@@ -177,12 +188,12 @@ select save_schedule_draft(null, null, pg_temp.d()::date, 'VD', array[pg_temp.id
   jsonb_build_object('isFinal', true, 'plannedTimeOut', '09:30', 'plannedTimeIn', '10:30')));
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000da');
 select throws_ok(
-  $$ select update_request_group(pg_temp.id('g1'), 4, pg_temp.daily(jsonb_build_array(
+  $$ select update_request_group(pg_temp.id('g1'), 5, pg_temp.daily(jsonb_build_array(
        jsonb_build_object('id', pg_temp.id('a'))), 11)) $$,
   '22023', 'Part of this request is already being scheduled, so its date and trip details can no longer be changed',
   'The date is locked while a stop is scheduled');
 select throws_ok(
-  $$ select update_request_group(pg_temp.id('g1'), 4, pg_temp.daily('[]')) $$,
+  $$ select update_request_group(pg_temp.id('g1'), 5, pg_temp.daily('[]')) $$,
   '22023', 'Stop A is already being scheduled. Ask for its cancellation instead', 'A scheduled stop cannot be dropped');
 
 -- Who sees a group ----------------------------------------------------------

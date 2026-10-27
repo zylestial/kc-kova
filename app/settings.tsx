@@ -2,19 +2,27 @@
 import { useAutoClear } from "@/lib/use-auto-clear";
 import { PASSWORD_HINT, passwordError } from "@/lib/password-policy";
 import { accountMissing, stillNeeded, vehicleMissing } from "@/lib/missing-fields";
-import { useState } from "react";
-import { Car, Plus } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import {
   saveAccount as storeAccount,
   saveVehicle as storeVehicle,
   changeAccountPassword,
+  listAccountEmails,
+  resendEmailLink,
   DRIVER_TYPES,
+  type EmailStatus,
   type DriverType,
+  type Role,
 } from "@/lib/kova-api";
-import { canRequestCompany, canRequestDaily } from "@/lib/request-access";
+import { MailPlus } from "lucide-react";
+import { hasRequestSwitches } from "@/lib/request-access";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useKovaData } from "@/lib/use-kova-data";
+import { useAccount } from "./(app)/providers";
 import BookingOptions from "./booking-options";
+import { InviteDialog, useInvites } from "./invites-panel";
+import AccountList from "./settings-accounts";
+import VehicleList from "./settings-vehicles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,12 +44,13 @@ type Account = {
   id: string;
   name: string;
   username: string;
-  role: "Requester" | "Scheduler" | "Admin" | "Driver";
+  role: Role;
   status: "Active" | "Inactive";
   position: string;
   driverType?: DriverType;
   canRequestDaily: boolean;
   canRequestCompany: boolean;
+  canDriveCompany: boolean;
 };
 type Vehicle = {
   plate: string;
@@ -49,18 +58,20 @@ type Vehicle = {
   status: "Active" | "Inactive";
   assignedDriverId?: string | null;
   companyTrips: boolean;
+  hasOdometer: boolean;
 };
 const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
   name: "",
   username: "",
-  password: "",
+  email: "",
   role: "Requester" as Account["role"],
   status: "Active" as Account["status"],
   position: "",
   driverType: "Truck" as DriverType,
   canRequestDaily: false,
   canRequestCompany: false,
+  canDriveCompany: false,
 });
 const blankVehicle = () => ({
   plate: "",
@@ -68,12 +79,8 @@ const blankVehicle = () => ({
   status: "Active" as Vehicle["status"],
   assignedDriverId: UNASSIGNED,
   companyTrips: false,
+  hasOdometer: true,
 });
-/** What an account may request, for the Accounts list (0051). */
-function requestsLabel(account: Account) {
-  const kinds = [canRequestDaily(account) && "Daily", canRequestCompany(account) && "Company trips"].filter(Boolean);
-  return kinds.length ? kinds.join(" · ") : "—";
-}
 function TextField({
   label,
   value,
@@ -108,16 +115,18 @@ function Choice<T extends string>({
   value,
   items,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: T;
   items: readonly T[];
   onChange: (s: T) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className="field">
       <span>{label} *</span>
-      <Select value={value} onValueChange={(v) => onChange(v as T)}>
+      <Select value={value} onValueChange={(v) => onChange(v as T)} disabled={disabled}>
         <SelectTrigger>
           <SelectValue />
         </SelectTrigger>
@@ -135,12 +144,14 @@ function Choice<T extends string>({
 export default function Settings() {
   const [tab, setTab] = useState("accounts");
   const { accounts, vehicles } = useKovaData();
+  const { account: me } = useAccount();
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
   const [busy, setBusy] = useState(false);
-  const [accountModal, setAccountModal] = useState<"add" | "edit" | null>(null);
+  // Accounts are only edited here; new ones come from Invite people (0072).
+  const [accountModal, setAccountModal] = useState<"edit" | null>(null);
   const [vehicleModal, setVehicleModal] = useState<"add" | "edit" | null>(null);
   const [account, setAccount] = useState(blankAccount());
   const [vehicle, setVehicle] = useState(blankVehicle());
@@ -148,26 +159,43 @@ export default function Settings() {
   const [originalPlate, setOriginalPlate] = useState("");
   const [passwordFor, setPasswordFor] = useState<Account | null>(null);
   const [passwords, setPasswords] = useState({ next: "", confirm: "" });
+  // Every account's email (0072), by account id; loaded apart from the app's data.
+  const [emails, setEmails] = useState<Record<string, EmailStatus>>({});
+  const [resending, setResending] = useState("");
+  const loadEmails = useCallback(() => {
+    listAccountEmails()
+      .then((list) => setEmails(Object.fromEntries(list.map(({ accountId, ...status }) => [accountId, status]))))
+      .catch(() => undefined);
+  }, []);
+  useEffect(loadEmails, [loadEmails]);
+  async function resendLink(a: Account) {
+    setResending(a.id);
+    try {
+      await resendEmailLink(a.id);
+      setNotice(`Confirm link sent again to ${emails[a.id]?.pendingEmail}.`);
+    } catch (caught) {
+      setError((caught as Error).message);
+    } finally {
+      setResending("");
+    }
+  }
+  const invites = useInvites(setNotice);
+  // A new key per opening gives Invite people a fresh batch.
+  const [inviteKey, setInviteKey] = useState(0);
+  const [inviting, setInviting] = useState(false);
   const drivers = accounts.filter(
     (a) => a.role === "Driver" && a.status === "Active",
   );
-  const driverName = (id?: string | null) =>
-    (id && accounts.find((a) => a.id === id)?.name) || "No Driver assigned";
-  // Who may request what (0051): a Truck driver never; a Company car driver
-  // only with the switches below; Requesters and Admins always make Daily
-  // requests, and company trips with their switch.
+  // Who may request what (0051, 0074): a Truck driver never; a Scheduler or
+  // Company car driver only with the switches below; Requesters and Admins
+  // always make Daily requests, and company trips with their switch.
   const isDriver = account.role === "Driver";
-  const carDriver = isDriver && account.driverType === "Company car";
-  const companyAllowed = account.role === "Requester" || account.role === "Admin" || carDriver;
+  const switches = hasRequestSwitches(account);
+  const companyAllowed = account.role === "Requester" || account.role === "Admin" || switches;
   // The lists follow the app's data (useKovaData), so another Admin's change
   // shows once the app refreshes; after a save there is only the error to clear.
   function load() {
     setError("");
-  }
-  function addAccount() {
-    setAccount(blankAccount());
-    setAccountModal("add");
-    setFormError("");
   }
   function editAccount(a: Account) {
     setAccount({
@@ -175,18 +203,19 @@ export default function Settings() {
       username: a.username,
       role: a.role,
       status: a.status,
-      password: "",
+      email: emails[a.id]?.pendingEmail ?? emails[a.id]?.email ?? "",
       position: a.position,
       driverType: a.driverType ?? "Truck",
       canRequestDaily: a.canRequestDaily,
       canRequestCompany: a.canRequestCompany,
+      canDriveCompany: a.canDriveCompany,
     });
     setAccountId(a.id);
     setAccountModal("edit");
     setFormError("");
   }
   async function saveAccount() {
-    const missing = accountMissing(account, accountModal === "add");
+    const missing = accountMissing(account, false);
     if (companyAllowed && account.canRequestCompany && !account.position.trim()) missing.push("Position");
     if (missing.length) {
       setFormError(stillNeeded(missing));
@@ -196,30 +225,31 @@ export default function Settings() {
     setFormError("");
     try {
       await storeAccount({
-        id: accountModal === "add" ? "" : accountId,
+        id: accountId,
         name: account.name.trim(),
         username: account.username.trim(),
         role: account.role,
         status: account.status,
-        password: accountModal === "add" ? account.password : undefined,
+        email: account.email.trim(),
         // Switches the role or Driver type can't have are sent off.
         position: account.position.trim(),
         driverType: isDriver ? account.driverType : undefined,
-        canRequestDaily: carDriver && account.canRequestDaily,
+        canRequestDaily: switches && account.canRequestDaily,
         canRequestCompany: companyAllowed && account.canRequestCompany,
+        canDriveCompany: !isDriver && account.canDriveCompany,
       });
       setAccountModal(null);
-      setAccount({ ...account, password: "" });
       setNotice("Account saved.");
       load();
+      loadEmails();
     } catch (e) {
       setFormError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
-  function addVehicle() {
-    setVehicle(blankVehicle());
+  function addVehicle(companyTrips: boolean) {
+    setVehicle({ ...blankVehicle(), companyTrips });
     setVehicleModal("add");
     setFormError("");
   }
@@ -230,6 +260,7 @@ export default function Settings() {
       status: v.status,
       assignedDriverId: v.assignedDriverId || UNASSIGNED,
       companyTrips: v.companyTrips,
+      hasOdometer: v.hasOdometer,
     });
     setOriginalPlate(v.plate);
     setVehicleModal("edit");
@@ -249,11 +280,13 @@ export default function Settings() {
           plate: vehicle.plate,
           name: vehicle.name.trim(),
           status: vehicle.status,
+          // A company trip vehicle's Driver is picked per request (0079).
           assignedDriverId:
-            vehicle.assignedDriverId === UNASSIGNED
+            vehicle.companyTrips || vehicle.assignedDriverId === UNASSIGNED
               ? undefined
               : vehicle.assignedDriverId,
           companyTrips: vehicle.companyTrips,
+          hasOdometer: vehicle.hasOdometer,
         },
         vehicleModal === "edit" ? originalPlate : undefined,
       );
@@ -305,13 +338,27 @@ export default function Settings() {
           {notice}
         </div>
       )}
-      <Tabs value={tab} onValueChange={setTab} className="main-nav">
-        <TabsList>
-          <TabsTrigger value="accounts">Accounts</TabsTrigger>
-          <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
-          <TabsTrigger value="options">Request choices</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="settings-tabbar">
+        <Tabs value={tab} onValueChange={setTab} className="main-nav">
+          <TabsList>
+            <TabsTrigger value="accounts">Accounts</TabsTrigger>
+            <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
+            <TabsTrigger value="options">Request choices</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {tab === "accounts" && (
+          <Button
+            className="primary"
+            onClick={() => {
+              setInviteKey((key) => key + 1);
+              setInviting(true);
+            }}
+          >
+            <MailPlus size={17} /> Invite people
+          </Button>
+        )}
+      </div>
+      <InviteDialog key={inviteKey} open={inviting} onOpenChange={setInviting} onSent={invites.load} />
       {error && (
         <div className="notice" role="alert">
           {error}{" "}
@@ -321,124 +368,20 @@ export default function Settings() {
         </div>
       )}
       {tab === "accounts" ? (
-        <section className="schedule-panel">
-          <div className="panel-toolbar">
-            <div>
-              <h2>Accounts</h2>
-              <span className="count">{accounts.length}</span>
-              <p>Manage people who can sign in.</p>
-            </div>
-            <Button className="primary" onClick={addAccount}>
-              <Plus size={17} /> Add Account
-            </Button>
-          </div>
-          <div className="schedule-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>NAME</th>
-                  <th>USERNAME</th>
-                  <th>ACCOUNT TYPE</th>
-                  <th>CAN REQUEST</th>
-                  <th>STATUS</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((a) => (
-                  <tr key={a.id}>
-                    <td>
-                      <b>{a.name}</b>
-                    </td>
-                    <td>{a.username}</td>
-                    <td>{a.role === "Driver" ? `Driver · ${a.driverType ?? "Truck"}` : a.role}</td>
-                    <td>{requestsLabel(a)}</td>
-                    <td>
-                      <span
-                        className={
-                          "badge " + (a.status === "Active" ? "complete" : "")
-                        }
-                      >
-                        {a.status}
-                      </span>
-                    </td>
-                    <td>
-                      <Button variant="outline" onClick={() => editAccount(a)}>
-                        Edit
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <AccountList
+          accounts={accounts}
+          emails={emails}
+          invites={invites.invites}
+          invitesError={invites.loadError}
+          onInvitesRetry={invites.load}
+          inviteBusy={invites.busy}
+          onInviteAct={invites.act}
+          onEdit={editAccount}
+          resending={resending}
+          onResendLink={resendLink}
+        />
       ) : tab === "vehicles" ? (
-        <section className="schedule-panel">
-          <div className="panel-toolbar">
-            <div>
-              <h2>Vehicles</h2>
-              <span className="count">{vehicles.length}</span>
-              <p>Manage company vehicles.</p>
-            </div>
-            <Button className="primary" onClick={addVehicle}>
-              <Plus size={17} /> Add Vehicle
-            </Button>
-          </div>
-          {vehicles.length ? (
-            <div className="schedule-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>PLATE NUMBER</th>
-                    <th>VEHICLE NAME / MODEL</th>
-                    <th>COMPANY TRIPS</th>
-                    <th>ASSIGNED DRIVER</th>
-                    <th>STATUS</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vehicles.map((v) => (
-                    <tr key={v.plate}>
-                      <td>
-                        <b>{v.plate}</b>
-                      </td>
-                      <td>{v.name}</td>
-                      <td>{v.companyTrips ? "Can be requested" : "—"}</td>
-                      <td>{driverName(v.assignedDriverId)}</td>
-                      <td>
-                        <span
-                          className={
-                            "badge " + (v.status === "Active" ? "complete" : "")
-                          }
-                        >
-                          {v.status}
-                        </span>
-                      </td>
-                      <td>
-                        <Button
-                          variant="outline"
-                          onClick={() => editVehicle(v)}
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty">
-              <div className="empty-icon">
-                <Car size={30} />
-              </div>
-              <h3>No vehicles yet</h3>
-              <p>Add the first vehicle to make it available in Schedule.</p>
-            </div>
-          )}
-        </section>
+        <VehicleList vehicles={vehicles} accounts={accounts} onAdd={addVehicle} onEdit={editVehicle} />
       ) : (
         <BookingOptions />
       )}
@@ -450,14 +393,8 @@ export default function Settings() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {accountModal === "add" ? "Add Account" : "Edit Account"}
-            </DialogTitle>
-            <DialogDescription>
-              {accountModal === "add"
-                ? "Add a Requester, Scheduler, Admin or Driver account."
-                : "Update this account. Inactive accounts cannot sign in."}
-            </DialogDescription>
+            <DialogTitle>Edit Account</DialogTitle>
+            <DialogDescription>Update this account. Inactive accounts cannot sign in.</DialogDescription>
           </DialogHeader>
           <div className="modal-fields">
             <TextField
@@ -471,21 +408,23 @@ export default function Settings() {
               onChange={(v) => setAccount({ ...account, username: v })}
               autoComplete="off"
             />
-            {accountModal === "add" && (
-              <TextField
-                label="Password"
-                hint={PASSWORD_HINT}
-                type="password"
-                value={account.password}
-                onChange={(v) => setAccount({ ...account, password: v })}
-                autoComplete="new-password"
+            <label className="field">
+              <span>Email</span>
+              <Input
+                type="email"
+                value={account.email}
+                onChange={(e) => setAccount({ ...account, email: e.target.value })}
+                autoComplete="off"
+                maxLength={254}
               />
-            )}
+              <small>A new email gets a confirm link; the old one keeps working until then.</small>
+            </label>
             <Choice
               label="Account Type"
               value={account.role}
-              items={["Requester", "Scheduler", "Admin", "Driver"]}
+              items={["Requester", "Scheduler", "Admin", "Driver", "Finance"]}
               onChange={(v) => setAccount({ ...account, role: v })}
+              disabled={accountId === me.id}
             />
             {isDriver && (
               <Choice
@@ -500,41 +439,60 @@ export default function Settings() {
               value={account.status}
               items={["Active", "Inactive"]}
               onChange={(v) => setAccount({ ...account, status: v })}
+              disabled={accountId === me.id}
             />
-            {account.role !== "Scheduler" && (
-              <div className="field">
-                <span>Requests</span>
-                {isDriver && !carDriver ? (
-                  <small>Truck drivers can&apos;t make requests.</small>
-                ) : (
-                  <div className="person-projects">
-                    {carDriver ? (
-                      <label>
-                        <Checkbox
-                          checked={account.canRequestDaily}
-                          onCheckedChange={(v) => setAccount({ ...account, canRequestDaily: v === true })}
-                        />
-                        Can make Daily Vehicle Trip requests
-                      </label>
-                    ) : (
-                      <small>Can make Daily Vehicle Trip requests.</small>
-                    )}
-                    {account.role === "Admin" ? (
-                      // Every Admin may (0059); no switch needed.
-                      <small>Can request company trips.</small>
-                    ) : (
-                      <label>
-                        <Checkbox
-                          checked={account.canRequestCompany}
-                          onCheckedChange={(v) => setAccount({ ...account, canRequestCompany: v === true })}
-                        />
-                        Can request company trips
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            {accountId === me.id && <small>You can&apos;t change your own account type or status. Ask another Admin.</small>}
+            <div className="field">
+              <span>Requests</span>
+              {isDriver && !switches ? (
+                <small>Truck drivers can&apos;t make requests.</small>
+              ) : (
+                <div className="person-projects">
+                  {switches ? (
+                    <label>
+                      <Checkbox
+                        checked={account.canRequestDaily}
+                        onCheckedChange={(v) => setAccount({ ...account, canRequestDaily: v === true })}
+                      />
+                      Can make Daily Vehicle Trip requests
+                    </label>
+                  ) : (
+                    <small>Can make Daily Vehicle Trip requests.</small>
+                  )}
+                  {account.role === "Admin" ? (
+                    // Every Admin may (0059); no switch needed.
+                    <small>Can request company trips.</small>
+                  ) : (
+                    <label>
+                      <Checkbox
+                        checked={account.canRequestCompany}
+                        onCheckedChange={(v) => setAccount({ ...account, canRequestCompany: v === true })}
+                      />
+                      Can request company trips
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="field">
+              <span>Driving</span>
+              {isDriver ? (
+                // A Driver's comes from the Driver type (0079).
+                <small>
+                  {account.driverType === "Company car" ? "Can drive company trips." : "Truck drivers don't drive company trips."}
+                </small>
+              ) : (
+                <div className="person-projects">
+                  <label>
+                    <Checkbox
+                      checked={account.canDriveCompany}
+                      onCheckedChange={(v) => setAccount({ ...account, canDriveCompany: v === true })}
+                    />
+                    Can drive company trips
+                  </label>
+                </div>
+              )}
+            </div>
             {(account.role === "Admin" || (companyAllowed && account.canRequestCompany)) && (
               <TextField
                 label="Position"
@@ -550,30 +508,24 @@ export default function Settings() {
             </p>
           )}
           <div className="modal-actions">
-            {accountModal === "edit" && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAccountModal(null);
-                  setPasswordFor(
-                    accounts.find((a) => a.id === accountId) || null,
-                  );
-                  setPasswords({ next: "", confirm: "" });
-                  setFormError("");
-                }}
-              >
-                Change Password
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAccountModal(null);
+                setPasswordFor(
+                  accounts.find((a) => a.id === accountId) || null,
+                );
+                setPasswords({ next: "", confirm: "" });
+                setFormError("");
+              }}
+            >
+              Change Password
+            </Button>
             <Button variant="outline" onClick={() => setAccountModal(null)}>
               Go back
             </Button>
             <Button className="primary" disabled={busy} onClick={saveAccount}>
-              {busy
-                ? "Saving…"
-                : accountModal === "add"
-                  ? "Add Account"
-                  : "Save"}
+              {busy ? "Saving…" : "Save"}
             </Button>
           </div>
         </DialogContent>
@@ -669,6 +621,20 @@ export default function Settings() {
                 </label>
               </div>
             </div>
+            <div className="field">
+              <span>Odometer</span>
+              <div className="person-projects">
+                <label>
+                  <Checkbox
+                    checked={vehicle.hasOdometer}
+                    onCheckedChange={(v) => setVehicle({ ...vehicle, hasOdometer: v === true })}
+                  />
+                  Has an odometer
+                </label>
+              </div>
+              <small>Turn off for a vehicle without one: its trips are completed without readings.</small>
+            </div>
+            {!vehicle.companyTrips && (
             <label className="field">
               <span>Assigned Driver</span>
               <Select
@@ -689,7 +655,9 @@ export default function Settings() {
                   ))}
                 </SelectContent>
               </Select>
+              <small>Drives this vehicle&apos;s Daily trips.</small>
             </label>
+            )}
             <Choice
               label="Status"
               value={vehicle.status}

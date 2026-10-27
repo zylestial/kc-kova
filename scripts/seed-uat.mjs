@@ -4,7 +4,8 @@
 // Safe to re-run: every insert is skipped if the row already exists.
 //
 // Usage: node scripts/seed-uat.mjs
-// Reads Supabase credentials from .env.local (same file `next dev` uses).
+// Reads Supabase credentials from .env.local (same file `next dev` uses),
+// and refuses anything but a local Supabase.
 
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -21,6 +22,14 @@ loadEnvLocal();
 const UAT_PASSWORD = "test1234";
 const AUTH_EMAIL_DOMAIN = "accounts.kova.internal";
 const usernameToAuthEmail = (username) => `${username.toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
+
+// Local Supabase only: its accounts all get the shared password above, an
+// Admin among them, and existing ones of the same name get it reset. On a
+// hosted project that would be a way in for anyone who knows the password.
+if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")) {
+  console.error(`${process.env.NEXT_PUBLIC_SUPABASE_URL} is not local. This seed is for local Supabase only.`);
+  process.exit(1);
+}
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -40,6 +49,8 @@ const ACCOUNTS = [
   { username: "req1", name: "QA Requester Three", role: "Requester", position: "Purchasing Officer", can_request_company: true },
   // The Company car Driver a Company trip is requested with.
   { username: "carjun", name: "Jun Reyes", role: "Driver", driver_type: "Company car" },
+  // Finance views trips and attendance; no request switches to start.
+  { username: "fin1", name: "QA Finance", role: "Finance" },
 ];
 
 const VEHICLES = [
@@ -73,6 +84,7 @@ async function seedAccount({ username, name, role, ...extra }) {
     // even if the account was created by an earlier manual QA pass.
     const { error } = await admin.auth.admin.updateUserById(existing.id, { password: UAT_PASSWORD });
     if (error) throw new Error(`password reset(${username}) failed: ${error.message}`);
+    await seedEmail(existing.id, username);
     console.log(`account ${username} already exists — password reset`);
     return;
   }
@@ -91,7 +103,17 @@ async function seedAccount({ username, name, role, ...extra }) {
     await admin.auth.admin.deleteUser(created.user.id);
     throw new Error(`accounts insert(${username}) failed: ${insertError.message}`);
   }
+  await seedEmail(created.user.id, username);
   console.log(`created account ${username} (${role})`);
+}
+
+// Every account needs a confirmed email (0072), or KOVA shows the Add your
+// email step instead of the app. .test never delivers, so nothing is sent.
+async function seedEmail(accountId, username) {
+  const { error } = await admin
+    .from("account_emails")
+    .upsert({ account_id: accountId, email: `${username.toLowerCase()}@uat.kova.test`, confirmed_at: new Date().toISOString() });
+  if (error) throw new Error(`account_emails upsert(${username}) failed: ${error.message}`);
 }
 
 async function seedVehicle({ plate, name, company_trips = false }) {

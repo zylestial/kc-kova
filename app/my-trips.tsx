@@ -19,6 +19,7 @@ import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
 import { routeChangedAt } from "@/lib/trip-record";
 import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 import StopReportForm from "./stop-report-form";
+import SavedTapsBanner from "./saved-taps-banner";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -28,11 +29,12 @@ const timeLabel = (iso: string) =>
 type Trip = { schedule: Schedule; revision: ScheduleRevision };
 
 /**
- * My Trips (Company Trip Flow prototype, "Drive"): the requester's approved
- * Company trips. The requester taps Start trip at the starting point with
- * the odometer, Arrived and Leaving at each stop, and End trip on reaching
- * the last stop with the odometer again; End trip submits the trip. The
- * Driver drives; nothing goes into Attendance (0055). A problem at a stop
+ * My Trips (Company Trip Flow prototype, "Drive"): the approved Company
+ * trips you drive (0079). The Driver taps Start trip at the starting point
+ * with the odometer, Arrived and Leaving at each stop, and End trip on
+ * reaching the last stop with the odometer again; End trip submits the
+ * trip. A trip its requester started before 0079 stays here for them to
+ * finish. A problem at a stop
  * is reported here too (0061): a missed stop is passed over, and a vehicle
  * problem pauses the trip until Resume trip.
  */
@@ -44,7 +46,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     .filter((schedule) => schedule.kind === "COMPANY" && schedule.status === "ACTIVE")
     .flatMap((schedule) => {
       const revision = schedule.revisions.find((item) => item.id === schedule.publishedRevisionId);
-      return revision && revision.requestIds.some((id) => mine.has(id)) ? [{ schedule, revision }] : [];
+      if (!revision) return [];
+      const run = companyRuns.find((item) => item.scheduleId === schedule.id);
+      const drives = revision.driverId === accountId;
+      const startedAsRequester = !!run && !run.endAt && revision.requestIds.some((id) => mine.has(id));
+      return drives || startedAsRequester ? [{ schedule, revision }] : [];
     })
     .sort((a, b) => a.schedule.date.localeCompare(b.schedule.date));
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
@@ -59,6 +65,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
 
   const open = trips.find((trip) => trip.schedule.id === openId);
   const runOf = (trip: Trip) => companyRuns.find((run) => run.scheduleId === trip.schedule.id);
+  // Start trip asks for the odometer only on a vehicle that has one (0078); End trip, only if Start had a reading.
+  const takesOdometer = (trip: Trip, kind: CompanyStep["kind"]) =>
+    kind === "START"
+      ? vehicles.find((vehicle) => vehicle.plate === trip.revision.plate)?.hasOdometer !== false
+      : kind === "END" && typeof runOf(trip)?.startOdometer === "number";
   const problemsOf = (trip: Trip) => problems.filter((item) => item.scheduleId === trip.schedule.id);
   const stepsOf = (trip: Trip) =>
     companyTripSteps(
@@ -79,14 +90,16 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   }
 
   async function tap(trip: Trip, step: CompanyStep) {
-    const needsOdometer = step.kind === "START" || step.kind === "END";
+    // With no signal the tap is saved on the phone with this moment's time (0077).
+    const tappedAt = new Date().toISOString();
+    const needsOdometer = takesOdometer(trip, step.kind);
     const reading = Number(odometer);
     if (needsOdometer && (odometer.trim() === "" || !Number.isInteger(reading) || reading < 0)) {
       setError("Enter the odometer reading in whole kilometres.");
       return;
     }
     const run = runOf(trip);
-    if (step.kind === "END" && run && reading < run.startOdometer) {
+    if (needsOdometer && step.kind === "END" && run?.startOdometer != null && reading < run.startOdometer) {
       setError(`The ending reading can't be lower than the start (${run.startOdometer} km).`);
       return;
     }
@@ -95,11 +108,13 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     try {
       const location = await getPhoneLocation();
       if (step.kind === "START" || step.kind === "END") {
-        await recordCompanyRun(trip.schedule.id, { kind: step.kind, odometer: reading, location });
+        const result = await recordCompanyRun(trip.schedule.id, { kind: step.kind, odometer: needsOdometer ? reading : null, location }, tappedAt);
         setOdometer("");
-        if (step.kind === "END") setNotice("Trip ended and submitted. Thank you!");
+        if (step.kind === "END") {
+          setNotice(result === "sent" ? "Trip ended and submitted. Thank you!" : "Trip ended. It submits when you have signal. Thank you!");
+        }
       } else {
-        await recordCompanyStop(trip.schedule.id, { legId: step.legId!, kind: step.kind, location });
+        await recordCompanyStop(trip.schedule.id, { legId: step.legId!, kind: step.kind, location }, tappedAt);
       }
       setLocationOff(!location);
     } catch (caught) {
@@ -131,7 +146,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
           <h1>
             My Trips<span className="title-dot">.</span>
           </h1>
-          <p>Your approved Company trips. You record each one: Start trip with the odometer, each stop, then End trip.</p>
+          <p>The approved Company trips you drive. You record each one: Start trip (with the odometer, if the vehicle has one), each stop, then End trip.</p>
         </div>
       </div>
       {notice && (
@@ -139,6 +154,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
           {notice}
         </div>
       )}
+      <SavedTapsBanner />
       <section className="schedule-panel">
         <div className="panel-toolbar">
           <div>
@@ -213,10 +229,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                             ),
                           )}
                       </ol>
-                      {run && (
+                      {run && run.startOdometer === null && <p className="helper">No odometer on this vehicle.</p>}
+                      {run && run.startOdometer !== null && (
                         <p className="helper">
                           Starting odometer: <b>{run.startOdometer} km</b>
-                          {run.endOdometer !== undefined && (
+                          {run.endOdometer != null && (
                             <>
                               {" "}
                               · Ending: <b>{run.endOdometer} km</b> ({run.endOdometer - run.startOdometer} km)
@@ -244,7 +261,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       )}
                       {!reportAt && next && trip.schedule.date <= today && !(onTheRoad && trip.schedule.pausedAt) && (
                         <div className="my-trip-action">
-                          {(next.kind === "START" || next.kind === "END") && (
+                          {takesOdometer(trip, next.kind) && (
                             <label className="field">
                               <span>{next.kind === "START" ? "Starting odometer (km)" : "Ending odometer (km)"}</span>
                               <Input
@@ -295,7 +312,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
               <Car size={30} />
             </div>
             <h3>No trips yet</h3>
-            <p>Your Company trips appear here once an Admin approves them.</p>
+            <p>Company trips you drive appear here once an Admin approves them.</p>
           </div>
         )}
       </section>

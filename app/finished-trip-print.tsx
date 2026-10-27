@@ -6,6 +6,7 @@ import type { FinishedTrip } from "@/lib/finished-trips";
 import { dateInBusinessTimezone } from "@/lib/timezone";
 import { BASE, MAX_LEGS, type StopInfo } from "@/lib/trip-record";
 import { formTimeValue, type LegTimes } from "@/lib/stop-times";
+import { printKm } from "@/lib/odometer";
 import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
 
 const blank = "________________";
@@ -69,7 +70,7 @@ export default function FinishedTripPrint({
           PROJECT / DEPARTMENT <b>{val(projects)}</b>
         </div>
         <div>
-          STARTING ODOMETER <b>{completion.startOdometer} km</b>
+          STARTING ODOMETER <b>{printKm(completion.startOdometer)}</b>
         </div>
       </div>
       <h2>ROUTE & RECORDING RULE</h2>
@@ -163,10 +164,10 @@ export default function FinishedTripPrint({
       <h2>VEHICLE CONTROL</h2>
       <div className="print-row">
         <span>
-          ENDING ODOMETER <b>{completion.endOdometer} km</b>
+          ENDING ODOMETER <b>{printKm(completion.endOdometer)}</b>
         </span>
         <span>
-          TOTAL DISTANCE <b>{completion.distance} km</b>
+          TOTAL DISTANCE <b>{printKm(completion.distance)}</b>
         </span>
         <span>
           NO. OF TRIP LEGS <b>{revision.legs.length}</b>

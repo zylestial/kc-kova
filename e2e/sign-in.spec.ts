@@ -3,7 +3,7 @@ import { signIn, signInAndWaitForHome } from "./helpers";
 
 test("rejects a wrong password", async ({ page }) => {
   await signIn(page, "admin1", "not-the-password");
-  await expect(page.getByText(/invalid username or password/i)).toBeVisible();
+  await expect(page.getByText(/invalid username, email or password/i)).toBeVisible();
   await expect(page).toHaveURL(/sign-in/);
 });
 

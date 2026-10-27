@@ -9,7 +9,9 @@ app that covers: asking for transport, planning a vehicle's route for the
 day, getting that plan approved, recording the trip as it happens, and
 routing the finished trip through Admin review to a locked, final state.
 
-There is no public sign-up. Every account is provisioned by an Admin.
+There is no public sign-up. An Admin invites each person by email and
+chooses their account type and permissions; the person sets up their own
+username and password from the emailed link.
 
 ## Roles
 
@@ -18,9 +20,10 @@ A person has exactly one role; there is no multi-role account.
 | Role | Can do |
 | --- | --- |
 | **Requester** | Ask for transport (a date and one or more stops, each with a purpose). If an Admin allows it, ask for a **Company trip** instead, picking the vehicle and its Company car Driver, and record that trip themselves on **My Trips**. Edit or cancel their own requests until a Scheduler starts planning them; after that, ask for a cancellation. See where each request stands. |
-| **Scheduler** | Plan each day's Daily and Company trips on one **Scheduling** page: add waiting stops to vehicles (a Daily vehicle's assigned Driver comes with it), adjust each trip's legs and times, and submit it for approval. Send back stops that won't fit, or move an "any day that week" stop to another day. Change a trip that's waiting for the Admin, or propose changes to an approved one. The only role that creates schedules. |
+| **Scheduler** | Plan each day's Daily and Company trips on one **Scheduling** page: add waiting stops to vehicles (a Daily vehicle's assigned Driver comes with it), adjust each trip's legs and times, and submit it for approval. Send back stops that won't fit, or move an "any day that week" stop to another day. Change a trip that's waiting for the Admin, or propose changes to an approved one. The only role that creates schedules. An Admin may also let a Scheduler make Daily or Company requests, like a Company car Driver. |
 | **Admin** | Approve or return submitted schedules, cancel schedules, confirm or decline cancellation requests, review finished trips (correct odometers and times, handle problem reports, mark Done, print the form), check Drivers' attendance, and manage Accounts, Vehicles and request choices, including who may request Company trips. Can also act as a Scheduler or a Driver ("View as"), attributed to the Admin. |
 | **Driver** | Either a **Truck** or a **Company car** Driver. See the approved trips assigned to them ("My Schedule"). On Daily trips, tap Start trip when leaving ANONANG and End trip on returning (their attendance), and Arrived and Leaving at each stop in between; after the trip ends, submit its odometer readings and final-return checks. On Company trips the requester records the trip; the Driver only sees it. Report a problem on a trip at any time. An Admin may let a Company car Driver make requests; a Truck Driver never can. |
+| **Finance** | View Schedules, Finished Trips (odometers, distance, times; print the Daily or Company Trip Form) and Attendance, and download Finished Trips and Attendance as CSV for Excel. Changes nothing. An Admin may also let Finance make Daily or Company requests. |
 
 ## Core workflows
 
@@ -120,7 +123,8 @@ A person has exactly one role; there is no multi-role account.
    deletes anything; history stays intact.
 8. **Administer reference data.** An Admin maintains Accounts (Position,
    whether the account may request Company trips, each Driver's type and
-   whether a Company car Driver may make Daily or Company requests),
+   whether a Company car Driver or a Scheduler may make Daily or Company
+   requests),
    Vehicles (each vehicle's assigned Driver, and whether it can be requested
    for company trips) and the request choices (Projects/Sites, Destinations,
    Purposes, which destinations are fuel/errand stops, Urgent reasons,
@@ -130,14 +134,30 @@ A person has exactly one role; there is no multi-role account.
 9. **Stay informed.** An in-app bell tells people what changed for them (a
    request scheduled, returned, sent back or moved to another day; a
    schedule waiting for approval; a trip published; a problem reported).
+   Anyone can also have the same notifications pop up on their phone or
+   computer, even with KOVA closed: they turn this on per device, a tap
+   opens what it's about, and signing back in shows what arrived while
+   they were signed out.
+10. **Join and look after your own sign-in.** Staff collect everyone's
+    email; an Admin pastes them in batches, each batch with one account
+    type and set of request permissions, and KOVA emails each person an
+    invite link. The person sets up their own name, username and password
+    from it, and only what their access needs besides (a Position when they
+    may request Company trips). Invites are the only way to make an
+    account, so every account has its email, and anyone who forgets their
+    password resets it from Sign In by email. Anyone can change their own
+    username, email and password on **My account**; an Admin can still
+    edit any account in Settings.
 
 ## Non-goals
 
-- No public registration or self-service password reset — an Admin manages all
-  credentials.
+- No public registration — every account starts from an Admin's invite (or
+  an Admin adding it directly).
 - No mobile app; KOVA is a responsive web app only.
 - No multi-tenant support — this is a single organization's fleet.
-- No email or push notifications; the bell is in-app only.
+- No email notifications. KOVA emails only about accounts (an invite, a
+  link to confirm an email, a password reset). Phone notifications only
+  repeat the bell; they never carry anything the bell doesn't.
 
 ## Key constraints carried into every design decision
 
@@ -224,8 +244,16 @@ in `supabase/tests/` already check automatically.
   Finance Use section blank. (tested)
 
 **Accounts and access**
-- Only an Admin can create accounts, set passwords, and change vehicles and
-  request choices. Nothing is ever hard-deleted.
+- Only an Admin can invite people (the only way to make an account), choose account types and
+  permissions, and change vehicles and request choices. Nothing is ever
+  hard-deleted.
+- An invite link works once, for 7 days; the account it sets up gets the
+  Admin's chosen type and permissions, never the person's own choice.
+- Every account has a confirmed email. A reset link works once, for an
+  hour, and Forgot password answers the same whether or not the account
+  exists.
+- Changing your own username, email or password needs your current
+  password.
 - An inactive account can't sign in. Sign-in locks after 5 wrong passwords
   in 15 minutes.
 - A new password has at least 8 characters, a letter and a number, and

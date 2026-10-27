@@ -28,6 +28,11 @@ Brand colors are taken from the Kayelen's Construction logo:
 (dark surfaces such as the sidebar), `--brand-green` `#3b5228` (gears;
 small accents only) and `--steel` `#6b7280` (nails; secondary text).
 
+The app icon is three gears drawn as vector paths in `public/favicon.svg`
+(blue and green from the logo). The PNG icons (`icon-192`, `icon-512`,
+`icon-maskable-512`, `apple-touch-icon`) are rendered from it on white; the
+maskable one keeps the gears inside the 80% safe circle.
+
 ### Status colors
 
 Every status has a solid color plus a light background, border and text
@@ -58,9 +63,13 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
 - **Sidebar** (`app/(app)/sidebar.tsx`): navy (`--brand-navy`), 256px,
   fixed on the left from 1024px up; below that it's a drawer opened from
   the top bar's menu button and closed by the scrim, the X or Escape. It
-  holds the logo, the role's menu (`navItems()` in
+  holds the logo (the navy version, `public/images/kova-sidebar-logo.png`,
+  straight on the sidebar with no white box; kept clear of the X in the
+  drawer) and the KOVA name with no subtitle, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
-  Help, the account and Sign out. Menu links are real links, but a plain
+  Help, and the account
+  card: its name and avatar open My account (no separate menu item, to
+  keep the menu short), and its icon signs out. Menu links are real links, but a plain
   click goes through `leave()` so unsaved work still asks first. While an
   Admin is viewing as another role, the menu is that role's.
 - **Top bar** (`app/(app)/topbar.tsx`): today's date (wide screens) or
@@ -72,11 +81,22 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   to look at (sent back, returned, cancellation asked or declined), red for
   something wrong (cancelled, problem reported). A new type won't compile
   until it has one. Clicking one closes the bell and opens the exact item
-  (`notificationTarget`): the request's details, the trip on My Schedule
+  (`notificationTarget`, `lib/notification-target.ts`, which a phone
+  notification's tap uses too): the request's details, the trip on My Schedule
   or Finished Trips, a submitted schedule's details over its week, a
   returned trip's vehicle on Scheduling (`?trip=`, opened, scrolled to and
   highlighted), or a cancellation request's row on Schedules
-  (`?cancellation=`, highlighted).
+  (`?cancellation=`, highlighted). When push is set up, the bell's last
+  row (sticky at the bottom) is **Push notifications** with this device's
+  state: **Turn on** right there when it's off, **Manage** (the dialog)
+  when it's on, or **How to** (the dialog) when the device can't yet.
+- **Push notifications** dialog (`app/push-dialog.tsx`, from the bell):
+  one line saying where this device stands (on, off, blocked in the
+  browser, can't, or, on an iPhone or iPad not opened from the Home
+  Screen, how to add it there first), with **Turn on**, or **Turn off**
+  and **Send a test** (to this device only). It's per device, so the copy says to turn it on on
+  each phone or computer. A phone notification reads "KOVA" over the
+  bell's text, with the app icon.
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
   takes its status color only when its count is above zero; a zero is
@@ -133,6 +153,7 @@ All pass 4.5:1 for their text.
 | Scheduler | `#5b3fb0` → `#33236e` (violet) | `#5b3fb0` |
 | Driver | `#4a6633` → `#2c3d1f` (logo green) | `#3f5a2b` |
 | Requester | `#136f7c` → `#0b4650` (teal) | `#11697a` |
+| Finance | `#8a5410` → `#55330a` (amber) | `#8a5410` |
 
 Cards and panels use 16px corners and `--shadow-card`; status pills carry a
 dot in their text color. The UI font is Inter (`next/font/google`,
@@ -217,11 +238,13 @@ router/URL segments are used for in-app navigation.
 | `my-requests` | `app/my-requests.tsx` (one row per stop, numbered 52-A; details show the request's other stops and the Company Trip's fields) | Requester, Admin, allowed Drivers |
 | `my-trips` | `app/my-trips.tsx` (the requester's approved Company trips as folding cards: the steps in route order with their times, one big button for the next (Start trip at …, Arrived at …, Leaving …, Arrived at … · End trip), an odometer field on Start and End trip, the distance once ended; the same "Problem here?" stop report, hold and Scheduler's answer as the Driver) | Requesters with Company trips |
 | `scheduling` | `app/scheduling.tsx` with `app/scheduler/` at `/scheduling` (see below) | Scheduler |
-| `schedules` | `app/schedules.tsx` | Scheduler, Admin (review) |
+| `schedules` | `app/schedules.tsx` | Scheduler, Admin (review), Finance (view only) |
 | `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short (it says the stops left are marked not reached and go back to the Scheduler); "Problem here?" under the current stop opens the stop report (below); a missed stop shows as one warning line; a trip held for the Scheduler shows a red notice in place of the next button ("Reported. Wait for the Scheduler's answer before going on.", or that the route is being changed), and the latest answer shows as a blue notice above the trip ("Scheduler's answer at 3:42 PM: Skip Site Alpha and go on to the next stop."); a "Route changed" notice after an approved change; no requester, distances or coordinates; then a big Complete trip) | Driver |
-| `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below) | Admin |
-| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily or the Company Trip Form) | Driver, Admin |
-| `settings` | `app/settings.tsx` | Admin (accounts with Position, Can request company trips, Driver type and a Company car Driver's request switches; vehicles with Can be requested for company trips; booking options) |
+| `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below; Download CSV opens a dialog with the same filters, starting from the screen's, and saves the rows they pick) | Admin, Finance |
+| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily or the Company Trip Form; Download CSV opens a dialog with the same filters, starting from the screen's, and saves the trips they pick; Finance gets it with `readOnly`: Print and Download only) | Driver, Admin, Finance |
+| `settings` | `app/settings.tsx` | Admin. Each tab is a rail of lists on the left and one list on the right (`app/settings-lists.tsx`; on a phone the rail first, "All lists" back), with a search across the tab, a yellow banner for what still needs setting up, and a ⚠ count on the list that needs it. Accounts (`app/settings-accounts.tsx`): People by type, Access (Can drive / Can request company trips), Pending invites last; a row shows username · email, type and position, Access chips and Status; Email shows a "Not confirmed" badge and Resend while a new one waits; Edit has Position, Can request company trips, Driver type and a Scheduler's or Company car Driver's request switches; no Add Account, since invites are the only way in. Invite people is a button beside the tabs (`app/invites-panel.tsx`): a box of pasted emails plus one account type and set of request switches for the batch, then a summary of sent / skipped / not emails / couldn't send, and Resend / Cancel per invite. Vehicles (`app/settings-vehicles.tsx`): All, Kind (Can be requested for company trips / Daily trips only), Needs attention (No Driver assigned, No odometer, Inactive); a company vehicle's Driver reads "Picked per request" and its Edit has no Assigned Driver. Request choices (`app/booking-options.tsx`, `lib/choice-lists.ts`): Every request and Company Trips only lists, each tagged Required / Needed for Urgent stops / Needed for Company Trips / Optional) |
+| `account` | `app/(app)/account/my-account.tsx` at `/account` (Username, Email and Password panels, each folded behind Change and asking for the current password; a pending email shows as "Not confirmed") | All roles |
+| link pages | `app/(auth)/join`, `forgot-password`, `reset-password`, `confirm-email` (the sign-in card's look; open signed in or not) — Join shows the invite's email and what it allows ("Requester · Daily requests · Company trips") and asks for name, username and password, plus Position only when the access needs it (required with company trips, optional for an Admin); Forgot password takes only an email (anything else: "Enter a valid email address."); Sign In takes a username or confirmed email and has a Forgot password? link and says "Password changed" after a reset | Anyone with the link |
 | — | `app/booking-options.tsx` | Admin (projects/destinations/purposes, Urgent reasons, Starting points, Suppliers, Immediate Supervisors, PM / CM / Dept. Heads; a destination's Location column and field take pasted coordinates or a Google Maps link) |
 
 **Scheduling** (`app/scheduling.tsx`, prototype "KOVA Scheduler",

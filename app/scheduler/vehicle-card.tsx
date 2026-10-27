@@ -15,6 +15,7 @@ export default function VehicleCard({
   started,
   drop,
   renderTrip,
+  byOf,
 }: {
   row: VehicleRow;
   open: boolean;
@@ -24,6 +25,8 @@ export default function VehicleCard({
   started: (scheduleId: string) => boolean;
   /** A trip's legs and buttons (TripEditor). */
   renderTrip: (trip: Trip, state: TripState) => React.ReactNode;
+  /** "Drafted by Sam Cruz" or "Scheduled by …", or "" when not known. */
+  byOf: (trip: Trip) => string;
   /** While a stop is dragged: whether it can go on this vehicle, and what dropping does. */
   drop?: {
     blocked: string;
@@ -63,7 +66,10 @@ export default function VehicleCard({
         <b>{vehicle.name}</b>
         <span className="sc-muted">{kind === "COMPANY" ? "Company trips · Driver per request" : (driver?.name ?? "No Driver assigned")}</span>
         <span className="sc-space" />
-        <span className="sc-muted">{summary}</span>
+        <span className="sc-muted">
+          {summary}
+          {trips.length === 1 && byOf(first) && ` · ${byOf(first)}`}
+        </span>
         {trips.length === 1 ? (
           <span className={"sc-tag " + tripStateTone[stateOf(first)]}>{tripStateLabel[stateOf(first)]}</span>
         ) : !trips.length ? (
@@ -81,6 +87,7 @@ export default function VehicleCard({
                 {trips.length > 1 && (
                   <div className="sc-trip-head">
                     <b>{trip.revision.driverName}</b>
+                    {byOf(trip) && <span className="sc-muted">{byOf(trip)}</span>}
                     <span className={"sc-tag " + tripStateTone[state]}>{tripStateLabel[state]}</span>
                   </div>
                 )}

@@ -1,6 +1,7 @@
 import {
   Ban,
   Bell,
+  BellRing,
   CalendarCheck,
   CalendarSync,
   CalendarX,
@@ -17,14 +18,16 @@ import {
   Undo2,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { markAllNotificationsRead, markNotificationRead, type Notification, type NotificationType, type Schedule } from "@/lib/kova-api";
-import { schedulingHref } from "@/lib/scheduling";
+import { markAllNotificationsRead, markNotificationRead, type Notification, type NotificationType } from "@/lib/kova-api";
+import { notificationTarget } from "@/lib/notification-target";
 import { useAccount } from "./(app)/providers";
 import { useKovaData } from "@/lib/use-kova-data";
+import { pushConfigured, pushState, turnPushOn, type PushState } from "@/lib/push-device";
+import { PushDialog } from "./push-dialog";
 
 /** Each type's icon, and its color: good news, news, needs a look, or something wrong. */
 const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "success" | "info" | "warning" | "error" }> = {
@@ -45,52 +48,6 @@ const notificationIcons: Record<NotificationType, { icon: LucideIcon; tone: "suc
   STOP_MISSED: { icon: MapPinX, tone: "warning" },
   STOP_ANSWERED: { icon: MessageSquareReply, tone: "info" },
 };
-
-/** Where clicking a notification should land, per its type. */
-function notificationTarget(notification: Notification, schedules: Schedule[], role: string): string | undefined {
-  const { type, relatedRequestId, relatedScheduleId } = notification;
-  switch (type) {
-    case "REQUEST_SCHEDULED":
-    case "REQUEST_RETURNED":
-    case "REQUEST_SENT_BACK":
-    case "REQUEST_SPLIT":
-    case "REQUEST_MOVED":
-    case "REQUEST_CANCELLED":
-    case "CANCELLATION_DECLINED":
-    case "STOP_MISSED":
-      return relatedRequestId ? `/requests?open=${encodeURIComponent(relatedRequestId)}` : "/requests";
-    case "CANCELLATION_REQUESTED":
-      // The ask itself, with its Confirm and Decline.
-      return relatedRequestId ? `/schedules?cancellation=${encodeURIComponent(relatedRequestId)}` : "/schedules#cancellations";
-    case "SCHEDULE_SUBMITTED":
-      return relatedScheduleId ? `/schedules?open=${encodeURIComponent(relatedScheduleId)}` : "/schedules";
-    case "PROBLEM_REPORTED":
-      return relatedScheduleId ? `/finished?open=${encodeURIComponent(relatedScheduleId)}` : "/finished";
-    case "SCHEDULE_RETURNED": {
-      // Fixed on Scheduling, opened on the schedule's day and kind.
-      if (!relatedScheduleId) return "/schedules";
-      const schedule = schedules.find((item) => item.id === relatedScheduleId);
-      return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
-    }
-    case "TRIP_PUBLISHED":
-      return relatedScheduleId ? `/my-schedule?open=${encodeURIComponent(relatedScheduleId)}` : "/my-schedule";
-    case "STOP_REPORTED": {
-      // A Scheduler handles it on Scheduling; an Admin sees it with the trip's problems.
-      if (!relatedScheduleId) return role === "Scheduler" ? "/scheduling" : "/finished";
-      if (role !== "Scheduler") return `/finished?open=${encodeURIComponent(relatedScheduleId)}`;
-      const schedule = schedules.find((item) => item.id === relatedScheduleId);
-      return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
-    }
-    case "TRIP_CHANGED":
-    case "STOP_ANSWERED": {
-      // The Driver's trip, or the Company trip a requester records (0055).
-      const page = role === "Driver" ? "/my-schedule" : "/my-trips";
-      return relatedScheduleId ? `${page}?open=${encodeURIComponent(relatedScheduleId)}` : page;
-    }
-    default:
-      return undefined;
-  }
-}
 
 function timeAgo(iso: string) {
   const ms = Date.now() - new Date(iso).getTime();
@@ -115,7 +72,7 @@ function NotificationItem({ notification, onOpen }: { notification: Notification
       className={`notif-item${unread ? " unread" : ""}`}
       onClick={() => {
         if (unread) void markNotificationRead(notification.id).catch(() => {});
-        const target = notificationTarget(notification, schedules, account.role);
+        const target = notificationTarget(notification, (id) => schedules.find((item) => item.id === id), account.role);
         if (!target) return;
         // Close the panel so it doesn't cover what it opened.
         onOpen();
@@ -133,34 +90,101 @@ function NotificationItem({ notification, onOpen }: { notification: Notification
   );
 }
 
+const pushRowText: Record<PushState, string> = {
+  unsupported: "Not available in this browser",
+  "needs-home-screen": "Add KOVA to your Home Screen first",
+  blocked: "Blocked in this browser's settings",
+  off: "Off on this device",
+  on: "On for this device",
+};
+
+/** The panel's last row: turns push notifications on here, or opens the dialog for the rest. */
+function PushRow({ onOpenDialog }: { onOpenDialog: () => void }) {
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // Rendered only while the panel is open, so each open re-checks this device.
+  useEffect(() => {
+    pushState()
+      .then(setState)
+      .catch(() => setState("unsupported"));
+  }, []);
+
+  async function turnOn() {
+    setBusy(true);
+    setError("");
+    try {
+      setState(await turnPushOn());
+    } catch (caught) {
+      setError((caught as Error).message || "Something went wrong. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="notif-push">
+      <BellRing size={16} aria-hidden="true" />
+      <span className="notif-push-text">
+        <strong>Push notifications</strong>
+        <small role="status">{error || (state ? pushRowText[state] : "Checking this device…")}</small>
+      </span>
+      {state === "off" ? (
+        <Button size="sm" className="primary" disabled={busy} onClick={() => void turnOn()}>
+          {busy ? "Turning on…" : "Turn on"}
+        </Button>
+      ) : (
+        state && (
+          <Button size="sm" variant="outline" onClick={onOpenDialog}>
+            {state === "on" ? "Manage" : "How to"}
+          </Button>
+        )
+      )}
+    </div>
+  );
+}
+
 export default function NotificationBell() {
   const { notifications } = useKovaData();
   const [open, setOpen] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
   const unreadCount = notifications.filter((item) => !item.readAt).length;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Notifications" title="Notifications" className="notif-trigger">
-          <Bell size={15} />
-          {unreadCount > 0 && <span className="notif-count">{unreadCount > 9 ? "9+" : unreadCount}</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="notif-panel">
-        <div className="notif-header">
-          <span>Notifications</span>
-          {unreadCount > 0 && (
-            <button type="button" onClick={() => void markAllNotificationsRead().catch(() => {})}>
-              Mark all read
-            </button>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Notifications" title="Notifications" className="notif-trigger">
+            <Bell size={15} />
+            {unreadCount > 0 && <span className="notif-count">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="notif-panel">
+          <div className="notif-header">
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <button type="button" onClick={() => void markAllNotificationsRead().catch(() => {})}>
+                Mark all read
+              </button>
+            )}
+          </div>
+          {notifications.length === 0 ? (
+            <div className="notif-empty">Nothing here yet</div>
+          ) : (
+            notifications.map((notification) => <NotificationItem key={notification.id} notification={notification} onOpen={() => setOpen(false)} />)
           )}
-        </div>
-        {notifications.length === 0 ? (
-          <div className="notif-empty">Nothing here yet</div>
-        ) : (
-          notifications.map((notification) => <NotificationItem key={notification.id} notification={notification} onOpen={() => setOpen(false)} />)
-        )}
-      </PopoverContent>
-    </Popover>
+          {pushConfigured && (
+            <PushRow
+              onOpenDialog={() => {
+                setOpen(false);
+                setPushOpen(true);
+              }}
+            />
+          )}
+        </PopoverContent>
+      </Popover>
+      {pushConfigured && <PushDialog open={pushOpen} onOpenChange={setPushOpen} />}
+    </>
   );
 }

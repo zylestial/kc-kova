@@ -155,7 +155,7 @@ test("several people on a trip that's on the road", async ({ browser }) => {
   await banner.getByRole("button", { name: "Move", exact: true }).click();
   await expect(scheduler.locator(".notice.success")).toContainText(`${missedPlace} moved to`, saved);
   await expect(scheduler.locator(".date-card.selected")).toBeVisible();
-  expect(new URL(scheduler.url()).searchParams.get("date")).toBe(nextDay);
+  await expect(scheduler).toHaveURL(new RegExp(`[?&]date=${nextDay}`), saved);
   await scheduler.keyboard.press("Escape");
   await expect(scheduler.locator(".sc-stop", { hasText: missedPlace }).first().locator(".sc-tag", { hasText: "Missed" })).toBeVisible();
   expect(published(await todaysTrip(scheduler)).legs.find((leg) => leg.destinationName === missedPlace)?.stops ?? []).toHaveLength(0);

@@ -13,8 +13,11 @@ import {
   hydrateKovaData,
   moveRequestDay,
   releaseMissedStop,
+  currentAccount,
   saveScheduleDraft,
+  sendBackRequests,
   submitSchedule,
+  type Schedule,
   type StopDecision,
   type TransportRequest,
 } from "@/lib/kova-api";
@@ -42,6 +45,9 @@ import { dateLabel, fullDate } from "./planner/format";
 import StopCard, { whatText } from "./scheduler/stop-card";
 import StopSheet from "./scheduler/stop-sheet";
 import PlanOptions from "./scheduler/plan-options";
+import SendBackForm from "./scheduler/send-back-form";
+import OthersDraftDialog from "./scheduler/others-draft-dialog";
+import { othersDraftQuestion, scheduledBy } from "@/lib/scheduled-by";
 import VehicleCard from "./scheduler/vehicle-card";
 import TripEditor from "./scheduler/trip-editor";
 
@@ -88,6 +94,9 @@ export default function Scheduling({
   // The stops being dragged onto a vehicle.
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
+  // Trips someone else is planning that you said to edit anyway, and the question open now.
+  const [allowedEdits, setAllowedEdits] = useState<ReadonlySet<string>>(new Set());
+  const [asking, setAsking] = useState<{ question: string; answer: (edit: boolean) => void } | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   // Changes that can be undone, the last one last.
@@ -155,12 +164,28 @@ export default function Scheduling({
    * week" stop asked for another day moves to this day first, and its
    * requester is told (0053).
    */
+  /** Before changing a trip someone else is planning, asks once per trip until the page reloads. */
+  function okToEdit(schedule: Schedule): Promise<boolean> {
+    const question = allowedEdits.has(schedule.id) ? null : othersDraftQuestion(schedule, currentAccount()?.id, accounts);
+    if (!question) return Promise.resolve(true);
+    return new Promise((resolve) =>
+      setAsking({
+        question,
+        answer: (edit) => {
+          setAsking(null);
+          if (edit) setAllowedEdits((ids) => new Set(ids).add(schedule.id));
+          resolve(edit);
+        },
+      }),
+    );
+  }
   async function add(option: PlanOption, stops: TransportRequest[]) {
     const name = option.row.vehicle.name;
     if (option.blocked) {
       setError(`Can't add to ${name}: ${option.blocked}.`);
       return;
     }
+    if (option.trip && !(await okToEdit(option.trip.schedule))) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -281,6 +306,17 @@ export default function Scheduling({
       setSendingBack(null);
       return `${item.place} sent back to the requester.`;
     }, "clear");
+  }
+  /** Sends waiting stops straight back to their requesters (0038), from their sheet. */
+  function sendBackWaiting(stops: TransportRequest[], reason: string) {
+    void run(async () => {
+      await sendBackRequests(
+        stops.map((stop) => stop.id),
+        reason,
+      );
+      setSheetIds([]);
+      return `${stops.map((stop) => stopNumber(stop) || "Request").join(", ")} sent back to the requester.`;
+    });
   }
   const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
@@ -585,6 +621,10 @@ export default function Scheduling({
               flash={row.vehicle.plate === flashPlate}
               onToggle={() => toggle(row.vehicle.plate)}
               started={started}
+              byOf={(trip) => {
+                const by = scheduledBy(currentRevision(trip.schedule), accounts);
+                return by ? `${by.label} ${by.name}` : "";
+              }}
               renderTrip={(trip, state) => (
                 <TripEditor
                   trip={trip}
@@ -595,7 +635,9 @@ export default function Scheduling({
                   waiting={[...stops, ...week, ...carried]}
                   fuel={fuel}
                   busy={busy}
-                  run={run}
+                  run={async (action, undo) => {
+                    if (await okToEdit(trip.schedule)) await run(action, undo);
+                  }}
                   missedLeg={(legId) => missed.get(legId) && stopReportLabel(missed.get(legId)!)}
                   doneLeg={(legId, isLast) =>
                     stopTaps.some((tap) => tap.legId === legId) ||
@@ -623,6 +665,8 @@ export default function Scheduling({
         </section>
       </div>
 
+      <OthersDraftDialog question={asking?.question ?? null} onAnswer={(edit) => asking?.answer(edit)} />
+
       <StopSheet stops={sheetStops} onClose={() => setSheetIds([])}>
         {sheetStops.length > 0 && (
           <>
@@ -632,6 +676,11 @@ export default function Scheduling({
               </div>
             )}
             <PlanOptions options={planOptions(sheetStops, rows, context)} stops={sheetStops} requests={requests} busy={busy} onAdd={(option) => add(option, sheetStops)} />
+            <SendBackForm
+              requesters={[...new Set(sheetStops.map((stop) => stop.ownerName))].join(", ")}
+              busy={busy}
+              onSendBack={(reason) => sendBackWaiting(sheetStops, reason)}
+            />
           </>
         )}
       </StopSheet>

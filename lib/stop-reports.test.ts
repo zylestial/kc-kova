@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProblemReport, Schedule, TransportRequest } from "@/lib/kova-api";
-import { answerText, missedLegs, openStopReports, stopChoices, stopReportLabel, waitsForAnswer } from "@/lib/stop-reports";
+import { answerText, missedLegs, openStopReports, stopChoices, stopReportLabel, stopReportStatus, waitsForAnswer } from "@/lib/stop-reports";
 
 const report = (patch: Partial<ProblemReport>): ProblemReport => ({
   id: "p",
@@ -107,5 +107,20 @@ describe("answers to stop reports (0068)", () => {
     expect(answerText({ decision: "SKIP", kind: "NOT_AVAILABLE" }, "Site Alpha")).toBe("Skip Site Alpha and go on to the next stop.");
     expect(answerText({ decision: "WAIT", kind: "VEHICLE_PROBLEM" }, "Site Alpha")).toBe("Go on once the vehicle is fixed.");
     expect(answerText({ kind: "OTHER" }, "Site Alpha")).toBe("Wait for the Scheduler's answer.");
+  });
+});
+
+describe("stop reports on Finished Trips (0083)", () => {
+  const base = report({ legId: "l1", kind: "NOT_AVAILABLE" });
+
+  it("says where an open one stands on Scheduling", () => {
+    expect(stopReportStatus(base)).toBe("Waiting for an answer on Scheduling. The trip is held until then.");
+    expect(stopReportStatus({ ...base, decision: "CHANGE" })).toBe("Answered: change the route. Waiting for an Admin to approve the change.");
+    expect(stopReportStatus({ ...base, missed: true, decision: "SKIP" })).toBe("Missed: waiting for the Scheduler to plan it again on Scheduling.");
+    expect(stopReportStatus(report({ legId: "l1", kind: "NOT_REACHED", missed: true }))).toBe("Missed: waiting for the Scheduler to plan it again on Scheduling.");
+  });
+
+  it("says nothing once handled", () => {
+    expect(stopReportStatus({ ...base, status: "HANDLED", decision: "WAIT" })).toBe("");
   });
 });

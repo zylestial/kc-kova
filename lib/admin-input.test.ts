@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   bookingOptionBody,
-  createAccountBody,
+  inviteBody,
+  parseEmailList,
   createVehicleBody,
   passwordBody,
   updateAccountBody,
@@ -10,43 +11,43 @@ import {
 import { parseWith } from "@/lib/validation";
 
 describe("account bodies", () => {
-  const account = { name: " Ana Cruz ", username: " ana ", role: "Driver", password: "drive2026" };
+  const account = { name: " Ana Cruz ", username: " ana ", role: "Driver", status: "Active" };
 
-  it("trims names and defaults a new account to Active", () => {
-    expect(parseWith(createAccountBody, account)).toEqual({
+  it("trims names and lowercases the email", () => {
+    expect(parseWith(updateAccountBody, { ...account, email: " Ana@Mail.COM " })).toEqual({
       name: "Ana Cruz",
       username: "ana",
       role: "Driver",
       status: "Active",
-      password: "drive2026",
+      email: "ana@mail.com",
       position: "",
       driverType: "Truck",
       canRequestDaily: false,
       canRequestCompany: false,
+      canDriveCompany: false,
     });
-    expect(parseWith(createAccountBody, { ...account, status: "Retired" })?.status).toBe("Active");
   });
 
   it("keeps the Driver-only fields for Drivers only", () => {
     const driver = { ...account, driverType: "Company car", canRequestDaily: true, canRequestCompany: true, position: " Site Driver " };
-    expect(parseWith(createAccountBody, driver)).toMatchObject({ driverType: "Company car", canRequestDaily: true, position: "Site Driver" });
-    expect(parseWith(createAccountBody, { ...driver, role: "Requester" })).toMatchObject({
+    expect(parseWith(updateAccountBody, driver)).toMatchObject({ driverType: "Company car", canRequestDaily: true, position: "Site Driver" });
+    expect(parseWith(updateAccountBody, { ...driver, role: "Requester" })).toMatchObject({
       driverType: null,
       canRequestDaily: false,
       canRequestCompany: true,
     });
   });
 
-  it("rejects a blank name, an unknown role or a missing password", () => {
-    expect(parseWith(createAccountBody, { ...account, name: "  " })).toBeNull();
-    expect(parseWith(createAccountBody, { ...account, role: "Booker" })).toBeNull();
-    expect(parseWith(createAccountBody, { ...account, password: "" })).toBeNull();
-    expect(parseWith(createAccountBody, null)).toBeNull();
+  it("keeps the Daily switch for Schedulers too (0074)", () => {
+    const scheduler = { ...account, role: "Scheduler", driverType: "Company car", canRequestDaily: true };
+    expect(parseWith(updateAccountBody, scheduler)).toMatchObject({ driverType: null, canRequestDaily: true });
   });
 
-  it("needs a known status when editing", () => {
-    expect(parseWith(updateAccountBody, { ...account, status: "Inactive" })?.status).toBe("Inactive");
-    expect(parseWith(updateAccountBody, account)).toBeNull();
+  it("rejects a blank name, an unknown role or an unknown status", () => {
+    expect(parseWith(updateAccountBody, { ...account, name: "  " })).toBeNull();
+    expect(parseWith(updateAccountBody, { ...account, role: "Booker" })).toBeNull();
+    expect(parseWith(updateAccountBody, { ...account, status: "Retired" })).toBeNull();
+    expect(parseWith(updateAccountBody, null)).toBeNull();
   });
 
   it("reads any password string and treats a missing one as empty", () => {
@@ -63,6 +64,7 @@ describe("vehicle bodies", () => {
       status: "Active",
       assignedDriverId: null,
       companyTrips: false,
+      hasOdometer: true,
     });
   });
 
@@ -70,6 +72,13 @@ describe("vehicle bodies", () => {
     const body = { plate: "ABC 123", name: "Mirage", status: "Active" };
     expect(parseWith(updateVehicleBody, { ...body, companyTrips: true })?.companyTrips).toBe(true);
     expect(parseWith(updateVehicleBody, { ...body, companyTrips: "yes" })?.companyTrips).toBe(false);
+  });
+
+  it("reads 'Has an odometer', on unless sent off (0078)", () => {
+    const body = { plate: "ABC 123", name: "Tricycle", status: "Active" };
+    expect(parseWith(updateVehicleBody, { ...body, hasOdometer: false })?.hasOdometer).toBe(false);
+    expect(parseWith(updateVehicleBody, body)?.hasOdometer).toBe(true);
+    expect(parseWith(createVehicleBody, { ...body, hasOdometer: "no" })?.hasOdometer).toBe(true);
   });
 
   it("needs a known status when editing", () => {
@@ -86,5 +95,44 @@ describe("booking option body", () => {
     expect(parseWith(bookingOptionBody, { name: "Shell", isOtherStop: "yes" })?.isOtherStop).toBe(false);
     expect(parseWith(bookingOptionBody, { name: "Shell" })?.isOtherStop).toBe(false);
     expect(parseWith(bookingOptionBody, { name: " " })).toBeNull();
+  });
+});
+
+describe("invites", () => {
+  it("splits a pasted list, lowercases it and drops repeats", () => {
+    expect(parseEmailList("Ana@Mail.com, ben@mail.com\n ana@mail.com;carl@mail.com  not-an-email")).toEqual({
+      valid: ["ana@mail.com", "ben@mail.com", "carl@mail.com"],
+      invalid: ["not-an-email"],
+    });
+  });
+
+  it("turns off switches the role can't have", () => {
+    const truck = parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Truck", canRequestDaily: true, canRequestCompany: true });
+    expect(truck).toMatchObject({ driverType: "Truck", canRequestDaily: false, canRequestCompany: false });
+    const requester = parseWith(inviteBody, { emails: "a@b.co", role: "Requester", canRequestDaily: true });
+    expect(requester).toMatchObject({ driverType: null, canRequestDaily: false });
+    const car = parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Company car", canRequestDaily: true });
+    expect(car).toMatchObject({ canRequestDaily: true });
+  });
+
+  it("keeps Can drive company trips for anyone but a Driver (0080)", () => {
+    expect(parseWith(inviteBody, { emails: "a@b.co", role: "Requester", canDriveCompany: true })).toMatchObject({ canDriveCompany: true });
+    expect(parseWith(inviteBody, { emails: "a@b.co", role: "Driver", driverType: "Truck", canDriveCompany: true })).toMatchObject({
+      canDriveCompany: false,
+    });
+  });
+
+  it("invites Finance with its switches (0075)", () => {
+    const finance = parseWith(inviteBody, { emails: "a@b.co", role: "Finance", canRequestDaily: true, canRequestCompany: true });
+    expect(finance).toMatchObject({ role: "Finance", driverType: null, canRequestDaily: true, canRequestCompany: true });
+  });
+
+  it("keeps a Scheduler's switches (0074)", () => {
+    const scheduler = parseWith(inviteBody, { emails: "a@b.co", role: "Scheduler", canRequestDaily: true, canRequestCompany: true });
+    expect(scheduler).toMatchObject({ driverType: null, canRequestDaily: true, canRequestCompany: true });
+  });
+
+  it("refuses an unknown role", () => {
+    expect(parseWith(inviteBody, { emails: "a@b.co", role: "Booker" })).toBeNull();
   });
 });

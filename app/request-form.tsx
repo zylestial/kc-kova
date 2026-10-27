@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Account, BookingOption, BookingOptions, OptionGroup, RequestForm as FormType, StopFlexibility, Vehicle } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { stillNeeded } from "@/lib/missing-fields";
+import { canDriveCompany } from "@/lib/request-access";
 import {
   DETAILS_MAX,
   FLEXIBILITY,
@@ -207,14 +208,14 @@ export default function RequestForm({
   const startingPoints = choices(options.starting_points, kept.starting_points);
   const supervisors = choices(options.supervisors, kept.supervisors);
   const heads = choices(options.heads, kept.heads);
-  // Only vehicles that can be requested for company trips, and Company car Drivers (never Truck drivers).
+  // Only vehicles that can be requested for company trips, and people who can drive company trips (0079).
   const tripVehicles = withKept(
     vehicles.filter((item) => item.status === "Active" && item.companyTrips).map((item) => ({ id: item.plate, name: `${item.name} · ${item.plate}` })),
     kept.vehicle,
   );
   const tripDrivers = withKept(
     accounts
-      .filter((item) => item.role === "Driver" && item.status === "Active" && item.driverType === "Company car")
+      .filter((item) => canDriveCompany(item))
       .map((item) => ({ id: item.id, name: item.name })),
     kept.driver,
   );
@@ -564,7 +565,7 @@ export default function RequestForm({
                   </div>
 
                   <label className="field">
-                    <span>Details {needsDetails(stop, options) ? "(required)" : "(optional)"}</span>
+                    <span>Details{needsDetails(stop, options) ? " (required)" : ""}</span>
                     <Textarea
                       value={stop.details}
                       maxLength={DETAILS_MAX}

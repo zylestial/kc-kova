@@ -40,11 +40,12 @@ import {
 import { useKovaData } from "@/lib/use-kova-data";
 import { routeChangedAt, stopsFor } from "@/lib/trip-record";
 import { manilaToday } from "@/lib/timezone";
-import { lastEndReading, longTripWarning } from "@/lib/odometer";
+import { lastEndReading, longTripWarning, readingsLabel } from "@/lib/odometer";
 import { completionLabel } from "@/lib/status-text";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
+import SavedTapsBanner from "./saved-taps-banner";
 import StopReportForm from "./stop-report-form";
 import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 
@@ -208,6 +209,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   }
 
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
+  // A vehicle without an odometer (0078) skips the readings: Complete trip is just the final return.
+  const hasOdometer = !selected || vehicles.find((vehicle) => vehicle.plate === selected.revision.plate)?.hasOdometer !== false;
   const startNumber = start.trim() === "" ? NaN : Number(start);
   const endNumber = end.trim() === "" ? NaN : Number(end);
   const odometerError =
@@ -223,7 +226,11 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setError("");
     try {
       if (mode === "complete") {
-        await submitCompletion(selected.schedule.id, startNumber, endNumber, { fullTank, fleetCardUsed, gasReceiptAttached });
+        await submitCompletion(selected.schedule.id, hasOdometer ? startNumber : null, hasOdometer ? endNumber : null, {
+          fullTank,
+          fleetCardUsed,
+          gasReceiptAttached,
+        });
         setNotice(`Trip on ${dateLabel(selected.schedule.date)} submitted.`);
       } else {
         await reportProblem(selected.schedule.id, note.trim());
@@ -240,17 +247,19 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   // One step of the trip: a fresh position from the phone, then the tap
   // (Start/End trip, or Arrived/Leaving at a stop). A phone that won't share
   // its position still records the time; the Driver is asked to turn it on.
+  // With no signal the tap is saved on the phone with this moment's time (0077).
   async function tapStep(source: TimeSource) {
     if (!selected) return;
+    const tappedAt = new Date().toISOString();
     setBusy(true);
     setBusyStop(stepKey(source));
     setError("");
     try {
       const location = await getPhoneLocation();
       if (!("legId" in source)) {
-        await recordAttendance(selected.schedule.id, { kind: source.kind, location });
+        await recordAttendance(selected.schedule.id, { kind: source.kind, location }, tappedAt);
       } else {
-        await recordStopTap(selected.schedule.id, { legId: source.legId, kind: source.kind, location });
+        await recordStopTap(selected.schedule.id, { legId: source.legId, kind: source.kind, location }, tappedAt);
       }
       setLocationOff(!location);
     } catch (caught) {
@@ -365,6 +374,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {notice}
         </div>
       )}
+      <SavedTapsBanner />
       {/* A Driver with trips gets one card per group, so the groups stand apart. */}
       {!showDriver && trips.length > 0 ? (
         <div className="trip-sections">
@@ -528,6 +538,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           )}
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
+              <SavedTapsBanner />
               <DriverTripSteps
                 steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps), new Set(missedLegs(selected.problems).keys()))}
                 legs={selected.revision.legs}
@@ -553,18 +564,15 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   className="primary trip-step-button"
                   onClick={() => {
                     setMode("complete");
-                    setCompleteStep("odometer");
-                    if (!start && lastReading !== null) setStart(String(lastReading));
+                    setCompleteStep(hasOdometer ? "odometer" : "final");
+                    if (hasOdometer && !start && lastReading !== null) setStart(String(lastReading));
                   }}
                 >
                   Complete trip
                 </Button>
               )}
               {selected.completion && (
-                <p className="helper">
-                  Submitted: {selected.completion.startOdometer} → {selected.completion.endOdometer} (
-                  {selected.completion.distance} km).
-                </p>
+                <p className="helper">Submitted: {readingsLabel(selected.completion)}.</p>
               )}
               {selected.problems.map((item) => (
                 <p className="helper" key={item.id}>
@@ -622,7 +630,11 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           )}
           {selected && mode === "complete" && completeStep === "final" && (
             <>
-              <span className="planner-step">Step 2 of 2</span>
+              {hasOdometer ? (
+                <span className="planner-step">Step 2 of 2</span>
+              ) : (
+                <p className="helper">This vehicle has no odometer, so there are no readings to enter.</p>
+              )}
               <div className="field">
                 <span>Final return</span>
                 <div className="final-return-checks">
@@ -675,7 +687,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                 variant="outline"
                 disabled={busy}
                 onClick={() => {
-                  if (mode === "complete" && completeStep === "final") {
+                  if (mode === "complete" && completeStep === "final" && hasOdometer) {
                     setCompleteStep("odometer");
                   } else {
                     setMode("view");

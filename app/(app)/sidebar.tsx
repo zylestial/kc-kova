@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CircleHelp, LogOut, X } from "lucide-react";
 import { useAccount } from "./providers";
-import { activeHref, navItems } from "./nav-items";
-import { canRequestCompany, canRequestTransport } from "@/lib/request-access";
+import { activeHref, navItems, navLinks, type NavItem } from "./nav-items";
+import { canDriveCompany, canRequestTransport } from "@/lib/request-access";
 
 export default function Sidebar({
   open,
@@ -20,8 +20,8 @@ export default function Sidebar({
   const router = useRouter();
   const pathname = usePathname();
   const { account, viewAs, viewRole, leave } = useAccount();
-  const items = navItems(viewRole, canRequestTransport(account), canRequestCompany(account));
-  const active = activeHref(items, pathname);
+  const nav = navItems(viewRole, canRequestTransport(account), canDriveCompany(account));
+  const active = activeHref(navLinks(nav), pathname);
 
   // The phone drawer closes on Escape.
   useEffect(() => {
@@ -42,48 +42,65 @@ export default function Sidebar({
     if (href !== pathname) leave(() => router.push(href));
   }
 
+  const link = ({ href, label, icon: Icon }: NavItem) => (
+    <a
+      key={href}
+      href={href}
+      className={"sidebar-link" + (href === active ? " active" : "")}
+      aria-current={href === active ? "page" : undefined}
+      onClick={(event) => go(event, href)}
+    >
+      <Icon size={18} />
+      <span>{label}</span>
+    </a>
+  );
+
   return (
     <>
       <div className={"sidebar-scrim" + (open ? " open" : "")} onClick={onClose} aria-hidden="true" />
       <aside className={"sidebar" + (open ? " open" : "")} aria-label="Main menu">
         <div className="sidebar-brand">
-          <img className="kova-logo" src="/images/kova-print-logo.png" alt="Kayelen's Construction" />
+          <img className="sidebar-logo" src="/images/kova-sidebar-logo.png" alt="Kayelen's Construction" width={216} height={59} />
           <div className="sidebar-lockup">
             <strong>KOVA</strong>
-            <span>Kayelen&apos;s Operations and Vehicle Allocation</span>
           </div>
           <button type="button" className="sidebar-close" aria-label="Close menu" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
         <nav className="sidebar-nav">
-          <span className="sidebar-section">{viewAs ? `Viewing as ${viewAs}` : "Menu"}</span>
-          {items.map(({ href, label, icon: Icon }) => (
-            <a
-              key={href}
-              href={href}
-              className={"sidebar-link" + (href === active ? " active" : "")}
-              aria-current={href === active ? "page" : undefined}
-              onClick={(event) => go(event, href)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </a>
+          {viewAs && <span className="sidebar-section">Viewing as {viewAs}</span>}
+          {nav.groups.map((group, index) => (
+            <div key={group.heading ?? index} className="sidebar-group">
+              {group.heading && <span className="sidebar-section">{group.heading}</span>}
+              {group.items.map(link)}
+            </div>
           ))}
         </nav>
         <div className="sidebar-footer">
+          {nav.footer.map(link)}
           <button type="button" className="sidebar-link" onClick={onHelp}>
             <CircleHelp size={18} />
             <span>Help</span>
           </button>
           <div className="sidebar-account">
-            <span className="sidebar-avatar" aria-hidden="true">
-              {account.name.trim().charAt(0).toUpperCase()}
-            </span>
-            <div>
-              <strong>{account.name}</strong>
-              <small>{account.role}</small>
-            </div>
+            {/* The name opens My account, to keep the menu short. */}
+            <a
+              href="/account"
+              className={"sidebar-profile" + (pathname === "/account" ? " active" : "")}
+              aria-current={pathname === "/account" ? "page" : undefined}
+              aria-label={`My account: ${account.name}`}
+              title="My account"
+              onClick={(event) => go(event, "/account")}
+            >
+              <span className="sidebar-avatar" aria-hidden="true">
+                {account.name.trim().charAt(0).toUpperCase()}
+              </span>
+              <div>
+                <strong>{account.name}</strong>
+                <small>{account.role} · My account</small>
+              </div>
+            </a>
             <button
               type="button"
               className="sidebar-signout"

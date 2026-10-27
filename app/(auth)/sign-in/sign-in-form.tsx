@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/kova-api";
 import KovaBrand from "../../kova-brand";
 
-export default function SignInForm() {
+export default function SignInForm({ passwordReset = false }: { passwordReset?: boolean }) {
   const router = useRouter();
   const [signingIn, setSigningIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -32,14 +32,18 @@ export default function SignInForm() {
         <h1>
           Sign In<span className="title-dot">.</span>
         </h1>
+        {passwordReset && (
+          <p role="status">Password changed. Sign in with your new password.</p>
+        )}
         <div className="sign-fields">
           <label className="field">
-            <span>Username</span>
+            <span>Username or email</span>
             <Input
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              autoCapitalize="none"
             />
           </label>
           <label className="field">
@@ -70,7 +74,10 @@ export default function SignInForm() {
             {error}
           </p>
         )}
-        <p className="helper">Forgot your password, or need an account? Ask an Admin.</p>
+        <p className="helper">
+          <a href="/forgot-password">Forgot password?</a>
+        </p>
+        <p className="helper">Need an account? Ask an Admin to invite you.</p>
       </form>
     </div>
   );

@@ -1,6 +1,6 @@
--- The requester records their Company trip: Start trip with the odometer,
--- Arrived / Leaving in route order, End trip at the last stop, not in
--- Attendance (0055_company_trip_tracking.sql).
+-- The Driver records the Company trip (0079; the requester did in 0055):
+-- Start trip with the odometer, Arrived / Leaving in route order, End trip
+-- at the last stop, not in Attendance (0055_company_trip_tracking.sql).
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -71,26 +71,27 @@ select approve_schedule(pg_temp.id('trip'), (select row_version from schedule_re
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select throws_ok($$ select record_trip_attendance(pg_temp.id('trip'), 'START') $$, '22023',
   'A Company trip is recorded by its requester, not in Attendance', 'The Driver''s Start trip refuses a Company trip');
-select throws_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'P0002', 'Trip not found', 'The Driver doesn''t record it');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+select throws_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'P0002', 'Trip not found', 'The requester doesn''t record it');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a2');
 select throws_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'P0002', 'Trip not found', 'Another requester can''t either');
 
 -- Not before its date (0056) ---------------------------------------------------
 reset role;
 update schedules set schedule_date = schedule_date + 1 where id = pg_temp.id('trip');
-select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select throws_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, '22023',
   'This trip can''t be started before its date', 'Start trip waits for the trip''s date');
 reset role;
 update schedules set schedule_date = schedule_date - 1 where id = pg_temp.id('trip');
 
 -- In route order ------------------------------------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select throws_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'ARRIVE') $$, '22023', 'Tap Start trip first',
   'Nothing before Start trip');
 select throws_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, '22023',
   'Enter the starting odometer reading, in whole kilometres', 'Start trip needs the odometer');
-select lives_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'Rhea starts the trip with the odometer');
+select lives_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'Jun starts the trip with the odometer');
 select throws_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'LEAVE') $$, '22023', 'Tap Arrived at this stop first',
   'Leaving needs Arrived first');
 select lives_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'ARRIVE') $$, 'Arrived at the first stop');

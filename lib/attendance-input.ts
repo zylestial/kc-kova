@@ -8,9 +8,22 @@ const location = z.object({
   accuracyM: z.number().min(0).nullable().catch(null),
 });
 
+/** When a tap saved on the phone without signal was made (0077); left out for a tap sent as it happens. */
+const tappedAt = z.iso.datetime({ offset: true }).optional();
+
+/**
+ * The tap RPC to call and its arguments: a tap saved on the phone goes to
+ * its "_at" twin with the time it was made (0077), which the database
+ * keeps between the step before and now.
+ */
+export function tapRpc(rpc: string, args: Record<string, unknown>, at: string | undefined) {
+  return at ? ([`${rpc}_at`, { p_tapped_at: at, ...args }] as const) : ([rpc, args] as const);
+}
+
 const attendanceBody = z.object({
   kind: z.enum(["START", "END"]),
   location: location.nullable().default(null),
+  tappedAt,
 });
 
 /**
@@ -25,8 +38,10 @@ export function parseAttendanceInput(body: unknown): AttendanceInput | null {
 
 const companyRunBody = z.object({
   kind: z.enum(["START", "END"]),
-  odometer: z.number().int().min(0).max(9_999_999),
+  // Null for a vehicle without an odometer (0078); the database says when one is needed.
+  odometer: z.number().int().min(0).max(9_999_999).nullable(),
   location: location.nullable().default(null),
+  tappedAt,
 });
 
 /**
@@ -43,6 +58,7 @@ const stopTapBody = z.object({
   legId: z.uuid(),
   kind: z.enum(["ARRIVE", "LEAVE"]),
   location: location.nullable().default(null),
+  tappedAt,
 });
 
 /**

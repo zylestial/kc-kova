@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DRIVER_TYPES, type Role } from "@/lib/kova-api";
+import { hasRequestSwitches } from "@/lib/request-access";
 
 /**
  * Body schemas for the Admin-only routes (accounts, vehicles, booking
@@ -7,7 +8,7 @@ import { DRIVER_TYPES, type Role } from "@/lib/kova-api";
  * itself are enforced in Postgres and the routes.
  */
 
-const ROLES = ["Requester", "Scheduler", "Admin", "Driver"] as const satisfies readonly Role[];
+const ROLES = ["Requester", "Scheduler", "Admin", "Driver", "Finance"] as const satisfies readonly Role[];
 const STATUSES = ["Active", "Inactive"] as const;
 
 /** A non-blank string, trimmed. */
@@ -22,9 +23,10 @@ const optionalId = z
   .transform((id) => id || null);
 
 /**
- * Who may request what (0051). The Driver-only fields are dropped for
- * other roles; a Truck driver with a switch on, or company trips without a
- * Position, is refused by the database's constraints.
+ * Who may request what (0051, 0074, 0075). The Driver type is dropped for
+ * other roles, and the Daily switch for anyone without request switches; a
+ * Truck driver with a switch on, or company trips without a Position, is
+ * refused by the database's constraints.
  */
 const requestAccess = {
   position: z.string().trim().catch(""),
@@ -32,30 +34,38 @@ const requestAccess = {
   canRequestDaily: z.boolean().catch(false),
   canRequestCompany: z.boolean().catch(false),
 };
+/** An email as typed, lowercased; "" when missing. The routes say when one is required or invalid. */
+const optionalEmail = z.string().trim().toLowerCase().catch("");
+
 function forRole<T extends { role: Role; driverType: string; canRequestDaily: boolean }>(body: T) {
-  return body.role === "Driver" ? body : { ...body, driverType: null, canRequestDaily: false };
+  return {
+    ...body,
+    driverType: body.role === "Driver" ? body.driverType : null,
+    canRequestDaily: ["Driver", "Scheduler", "Finance"].includes(body.role) && body.canRequestDaily,
+  };
 }
 
-export const createAccountBody = z
+export const updateAccountBody = z
   .object({
     name: required,
     username: required,
     role: z.enum(ROLES),
-    status: statusOrActive,
-    password: z.string().min(1),
+    status,
+    email: optionalEmail,
     ...requestAccess,
+    // "Can drive company trips" (0079); a Driver's comes from the Driver type.
+    canDriveCompany: z.boolean().catch(false),
   })
-  .transform(forRole);
-
-export const updateAccountBody = z
-  .object({ name: required, username: required, role: z.enum(ROLES), status, ...requestAccess })
-  .transform(forRole);
+  .transform(forRole)
+  .transform((body) => ({ ...body, canDriveCompany: body.role !== "Driver" && body.canDriveCompany }));
 
 /** Any string; the password policy gives the message for a bad one. */
 export const passwordBody = z.object({ password: z.string() }).catch({ password: "" });
 
 /** "Can be requested for company trips"; off unless sent (0051). */
 const companyTrips = z.boolean().catch(false);
+/** "Has an odometer"; on unless sent off (0078). */
+const hasOdometer = z.boolean().catch(true);
 
 export const createVehicleBody = z.object({
   plate: required,
@@ -63,9 +73,17 @@ export const createVehicleBody = z.object({
   status: statusOrActive,
   assignedDriverId: optionalId,
   companyTrips,
+  hasOdometer,
 });
 
-export const updateVehicleBody = z.object({ plate: required, name: required, status, assignedDriverId: optionalId, companyTrips });
+export const updateVehicleBody = z.object({
+  plate: required,
+  name: required,
+  status,
+  assignedDriverId: optionalId,
+  companyTrips,
+  hasOdometer,
+});
 
 export const bookingOptionBody = z.object({
   name: required,
@@ -77,3 +95,40 @@ export const bookingOptionBody = z.object({
     .nullable()
     .default(null),
 });
+
+const email = z.email();
+
+/**
+ * The emails an Admin pasted to invite: split on spaces, commas, semicolons
+ * or new lines, lowercased, with repeats dropped. Anything that isn't an
+ * email comes back in `invalid` so the Admin can fix it.
+ */
+export function parseEmailList(input: string) {
+  const items = [...new Set(input.split(/[\s,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))];
+  return {
+    valid: items.filter((item) => email.safeParse(item).success),
+    invalid: items.filter((item) => !email.safeParse(item).success),
+  };
+}
+
+/**
+ * A batch of invites: one role and set of request permissions for every
+ * email in it. Switches the role can't have are turned off here, the same
+ * way the Accounts form sends them (0051, 0059, 0074).
+ */
+export const inviteBody = z
+  .object({ emails: z.string().catch(""), role: z.enum(ROLES), ...requestAccess, canDriveCompany: z.boolean().catch(false) })
+  .transform(forRole)
+  .transform((body) => {
+    const switches = hasRequestSwitches(body);
+    const companyAllowed = body.role === "Requester" || body.role === "Admin" || switches;
+    return {
+      emails: body.emails,
+      role: body.role,
+      driverType: body.driverType,
+      canRequestDaily: switches && body.canRequestDaily,
+      canRequestCompany: companyAllowed && body.canRequestCompany,
+      // A Driver's comes from the Driver type (0079).
+      canDriveCompany: body.role !== "Driver" && body.canDriveCompany,
+    };
+  });

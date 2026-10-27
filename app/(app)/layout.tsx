@@ -1,10 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { hydrateKovaData, restoreSession, signOut as endSession, type Account } from "@/lib/kova-api";
 import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { watchTables } from "@/lib/stacked-tables";
 import { watchNotifications } from "@/lib/notifications-poll";
+import { pausePush, resyncPush } from "@/lib/push-device";
 import { HelpDialog } from "../how-it-works";
 import KovaBrand from "../kova-brand";
 import { AccountProvider } from "./providers";
@@ -21,6 +23,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
+  /** Signed in, but KOVA couldn't be loaded (no signal, or the server failed). */
+  const [loadFailed, setLoadFailed] = useState(false);
+  /** Bumped by Try again to load once more. */
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -69,12 +75,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (saved) dataIsFresh();
         setAccount(saved);
       })
-      .catch(() => setAccount(null))
+      .catch(async (caught: { status?: number }) => {
+        // Sending a failed load to Sign In would loop: the session cookie is
+        // still there, so proxy.ts sends Sign In straight back here. Say so
+        // instead, unless the session itself has ended (signing out clears it).
+        if (caught.status === 401) {
+          await endSession().catch(() => undefined);
+          setAccount(null);
+        } else {
+          setLoadFailed(true);
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [loadAttempt]);
   useEffect(() => {
-    if (!loading && !account) router.replace("/sign-in");
-  }, [loading, account, router]);
+    if (!loading && !account && !loadFailed) router.replace("/sign-in");
+  }, [loading, account, loadFailed, router]);
   useEffect(() => {
     if (account) void refreshData();
   }, [account, pathname, refreshData]);
@@ -82,6 +98,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!account) return;
     return watchNotifications();
+  }, [account]);
+  // A device with phone notifications on stays saved for whoever is signed in.
+  useEffect(() => {
+    if (account) void resyncPush().catch(() => undefined);
   }, [account]);
   useEffect(() => {
     if (!account) return;
@@ -98,10 +118,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     setLoading(true);
+    // This account's notifications stop here; the next sign-in resumes them for that account.
+    await pausePush().catch(() => undefined);
     await endSession().catch(() => undefined);
     setAccount(null);
+    setLoadFailed(false);
     setLoading(false);
     router.replace("/sign-in");
+  }
+
+  function tryAgain() {
+    setLoadFailed(false);
+    setLoading(true);
+    setLoadAttempt((attempt) => attempt + 1);
   }
 
   if (loading)
@@ -110,6 +139,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="sign-card">
           <KovaBrand signIn />
           <p role="status">Loading KOVA…</p>
+        </div>
+      </div>
+    );
+  if (loadFailed)
+    return (
+      <div className="sign-shell">
+        <div className="sign-card">
+          <KovaBrand signIn />
+          <h1>Couldn&apos;t load KOVA</h1>
+          <p role="alert">Check your signal, then try again. If it keeps happening, KOVA may be down for a moment.</p>
+          <div className="modal-actions">
+            <Button variant="outline" onClick={signOut}>
+              Sign out
+            </Button>
+            <Button className="primary" onClick={tryAgain}>
+              Try again
+            </Button>
+          </div>
         </div>
       </div>
     );
