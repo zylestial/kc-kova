@@ -414,6 +414,17 @@ describe("toTripAttendance", () => {
     const attendance = toTripAttendance({ ...row, end_at: "2026-10-07T09:00:00Z", end_recorded_by_account_id: "admin" });
     expect(attendance.end).toEqual({ at: "2026-10-07T09:00:00Z", recordedByAccountId: "admin", location: null });
   });
+
+  it("keeps when KOVA got taps saved on the phone (0077)", () => {
+    const attendance = toTripAttendance({
+      ...row,
+      start_sent_at: "2026-10-07T01:40:00Z",
+      end_at: "2026-10-07T09:00:00Z",
+      end_recorded_by_account_id: "admin",
+    });
+    expect(attendance.start.sentAt).toBe("2026-10-07T01:40:00Z");
+    expect(attendance.end?.sentAt).toBeUndefined();
+  });
 });
 
 describe("toStopTap", () => {
@@ -449,6 +460,11 @@ describe("toStopTap", () => {
 
   it("has no location when the phone shared none", () => {
     expect(toStopTap({ ...row, lat: null, lng: null }).location).toBeNull();
+  });
+
+  it("keeps when KOVA got a tap saved on the phone (0077)", () => {
+    expect(toStopTap({ ...row, sent_at: "2026-10-09T01:30:00Z" }).sentAt).toBe("2026-10-09T01:30:00Z");
+    expect(toStopTap({ ...row, sent_at: null }).sentAt).toBeUndefined();
   });
 });
 
