@@ -88,5 +88,4 @@ and never returned by this app's own code.
 - [docs/roles/admin-guide.md](docs/roles/admin-guide.md) — single combined workflow from Admin setup through Driver completion
 - [docs/TASKS.md](docs/TASKS.md) — what's done vs. outstanding
 - [docs/MEMORY.md](docs/MEMORY.md) — decision log, gotchas, open questions
-- [docs/archive/](docs/archive/) — older decision log and task history, moved out of the two files above
-- [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md) — the original API contract `lib/kova-api.ts` was built against (historical reference; `docs/ARCHITECTURE.md`'s API table is the maintained summary)
+- [docs/archive/](docs/archive/) — history: the older decision log and task history, the v2.0 plan and phase notes, and the original API contract

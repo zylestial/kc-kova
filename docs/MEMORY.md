@@ -121,6 +121,10 @@ the two ever disagree, treat that as a bug to fix, not a reason to trust
 one over the other blindly; check which one the frontend actually relies
 on.
 
+*(2026-10-27: superseded. `BACKEND_INTEGRATION.md` had long stopped being
+updated; it moved to `docs/archive/`, and `docs/ARCHITECTURE.md`'s API
+table is now the one maintained list.)*
+
 ## Content-Security-Policy: static header, not proxy-based nonces (2026-09-22)
 
 `next.config.ts` previously shipped without a CSP header at all, deferred

@@ -58,8 +58,7 @@ lib/
   invites.ts            Invite links and rows
 supabase/
   migrations/            Schema + RLS policies + RPC functions, applied in order
-docs/                    This documentation set
-BACKEND_INTEGRATION.md  The API contract the frontend adapter was built against
+docs/                    This documentation set (archive/ holds history)
 ```
 
 ## Request flow
@@ -178,7 +177,7 @@ KOVA enforces permissions in two places, and both must independently hold:
      `submit_completion`, `correct_completion`, `handle_problem` and the
      rest) — the only write path for the request, schedule, completion and
      problem tables. Each locks the schedule row first so concurrent calls
-     serialize; see `docs/v2/phase-3-schema.md`.
+     serialize; see `docs/archive/v2/phase-3-schema.md`.
    - `rename_vehicle` (`0003_vehicle_rename.sql`, latest in `0032`) — moves
      a vehicle's plate across `vehicles`, `schedule_revisions` and
      `schedule_reservations` in one transaction, since those plates have no
@@ -294,7 +293,7 @@ on `account_tokens`.
 view. `authenticated` gets `SELECT` only (filtered by RLS); every write
 goes through a `security definer` RPC. The schema diagram, state
 transitions, permission matrix and release order live in
-`docs/v2/phase-3-schema.md`, the single source for them. The v1.2
+`docs/archive/v2/phase-3-schema.md`, the single source for them. The v1.2
 `bookings`, `booking_slots`, `vehicle_records` and `vehicle_aliases`
 tables, their functions and their trigger functions were dropped by
 migration 0032 (release-time only; there was no legacy data to carry over).
@@ -481,10 +480,10 @@ unread notifications since it was paused, from the last 24 hours: up to
 
 ## API contract
 
-The authoritative, human-readable version of this table lives in
-`BACKEND_INTEGRATION.md` at the repo root (written before implementation, as
-the target the frontend adapter — `lib/kova-api.ts` — was built against).
-Summary, with the implementing route file:
+This table is the maintained list of routes, with the implementing route
+file. The original contract the frontend adapter (`lib/kova-api.ts`) was
+built against, written before implementation, is kept for history in
+`docs/archive/BACKEND_INTEGRATION.md` and is no longer updated.
 
 | Method | Path | Route file | Auth |
 | --- | --- | --- | --- |
