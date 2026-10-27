@@ -1,58 +1,78 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// An in-memory login_attempts table behind the few calls the limiter makes.
-const rows = new Map<string, { count: number; window_start: string }>();
+// An in-memory login_attempts table behind add_login_attempts (0082) and the delete.
+const rows = new Map<string, { count: number; window_start: number }>();
+function addLoginAttempts({ p_key, p_by, p_window_seconds }: { p_key: string; p_by: number; p_window_seconds: number }) {
+  const row = rows.get(p_key);
+  const expired = !row || row.window_start <= Date.now() - p_window_seconds * 1000;
+  const next = expired ? { count: Math.max(p_by, 0), window_start: Date.now() } : { ...row, count: Math.max(row.count + p_by, 0) };
+  rows.set(p_key, next);
+  return next.count;
+}
+let failing = false;
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => ({
-    from: () => ({
-      select: () => ({ eq: (_: string, key: string) => ({ maybeSingle: async () => ({ data: rows.get(key) ?? null }) }) }),
-      update: (patch: { count: number }) => ({ eq: async (_: string, key: string) => void rows.set(key, { ...rows.get(key)!, ...patch }) }),
-      upsert: async (row: { key: string; count: number; window_start: string }) => void rows.set(row.key, row),
-      delete: () => ({ eq: async (_: string, key: string) => void rows.delete(key) }),
-    }),
+    rpc: async (_: string, args: Parameters<typeof addLoginAttempts>[0]) =>
+      failing ? { data: null, error: { message: "down" } } : { data: addLoginAttempts(args), error: null },
+    from: () => ({ delete: () => ({ eq: async (_: string, key: string) => void rows.delete(key) }) }),
   }),
 }));
 
-import {
-  attemptsLeft,
-  clearLoginAttempts,
-  clientIp,
-  isLoginRateLimited,
-  recordFailedLogin,
-  SIGN_IN_LIMIT,
-} from "@/lib/supabase/login-rate-limit";
+import { clearLoginAttempts, clientIp, giveBackAttempts, SIGN_IN_LIMIT, takeAttempts } from "@/lib/supabase/login-rate-limit";
 
 const small = { max: 3, windowMs: 60_000 };
 
 describe("login rate limit", () => {
-  beforeEach(() => rows.clear());
-
-  it("limits a key once it reaches the max within the window", async () => {
-    for (let i = 0; i < SIGN_IN_LIMIT.max - 1; i++) await recordFailedLogin("Ana");
-    expect(await isLoginRateLimited("ana")).toBe(false);
-    await recordFailedLogin(" ana ");
-    expect(await isLoginRateLimited("ANA")).toBe(true);
+  beforeEach(() => {
+    rows.clear();
+    failing = false;
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  it("counts several attempts at once and reports what's left", async () => {
-    expect(await attemptsLeft("invite:a1", small)).toBe(3);
-    await recordFailedLogin("invite:a1", small, 2);
-    expect(await attemptsLeft("invite:a1", small)).toBe(1);
-    await recordFailedLogin("invite:a1", small, 5);
-    expect(await attemptsLeft("invite:a1", small)).toBe(0);
+  it("allows the max within the window, then refuses", async () => {
+    for (let i = 0; i < SIGN_IN_LIMIT.max; i++) expect((await takeAttempts(i % 2 ? "Ana" : " ana ")).ok).toBe(true);
+    expect(await takeAttempts("ANA")).toEqual({ ok: false, left: 0 });
+  });
+
+  it("doesn't count a refused try", async () => {
+    await takeAttempts("ana", small, 3);
+    await takeAttempts("ana", small);
+    await takeAttempts("ana", small);
+    expect(rows.get("ana")?.count).toBe(3);
+  });
+
+  it("refuses tries sent at the same moment once they pass the max", async () => {
+    const results = await Promise.all(Array.from({ length: 10 }, () => takeAttempts("ana", small)));
+    expect(results.filter((result) => result.ok)).toHaveLength(3);
+  });
+
+  it("takes several at once and says how many would still fit", async () => {
+    expect(await takeAttempts("invite:a1", small, 2)).toEqual({ ok: true, left: 1 });
+    expect(await takeAttempts("invite:a1", small, 2)).toEqual({ ok: false, left: 1 });
+    expect(await takeAttempts("invite:a1", small, 1)).toEqual({ ok: true, left: 0 });
+  });
+
+  it("gives attempts back", async () => {
+    await takeAttempts("ip:1.2.3.4", small, 3);
+    await giveBackAttempts("ip:1.2.3.4", small, 2);
+    expect(await takeAttempts("ip:1.2.3.4", small, 2)).toEqual({ ok: true, left: 0 });
   });
 
   it("starts a new window once the old one runs out", async () => {
-    rows.set("ip:1.2.3.4", { count: 99, window_start: new Date(Date.now() - 120_000).toISOString() });
-    expect(await isLoginRateLimited("ip:1.2.3.4", small)).toBe(false);
-    await recordFailedLogin("ip:1.2.3.4", small);
+    rows.set("ip:1.2.3.4", { count: 99, window_start: Date.now() - 120_000 });
+    expect((await takeAttempts("ip:1.2.3.4", small)).ok).toBe(true);
     expect(rows.get("ip:1.2.3.4")?.count).toBe(1);
   });
 
   it("clears a key", async () => {
-    await recordFailedLogin("ana", small, 3);
+    await takeAttempts("ana", small, 3);
     await clearLoginAttempts("Ana");
-    expect(await attemptsLeft("ana", small)).toBe(3);
+    expect((await takeAttempts("ana", small, 3)).ok).toBe(true);
+  });
+
+  it("allows the try when the database can't be asked", async () => {
+    failing = true;
+    expect((await takeAttempts("ana", small)).ok).toBe(true);
   });
 });
 

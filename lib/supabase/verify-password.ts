@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { usernameToAuthEmail } from "@/lib/supabase/accounts";
-import { clearLoginAttempts, isLoginRateLimited, recordFailedLogin } from "@/lib/supabase/login-rate-limit";
+import { clearLoginAttempts, takeAttempts } from "@/lib/supabase/login-rate-limit";
 
 /**
  * Whether `password` is this account's current password, for changes that
@@ -10,15 +10,12 @@ import { clearLoginAttempts, isLoginRateLimited, recordFailedLogin } from "@/lib
  * as Sign In.
  */
 export async function verifyCurrentPassword(username: string, password: string): Promise<"ok" | "wrong" | "locked"> {
-  if (await isLoginRateLimited(username)) return "locked";
+  if (!(await takeAttempts(username)).ok) return "locked";
   const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { error } = await client.auth.signInWithPassword({ email: usernameToAuthEmail(username), password });
-  if (error) {
-    await recordFailedLogin(username);
-    return "wrong";
-  }
+  if (error) return "wrong";
   await client.auth.signOut({ scope: "local" });
   await clearLoginAttempts(username);
   return "ok";
