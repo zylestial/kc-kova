@@ -44,7 +44,7 @@ Actions, or `gh secret set NAME`, which asks for the value):
 2. **`BACKUP_PASSPHRASE`**: a long password you choose (see above).
 3. **`GDRIVE_TOKEN`**: on any computer, install rclone
    (`winget install Rclone.Rclone`) and run
-   `rclone authorize "drive" "eyJzY29wZSI6ImRyaXZlLmZpbGUifQ=="`.
+   `rclone authorize "drive" "eyJzY29wZSI6ImRyaXZlLmZpbGUifQ"`.
    Sign in as **kayelens.kova@gmail.com**. rclone prints a token, the JSON
    in braces `{...}`; that whole line is the secret. The argument limits the
    token to files rclone itself creates, so it can't read anything else in
