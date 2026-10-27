@@ -1232,3 +1232,15 @@ account the company owns from day one.
   again, Change once approved, or End trip). Finished Trips now shows a
   stop report's status instead of the button (`stopReportStatus`), and 0083
   refuses `handle_problem` on one that holds the trip.
+
+## An Admin's rename is undone if the save fails (2026-10-27)
+
+- **Found in a QA pass**: Settings → Accounts moved the Auth user to the new
+  username's made-up email before saving the row, and didn't undo it when
+  the row was refused (say, company trips on with no Position). Locally:
+  renaming grace to grace.t that way left `grace` unable to sign in (401)
+  and `grace.t` working, while the account still showed "grace".
+- `saveWithRename` (`lib/supabase/accounts.ts`) now does both renames, My
+  account's and the Admin's: Auth first, then the row, Auth moved back if
+  the row is refused. The Admin's route also applies `usernameError` to a
+  new username (a space used to fail with "Could not update the account").

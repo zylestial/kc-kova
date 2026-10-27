@@ -36,8 +36,11 @@ should be written, for both humans and AI agents.)
   confirmed email, found by username or email, and answers the same
   whether or not the account exists; at most 5 such emails per account per
   15 minutes. Setting a password from the link also lifts a sign-in lockout.
-- A username someone chooses themselves is 3–30 letters, numbers, dots,
-  dashes or underscores (`lib/username-policy.ts`).
+- A new username, chosen by the person or set by an Admin, is 3–30
+  letters, numbers, dots, dashes or underscores (`lib/username-policy.ts`);
+  an older one that doesn't fit stays until it's changed. A rename moves the
+  sign-in first and is undone if the account can't be saved
+  (`saveWithRename`), so the username shown always signs in.
 - `username` is unique across all accounts (enforced by the `accounts`
   table's `unique` constraint and, transitively, by the synthetic Auth
   email's uniqueness).
