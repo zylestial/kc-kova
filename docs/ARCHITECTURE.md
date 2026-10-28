@@ -145,8 +145,10 @@ current password with a cookie-less client (`verify-password.ts`). A
 password change ends the account's Auth sessions, so the route signs this
 one in again.
 
-`proxy.ts` lets `/join`, `/forgot-password`, `/reset-password` and
-`/confirm-email` open without a session.
+`proxy.ts` lets `/join`, `/forgot-password`, `/reset-password`,
+`/confirm-email` and `/privacy` open without a session. `/privacy` is the
+privacy notice (`app/privacy/page.tsx`), linked from Sign In and from the
+Google sign-in screen used by the backups.
 
 `proxy.ts` only checks that a session cookie is there, and sends a signed-in
 browser from `/sign-in` to `/home`. So the app's layout never sends a
