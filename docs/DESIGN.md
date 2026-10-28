@@ -143,6 +143,16 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   `app/filter-fold.tsx`) sits behind a "Filters" button showing how many
   filters are set, so the records come first. Wider screens always show
   the row. A row holding only Sort by doesn't fold.
+- **Less-used filters wait behind More filters.** On wider screens a
+  `FilterFold` given `more` shows the four most-used filters and a "More
+  filters" link for the rest (open from the start when one of them is set,
+  with a count while closed). Schedules keeps Date, Form, Driver and Status
+  out (Vehicle, Requester, Sort by inside); Admin Finished Trips keeps Dates,
+  Form, Status and Problems (Driver, Vehicle inside; its Download CSV dialog
+  shows all). Phones show them all once Filters is open.
+- **The records notice is one quiet line.** "Showing records from … on" with
+  a "Load older records" link (`app/older-records-notice.tsx`), not a box
+  with a button.
 - **Tables stack on phones; lists are short cards.** Below 700px every
   table with headings shows each row as a card of "Heading: value" lines
   (`lib/stacked-tables.ts`). A list you tap through (My requests and the
