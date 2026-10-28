@@ -357,6 +357,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
       list: visible.filter((trip) => !inRange(trip.schedule.date, week) && !inRange(trip.schedule.date, month)),
     },
   ];
+  // Sort by only helps once some group has two trips to put in order.
+  const sortable = sections.some(({ list }) => list.length > 1);
 
   return (
     <>
@@ -393,14 +395,18 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                     (bothForms ? (
                       <div className="admin-trip-filters">
                         <FormFilter value={form} onChange={setForm} />
-                        <div className="sort-only">
-                          <SortSelect columns={columns} sort={sort} onSort={setSort} />
-                        </div>
+                        {sortable && (
+                          <div className="sort-only">
+                            <SortSelect columns={columns} sort={sort} onSort={setSort} />
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="admin-trip-filters sort-only">
-                        <SortSelect columns={columns} sort={sort} onSort={setSort} />
-                      </div>
+                      sortable && (
+                        <div className="admin-trip-filters sort-only">
+                          <SortSelect columns={columns} sort={sort} onSort={setSort} />
+                        </div>
+                      )
                     ))}
                   {list.length ? tripTable(list) : <p className="helper trip-sections-empty">No trips today.</p>}
                 </section>
