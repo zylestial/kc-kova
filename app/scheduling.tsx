@@ -376,7 +376,8 @@ export default function Scheduling({
               >
                 <span>{dateLabel(item, { weekday: "short" })}</span>
                 <b>{dateLabel(item, { day: "numeric" })}</b>
-                <small>{counts.toPlan ? `${counts.toPlan} waiting` : "none"}</small>
+                {/* A blank line on a quiet day keeps every card the same height, so busy days stand out. */}
+                <small>{counts.toPlan ? `${counts.toPlan} waiting` : " "}</small>
                 {counts.urgent > 0 && <small className="date-card-urgent">{counts.urgent} urgent</small>}
               </button>
             );
