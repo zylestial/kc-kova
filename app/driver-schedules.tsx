@@ -321,7 +321,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                 </td>
                 <td>
                   <Button
-                    variant="ghost"
+                    variant="outline" size="sm"
                     onClick={(event) => {
                       event.stopPropagation();
                       setSelectedId(trip.schedule.id);

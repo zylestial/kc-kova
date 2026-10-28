@@ -94,7 +94,7 @@ export default function DriverFinishedTrips() {
                     </td>
                     <td>
                       <Button
-                        variant="ghost"
+                        variant="outline" size="sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedId(trip.schedule.id);
