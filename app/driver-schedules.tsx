@@ -303,7 +303,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   );
 
   const tripTable = (list: Trip[]) => (
-    <div className="schedule-table admin-trip-table">
+    <div className="schedule-table admin-trip-table my-schedule-table">
       <table>
         <SortableHead columns={columns} sort={sort} onSort={setSort} />
         <tbody>
