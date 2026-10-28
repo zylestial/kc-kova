@@ -487,7 +487,7 @@ export default function AdminFinishedTrips({
                     </td>
                     <td className="c-hide">
                       <Button
-                        variant="ghost"
+                        variant="outline" size="sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelectedId(trip.schedule.id);

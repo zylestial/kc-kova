@@ -112,8 +112,12 @@ export default function HomeScreen() {
         <div className="eyebrow">{viewRole.toUpperCase()} DASHBOARD</div>
         <h1>Welcome back, {account.name}</h1>
         <p>
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-          {" · "}Here&rsquo;s what needs you today.
+          {/* Wide screens show the date in the top bar already (.welcome-date). */}
+          <span className="welcome-date">
+            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            {" · "}
+          </span>
+          Here&rsquo;s what needs you today.
         </p>
       </section>
       <div className="stat-grid">

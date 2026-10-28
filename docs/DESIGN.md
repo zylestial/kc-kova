@@ -100,6 +100,11 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   and **Send a test** (to this device only). It's per device, so the copy says to turn it on on
   each phone or computer. A push notification reads "KOVA" over the
   bell's text, with the app icon.
+- **Small screen details (2026-10-28).** The welcome banner shows the date
+  only below 1024px, where the top bar doesn't. On New request the Details
+  count ("120/150") shows only from 120 characters, and below 900px the
+  Summary comes before Clear / Send request. Open / Details in tables are
+  outline buttons. Long status labels wrap inside Schedules' week cards.
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
   takes its status color only when its count is above zero; a zero is
