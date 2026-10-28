@@ -266,8 +266,10 @@ addresses (`/schedules/new`, `/schedules/company`) redirect to it, and
 top:
 
 - the month, then two weeks of date cards from today (Sundays included),
-  each with its waiting and urgent counts, arrows to page a week at a time,
-  and "Also waiting" buttons for days beyond the strip;
+  each with a red badge on its corner, like a phone's notification count,
+  showing how many requests wait that day (no badge on a quiet day; no
+  scrollbar, swipe or use the arrows), arrows to page a week at a time, and "Also
+  waiting" buttons for days beyond the strip (one swipeable row on phones);
 - a **Daily trips | Company trips** switch, each with its counts;
 - an Urgent banner per urgent stop with **Fit it in**, a banner per trip
   waiting for the Admin, and the blue day banner (trips, still to plan)
