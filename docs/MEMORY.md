@@ -1099,3 +1099,28 @@ account the company owns from day one.
   current, so this only bites in local tests: copy `supabase/.temp/*-version`
   into the test project first. `roles.sql` runs on its own, since its
   `GRANT SET ON PARAMETER` line needs a superuser.
+- **Gotcha: rclone's shared Google client is being retired (2026-10-28).**
+  rclone warns it will stop working during 2026, with no date. The
+  replacement is the company's own client in Google Cloud ("My First
+  Project" under kayelens.kova@gmail.com, "No organization"; the account
+  also has an organization, kayelens-kova-org, where it can't create
+  projects). Free, no billing account: Google offers a free trial that
+  asks for payment details, and it isn't needed. The consent screen must be
+  published, not left in Testing, or the token expires after 7 days, and
+  publishing needs a home page and privacy policy link, so `/privacy` was
+  built first. `drive.file` isn't a sensitive scope, so no Google review is
+  expected. Not a pilot blocker: if the shared client goes first, the
+  nightly run fails and GitHub emails.
+
+## Privacy notice (2026-10-28)
+
+- **Public `/privacy`, written for staff, not lawyers.** Kayelen's
+  Construction's notice in plain words, with the phone's location at each
+  tap stated up front, since drivers should know before the pilot. It
+  names the services that handle the data and the rights under the Data
+  Privacy Act of 2012, and says records are kept after an account is
+  turned off (nothing is hard-deleted). Not reviewed by a lawyer.
+- **Open question:** the contact is kayelens.kova@gmail.com until the
+  company says whether it has a Data Protection Officer to name instead.
+  When what KOVA records changes, update the page and its "Last updated"
+  date.
