@@ -449,17 +449,18 @@ export default function AdminFinishedTrips({
         </FilterFold>
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
-            <table>
+            {/* On a phone each row is a short card, laid out by the c-* cell classes. */}
+            <table data-compact="">
               <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
                 {visible.map((trip) => (
                   <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
-                    <td>{dateLabel(trip.schedule.date)}</td>
-                    <td>{trip.revision.plate}</td>
-                    <td>{trip.revision.driverName}</td>
-                    <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
-                    <td>{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
-                    <td>
+                    <td className="c-meta">{dateLabel(trip.schedule.date)}</td>
+                    <td className="c-meta">{trip.revision.plate}</td>
+                    <td className="c-meta">{trip.revision.driverName}</td>
+                    <td className="c-title">{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
+                    <td className="c-meta">{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
+                    <td className="c-status">
                       <span className={"badge " + (trip.completion?.status === "DONE" ? "complete" : "")}>
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
@@ -470,7 +471,7 @@ export default function AdminFinishedTrips({
                         </small>
                       )}
                     </td>
-                    <td>
+                    <td className="c-hide">
                       <Button
                         variant="ghost"
                         onClick={(event) => {
