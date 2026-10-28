@@ -65,8 +65,9 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   the top bar's menu button and closed by the scrim, the X or Escape. It
   holds the logo (the navy version, `public/images/kova-sidebar-logo.png`,
   straight on the sidebar with no white box, but with a thin white outline
-  traced around its shapes (a CSS `drop-shadow` filter) so the blue and
-  green gears show on every role's color; kept clear of the X in the
+  around the gears, tools and nail so they show on every role's color; the
+  outline is drawn into the PNG, since a CSS outline also thickens the white
+  lettering until it smudges; kept clear of the X in the
   drawer) and the KOVA name with no subtitle, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
   Help, and the account
