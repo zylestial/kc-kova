@@ -151,6 +151,13 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   `c-meta` (one small line joined by "·"), `c-sub` (its own small line)
   and `c-hide` (phone-hidden, e.g. the Details button, since the whole
   card opens it) classes lay it out. Desktop is unchanged.
+- **A trip window reads as a route on phones.** Below 700px the Trip
+  Record (`trip-record-view.tsx`) and Actual times (`stop-times-table.tsx`)
+  swap their tables for one card per leg (`.route-cards`): a filled dot for
+  where it leaves, a ring for where it arrives, a line between. Planned
+  times sit on the right; actual times show Out/In, the map link and any
+  flag, with Change beside the time. Coordinates are hidden there; desktop
+  and print are unchanged.
 
 Each role has its own accent, set on `<html data-role>` by `AccountProvider`
 (the viewed role during Admin "View as"). It colors the sidebar, the
