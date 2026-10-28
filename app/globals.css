@@ -321,3 +321,4 @@ tr.flash-row>td{animation:row-flash 3s ease-out}@keyframes row-flash{0%,60%{back
 .move-day{display:grid;gap:10px;margin:14px 0;padding:14px;border:1px solid var(--border);border-radius:8px;background:#fafbfd}.move-day .helper{margin:0}.move-day>button{justify-self:start}
 @media(max-width:900px){.request-form-grid{display:flex;flex-direction:column}.request-form-main{display:contents}.request-form-grid>aside.request-summary{order:1}.request-form-main>.notice,.request-form-main>.request-note{order:2}.request-form-main>.request-actions{order:3}.request-form-grid>*,.request-form-main>*{min-width:0;width:100%}}
 @media(min-width:1024px){.welcome-date{display:none}}
+.week-grid .status-pill{white-space:normal;max-width:100%;line-height:1.3}
