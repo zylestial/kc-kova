@@ -60,7 +60,7 @@ export default function Sidebar({
       <div className={"sidebar-scrim" + (open ? " open" : "")} onClick={onClose} aria-hidden="true" />
       <aside className={"sidebar" + (open ? " open" : "")} aria-label="Main menu">
         <div className="sidebar-brand">
-          <img className="sidebar-logo" src="/images/kova-sidebar-logo.png" alt="Kayelen's Construction" width={216} height={59} />
+          <img className="sidebar-logo" src="/images/kova-sidebar-logo.png" alt="Kayelen's Construction" width={216} height={62} />
           <div className="sidebar-lockup">
             <strong>KOVA</strong>
           </div>
