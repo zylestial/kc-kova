@@ -12,6 +12,12 @@ test("sends signed-out visitors to the sign-in page", async ({ page }) => {
   await expect(page).toHaveURL(/sign-in/);
 });
 
+test("shows the privacy notice to signed-out visitors", async ({ page }) => {
+  await page.goto("/privacy");
+  await expect(page).toHaveURL(/privacy/);
+  await expect(page.getByRole("heading", { name: /privacy notice/i })).toBeVisible();
+});
+
 // One page per role that only that role (or more) should reach, plus a probe
 // element that proves the screen rendered its data rather than an error.
 const roles = [
