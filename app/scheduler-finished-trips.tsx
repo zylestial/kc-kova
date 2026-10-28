@@ -93,20 +93,21 @@ export default function SchedulerFinishedTrips() {
         )}
         {trips.length ? (
           <div className="schedule-table admin-trip-table">
-            <table>
+            {/* On a phone each row is a short card, laid out by the c-* cell classes. */}
+            <table data-compact="">
               <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
                 {visible.map((trip) => (
                   <tr key={trip.schedule.id} onClick={() => setSelectedId(trip.schedule.id)}>
-                    <td>{dateLabel(trip.schedule.date)}</td>
-                    <td>{trip.revision.plate}</td>
-                    <td>{trip.revision.driverName}</td>
-                    <td>{routeOf(trip)}</td>
-                    <td>
+                    <td className="c-meta">{dateLabel(trip.schedule.date)}</td>
+                    <td className="c-meta">{trip.revision.plate}</td>
+                    <td className="c-meta">{trip.revision.driverName}</td>
+                    <td className="c-title">{routeOf(trip)}</td>
+                    <td className="c-status">
                       <span className={"badge " + (trip.state === "DONE" ? "complete" : "")}>{completionLabel[trip.state]}</span>
                       {hasOpenProblem(trip) && <small>Open problem</small>}
                     </td>
-                    <td>
+                    <td className="c-hide">
                       <Button
                         variant="outline" size="sm"
                         onClick={(event) => {

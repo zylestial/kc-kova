@@ -376,8 +376,12 @@ export default function Scheduling({
               >
                 <span>{dateLabel(item, { weekday: "short" })}</span>
                 <b>{dateLabel(item, { day: "numeric" })}</b>
-                <small>{counts.toPlan ? `${counts.toPlan} waiting` : "none"}</small>
-                {counts.urgent > 0 && <small className="date-card-urgent">{counts.urgent} urgent</small>}
+                {/* Like a phone's notification badge: how many are waiting, on the card's corner. */}
+                {counts.toPlan > 0 && (
+                  <i className="date-card-count" aria-hidden="true">
+                    {counts.toPlan}
+                  </i>
+                )}
               </button>
             );
           })}

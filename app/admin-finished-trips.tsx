@@ -177,11 +177,43 @@ export default function AdminFinishedTrips({
   const visible = filtered(filters);
   const exportRows = exportFilters ? filtered(exportFilters) : [];
 
-  /** The filter fields, for the screen and for the Download CSV dialog. */
-  const filterFields = (f: TripFilters, set: (next: TripFilters) => void) => (
+  /** The most-used filter fields, always shown on the screen. */
+  const mainFields = (f: TripFilters, set: (next: TripFilters) => void) => (
     <>
       <DateRangeFilter value={f.dates} onChange={(dates) => set({ ...f, dates })} />
       <FormFilter value={f.form} onChange={(form) => set({ ...f, form })} />
+      <label className="field">
+        <span>Status</span>
+        <Select value={f.status} onValueChange={(status) => set({ ...f, status })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="SUBMITTED">{completionLabel.SUBMITTED}</SelectItem>
+            <SelectItem value="DONE">{completionLabel.DONE}</SelectItem>
+            <SelectItem value="UNSUBMITTED">{notSubmitted}</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="field">
+        <span>Problems</span>
+        <Select value={f.problems} onValueChange={(problems) => set({ ...f, problems })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="open">Has open problem</SelectItem>
+            <SelectItem value="none">No open problem</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
+    </>
+  );
+  /** The rest, behind More filters on the screen. */
+  const moreFields = (f: TripFilters, set: (next: TripFilters) => void) => (
+    <>
       <label className="field">
         <span>Driver</span>
         <Select value={f.driver} onValueChange={(driver) => set({ ...f, driver })}>
@@ -214,33 +246,13 @@ export default function AdminFinishedTrips({
           </SelectContent>
         </Select>
       </label>
-      <label className="field">
-        <span>Status</span>
-        <Select value={f.status} onValueChange={(status) => set({ ...f, status })}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="SUBMITTED">{completionLabel.SUBMITTED}</SelectItem>
-            <SelectItem value="DONE">{completionLabel.DONE}</SelectItem>
-            <SelectItem value="UNSUBMITTED">{notSubmitted}</SelectItem>
-          </SelectContent>
-        </Select>
-      </label>
-      <label className="field">
-        <span>Problems</span>
-        <Select value={f.problems} onValueChange={(problems) => set({ ...f, problems })}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="open">Has open problem</SelectItem>
-            <SelectItem value="none">No open problem</SelectItem>
-          </SelectContent>
-        </Select>
-      </label>
+    </>
+  );
+  /** Every filter field, for the Download CSV dialog. */
+  const filterFields = (f: TripFilters, set: (next: TripFilters) => void) => (
+    <>
+      {mainFields(f, set)}
+      {moreFields(f, set)}
     </>
   );
 
@@ -443,23 +455,26 @@ export default function AdminFinishedTrips({
             [filters.driver, filters.vehicle, filters.form, filters.status, filters.problems].filter((value) => value !== "all").length +
             (sort ? 1 : 0)
           }
+          moreActive={[filters.driver, filters.vehicle].filter((value) => value !== "all").length}
+          more={moreFields(filters, setFilters)}
         >
-          {filterFields(filters, setFilters)}
+          {mainFields(filters, setFilters)}
           <SortSelect columns={columns} sort={sort} onSort={setSort} />
         </FilterFold>
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
-            <table>
+            {/* On a phone each row is a short card, laid out by the c-* cell classes. */}
+            <table data-compact="">
               <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
                 {visible.map((trip) => (
                   <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
-                    <td>{dateLabel(trip.schedule.date)}</td>
-                    <td>{trip.revision.plate}</td>
-                    <td>{trip.revision.driverName}</td>
-                    <td>{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
-                    <td>{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
-                    <td>
+                    <td className="c-meta">{dateLabel(trip.schedule.date)}</td>
+                    <td className="c-meta">{trip.revision.plate}</td>
+                    <td className="c-meta">{trip.revision.driverName}</td>
+                    <td className="c-title">{trip.revision.legs.map((leg) => leg.destinationName).join(" → ")}</td>
+                    <td className="c-meta">{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
+                    <td className="c-status">
                       <span className={"badge " + (trip.completion?.status === "DONE" ? "complete" : "")}>
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
@@ -470,7 +485,7 @@ export default function AdminFinishedTrips({
                         </small>
                       )}
                     </td>
-                    <td>
+                    <td className="c-hide">
                       <Button
                         variant="outline" size="sm"
                         onClick={(event) => {

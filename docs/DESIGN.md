@@ -64,7 +64,10 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   fixed on the left from 1024px up; below that it's a drawer opened from
   the top bar's menu button and closed by the scrim, the X or Escape. It
   holds the logo (the navy version, `public/images/kova-sidebar-logo.png`,
-  straight on the sidebar with no white box; kept clear of the X in the
+  straight on the sidebar with no white box, but with a thin white outline
+  around the gears, tools and nail so they show on every role's color; the
+  outline is drawn into the PNG, since a CSS outline also thickens the white
+  lettering until it smudges; kept clear of the X in the
   drawer) and the KOVA name with no subtitle, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
   Help, and the account
@@ -145,6 +148,24 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   `app/filter-fold.tsx`) sits behind a "Filters" button showing how many
   filters are set, so the records come first. Wider screens always show
   the row. A row holding only Sort by doesn't fold.
+- **Less-used filters wait behind More filters.** On wider screens a
+  `FilterFold` given `more` shows the four most-used filters and a "More
+  filters" link for the rest (open from the start when one of them is set,
+  with a count while closed). Schedules keeps Date, Form, Driver and Status
+  out (Vehicle, Requester, Sort by inside); Admin Finished Trips keeps Dates,
+  Form, Status and Problems (Driver, Vehicle inside; its Download CSV dialog
+  shows all). Phones show them all once Filters is open.
+- **The records notice is one quiet line.** "Showing records from … on" with
+  a "Load older records" link (`app/older-records-notice.tsx`), not a box
+  with a button.
+- **Tables stack on phones; lists are short cards.** Below 700px every
+  table with headings shows each row as a card of "Heading: value" lines
+  (`lib/stacked-tables.ts`). A list you tap through (My requests and the
+  three Finished Trips screens) adds `data-compact` to its table for a
+  shorter card: the cells' `c-title` (bold, left), `c-status` (right),
+  `c-meta` (one small line joined by "·"), `c-sub` (its own small line)
+  and `c-hide` (phone-hidden, e.g. the Details button, since the whole
+  card opens it) classes lay it out. Desktop is unchanged.
 
 Each role has its own accent, set on `<html data-role>` by `AccountProvider`
 (the viewed role during Admin "View as"). It colors the sidebar, the
@@ -244,7 +265,7 @@ router/URL segments are used for in-app navigation.
 | `my-trips` | `app/my-trips.tsx` (the requester's approved Company trips as folding cards: the steps in route order with their times, one big button for the next (Start trip at …, Arrived at …, Leaving …, Arrived at … · End trip), an odometer field on Start and End trip, the distance once ended; the same "Problem here?" stop report, hold and Scheduler's answer as the Driver) | Requesters with Company trips |
 | `scheduling` | `app/scheduling.tsx` with `app/scheduler/` at `/scheduling` (see below) | Scheduler |
 | `schedules` | `app/schedules.tsx` | Scheduler, Admin (review), Finance (view only) |
-| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short (it says the stops left are marked not reached and go back to the Scheduler); "Problem here?" under the current stop opens the stop report (below); a missed stop shows as one warning line; a trip held for the Scheduler shows a red notice in place of the next button ("Reported. Wait for the Scheduler's answer before going on.", or that the route is being changed), and the latest answer shows as a blue notice above the trip ("Scheduler's answer at 3:42 PM: Skip Site Alpha and go on to the next stop."); a "Route changed" notice after an approved change; no requester, distances or coordinates; then a big Complete trip) | Driver |
+| `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; on a phone each trip has a full-width Open button, and Sort by shows only once a group has two trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, purpose, contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short (it says the stops left are marked not reached and go back to the Scheduler); "Problem here?" under the current stop opens the stop report (below); a missed stop shows as one warning line; a trip held for the Scheduler shows a red notice in place of the next button ("Reported. Wait for the Scheduler's answer before going on.", or that the route is being changed), and the latest answer shows as a blue notice above the trip ("Scheduler's answer at 3:42 PM: Skip Site Alpha and go on to the next stop."); a "Route changed" notice after an approved change; no requester, distances or coordinates; then a big Complete trip) | Driver |
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below; Download CSV opens a dialog with the same filters, starting from the screen's, and saves the rows they pick) | Admin, Finance |
 | `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily or the Company Trip Form; Download CSV opens a dialog with the same filters, starting from the screen's, and saves the trips they pick; Finance gets it with `readOnly`: Print and Download only) | Driver, Admin, Finance |
 | `settings` | `app/settings.tsx` | Admin. Each tab is a rail of lists on the left and one list on the right (`app/settings-lists.tsx`; on a phone the rail first, "All lists" back), with a search across the tab, a yellow banner for what still needs setting up, and a ⚠ count on the list that needs it. Accounts (`app/settings-accounts.tsx`): People by type, Access (Can drive / Can request company trips), Pending invites last; a row shows username · email, type and position, Access chips and Status; Email shows a "Not confirmed" badge and Resend while a new one waits; Edit has Position, Can request company trips, Driver type and a Scheduler's or Company car Driver's request switches; no Add Account, since invites are the only way in. Invite people is a button beside the tabs (`app/invites-panel.tsx`): a box of pasted emails plus one account type and set of request switches for the batch, then a summary of sent / skipped / not emails / couldn't send, and Resend / Cancel per invite. Vehicles (`app/settings-vehicles.tsx`): All, Kind (Can be requested for company trips / Daily trips only), Needs attention (No Driver assigned, No odometer, Inactive); a company vehicle's Driver reads "Picked per request" and its Edit has no Assigned Driver. Request choices (`app/booking-options.tsx`, `lib/choice-lists.ts`): Every request and Company Trips only lists, each tagged Required / Needed for Urgent stops / Needed for Company Trips / Optional) |
@@ -260,8 +281,10 @@ addresses (`/schedules/new`, `/schedules/company`) redirect to it, and
 top:
 
 - the month, then two weeks of date cards from today (Sundays included),
-  each with its waiting and urgent counts, arrows to page a week at a time,
-  and "Also waiting" buttons for days beyond the strip;
+  each with a red badge on its corner, like a phone's notification count,
+  showing how many requests wait that day (no badge on a quiet day; no
+  scrollbar, swipe or use the arrows), arrows to page a week at a time, and "Also
+  waiting" buttons for days beyond the strip (one swipeable row on phones);
 - a **Daily trips | Company trips** switch, each with its counts;
 - an Urgent banner per urgent stop with **Fit it in**, a banner per trip
   waiting for the Admin, and the blue day banner (trips, still to plan)

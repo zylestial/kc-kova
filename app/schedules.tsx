@@ -303,7 +303,47 @@ export default function Schedules({
           </div>
         </div>
         <OlderRecordsNotice />
-        <FilterFold active={[form, vehicle, driver, requester, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}>
+        <FilterFold
+          active={[form, vehicle, driver, requester, status].filter((value) => value !== "all").length + (sort ? 1 : 0)}
+          moreActive={[vehicle, requester].filter((value) => value !== "all").length + (sort ? 1 : 0)}
+          more={
+            <>
+              <label className="field">
+                <span>Vehicle</span>
+                <Select value={vehicle} onValueChange={setVehicle}>
+                  <SelectTrigger aria-label="Vehicle filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    {vehicles.map((item) => (
+                      <SelectItem key={item.plate} value={item.plate}>
+                        {item.name} · {item.plate}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="field">
+                <span>Requester</span>
+                <Select value={requester} onValueChange={setRequester}>
+                  <SelectTrigger aria-label="Requester filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Requesters</SelectItem>
+                    {requesterChoices.map(([id, name]) => (
+                      <SelectItem key={id} value={id}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <SortSelect columns={sortColumns} sort={sort} onSort={setSort} always />
+            </>
+          }
+        >
           <label className="field">
             <span>Date</span>
             {/* Picking a date leaves All dates for that day. */}
@@ -319,22 +359,6 @@ export default function Schedules({
           </label>
           <FormFilter value={form} onChange={setForm} />
           <label className="field">
-            <span>Vehicle</span>
-            <Select value={vehicle} onValueChange={setVehicle}>
-              <SelectTrigger aria-label="Vehicle filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Vehicles</SelectItem>
-                {vehicles.map((item) => (
-                  <SelectItem key={item.plate} value={item.plate}>
-                    {item.name} · {item.plate}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="field">
             <span>Driver</span>
             <Select value={driver} onValueChange={setDriver}>
               <SelectTrigger aria-label="Driver filter">
@@ -345,22 +369,6 @@ export default function Schedules({
                 {drivers.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="field">
-            <span>Requester</span>
-            <Select value={requester} onValueChange={setRequester}>
-              <SelectTrigger aria-label="Requester filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Requesters</SelectItem>
-                {requesterChoices.map(([id, name]) => (
-                  <SelectItem key={id} value={id}>
-                    {name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -382,7 +390,6 @@ export default function Schedules({
               </SelectContent>
             </Select>
           </label>
-          <SortSelect columns={sortColumns} sort={sort} onSort={setSort} always />
         </FilterFold>
         {view === "week" ? (
           <div className="week-grid">
