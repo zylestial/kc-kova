@@ -289,7 +289,8 @@ export default function MyRequests({
         )}
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
-            <table>
+            {/* On a phone each row is a short card, laid out by the c-* cell classes. */}
+            <table data-compact="">
               <thead>
                 <tr>
                   {["REQUEST", "DATE", "TYPE", "PROJECT / SITE", "DESTINATIONS", "PROGRESS", "SUBMITTED", ""].map((title) => (
@@ -300,26 +301,26 @@ export default function MyRequests({
               <tbody>
                 {visible.map((request) => (
                   <tr key={request.id} onClick={() => { setSelected(request); setError(""); }}>
-                    <td>
+                    <td className="c-meta">
                       {stopNumber(request) || "—"}
                       {request.group?.form === "COMPANY" && <small>Company trip</small>}
                     </td>
-                    <td>
+                    <td className="c-meta">
                       {dateLabel(request.date)}
                       {request.group && <small>{flexibilityShort(request.date, request.flexibility, request.fixedTime ?? "")}</small>}
                     </td>
-                    <td>
+                    <td className="c-meta">
                       <span className={"badge " + (request.requestType === "URGENT" ? "urgent" : "")}>{request.requestType}</span>
                     </td>
-                    <td>{projectText(request)}</td>
-                    <td>{destinationsText(request)}</td>
-                    <td>
+                    <td className="c-sub">{projectText(request)}</td>
+                    <td className="c-title">{destinationsText(request)}</td>
+                    <td className="c-status">
                       <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
                       {request.cancellationPending && <small>Cancellation requested</small>}
                       {request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Fix it and save to resend</small>}
                     </td>
-                    <td>{submittedLabel(request.createdAt)}</td>
-                    <td>
+                    <td className="c-hide">{submittedLabel(request.createdAt)}</td>
+                    <td className="c-hide">
                       <Button
                         variant="ghost"
                         onClick={(event) => {

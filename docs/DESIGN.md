@@ -140,6 +140,14 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   `app/filter-fold.tsx`) sits behind a "Filters" button showing how many
   filters are set, so the records come first. Wider screens always show
   the row. A row holding only Sort by doesn't fold.
+- **Tables stack on phones; lists are short cards.** Below 700px every
+  table with headings shows each row as a card of "Heading: value" lines
+  (`lib/stacked-tables.ts`). A list you tap through (My requests and the
+  three Finished Trips screens) adds `data-compact` to its table for a
+  shorter card: the cells' `c-title` (bold, left), `c-status` (right),
+  `c-meta` (one small line joined by "·"), `c-sub` (its own small line)
+  and `c-hide` (phone-hidden, e.g. the Details button, since the whole
+  card opens it) classes lay it out. Desktop is unchanged.
 
 Each role has its own accent, set on `<html data-role>` by `AccountProvider`
 (the viewed role during Admin "View as"). It colors the sidebar, the
