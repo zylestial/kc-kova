@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabaseSessionCookie } from "@/lib/supabase/middleware-cookie";
 
 // Pages opened from an emailed link, which work signed in or not.
-const LINK_PAGES = ["/join", "/forgot-password", "/reset-password", "/confirm-email"];
+// The privacy notice is public too: Google's consent screen links to it.
+const LINK_PAGES = ["/join", "/forgot-password", "/reset-password", "/confirm-email", "/privacy"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
