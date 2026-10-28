@@ -78,6 +78,9 @@ export default function SignInForm({ passwordReset = false }: { passwordReset?: 
           <a href="/forgot-password">Forgot password?</a>
         </p>
         <p className="helper">Need an account? Ask an Admin to invite you.</p>
+        <p className="helper">
+          <a href="/privacy">Privacy notice</a>
+        </p>
       </form>
     </div>
   );
