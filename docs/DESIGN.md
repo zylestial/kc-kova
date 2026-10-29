@@ -100,6 +100,11 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   and **Send a test** (to this device only). It's per device, so the copy says to turn it on on
   each phone or computer. A push notification reads "KOVA" over the
   bell's text, with the app icon.
+- **Small screen details (2026-10-28).** The welcome banner shows the date
+  only below 1024px, where the top bar doesn't. On New request the Details
+  count ("120/150") shows only from 120 characters, and below 900px the
+  Summary comes before Clear / Send request. Open / Details in tables are
+  outline buttons. Long status labels wrap inside Schedules' week cards.
 - **Dashboard** (`/home`): a navy welcome banner, stat tiles from
   `homeStats()` (`lib/home-stats.ts`) and the quick-action cards. A tile
   takes its status color only when its count is above zero; a zero is
@@ -143,6 +148,16 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   `app/filter-fold.tsx`) sits behind a "Filters" button showing how many
   filters are set, so the records come first. Wider screens always show
   the row. A row holding only Sort by doesn't fold.
+- **Less-used filters wait behind More filters.** On wider screens a
+  `FilterFold` given `more` shows the four most-used filters and a "More
+  filters" link for the rest (open from the start when one of them is set,
+  with a count while closed). Schedules keeps Date, Form, Driver and Status
+  out (Vehicle, Requester, Sort by inside); Admin Finished Trips keeps Dates,
+  Form, Status and Problems (Driver, Vehicle inside; its Download CSV dialog
+  shows all). Phones show them all once Filters is open.
+- **The records notice is one quiet line.** "Showing records from … on" with
+  a "Load older records" link (`app/older-records-notice.tsx`), not a box
+  with a button.
 - **Tables stack on phones; lists are short cards.** Below 700px every
   table with headings shows each row as a card of "Heading: value" lines
   (`lib/stacked-tables.ts`). A list you tap through (My requests and the
@@ -150,7 +165,8 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   shorter card: the cells' `c-title` (bold, left), `c-status` (right),
   `c-meta` (one small line joined by "·"), `c-sub` (its own small line)
   and `c-hide` (phone-hidden, e.g. the Details button, since the whole
-  card opens it) classes lay it out. Desktop is unchanged.
+  card opens it) classes lay it out. A grey › on the right shows the card
+  can be tapped. Desktop is unchanged.
 - **A trip window reads as a route on phones.** Below 700px the Trip
   Record (`trip-record-view.tsx`) and Actual times (`stop-times-table.tsx`)
   swap their tables for one card per leg (`.route-cards`): a filled dot for
@@ -273,8 +289,10 @@ addresses (`/schedules/new`, `/schedules/company`) redirect to it, and
 top:
 
 - the month, then two weeks of date cards from today (Sundays included),
-  each with its waiting and urgent counts, arrows to page a week at a time,
-  and "Also waiting" buttons for days beyond the strip;
+  each with a red badge on its corner, like a phone's notification count,
+  showing how many requests wait that day (no badge on a quiet day; no
+  scrollbar, swipe or use the arrows), arrows to page a week at a time, and "Also
+  waiting" buttons for days beyond the strip (one swipeable row on phones);
 - a **Daily trips | Company trips** switch, each with its counts;
 - an Urgent banner per urgent stop with **Fit it in**, a banner per trip
   waiting for the Admin, and the blue day banner (trips, still to plan)

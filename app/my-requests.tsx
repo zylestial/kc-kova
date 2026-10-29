@@ -322,7 +322,7 @@ export default function MyRequests({
                     <td className="c-hide">{submittedLabel(request.createdAt)}</td>
                     <td className="c-hide">
                       <Button
-                        variant="ghost"
+                        variant="outline" size="sm"
                         onClick={(event) => {
                           event.stopPropagation();
                           setSelected(request);

@@ -574,9 +574,12 @@ export default function RequestForm({
                       placeholder="e.g. 20 bags cement to Block 3, foreman Edgar receives"
                       onChange={(event) => setStop(stop.key, { details: event.target.value })}
                     />
-                    <small className="field-note">
-                      {stop.details.length}/{DETAILS_MAX}
-                    </small>
+                    {/* The count only matters once the limit is near. */}
+                    {stop.details.length >= DETAILS_MAX - 30 && (
+                      <small className="field-note">
+                        {stop.details.length}/{DETAILS_MAX}
+                      </small>
+                    )}
                     {errors.details && <small className="field-hint">{errors.details}</small>}
                   </label>
 
