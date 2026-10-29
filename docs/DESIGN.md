@@ -165,7 +165,8 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   shorter card: the cells' `c-title` (bold, left), `c-status` (right),
   `c-meta` (one small line joined by "·"), `c-sub` (its own small line)
   and `c-hide` (phone-hidden, e.g. the Details button, since the whole
-  card opens it) classes lay it out. Desktop is unchanged.
+  card opens it) classes lay it out. A grey › on the right shows the card
+  can be tapped. Desktop is unchanged.
 
 Each role has its own accent, set on `<html data-role>` by `AccountProvider`
 (the viewed role during Admin "View as"). It colors the sidebar, the
