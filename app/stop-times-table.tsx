@@ -21,6 +21,7 @@ type Props = {
  * place of one. A tap shows its time, where it was (linked to a map) and a
  * flag when it wasn't at the place; a time not tapped shows "—", or a Fill in
  * button for an Admin. The Admin's view; Drivers get app/driver-trip-steps.tsx.
+ * Phones get one route card per leg instead (.route-cards in globals.css).
  */
 export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Props) {
   function tapDetails(time: FormTime) {
@@ -87,33 +88,58 @@ export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Prop
   }
 
   return (
-    <div className="schedule-table stop-times">
-      <table>
-        <thead>
-          <tr>
-            <th>LEG</th>
-            <th>ORIGIN</th>
-            <th>TIME OUT</th>
-            <th>DESTINATION</th>
-            <th>TIME IN</th>
-          </tr>
-        </thead>
-        <tbody>
-          {times.map((item, index) => (
-            <tr key={item.leg.id}>
-              <td>{item.leg.legNo}</td>
-              <td>
-                <b>{item.leg.origin || times[index - 1]?.leg.destinationName || BASE}</b>
-              </td>
-              <td>{cell(item.out)}</td>
-              <td>
-                <b>{item.leg.destinationName}</b>
-              </td>
-              <td>{cell(item.in)}</td>
+    <>
+      <div className="schedule-table stop-times">
+        <table>
+          <thead>
+            <tr>
+              <th>LEG</th>
+              <th>ORIGIN</th>
+              <th>TIME OUT</th>
+              <th>DESTINATION</th>
+              <th>TIME IN</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {times.map((item, index) => (
+              <tr key={item.leg.id}>
+                <td>{item.leg.legNo}</td>
+                <td>
+                  <b>{item.leg.origin || times[index - 1]?.leg.destinationName || BASE}</b>
+                </td>
+                <td>{cell(item.out)}</td>
+                <td>
+                  <b>{item.leg.destinationName}</b>
+                </td>
+                <td>{cell(item.in)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ol className="route-cards">
+        {times.map((item, index) => (
+          <li key={item.leg.id} className="route-card">
+            <div className="route-card-head">
+              <b>Leg {item.leg.legNo}</b>
+            </div>
+            <div className="route-stop route-from">
+              <span className="route-place">{item.leg.origin || times[index - 1]?.leg.destinationName || BASE}</span>
+              <div className="route-actual">
+                <span className="route-label">Out</span>
+                {cell(item.out)}
+              </div>
+            </div>
+            <div className="route-stop route-to">
+              <span className="route-place">{item.leg.destinationName}</span>
+              <div className="route-actual">
+                <span className="route-label">In</span>
+                {cell(item.in)}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </>
   );
 }
