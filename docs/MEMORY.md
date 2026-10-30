@@ -1099,3 +1099,28 @@ account the company owns from day one.
   current, so this only bites in local tests: copy `supabase/.temp/*-version`
   into the test project first. `roles.sql` runs on its own, since its
   `GRANT SET ON PARAMETER` line needs a superuser.
+
+## Welcome tour (2026-10-30)
+
+- **Prototype first.** The owner reviewed the "KOVA Welcome Tour" artifact
+  (https://claude.ai/artifact/9mVWo3e4t8mxRkXoZiWAAP) and settled: no "Not
+  for your role" list and no "if an Admin allows it" note on step 1; title
+  and text above the screenshot on every step; Back / Next stay right when
+  Skip tour is hidden on the last step.
+- **One tour, two ways in.** It opens by itself on the first sign-in and
+  from Help; the old text-only Help dialog (`app/how-it-works.tsx`,
+  `lib/help-content.ts`) is gone. Help shows the tour of the role being
+  viewed, so an Admin in View as sees that role's.
+- **Seen per account, not per device** (owner's pick): `tour_seen_at`,
+  0084. Closing it any way counts. If the save fails, it opens again on
+  the next sign-in rather than nagging during this one.
+- **Screenshots by screen width, not by device type** (owner asked for
+  phone / tablet / PC): the layout's own widths, 700 and 1023px, so the
+  pictures always match the layout on screen; turning a tablet switches
+  them. WebP, at most 1280px wide, about 1.2 MB per device.
+- **Retake the screenshots when a screen in the tour changes**:
+  `node scripts/shoot-welcome-tour.mjs requester=ramon scheduler=paolo
+  driver=mario finance=fin1 admin=liza` against `next dev -p 3100` on the
+  local demo data. Those demo accounts aren't made by the repo's seed
+  scripts; without the arguments it uses seed-uat.mjs's QA accounts. The
+  shots show test data only.
