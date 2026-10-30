@@ -85,7 +85,10 @@ async function seedAccount({ username, name, role }) {
     email_confirm: true,
   });
   if (createError || !created.user) throw new Error(`createUser(${username}) failed: ${createError?.message}`);
-  const { error: insertError } = await admin.from("accounts").insert({ id: created.user.id, username, name, role, status: "Active" });
+  // Tour seen (0084), so it doesn't open over the demo trip (e2e/offline-taps).
+  const { error: insertError } = await admin
+    .from("accounts")
+    .insert({ id: created.user.id, username, name, role, status: "Active", tour_seen_at: new Date().toISOString() });
   if (insertError) {
     await admin.auth.admin.deleteUser(created.user.id);
     throw new Error(`accounts insert(${username}) failed: ${insertError.message}`);

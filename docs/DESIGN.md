@@ -70,11 +70,23 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   lettering until it smudges; kept clear of the X in the
   drawer) and the KOVA name with no subtitle, the role's menu (`navItems()` in
   `app/(app)/nav-items.ts`, with the longest matching path highlighted),
-  Help, and the account
+  Help (opens the welcome tour, below), and the account
   card: its name and avatar open My account (no separate menu item, to
   keep the menu short), and its icon signs out. Menu links are real links, but a plain
   click goes through `leave()` so unsaved work still asks first. While an
   Admin is viewing as another role, the menu is that role's.
+- **Welcome tour** (`app/(app)/welcome-tour.tsx`, owner's prototype "KOVA
+  Welcome Tour", 2026-10-30): a dialog that opens by itself on an account's
+  first sign-in and from Help, always at step 1, for the role being viewed.
+  Step 1 shows that role's menu screenshot and "You can open" (the account's
+  own menu links, from `navItems()`, plus My account, each with what it's
+  for); then one screenshot and a line per step (`lib/welcome-tour.ts`);
+  the last points to Help. Title and text sit above the screenshot; the dots,
+  Skip tour and Back / Next (Done on the last) below, with Back / Next kept
+  right. Skip tour, Done, × or Escape all mark it seen (0084). Screenshots
+  match the screen it opens on, at the layout's own widths: phone up to
+  700px, tablet up to 1023px, PC above (`public/tour/<device>/`, retaken with
+  `scripts/shoot-welcome-tour.mjs` when a screen in the tour changes).
 - **Top bar** (`app/(app)/topbar.tsx`): today's date (wide screens) or
   the menu button and logo (narrow), the refresh-failed warning, Refresh
   and notifications. Each notification in the bell has an icon for its

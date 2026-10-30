@@ -12,6 +12,7 @@ const account = (over: Partial<Account> = {}): Account => ({
   canRequestDaily: false,
   canRequestCompany: false,
   canDriveCompany: false,
+  tourSeen: true,
   ...over,
 });
 const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({ plate: "V1", name: "Vios", status: "Active", companyTrips: false, hasOdometer: true, ...over }) as Vehicle;

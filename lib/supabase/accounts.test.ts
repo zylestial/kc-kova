@@ -25,6 +25,7 @@ describe("toAccount", () => {
       can_request_daily: false,
       can_request_company: true,
       can_drive_company: true,
+      tour_seen_at: null,
     });
     expect(account).toEqual({
       id: "11111111-1111-1111-1111-111111111111",
@@ -37,6 +38,7 @@ describe("toAccount", () => {
       canRequestDaily: false,
       canRequestCompany: true,
       canDriveCompany: true,
+      tourSeen: false,
     });
   });
 });

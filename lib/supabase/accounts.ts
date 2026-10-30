@@ -35,6 +35,7 @@ type AccountRow = {
   can_request_daily: boolean;
   can_request_company: boolean;
   can_drive_company: boolean;
+  tour_seen_at: string | null;
 };
 
 export function toAccount(row: AccountRow): Account {
@@ -49,6 +50,7 @@ export function toAccount(row: AccountRow): Account {
     canRequestDaily: row.can_request_daily,
     canRequestCompany: row.can_request_company,
     canDriveCompany: row.can_drive_company,
+    tourSeen: row.tour_seen_at !== null,
   };
 }
 
