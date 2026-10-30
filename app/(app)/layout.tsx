@@ -7,12 +7,12 @@ import { hasUnsavedChanges } from "@/lib/unsaved-changes";
 import { watchTables } from "@/lib/stacked-tables";
 import { watchNotifications } from "@/lib/notifications-poll";
 import { pausePush, resyncPush } from "@/lib/push-device";
-import { HelpDialog } from "../how-it-works";
 import KovaBrand from "../kova-brand";
 import { AccountProvider } from "./providers";
 import Topbar from "./topbar";
 import Sidebar from "./sidebar";
 import LeaveGuardDialog from "./leave-guard-dialog";
+import { WelcomeTour } from "./welcome-tour";
 
 // Opening a screen or returning to the tab reloads the data, but not more
 // often than this, so switching screens quickly doesn't hammer the server.
@@ -74,6 +74,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .then((saved) => {
         if (saved) dataIsFresh();
         setAccount(saved);
+        // First sign-in: the welcome tour opens by itself until it's closed once.
+        if (saved && !saved.tourSeen) setHelpOpen(true);
       })
       .catch(async (caught: { status?: number }) => {
         // Sending a failed load to Sign In would loop: the session cookie is
@@ -181,7 +183,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onRefresh={() => void refreshData(true)}
           onMenu={() => setMenuOpen(true)}
         />
-        <HelpDialog role={account.role} open={helpOpen} onOpenChange={setHelpOpen} />
+        <WelcomeTour open={helpOpen} onOpenChange={setHelpOpen} />
         <LeaveGuardDialog />
         <main className="role-main">{children}</main>
         <footer className="app-footer">

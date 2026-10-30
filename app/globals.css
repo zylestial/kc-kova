@@ -38,7 +38,6 @@
 .viewas-row{display:flex;align-items:center;gap:10px;margin:18px 0 60px}
 .viewas-label{font-size:13px;color:#79869a}
 @media print{.viewas-row{display:none}}
-.how-steps{margin:0;padding-left:22px;list-style:decimal;display:grid;gap:14px}.how-steps li{display:flex;flex-direction:column;gap:3px}.how-steps b{font-size:16px;font-weight:700;color:#16243a}.how-steps span{font-size:13px;color:#56647a;line-height:1.4}
 .date-legend{margin:12px 0 0;font-size:13px;color:#5b6678;line-height:1.6}
 .date-legend b{color:#2c3a55}
 .danger{height:44px;padding:0 19px!important;background:var(--error);color:#fff;border-radius:6px}
