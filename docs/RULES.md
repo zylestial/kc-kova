@@ -77,6 +77,11 @@ should be written, for both humans and AI agents.)
   prints and downloads them, but changes nothing: every write RPC checks
   the role and refuses it. Cancellation asks and audit events stay
   Admin-only. It has the same two request switches as a Scheduler.
+- **Welcome tour** (0084, owner's call 2026-10-30): it opens by itself
+  until the account closes it once, on any device; every account starts
+  unseen. Only the account itself can mark it seen (`mark_tour_seen()`,
+  Active accounts only), and marking it again keeps the first time. An
+  Admin's save of someone's account never touches it.
 
 ## Vehicles
 
