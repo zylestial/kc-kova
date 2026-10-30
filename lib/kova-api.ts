@@ -26,6 +26,8 @@ export type Account = {
   canRequestCompany: boolean;
   /** An Admin allowed this account to drive company trips (0079); a Company car Driver always can. */
   canDriveCompany: boolean;
+  /** Closed the welcome tour at least once (0084); until then it opens by itself. */
+  tourSeen: boolean;
 };
 export const DRIVER_TYPES = ["Truck", "Company car"] as const;
 export type DriverType = (typeof DRIVER_TYPES)[number];
@@ -631,6 +633,11 @@ export async function changeMyUsername(username: string, currentPassword: string
   sessionAccount = account;
   return account;
 }
+/** The welcome tour was closed (Skip tour, Done or ×): it stops opening by itself. */
+export async function markTourSeen() {
+  await request<void>("/api/me/tour-seen", { method: "POST" });
+  if (sessionAccount) sessionAccount = { ...sessionAccount, tourSeen: true };
+}
 /** My account: a new password, with the current one. */
 export const changeMyPassword = (currentPassword: string, newPassword: string) =>
   request<void>("/api/me/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) });
@@ -687,7 +694,7 @@ async function refreshAfter<T>(operation: Promise<T>) {
 }
 
 /** Saves an Admin's changes to an account; new accounts come from invites (0072). */
-export const saveAccount = (account: Account & { email?: string }) => refreshAfter(request<Account>(`/api/accounts/${encodeURIComponent(account.id)}`, { method: "PUT", body: JSON.stringify(account) }));
+export const saveAccount = (account: Omit<Account, "tourSeen"> & { email?: string }) => refreshAfter(request<Account>(`/api/accounts/${encodeURIComponent(account.id)}`, { method: "PUT", body: JSON.stringify(account) }));
 export const changeAccountPassword = (accountId: string, password: string) => request<void>(`/api/accounts/${encodeURIComponent(accountId)}/password`, { method: "POST", body: JSON.stringify({ password }) });
 /** Every account's email (Admin only, 0072). */
 export const listAccountEmails = () => request<Array<{ accountId: string } & EmailStatus>>("/api/account-emails");
