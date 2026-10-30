@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-// Self-hosted at build time; the CSS reads it through --font-inter.
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+// Inter's latin file (Google Fonts v20, every weight in one variable font;
+// licence in ./fonts/Inter-OFL.txt), kept in the repo so `next dev` and
+// builds never download it: a patchy connection made next/font/google fail
+// with "Can't resolve '@vercel/turbopack-next/internal/font/google/font'".
+// The CSS reads it through --font-inter.
+const inter = localFont({ src: "./fonts/inter-latin.woff2", weight: "100 900", variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "KOVA",
