@@ -73,13 +73,15 @@ const BOOKING_OPTIONS = [
   { group: "suppliers", id: "uat-supplier", name: "Wilcon Depot – Mandaue branch" },
 ];
 
+// The welcome tour (0084) would open over the first screen of every
+// sign-in, so the QA accounts start with it seen; Help still opens it.
+const TOUR_SEEN = { tour_seen_at: new Date().toISOString() };
+
 async function seedAccount({ username, name, role, ...extra }) {
   const { data: existing } = await admin.from("accounts").select("id").eq("username", username).maybeSingle();
   if (existing) {
-    if (Object.keys(extra).length) {
-      const { error } = await admin.from("accounts").update(extra).eq("id", existing.id);
-      if (error) throw new Error(`accounts update(${username}) failed: ${error.message}`);
-    }
+    const { error: updateError } = await admin.from("accounts").update({ ...extra, ...TOUR_SEEN }).eq("id", existing.id);
+    if (updateError) throw new Error(`accounts update(${username}) failed: ${updateError.message}`);
     // Reset the password so a re-run always yields a known-good UAT login,
     // even if the account was created by an earlier manual QA pass.
     const { error } = await admin.auth.admin.updateUserById(existing.id, { password: UAT_PASSWORD });
@@ -98,7 +100,7 @@ async function seedAccount({ username, name, role, ...extra }) {
   }
   const { error: insertError } = await admin
     .from("accounts")
-    .insert({ id: created.user.id, username, name, role, status: "Active", project: null, ...extra });
+    .insert({ id: created.user.id, username, name, role, status: "Active", project: null, ...extra, ...TOUR_SEEN });
   if (insertError) {
     await admin.auth.admin.deleteUser(created.user.id);
     throw new Error(`accounts insert(${username}) failed: ${insertError.message}`);
