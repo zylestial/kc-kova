@@ -190,8 +190,9 @@ All pass 4.5:1 for their text.
 | Finance | `#8a5410` → `#55330a` (amber) | `#8a5410` |
 
 Cards and panels use 16px corners and `--shadow-card`; status pills carry a
-dot in their text color. The UI font is Inter (`next/font/google`,
-self-hosted at build time as `--font-inter`); printouts keep Arial.
+dot in their text color. The UI font is Inter, its latin file kept in
+`app/fonts/` and loaded with `next/font/local` as `--font-inter`;
+printouts keep Arial.
 
 ## Responsive breakpoints
 
