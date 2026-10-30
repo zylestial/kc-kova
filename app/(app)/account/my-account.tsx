@@ -218,7 +218,6 @@ export default function MyAccount() {
         <div className="panel-toolbar">
           <div>
             <h2>Password</h2>
-            <p>Forgot it? Sign out and use Forgot password on the Sign In page.</p>
           </div>
           {open !== "password" && (
             <Button variant="outline" onClick={() => start("password")}>
