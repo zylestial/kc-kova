@@ -633,6 +633,11 @@ export async function changeMyUsername(username: string, currentPassword: string
   sessionAccount = account;
   return account;
 }
+/** The welcome tour was closed (Skip tour, Done or ×): it stops opening by itself. */
+export async function markTourSeen() {
+  await request<void>("/api/me/tour-seen", { method: "POST" });
+  if (sessionAccount) sessionAccount = { ...sessionAccount, tourSeen: true };
+}
 /** My account: a new password, with the current one. */
 export const changeMyPassword = (currentPassword: string, newPassword: string) =>
   request<void>("/api/me/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) });
