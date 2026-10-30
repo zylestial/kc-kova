@@ -17,7 +17,7 @@ app/                    Next.js App Router: pages (client components) + API rout
   api/                  Route handlers — the only code that talks to Supabase from the server
     auth/               sign-in, session, sign-out; public link endpoints: invite,
                          accept-invite, forgot-password, reset-password, confirm-email
-    me/                 The signed-in account's own email, username, password (My account)
+    me/                 The signed-in account's own email, username, password (My account), welcome tour seen
     invites/            Admin: send a batch of invites, list, resend, cancel
     bootstrap/          GET: one-shot hydration payload for the signed-in role
     accounts/           Admin: update accounts, reset passwords, resend an email link
@@ -213,6 +213,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `driver_type` | text, nullable | 0051. Drivers only: `Truck` \| `Company car` |
 | `can_request_daily` | boolean | 0051, 0074, 0075. Lets a Company car Driver, a Scheduler or Finance make Daily requests (Requesters and Admins always can) |
 | `can_request_company` | boolean | 0051. May make Company Trip requests; never for a Truck Driver |
+| `tour_seen_at` | timestamptz, nullable | 0084. When the account first closed the welcome tour; null opens it by itself. Set only by `mark_tour_seen()`, for the caller's own account (`Account.tourSeen`) |
 | `created_at` | timestamptz | |
 
 ### `vehicles`
@@ -506,6 +507,7 @@ built against, written before implementation, is kept for history in
 | GET, POST | `/api/me/email` | `app/api/me/email/route.ts` | any session; POST `{ email, currentPassword }` (password only when replacing a confirmed email) |
 | PUT | `/api/me/username` | `app/api/me/username/route.ts` | any session; `{ username, currentPassword }` |
 | POST | `/api/me/password` | `app/api/me/password/route.ts` | any session; `{ currentPassword, newPassword }` |
+| POST | `/api/me/tour-seen` | `app/api/me/tour-seen/route.ts` | any session; marks the welcome tour seen (`mark_tour_seen`, 0084) |
 | POST | `/api/vehicles` | `app/api/vehicles/route.ts` | Admin |
 | PUT | `/api/vehicles/:plate` | `app/api/vehicles/[plate]/route.ts` | Admin |
 | PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
