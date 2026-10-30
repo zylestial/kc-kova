@@ -1100,6 +1100,19 @@ account the company owns from day one.
   into the test project first. `roles.sql` runs on its own, since its
   `GRANT SET ON PARAMETER` line needs a superuser.
 
+## Inter kept in the repo (2026-10-30)
+
+- **Gotcha: `next/font/google` downloads the font on every `next dev`
+  start and every build.** On a patchy connection one failed file makes
+  every page fail with "Can't resolve
+  '@vercel/turbopack-next/internal/font/google/font'", and restarting
+  only helps if every download happens to succeed.
+- **So Inter's latin file (Google Fonts v20, one variable font for every
+  weight) is in `app/fonts/` with its OFL licence**, loaded by
+  `next/font/local`. Same look: the old setup only used the latin file
+  too. KOVA uses nothing from latin-ext; → and the print checkboxes were
+  never in Inter's latin or latin-ext files, so they still use Arial.
+
 ## Welcome tour (2026-10-30)
 
 - **Prototype first.** The owner reviewed the "KOVA Welcome Tour" artifact
