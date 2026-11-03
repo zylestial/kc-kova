@@ -1133,10 +1133,11 @@ account the company owns from day one.
   them. WebP, at most 1280px wide, about 1.2 MB per device.
 - **Retake the screenshots when a screen in the tour changes**:
   `node scripts/shoot-welcome-tour.mjs requester=ramon scheduler=paolo
-  driver=mario finance=fin1 admin=liza` against `next dev -p 3100` on the
-  local demo data. Those demo accounts aren't made by the repo's seed
-  scripts; without the arguments it uses seed-uat.mjs's QA accounts. The
-  shots show test data only.
+  driver=mario finance=joy admin=liza` against `next dev` on the local demo
+  data (`TOUR_BASE` if not port 3100). Those demo accounts aren't made by the
+  repo's seed scripts; without the arguments it uses seed-uat.mjs's QA
+  accounts. Scheduling needs a Missed banner for its shot: a report answered
+  Skip. The shots show test data only.
 
 ## Each request at a stop is listed (2026-11-03)
 
