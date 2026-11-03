@@ -27,11 +27,36 @@ export const STOP_ANSWERS: Array<{ decision: StopDecision; label: string }> = [
 export const waitsForAnswer = (report: Pick<ProblemReport, "legId" | "status" | "kind" | "decision">) =>
   !!report.legId && report.status === "OPEN" && report.kind !== "NOT_REACHED" && (!report.decision || report.decision === "CHANGE");
 
+/** An answer's button: Skip for some requests leaves the stop on the route, so it can't say "go to next". */
+export function answerLabel(answer: (typeof STOP_ANSWERS)[number], report: Pick<ProblemReport, "requestIds">): string {
+  if (answer.decision !== "SKIP" || !report.requestIds?.length) return answer.label;
+  return report.requestIds.length === 1 ? "Skip this request" : "Skip these requests";
+}
+
+/** The kinds of report that can name some of the requests at a stop (0067, 0085). */
+export const canNameSome = (kind: StopReportKind) => kind === "NOT_AVAILABLE" || kind === "WRONG_ADDRESS" || kind === "OTHER";
+
 /** What a held trip says instead of its next button: waiting for an answer, or for the route change. */
 export function holdText(problems: ProblemReport[]): string {
-  return problems.some((item) => waitsForAnswer(item) && item.decision === "CHANGE")
-    ? "Your route is being changed. Wait until it shows here."
+  const waiting = problems.filter(waitsForAnswer);
+  if (waiting.some((item) => item.decision === "CHANGE")) return "Your route is being changed. Wait until it shows here.";
+  // Only if every report waiting names some requests: a whole-stop report covers the others too.
+  return waiting.length > 0 && waiting.every((item) => item.requestIds?.length)
+    ? "Reported. Wait for the Scheduler's answer before leaving. You can still do the other requests here."
     : "Reported. Wait for the Scheduler's answer before going on.";
+}
+
+/** A request at a stop that a report names: reported and waiting, or skipped by the Scheduler. */
+export type JobFlag = "REPORTED" | "SKIPPED";
+
+/** Which requests at a stop not to treat as usual (0067); a report for the whole stop has its own screen. */
+export function jobFlags(problems: ProblemReport[]): Map<string, JobFlag> {
+  const flags = new Map<string, JobFlag>();
+  for (const report of problems) {
+    const flag = waitsForAnswer(report) ? "REPORTED" : report.status === "OPEN" && report.decision === "SKIP" ? "SKIPPED" : null;
+    if (flag) for (const id of report.requestIds ?? []) flags.set(id, flag);
+  }
+  return flags;
 }
 
 /** The trip's latest answered stop report, to show the Driver what to do. */
@@ -42,10 +67,10 @@ export function latestAnswer(problems: ProblemReport[]): ProblemReport | undefin
 }
 
 /** What the Driver is told the answer was, as on their trip. */
-export function answerText(report: Pick<ProblemReport, "decision" | "kind">, place: string): string {
+export function answerText(report: Pick<ProblemReport, "decision" | "kind" | "requestIds">, place: string): string {
   switch (report.decision) {
     case "SKIP":
-      return `Skip ${place} and go on to the next stop.`;
+      return report.requestIds?.length ? `Skip only what you reported. Do the others at ${place}, then go on.` : `Skip ${place} and go on to the next stop.`;
     case "WAIT":
       return report.kind === "VEHICLE_PROBLEM" ? "Go on once the vehicle is fixed." : `Stay at ${place} and go on when it's ready.`;
     case "END":

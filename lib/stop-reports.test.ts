@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { ProblemReport, Schedule, TransportRequest } from "@/lib/kova-api";
-import { answerText, missedLegs, openStopReports, stopChoices, stopReportLabel, stopReportStatus, waitsForAnswer } from "@/lib/stop-reports";
+import {
+  answerLabel,
+  answerText,
+  canNameSome,
+  holdText,
+  jobFlags,
+  missedLegs,
+  openStopReports,
+  STOP_ANSWERS,
+  stopChoices,
+  stopReportLabel,
+  stopReportStatus,
+  waitsForAnswer,
+} from "@/lib/stop-reports";
 
 const report = (patch: Partial<ProblemReport>): ProblemReport => ({
   id: "p",
@@ -107,6 +120,46 @@ describe("answers to stop reports (0068)", () => {
     expect(answerText({ decision: "SKIP", kind: "NOT_AVAILABLE" }, "Site Alpha")).toBe("Skip Site Alpha and go on to the next stop.");
     expect(answerText({ decision: "WAIT", kind: "VEHICLE_PROBLEM" }, "Site Alpha")).toBe("Go on once the vehicle is fixed.");
     expect(answerText({ kind: "OTHER" }, "Site Alpha")).toBe("Wait for the Scheduler's answer.");
+  });
+
+  it("tells the Driver to do the others when only some requests are skipped", () => {
+    expect(answerText({ decision: "SKIP", kind: "NOT_AVAILABLE", requestIds: ["q1"] }, "Site Alpha")).toBe(
+      "Skip only what you reported. Do the others at Site Alpha, then go on.",
+    );
+  });
+
+  it("labels Skip by what it skips", () => {
+    const skip = STOP_ANSWERS[0];
+    expect(answerLabel(skip, {})).toBe("Skip it, go to next");
+    expect(answerLabel(skip, { requestIds: ["q1"] })).toBe("Skip this request");
+    expect(answerLabel(skip, { requestIds: ["q1", "q2"] })).toBe("Skip these requests");
+    expect(answerLabel(STOP_ANSWERS[1], { requestIds: ["q1"] })).toBe("Wait there");
+  });
+
+  it("lets the Driver name some requests for what's about one request, not for what stops everything", () => {
+    expect(canNameSome("NOT_AVAILABLE")).toBe(true);
+    expect(canNameSome("WRONG_ADDRESS")).toBe(true);
+    expect(canNameSome("OTHER")).toBe(true);
+    expect(canNameSome("ROAD_BLOCKED")).toBe(false);
+    expect(canNameSome("VEHICLE_PROBLEM")).toBe(false);
+  });
+
+  it("says the other requests can still be done only when the hold is about some of them", () => {
+    const waitingSome = report({ legId: "l1", status: "OPEN", kind: "OTHER", requestIds: ["q1"] });
+    const waitingAll = report({ legId: "l1", status: "OPEN", kind: "NOT_AVAILABLE" });
+    expect(holdText([waitingSome])).toContain("You can still do the other requests here");
+    expect(holdText([waitingAll])).toBe("Reported. Wait for the Scheduler's answer before going on.");
+    expect(holdText([waitingSome, waitingAll])).toBe("Reported. Wait for the Scheduler's answer before going on.");
+    expect(holdText([{ ...waitingSome, decision: "CHANGE" }])).toBe("Your route is being changed. Wait until it shows here.");
+  });
+
+  it("flags the requests a report names until they're off the trip", () => {
+    const some = { legId: "l1", kind: "NOT_AVAILABLE" as const, requestIds: ["q1"] };
+    expect(jobFlags([report({ ...some, status: "OPEN" })]).get("q1")).toBe("REPORTED");
+    expect(jobFlags([report({ ...some, status: "OPEN", decision: "SKIP" })]).get("q1")).toBe("SKIPPED");
+    expect(jobFlags([report({ ...some, status: "HANDLED", decision: "SKIP" })]).size).toBe(0);
+    expect(jobFlags([report({ ...some, status: "HANDLED", decision: "WAIT" })]).size).toBe(0);
+    expect(jobFlags([report({ legId: "l1", status: "OPEN", kind: "NOT_AVAILABLE" })]).size).toBe(0);
   });
 });
 
