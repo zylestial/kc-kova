@@ -7,7 +7,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(46);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -241,6 +241,21 @@ select is((select status || ' ' || decision || ' ' || missed::text || ' [' || ha
   'OPEN SKIP true []', 'Once the trip ends, the stop is missed, to plan again');
 select is((select count(*)::int from notifications where type = 'STOP_MISSED' and related_request_id = pg_temp.id('r8')), 1, 'and its requester is told');
 
+-- It needed no planning: the Scheduler marks it done.
+select pg_temp.act_as('00000000-0000-0000-0000-000000000011');
+select throws_ok($$ select mark_stop_report_done(pg_temp.id('ended_told')) $$,
+  '42501', 'Only a Scheduler or Admin can do this', 'A Driver can''t mark it done');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select lives_ok($$ select mark_stop_report_done(pg_temp.id('ended_told')) $$, 'The Scheduler marks it done');
+reset role;
+select is((select status || ' ' || missed::text || ' ' || (decision is null)::text || ' ' || handling_note from problem_reports where id = pg_temp.id('ended_told')),
+  'HANDLED false true It was done', 'It is no longer missed');
+select is((select array_agg(request_id) from schedule_requests where schedule_id = pg_temp.id('s4') and active), array[pg_temp.id('r8')],
+  'The request stays on the trip');
+select is((select message from notifications where type = 'STOP_MISSED' and related_request_id = pg_temp.id('r8') order by created_at desc, message limit 1),
+  'Your stop at Market was done after all. It won''t be planned again', 'Its requester is told');
+select is(trip_times_missing(pg_temp.id('s4')), 1, 'Leaving the stop is asked for again, since it wasn''t missed');
+
 -- Reported before Arrived: the stop isn't reached, and Not reached covers it.
 insert into ids select 's5', pg_temp.one_stop_trip('V5', '00000000-0000-0000-0000-000000000012', array[pg_temp.id('r9')], 'd3');
 insert into ids select 'ended_early', id from report_stop(pg_temp.id('s5'), pg_temp.first_leg(pg_temp.id('s5')), 'ROAD_BLOCKED', '');
@@ -251,6 +266,12 @@ select is((select status || ': ' || handling_note from problem_reports where id 
 select is((select status || ' ' || missed::text from problem_reports where schedule_id = pg_temp.id('s5') and kind = 'NOT_REACHED'), 'OPEN true',
   'and its Not reached report is left to plan again');
 select is((select count(*)::int from notifications where type = 'STOP_MISSED' and related_request_id = pg_temp.id('r9')), 1, 'The requester is told once');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select throws_ok($$ select mark_stop_report_done((select id from problem_reports where schedule_id = pg_temp.id('s5') and kind = 'NOT_REACHED')) $$,
+  '22023', 'Only a report left open when the trip ended can be marked done. Reload and try again', 'A stop not reached can''t be marked done');
+select throws_ok($$ select mark_stop_report_done(pg_temp.id('some')) $$,
+  '22023', 'Only a report left open when the trip ended can be marked done. Reload and try again', 'Nor one the Scheduler answered');
+reset role;
 
 select * from finish();
 rollback;

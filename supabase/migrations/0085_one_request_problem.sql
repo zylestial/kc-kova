@@ -13,6 +13,7 @@
 --   ended trip, looking served, with nothing to plan them again or move them.
 --   It now counts as Skip, so the Scheduler gets Plan again, Another day and
 --   Send back. A stop not reached is still covered by its NOT_REACHED report.
+-- mark_stop_report_done: new, for such a report that needed no planning.
 
 create or replace function report_stop(
   p_schedule_id uuid,
@@ -358,3 +359,74 @@ begin
   return new;
 end;
 $$;
+
+-- The stop was done after all: a report left open when the trip ended (above)
+-- needed no planning, such as "Running late". Nobody answered Skip, so the
+-- Scheduler can clear it: not missed, its requests stay on the trip, and
+-- those told it was missed are told otherwise.
+create function mark_stop_report_done(p_problem_id uuid)
+returns public.problem_reports
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor public.accounts;
+  v_report public.problem_reports;
+  v_leg public.schedule_legs;
+  v_request record;
+begin
+  select * into v_actor from public.accounts where id = auth.uid();
+  if v_actor is null or v_actor.status <> 'Active' or v_actor.role not in ('Scheduler', 'Admin') then
+    raise exception 'Only a Scheduler or Admin can do this' using errcode = '42501';
+  end if;
+
+  perform 1 from public.schedules
+  where id = (select schedule_id from public.problem_reports where id = p_problem_id)
+  for update;
+  select * into v_report from public.problem_reports where id = p_problem_id for update;
+  if v_report.id is null then
+    raise exception 'Report not found' using errcode = 'P0002';
+  end if;
+  if v_report.status <> 'OPEN' or v_report.kind = 'NOT_REACHED' or v_report.decision is distinct from 'SKIP' or v_report.decided_by_account_id is not null then
+    raise exception 'Only a report left open when the trip ended can be marked done. Reload and try again' using errcode = '22023';
+  end if;
+  select * into v_leg from public.schedule_legs where id = v_report.leg_id;
+
+  perform set_config('kova.audit_action', 'problem.mark_done', true);
+  perform set_config('kova.audit_is_override', (v_actor.role = 'Admin')::text, true);
+  update public.problem_reports set
+    missed = false,
+    decision = null,
+    decided_at = null,
+    status = 'HANDLED',
+    handled_at = now(),
+    handled_by_account_id = v_actor.id,
+    handling_note = 'It was done'
+  where id = p_problem_id
+  returning * into v_report;
+
+  for v_request in
+    select distinct r.id, r.owner_account_id
+    from public.leg_stops ls
+    join public.request_destinations rd on rd.id = ls.request_destination_id
+    join public.requests r on r.id = rd.request_id
+    where ls.leg_id = v_leg.id and ls.revision_id = v_leg.revision_id
+      and (v_report.request_ids is null or r.id = any(v_report.request_ids))
+  loop
+    if v_request.owner_account_id <> v_actor.id then
+      perform public.notify(
+        v_request.owner_account_id,
+        'STOP_MISSED',
+        format('Your stop at %s was done after all. It won''t be planned again', v_leg.destination_name),
+        v_request.id,
+        null
+      );
+    end if;
+  end loop;
+  return v_report;
+end;
+$$;
+
+revoke execute on function mark_stop_report_done(uuid) from public, anon;
+grant execute on function mark_stop_report_done(uuid) to authenticated;
