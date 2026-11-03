@@ -113,17 +113,16 @@ export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds" |
   report.decision !== "LATER" && (report.missed || (!!report.requestIds?.length && report.decision === "SKIP"));
 
 /**
- * The stops a report's requests can come back after (0086): those still ahead,
- * next one first. None on a Company trip, for a vehicle problem, or where this
- * is the last stop before the way back.
+ * The stops a report's requests can come back after (0086, 0087): those still
+ * ahead, next one first. None for a vehicle problem, or where this is the last
+ * stop before the way back or the trip's end.
  */
 export function comeBackChoices(
   report: Pick<ProblemReport, "kind" | "legId" | "decision">,
-  schedule: Pick<Schedule, "kind">,
   legs: Array<Pick<ScheduleLeg, "id" | "destinationName" | "isFinal">>,
   reached: number,
 ): Array<{ legId: string; place: string }> {
-  if (schedule.kind === "COMPANY" || report.kind === "VEHICLE_PROBLEM" || report.decision === "CHANGE" || legs.length >= 8) return [];
+  if (report.kind === "VEHICLE_PROBLEM" || report.decision === "CHANGE" || legs.length >= 8) return [];
   const from = legs.findIndex((leg) => leg.id === report.legId);
   if (from < 0) return [];
   return legs

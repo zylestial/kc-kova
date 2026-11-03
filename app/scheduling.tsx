@@ -460,7 +460,7 @@ export default function Scheduling({
         const backAfter = comingBack?.id === report.id ? comingBack.afterLegId : null;
         // Where it can come back to; the Driver's own "Not ready yet" puts this answer first.
         const backChoices =
-          waiting && item.stops.length ? comeBackChoices(report, item.schedule, publishedRevision(item.schedule)?.legs ?? [], reached(item.schedule.id)) : [];
+          waiting && item.stops.length ? comeBackChoices(report, publishedRevision(item.schedule)?.legs ?? [], reached(item.schedule.id)) : [];
         const backFirst = report.kind === "NOT_READY" && backChoices.length > 0;
         const backButton = backChoices.length > 0 && (
           <Button
