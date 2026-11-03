@@ -28,7 +28,7 @@ import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
 import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
-import { missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
+import { answerLabel, missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
 import {
   carriedStops,
   dayCounts,
@@ -498,7 +498,7 @@ export default function Scheduling({
                   disabled={busy}
                   onClick={() => answerReport(item, answer.decision)}
                 >
-                  {answer.label}
+                  {answerLabel(answer, report)}
                 </Button>
               ))
             ) : plansAgain(report) ? (
