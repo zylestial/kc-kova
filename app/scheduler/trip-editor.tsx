@@ -12,7 +12,7 @@ import {
   type TransportRequest,
 } from "@/lib/kova-api";
 import { canShareTrip } from "@/lib/company-trips";
-import { openRevision, publishedRevision } from "@/lib/trip-record";
+import { legStops, openRevision, publishedRevision, stopsFor } from "@/lib/trip-record";
 import { hhmmLabel } from "@/lib/stop-times";
 import { toMinutes } from "@/lib/trip-estimate";
 import { legTimer, type PlanContext } from "@/lib/scheduling-plan";
@@ -32,6 +32,7 @@ import {
   tripSuggestions,
   type EditLeg,
 } from "@/lib/scheduling-edit";
+import StopJobs from "../stop-jobs";
 import RemoveLegDialog from "./remove-leg-dialog";
 
 type Choice = { id: string; name: string; stops: string[]; urgent: boolean; moveIds: string[]; label: string };
@@ -131,6 +132,7 @@ export default function TripEditor({
   const resubmitNote =
     open?.status === "SUBMITTED" ? " Taken back from the Admin. Resubmit when ready." : !open ? " Saved as draft changes. Resubmit when ready." : "";
   const requestOf = (stopId: string) => requests.find((request) => request.destinations.some((item) => item.id === stopId));
+  const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const tripRequests = trip.revision.requestIds.flatMap((id) => requests.filter((request) => request.id === id));
   const startingPoint = tripRequests[0]?.group?.startingPoint?.name ?? "Starting point";
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -385,6 +387,7 @@ export default function TripEditor({
               </label>
               <TimeField label="Planned Time In" value={leg.timeIn} disabled={locked} onCommit={(value) => commitTime(index, "in", value)} />
             </div>
+            <StopJobs stops={legStops(leg.stops, stopsById)} showRequester />
             {warnings.map((warning) => (
               <div key={warning} className="sc-warn">
                 {warning}
