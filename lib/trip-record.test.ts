@@ -1,6 +1,38 @@
 import { describe, expect, it } from "vitest";
 import type { Schedule } from "@/lib/kova-api";
-import { routeChangedAt, scheduleState, tripWindow } from "@/lib/trip-record";
+import { contactPhone, legStops, routeChangedAt, scheduleState, stopWhat, tripWindow, type StopInfo } from "@/lib/trip-record";
+
+describe("a stop's requests", () => {
+  const stop = (patch: Partial<StopInfo>): StopInfo => ({
+    id: "s1",
+    requestId: "r1",
+    requester: "Grace",
+    destinationName: "Site",
+    destinationIsOther: false,
+    purposeName: "Delivery",
+    ...patch,
+  });
+
+  it("keeps the leg's order and leaves out stops it can't find", () => {
+    const stopsById = new Map([
+      ["s1", stop({ id: "s1" })],
+      ["s2", stop({ id: "s2" })],
+    ]);
+    expect(legStops(["s2", "gone", "s1"], stopsById).map((item) => item.id)).toEqual(["s2", "s1"]);
+  });
+
+  it("says the Urgent reason, or the purpose", () => {
+    expect(stopWhat(stop({}))).toBe("Delivery");
+    expect(stopWhat(stop({ urgentReason: "Critical materials" }))).toBe("Critical materials");
+  });
+
+  it("finds the number in a contact", () => {
+    expect(contactPhone("Mang Ben 0917 123 4567")).toBe("09171234567");
+    expect(contactPhone("+63 917-123-4567 Ben")).toBe("+639171234567");
+    expect(contactPhone("Foreman Edgar")).toBe("");
+    expect(contactPhone("Block 3")).toBe("");
+  });
+});
 
 describe("schedules", () => {
   const revision = (patch: object) => ({
