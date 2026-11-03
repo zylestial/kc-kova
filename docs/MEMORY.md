@@ -1153,3 +1153,9 @@ account the company owns from day one.
   Trip Record on Finished Trips already shows requesters, Drivers included.
 - A number in a contact is a tap to call. The contact is one free-text
   "Name and number" field, so `contactPhone` looks for the digits.
+
+## Notes stay off the trip forms (2026-11-03)
+
+- **A request's notes (`requests.details`) never print on a trip form,
+  Daily or Company** (owner's call). The Company Trip Form used to print
+  them after the purpose. They can still show on screen.
