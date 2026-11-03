@@ -177,6 +177,9 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
               // The stop the next step is at (End trip is the last stop's arrival).
               const nextLeg = next?.legId ?? (next?.kind === "END" ? trip.revision.legs.at(-1)?.id : undefined);
               const onTheRoad = !!run && !run.endAt;
+              // Just left this stop, and not at the next one yet: a request forgotten there can still be reported.
+              const before = next ? steps[steps.indexOf(next) - 1] : undefined;
+              const leftLeg = before?.kind === "LEAVE" && before.at && !before.missed ? trip.revision.legs.find((leg) => leg.id === before.legId) : undefined;
               // The Scheduler's latest answer to a stop report (0068).
               const answer = onTheRoad && !trip.schedule.pausedAt ? latestAnswer(problemsOf(trip)) : undefined;
               return (
@@ -300,6 +303,19 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                               }}
                             >
                               Problem here? Report it
+                            </button>
+                          )}
+                          {onTheRoad && leftLeg && (
+                            <button
+                              type="button"
+                              className="trip-step-report"
+                              disabled={busy}
+                              onClick={() => {
+                                setReportAt({ legId: leftLeg.id, place: leftLeg.destinationName });
+                                setError("");
+                              }}
+                            >
+                              Forgot something at {leftLeg.destinationName}? Report it
                             </button>
                           )}
                         </div>
