@@ -16,8 +16,9 @@ import { useAutoClear } from "@/lib/use-auto-clear";
 import { manilaToday } from "@/lib/timezone";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
-import { routeChangedAt } from "@/lib/trip-record";
+import { legStops, routeChangedAt, stopsFor } from "@/lib/trip-record";
 import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import StopJobs from "./stop-jobs";
 import StopReportForm from "./stop-report-form";
 import SavedTapsBanner from "./saved-taps-banner";
 
@@ -64,6 +65,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   useAutoClear(notice, setNotice);
 
   const open = trips.find((trip) => trip.schedule.id === openId);
+  const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const runOf = (trip: Trip) => companyRuns.find((run) => run.scheduleId === trip.schedule.id);
   // Start trip asks for the odometer only on a vehicle that has one (0078); End trip, only if Start had a reading.
   const takesOdometer = (trip: Trip, kind: CompanyStep["kind"]) =>
@@ -223,7 +225,18 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                               </li>
                             ) : (
                               <li key={step.key} className={step.at ? "done" : step === next ? "next" : ""}>
-                                <span>{step.label}</span>
+                                <div>
+                                  {step.label}
+                                  {/* What to do there, on the step that reaches it; End trip is the last stop's arrival. */}
+                                  {(step.kind === "ARRIVE" || step.kind === "END") && (
+                                    <StopJobs
+                                      stops={legStops(
+                                        trip.revision.legs.find((leg) => leg.id === (step.legId ?? trip.revision.legs.at(-1)?.id))?.stops ?? [],
+                                        stopsById,
+                                      )}
+                                    />
+                                  )}
+                                </div>
                                 <small>{step.at ? timeLabel(step.at) : ""}</small>
                               </li>
                             ),

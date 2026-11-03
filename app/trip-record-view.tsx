@@ -1,5 +1,5 @@
 "use client";
-import type { StopInfo } from "@/lib/trip-record";
+import { legStops, stopWhat, type StopInfo } from "@/lib/trip-record";
 
 type ViewLeg = {
   origin: string;
@@ -11,9 +11,12 @@ type ViewLeg = {
   stops: string[];
 };
 
+/** A request's purpose and notes, on one line. */
+const jobText = (stop: StopInfo) => [stopWhat(stop), stop.details].filter(Boolean).join(" · ");
+
 /**
- * Read-only Trip Record: one row per leg, with every requester and purpose
- * served at that stop. A shared stop lists each request on its own line.
+ * Read-only Trip Record: one row per leg, with every requester, purpose and
+ * note served at that stop. A shared stop lists each request on its own line.
  * Phones get one route card per leg instead (.route-cards in globals.css).
  */
 export default function TripRecordView({ legs, stopsById }: { legs: ViewLeg[]; stopsById: Map<string, StopInfo> }) {
@@ -30,16 +33,12 @@ export default function TripRecordView({ legs, stopsById }: { legs: ViewLeg[]; s
           </thead>
           <tbody>
             {legs.map((leg, index) => {
-              const served = leg.stops.map((id) => stopsById.get(id)).filter((stop): stop is StopInfo => !!stop);
+              const served = legStops(leg.stops, stopsById);
               return (
                 <tr key={index}>
                   <td>{String(index + 1).padStart(2, "0")}</td>
                   <td>{served.length ? served.map((stop) => <div key={stop.id}>{stop.requester}</div>) : "—"}</td>
-                  <td>
-                    {served.length
-                      ? [...new Set(served.map((stop) => stop.purposeName))].map((purpose) => <div key={purpose}>{purpose}</div>)
-                      : "—"}
-                  </td>
+                  <td>{served.length ? served.map((stop) => <div key={stop.id}>{jobText(stop)}</div>) : "—"}</td>
                   <td>{leg.origin}</td>
                   <td>{leg.plannedTimeOut || "—"}</td>
                   <td>{leg.destinationName}</td>
@@ -53,15 +52,15 @@ export default function TripRecordView({ legs, stopsById }: { legs: ViewLeg[]; s
       </div>
       <ol className="route-cards route-plan">
         {legs.map((leg, index) => {
-          const served = leg.stops.map((id) => stopsById.get(id)).filter((stop): stop is StopInfo => !!stop);
-          const who = [...new Set(served.map((stop) => stop.requester))].join(", ");
-          const purposes = [...new Set(served.map((stop) => stop.purposeName))].join(", ");
+          const served = legStops(leg.stops, stopsById);
           const contact = [leg.contactName, leg.contactNumber].filter(Boolean).join(" · ");
           return (
             <li key={index} className="route-card">
               <div className="route-card-head">
                 <b>Leg {String(index + 1).padStart(2, "0")}</b>
-                {[who, purposes].filter(Boolean).join(" · ")}
+                {served.map((stop) => (
+                  <div key={stop.id}>{[stop.requester, jobText(stop)].filter(Boolean).join(" · ")}</div>
+                ))}
               </div>
               <div className="route-stop route-from">
                 <span className="route-place">{leg.origin}</span>

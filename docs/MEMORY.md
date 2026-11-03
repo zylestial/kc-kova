@@ -1138,6 +1138,22 @@ account the company owns from day one.
   scripts; without the arguments it uses seed-uat.mjs's QA accounts. The
   shots show test data only.
 
+## Each request at a stop is listed (2026-11-03)
+
+- **A shared stop lists every request, with its notes and contact**
+  (owner's problem: two requests at one stop, and nobody could tell what to
+  do). The Driver's card used to de-duplicate purposes, so two deliveries
+  read as one "Delivery", and never showed the notes. `app/stop-jobs.tsx`
+  is on the Driver's card, Company trip steps and the Scheduling trip
+  editor; To plan cards, the report banner and the read-only Trip Record
+  show the notes too.
+- **Drivers still don't see the requester on an active trip** (owner's
+  pick, keeping 0067); they get the contact person instead. A contact is
+  optional, so a request can leave them with nobody to ask. The read-only
+  Trip Record on Finished Trips already shows requesters, Drivers included.
+- A number in a contact is a tap to call. The contact is one free-text
+  "Name and number" field, so `contactPhone` looks for the digits.
+
 ## Notes stay off the trip forms (2026-11-03)
 
 - **A request's notes (`requests.details`) never print on a trip form,

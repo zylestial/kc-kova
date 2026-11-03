@@ -70,6 +70,18 @@ export function stopsFor(requests: TransportRequest[]): StopInfo[] {
   );
 }
 
+/** The requests a leg serves, in the leg's order. */
+export const legStops = (stopIds: string[], stopsById: Map<string, StopInfo>) =>
+  stopIds.map((id) => stopsById.get(id)).filter((stop): stop is StopInfo => !!stop);
+
+/** What a request asks for at its stop: the Urgent reason, or the purpose. */
+export const stopWhat = (stop: StopInfo) => stop.urgentReason || stop.purposeName;
+
+/** The number to call in a contact typed as "Name and number"; "" if it has none. */
+export function contactPhone(contact: string) {
+  return contact.match(/\+?\d[\d\s-]{5,}\d/)?.[0].replace(/[\s-]/g, "") ?? "";
+}
+
 export const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 
 /** The reservation a set of legs would take: first Time Out to last Time In. */

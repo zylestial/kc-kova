@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Check, Circle, Minus, Phone, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ScheduleLeg } from "@/lib/kova-api";
-import { BASE, type StopInfo } from "@/lib/trip-record";
+import { BASE, legStops, type StopInfo } from "@/lib/trip-record";
 import { tapTimeLabel } from "@/lib/attendance";
 import { hhmmLabel, stopKey, type TimeSource, type TripStep } from "@/lib/stop-times";
+import StopJobs from "./stop-jobs";
 
 /** Which tap a step is, so the screen can say which one is saving. */
 export const stepKey = (source: TimeSource) => ("legId" in source ? stopKey(source) : source.kind);
@@ -25,13 +26,13 @@ function labels(source: TimeSource): { button: string; done: string } {
   }
 }
 
-/** One place on the route: where to go, why, who to call, and its taps with planned times. */
+/** One place on the route: where to go, each request there, who to call, and its taps with planned times. */
 type Card = {
   /** The stop's leg; none for Start and Back. */
   legId?: string;
   title: string;
   place: string;
-  purposes: string[];
+  served: StopInfo[];
   contactName: string;
   contactNumber: string;
   rows: { step: TripStep; planned: string }[];
@@ -49,21 +50,23 @@ function cardsFor(steps: TripStep[], legs: ScheduleLeg[], stopsById: Map<string,
     {
       title: "Start",
       place: BASE,
-      purposes: [],
+      served: [],
       contactName: "",
       contactNumber: "",
       rows: [{ step: steps[0], planned: legs[0]?.plannedTimeOut ?? "" }],
     },
   ];
   legs.slice(0, last).forEach((leg, i) => {
-    const served = leg.stops.map((id) => stopsById.get(id)).filter((stop): stop is StopInfo => !!stop);
+    const served = legStops(leg.stops, stopsById);
+    // The leg's contact is the requests' own, joined when it was planned; each request shows its own.
+    const ownContacts = served.some((stop) => stop.contact);
     cards.push({
       legId: leg.id,
       title: `Stop ${i + 1}`,
       place: leg.destinationName,
-      purposes: [...new Set(served.map((stop) => stop.purposeName).filter(Boolean))],
-      contactName: leg.contactName,
-      contactNumber: leg.contactNumber,
+      served,
+      contactName: ownContacts ? "" : leg.contactName,
+      contactNumber: ownContacts ? "" : leg.contactNumber,
       rows: [
         { step: steps[2 * i + 1], planned: leg.plannedTimeIn },
         { step: steps[2 * i + 2], planned: legs[i + 1].plannedTimeOut },
@@ -73,7 +76,7 @@ function cardsFor(steps: TripStep[], legs: ScheduleLeg[], stopsById: Map<string,
   cards.push({
     title: "Back",
     place: BASE,
-    purposes: [],
+    served: [],
     contactName: "",
     contactNumber: "",
     rows: [{ step: steps[steps.length - 1], planned: legs[last]?.plannedTimeIn ?? "" }],
@@ -101,8 +104,8 @@ type Props = {
 };
 
 /**
- * The Driver's trip as one card per place, in route order: where to go, the
- * purpose, the contact and the planned (estimated) times, with Arrived /
+ * The Driver's trip as one card per place, in route order: where to go, each
+ * request's purpose and notes, the contact and the planned (estimated) times, with Arrived /
  * Left inside. Done taps are ticked with their time; the next one is the
  * only big button. No distances or flags (the Admin sees those); the
  * position is still recorded. "End trip now" covers a trip cut short, with
@@ -165,7 +168,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             <header>
               <small>{card.title}</small>
               <h3>{card.place}</h3>
-              {card.purposes.length > 0 && <p>{card.purposes.join(", ")}</p>}
+              <StopJobs stops={card.served} />
               {(card.contactName || card.contactNumber) && (
                 <p>
                   {card.contactName}
