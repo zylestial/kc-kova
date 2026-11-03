@@ -16,8 +16,8 @@ export const whatText = (stop: TransportRequest) => stop.urgentReason?.name ?? s
 
 /**
  * One waiting stop in "To plan" (prototype stop card): number, Urgent,
- * requester, where, what and when. Tapping it opens its details and where
- * it can go; it can also be dragged onto a vehicle. A stop missed on the
+ * requester, where, what, when and the requester's notes. Tapping it opens
+ * where it can go; it can also be dragged onto a vehicle. A stop missed on the
  * road is tagged Missed; one shown on another day says which day it was for.
  */
 export default function StopCard({
@@ -67,6 +67,7 @@ export default function StopCard({
         {carried && ` · was for ${dateLabel(stop.date, { weekday: "short", month: "short", day: "numeric" })}`}
       </span>
       <span className="sc-meta">{stop.projectName}</span>
+      {stop.details && <span className="sc-note">{stop.details}</span>}
     </button>
   );
 }
