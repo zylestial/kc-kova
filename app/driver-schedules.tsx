@@ -47,7 +47,7 @@ import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/l
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import SavedTapsBanner from "./saved-taps-banner";
 import StopReportForm from "./stop-report-form";
-import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import { answerText, holdText, jobFlags, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -558,6 +558,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   setError("");
                 }}
                 held={selected.schedule.pausedAt ? holdText(selected.problems) : undefined}
+                flags={jobFlags(selected.problems)}
                 notYet={selected.startable ? undefined : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
               />
               {locationOff && (
