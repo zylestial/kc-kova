@@ -4,7 +4,7 @@
 // Retake them whenever a screen in the tour changes.
 //
 // Usage: node scripts/shoot-welcome-tour.mjs [requester=ramon ...]
-// Needs `next dev -p 3100` on a local Supabase with demo data (see
+// Needs `next dev` (port 3100, or set TOUR_BASE) on a local Supabase with demo data (see
 // seed-uat.mjs and seed-v2-demo.mjs). Each role signs in as the account
 // named on the command line, or the seed-uat.mjs one, password test1234.
 
@@ -14,14 +14,15 @@ import { chromium } from "@playwright/test";
 // The same widths KOVA's layout switches at (lib/welcome-tour.ts).
 const TOUR_DEVICES = { pc: { width: 1440, height: 900 }, tablet: { width: 820, height: 1180 }, phone: { width: 390, height: 844 } };
 // One shot per tour step; the step names match lib/welcome-tour.ts.
-// scrollTo brings that text to the top, element shoots just that element,
+// scrollTo brings that text to the top, element shoots just that element
+// (the first with hasText, if given),
 // openTrip opens the first trip first.
 const tourShots = {
   requester: [{ step: "home", path: "/home" }, { step: "new", path: "/requests/new" }, { step: "list", path: "/requests" }],
   scheduler: [
     { step: "day", path: "/scheduling" },
     { step: "plan", path: "/scheduling", scrollTo: "^To plan ·" },
-    { step: "missed", path: "/scheduling", element: ".sc-banner" },
+    { step: "missed", path: "/scheduling", element: ".sc-banner", hasText: "Missed:" },
     { step: "schedules", path: "/schedules" },
   ],
   driver: [{ step: "schedule", path: "/my-schedule" }, { step: "trip", path: "/my-schedule", openTrip: true }, { step: "home", path: "/home" }],
@@ -34,7 +35,7 @@ const tourShots = {
   ],
 };
 
-const BASE = "http://localhost:3100";
+const BASE = process.env.TOUR_BASE ?? "http://localhost:3100";
 const OUT = new URL("../public/tour/", import.meta.url);
 const PASSWORD = "test1234";
 const accounts = { requester: "booker1", scheduler: "sched1", driver: "driver1", finance: "fin1", admin: "admin1" };
@@ -95,11 +96,11 @@ for (const [device, size] of Object.entries(TOUR_DEVICES)) {
 
     const left = mobile ? 0 : SIDEBAR;
     const content = { x: left, y: TOP_BAR, width: size.width - left, height: size.height - TOP_BAR };
-    for (const { step, path, scrollTo, element, openTrip } of steps) {
+    for (const { step, path, scrollTo, element, hasText, openTrip } of steps) {
       await page.goto(BASE + path);
       await page.waitForTimeout(3500);
       if (element) {
-        await save(step, await page.locator(element).first().screenshot());
+        await save(step, await page.locator(element, { hasText }).first().screenshot());
         continue;
       }
       if (scrollTo) {
