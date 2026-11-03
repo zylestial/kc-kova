@@ -4,14 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import type { StopReportKind } from "@/lib/kova-api";
-import { STOP_REPORT_CHOICES } from "@/lib/stop-reports";
+import { canNameSome, STOP_REPORT_CHOICES } from "@/lib/stop-reports";
 
 /**
  * Reporting a problem at one stop (0061), for the Driver's trip and a
  * Company trip's requester alike: what happened (big buttons, one tap on a
  * phone) and a note. The trip then waits for the Scheduler's answer (0068).
- * Where several requests share the stop, Not available and Wrong address
- * ask which of them (0067): some of them, and the stop goes on as planned.
+ * Where several requests share the stop, Not available, Wrong address and
+ * Something else ask which of them (0067, 0085): some of them, and the stop
+ * goes on as planned.
  */
 export default function StopReportForm({
   place,
@@ -31,7 +32,7 @@ export default function StopReportForm({
   const [note, setNote] = useState("");
   const [picked, setPicked] = useState<Set<string>>(() => new Set(stops.map((stop) => stop.requestId)));
   const choice = STOP_REPORT_CHOICES.find((item) => item.kind === kind);
-  const asksWhich = stops.length > 1 && (kind === "NOT_AVAILABLE" || kind === "WRONG_ADDRESS");
+  const asksWhich = stops.length > 1 && !!kind && canNameSome(kind);
   const some = asksWhich && picked.size < stops.length;
   const ready = !!choice && (!asksWhich || picked.size > 0);
   function pick(requestId: string, on: boolean) {
