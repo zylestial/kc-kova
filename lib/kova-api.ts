@@ -284,6 +284,8 @@ export type ProblemReport = {
   /** The Scheduler's or Admin's answer (0068); none yet while the trip is held for it. */
   decision?: StopDecision;
   decidedAt?: string;
+  /** None on an answer: the trip ended and it counts as Skip (0085). */
+  decidedByAccountId?: string;
   reportedByAccountId?: string;
 };
 /** What can happen at a stop (0061); OTHER is also every whole-trip problem report. */
@@ -845,6 +847,8 @@ export const handleProblem = (id: string, handlingNote: string, followUpSchedule
 /** Takes a missed stop's requests off its trip (0063): to plan again, or sent back with `reason`. */
 export const answerStopReport = (id: string, decision: StopDecision) =>
   refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/answer`, { method: "POST", body: JSON.stringify({ decision }) }));
+export const markStopReportDone = (id: string) =>
+  refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/done`, { method: "POST" }));
 export const releaseMissedStop = (id: string, sendBack: boolean, reason = "") =>
   refreshAfter(request<{ requestIds: string[] }>(`/api/problems/${encodeURIComponent(id)}/missed`, { method: "POST", body: JSON.stringify({ sendBack, reason }) }));
 
