@@ -161,15 +161,15 @@ select ok((select paused_at is null from schedules where id = pg_temp.id('s1')),
 select is((select status || ': ' || handling_note from problem_reports where id = pg_temp.id('other')), 'HANDLED: Route changed',
   'The report is done');
 
--- End trip closes a report still waiting -------------------------------------------------------
+-- End trip with a report still waiting, on a stop reached (0085) --------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 insert into ids select 'late', id from report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'OTHER', 'Running late');
 select lives_ok($$ select record_trip_attendance(pg_temp.id('s1'), 'END') $$, 'End trip works while on hold');
 reset role;
-select is((select status || ': ' || handling_note from problem_reports where id = pg_temp.id('late')), 'HANDLED: The trip ended',
-  'and closes the report still waiting');
+select is((select status || ' ' || decision || ' ' || missed::text from problem_reports where id = pg_temp.id('late')), 'OPEN SKIP true',
+  'and leaves the stop to plan again, not lost with the trip');
 select ok((select paused_at is null from schedules where id = pg_temp.id('s1')), 'The hold ends with the trip');
-select is(trip_times_missing(pg_temp.id('s1')), 1, 'Only Leaving the Market is missing, not City Hall''s times');
+select is(trip_times_missing(pg_temp.id('s1')), 0, 'A missed stop needs no Leaving, and City Hall''s times aren''t asked for');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select throws_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'OTHER', 'Late') $$,
   '22023', 'This trip has ended', 'No reports after End trip');

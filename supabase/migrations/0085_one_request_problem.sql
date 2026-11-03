@@ -7,6 +7,12 @@
 -- report_stop: same as 0068, except Other can name some of the requests too.
 -- answer_stop_report: same as 0068, except the message when Skip is for some
 --   of the requests at the stop.
+-- report_unreached_stops: same as 0068, except a report on a stop already
+--   reached no longer ends with the trip. Tapping Arrived, reporting, then
+--   End trip (unanswered, or answered End the trip) left its requests on the
+--   ended trip, looking served, with nothing to plan them again or move them.
+--   It now counts as Skip, so the Scheduler gets Plan again, Another day and
+--   Send back. A stop not reached is still covered by its NOT_REACHED report.
 
 create or replace function report_stop(
   p_schedule_id uuid,
@@ -206,5 +212,149 @@ begin
     );
   end if;
   return v_report;
+end;
+$$;
+
+create or replace function report_unreached_stops()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_schedule public.schedules;
+  v_revision public.schedule_revisions;
+  v_last int;
+  v_leg public.schedule_legs;
+  v_report public.problem_reports;
+  v_covered uuid[];
+  v_left uuid[];
+  v_whole boolean;
+  v_has_stops boolean;
+  v_places text[] := '{}';
+  v_to_plan text[] := '{}';
+  v_action text := current_setting('kova.audit_action', true);
+begin
+  if old.end_at is not null or new.end_at is null then
+    return new;
+  end if;
+  select * into v_schedule from public.schedules where id = new.schedule_id;
+  update public.schedules set paused_at = null where id = new.schedule_id;
+  select * into v_revision from public.schedule_revisions where id = v_schedule.published_revision_id;
+  if v_revision.id is not null then
+    -- The last leg reached: tapped, or reported missed.
+    select coalesce(max(l.leg_no), 0) into v_last
+    from public.schedule_legs l
+    where l.revision_id = v_revision.id
+      and (exists (select 1 from public.stop_taps t where t.leg_id = l.id) or public.leg_missed(l.id));
+
+    perform set_config('kova.audit_action', 'problem.not_reached', true);
+
+    -- A report on a stop reached, not answered or answered End the trip: as if
+    -- answered Skip. Nobody chose it, so it has no decided_by_account_id.
+    for v_report in
+      select p.* from public.problem_reports p
+      join public.schedule_legs l on l.id = p.leg_id and l.revision_id = v_revision.id
+      where p.schedule_id = new.schedule_id and l.leg_no <= v_last and p.kind <> 'NOT_REACHED'
+        and (p.decision = 'END' or (p.status = 'OPEN' and (p.decision is null or p.decision = 'CHANGE')))
+      order by p.created_at
+    loop
+      select * into v_leg from public.schedule_legs where id = v_report.leg_id;
+      -- Requests another report here already covers aren't planned twice.
+      select coalesce(array_agg(distinct ids.id), '{}') into v_covered
+      from public.problem_reports p, unnest(p.request_ids) as ids (id)
+      where p.leg_id = v_leg.id and p.status = 'OPEN' and p.decision = 'SKIP';
+      select coalesce(array_agg(distinct rd.request_id), '{}') into v_left
+      from public.leg_stops ls
+      join public.request_destinations rd on rd.id = ls.request_destination_id
+      where ls.leg_id = v_leg.id and ls.revision_id = v_revision.id
+        and (v_report.request_ids is null or rd.request_id = any(v_report.request_ids))
+        and not (rd.request_id = any(v_covered));
+
+      if cardinality(v_left) = 0 or public.leg_missed(v_leg.id) then
+        -- Answered End the trip keeps its own closing note.
+        if v_report.status = 'OPEN' then
+          update public.problem_reports set status = 'HANDLED', handled_at = now(), handling_note = 'The trip ended'
+          where id = v_report.id;
+        end if;
+        continue;
+      end if;
+
+      v_whole := v_report.request_ids is null and cardinality(v_covered) = 0;
+      update public.problem_reports set
+        decision = 'SKIP',
+        decided_at = now(),
+        decided_by_account_id = null,
+        missed = v_whole,
+        request_ids = case when v_whole then null else v_left end,
+        status = 'OPEN',
+        handled_at = null,
+        handled_by_account_id = null,
+        handling_note = ''
+      where id = v_report.id;
+      v_to_plan := v_to_plan || v_leg.destination_name;
+      perform public.notify_stop_missed(v_leg, public.stop_report_label(v_report.kind), new.end_recorded_by_account_id, v_left);
+    end loop;
+  end if;
+
+  -- Any other report still waiting ends with the trip.
+  update public.problem_reports set status = 'HANDLED', handled_at = now(), handling_note = 'The trip ended'
+  where schedule_id = new.schedule_id and leg_id is not null and status = 'OPEN' and (decision is null or decision = 'CHANGE');
+  if v_revision.id is null then
+    return new;
+  end if;
+
+  for v_leg in
+    select * from public.schedule_legs
+    where revision_id = v_revision.id and not is_final and leg_no > v_last and not public.leg_missed(id)
+    order by leg_no
+  loop
+    v_has_stops := exists (select 1 from public.leg_stops where leg_id = v_leg.id and revision_id = v_revision.id);
+    insert into public.problem_reports (
+      schedule_id, revision_id, driver_id, note, leg_id, kind, missed, reported_by_account_id,
+      status, handled_at, handling_note
+    ) values (
+      v_schedule.id, v_revision.id, v_revision.driver_id, 'The trip ended before this stop', v_leg.id, 'NOT_REACHED', true,
+      new.end_recorded_by_account_id,
+      case when v_has_stops then 'OPEN' else 'HANDLED' end,
+      case when v_has_stops then null else now() end,
+      case when v_has_stops then '' else 'Nothing to plan again' end
+    );
+    v_places := v_places || v_leg.destination_name;
+    if v_has_stops then
+      perform public.notify_stop_missed(v_leg, 'not reached, the trip ended early', new.end_recorded_by_account_id);
+    end if;
+  end loop;
+  perform set_config('kova.audit_action', coalesce(v_action, ''), true);
+
+  if cardinality(v_places) > 0 then
+    perform public.notify_schedulers(
+      'STOP_REPORTED',
+      format('Trip ended before %s: %s''s trip on %s', array_to_string(v_places, ', '), v_revision.plate,
+        to_char(v_schedule.schedule_date, 'FMMonth FMDD, YYYY')),
+      null, v_schedule.id
+    );
+    perform public.notify_admins(
+      'STOP_REPORTED',
+      format('Trip ended before %s: %s''s trip on %s', array_to_string(v_places, ', '), v_revision.plate,
+        to_char(v_schedule.schedule_date, 'FMMonth FMDD, YYYY')),
+      null, v_schedule.id
+    );
+  end if;
+  if cardinality(v_to_plan) > 0 then
+    perform public.notify_schedulers(
+      'STOP_REPORTED',
+      format('Trip ended with requests to plan again at %s: %s''s trip on %s', array_to_string(v_to_plan, ', '), v_revision.plate,
+        to_char(v_schedule.schedule_date, 'FMMonth FMDD, YYYY')),
+      null, v_schedule.id
+    );
+    perform public.notify_admins(
+      'STOP_REPORTED',
+      format('Trip ended with requests to plan again at %s: %s''s trip on %s', array_to_string(v_to_plan, ', '), v_revision.plate,
+        to_char(v_schedule.schedule_date, 'FMMonth FMDD, YYYY')),
+      null, v_schedule.id
+    );
+  end if;
+  return new;
 end;
 $$;
