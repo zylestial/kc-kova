@@ -4,7 +4,7 @@ import { parseWith } from "@/lib/validation";
 
 const stopReportBody = z.object({
   legId: z.uuid(),
-  kind: z.enum(["NOT_AVAILABLE", "WRONG_ADDRESS", "ROAD_BLOCKED", "VEHICLE_PROBLEM", "OTHER"]),
+  kind: z.enum(["NOT_AVAILABLE", "NOT_READY", "WRONG_ADDRESS", "ROAD_BLOCKED", "VEHICLE_PROBLEM", "OTHER"]),
   note: z.string().trim().max(500).catch(""),
   requestIds: z.array(z.uuid()).min(1).max(20).optional(),
   location: z

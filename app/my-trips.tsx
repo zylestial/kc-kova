@@ -17,7 +17,7 @@ import { manilaToday } from "@/lib/timezone";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
 import { legStops, routeChangedAt, stopsFor } from "@/lib/trip-record";
-import { answerText, holdText, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import { answerText, holdText, jobFlags, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
 import StopJobs from "./stop-jobs";
 import StopReportForm from "./stop-report-form";
 import SavedTapsBanner from "./saved-taps-banner";
@@ -234,6 +234,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                                         trip.revision.legs.find((leg) => leg.id === (step.legId ?? trip.revision.legs.at(-1)?.id))?.stops ?? [],
                                         stopsById,
                                       )}
+                                      flags={jobFlags(problemsOf(trip))}
                                     />
                                   )}
                                 </div>

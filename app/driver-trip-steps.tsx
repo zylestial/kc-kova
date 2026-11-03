@@ -6,6 +6,7 @@ import type { ScheduleLeg } from "@/lib/kova-api";
 import { BASE, legStops, type StopInfo } from "@/lib/trip-record";
 import { tapTimeLabel } from "@/lib/attendance";
 import { hhmmLabel, stopKey, type TimeSource, type TripStep } from "@/lib/stop-times";
+import type { JobFlag } from "@/lib/stop-reports";
 import StopJobs from "./stop-jobs";
 
 /** Which tap a step is, so the screen can say which one is saving. */
@@ -101,6 +102,8 @@ type Props = {
   /** Paused for a vehicle problem: no taps until Resume trip. */
   /** The trip is held for the Scheduler's answer (0068): this says so instead of the next button. */
   held?: string;
+  /** Requests a report names (lib/stop-reports), by request id. */
+  flags?: Map<string, JobFlag>;
 };
 
 /**
@@ -112,7 +115,7 @@ type Props = {
  * a second tap to confirm. "Problem here?" under the current stop reports
  * it (0061), and the trip waits for the Scheduler's answer (0068).
  */
-export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held }: Props) {
+export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, flags }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const busy = busyKey !== null;
   const end = steps[steps.length - 1];
@@ -168,7 +171,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             <header>
               <small>{card.title}</small>
               <h3>{card.place}</h3>
-              <StopJobs stops={card.served} />
+              <StopJobs stops={card.served} flags={flags} />
               {(card.contactName || card.contactNumber) && (
                 <p>
                   {card.contactName}

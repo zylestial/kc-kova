@@ -465,6 +465,7 @@ type ProblemRow = {
   request_ids?: string[] | null;
   decision?: ProblemReport["decision"] | null;
   decided_at?: string | null;
+  decided_by_account_id?: string | null;
   reported_by_account_id?: string | null;
 };
 
@@ -487,6 +488,7 @@ export function toProblemReport(row: ProblemRow): ProblemReport {
     requestIds: row.request_ids ?? undefined,
     decision: row.decision ?? undefined,
     decidedAt: row.decided_at ?? undefined,
+    decidedByAccountId: row.decided_by_account_id ?? undefined,
     reportedByAccountId: row.reported_by_account_id ?? undefined,
   };
 }

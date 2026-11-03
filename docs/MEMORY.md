@@ -1153,6 +1153,37 @@ account the company owns from day one.
   Trip Record on Finished Trips already shows requesters, Drivers included.
 - A number in a contact is a tap to call. The contact is one free-text
   "Name and number" field, so `contactPhone` looks for the digits.
+- **One request has a problem** (0085): Skip for some of the requests told
+  the Driver, on screen and in STOP_ANSWERED, to skip the whole place, though
+  the others still had to be done. Now it says to do the others. The hold
+  stays (owner's pick): a Driver never decides alone to drop a request, so
+  they can't tap Leaving until the answer, even with the other one done.
+- Something else can now name some of the requests. Road blocked and Vehicle
+  problem can't, since they stop everything there.
+- A request named on a report is flagged on the Driver's card: "Reported,
+  waiting for the Scheduler", then crossed out as "Skipped, don't do this
+  one" until Plan again takes it off the trip. The banner's Skip button
+  says "Skip this request" in that case, not "Skip it, go to next".
+- **Come back later** (0086, owner's call 2026-11-03): Wilcon's order is placed
+  but not paid, so the Driver should do the next stop and return, not wait.
+  Skip, Plan again, a route change and the Admin was too many steps and said
+  "missed". The owner picked: the Scheduler decides with one tap, and no Admin.
+  A request's stop can only be on one leg per version, so the request moves to
+  a new leg and the first visit stays. An emptied first visit is `missed` (with
+  decision LATER, shown as "Coming back later"), so the trip editor, forms and
+  times need no change. Its Leaving time isn't kept, and the next leg's Time Out
+  is blank. New-leg times are a made-up 30 minutes. Company trips aren't covered.
+- **A report isn't lost when the trip ends** (0085, owner's call 2026-11-03):
+  tapping Arrived, reporting, then End trip closed the report, whether
+  unanswered or answered End the trip. The stop counted as reached, so no Not
+  reached either: the requests stayed on the ended trip looking served, and
+  could never move to the next day. Now it counts as Skip. Every kind counts,
+  so a report that needed no replanning ("Running late", a breakdown after
+  the job was done) also tells the requester their stop was missed; **Got
+  it, it was done** clears it and tells them otherwise, and the Admin enters
+  the Leaving time. Answered Wait there is not covered: the Driver has to
+  report again.
+
 
 ## Notes stay off the trip forms (2026-11-03)
 

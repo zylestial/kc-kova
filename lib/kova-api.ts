@@ -284,13 +284,15 @@ export type ProblemReport = {
   /** The Scheduler's or Admin's answer (0068); none yet while the trip is held for it. */
   decision?: StopDecision;
   decidedAt?: string;
+  /** None on an answer: the trip ended and it counts as Skip (0085). */
+  decidedByAccountId?: string;
   reportedByAccountId?: string;
 };
 /** What can happen at a stop (0061); OTHER is also every whole-trip problem report. */
-/** A Scheduler's answer to a stop report (0068): skip it, wait there, end the trip, change the route. */
-export type StopDecision = "SKIP" | "WAIT" | "END" | "CHANGE";
+/** A Scheduler's answer to a stop report (0068): skip it, wait there, end the trip, change the route, or come back later (0086). */
+export type StopDecision = "SKIP" | "WAIT" | "END" | "CHANGE" | "LATER";
 /** NOT_REACHED is never chosen: End trip files it for the stops left (0066). */
-export type StopReportKind = "NOT_AVAILABLE" | "WRONG_ADDRESS" | "ROAD_BLOCKED" | "VEHICLE_PROBLEM" | "OTHER" | "NOT_REACHED";
+export type StopReportKind = "NOT_AVAILABLE" | "NOT_READY" | "WRONG_ADDRESS" | "ROAD_BLOCKED" | "VEHICLE_PROBLEM" | "OTHER" | "NOT_REACHED";
 /** An in-app notification of one event for one recipient (0035). */
 export type NotificationType =
   | "REQUEST_SCHEDULED"
@@ -845,6 +847,10 @@ export const handleProblem = (id: string, handlingNote: string, followUpSchedule
 /** Takes a missed stop's requests off its trip (0063): to plan again, or sent back with `reason`. */
 export const answerStopReport = (id: string, decision: StopDecision) =>
   refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/answer`, { method: "POST", body: JSON.stringify({ decision }) }));
+export const comeBackLater = (id: string, afterLegId: string) =>
+  refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/later`, { method: "POST", body: JSON.stringify({ afterLegId }) }));
+export const markStopReportDone = (id: string) =>
+  refreshAfter(request<ProblemReport>(`/api/problems/${encodeURIComponent(id)}/done`, { method: "POST" }));
 export const releaseMissedStop = (id: string, sendBack: boolean, reason = "") =>
   refreshAfter(request<{ requestIds: string[] }>(`/api/problems/${encodeURIComponent(id)}/missed`, { method: "POST", body: JSON.stringify({ sendBack, reason }) }));
 

@@ -5,7 +5,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -161,15 +161,15 @@ select ok((select paused_at is null from schedules where id = pg_temp.id('s1')),
 select is((select status || ': ' || handling_note from problem_reports where id = pg_temp.id('other')), 'HANDLED: Route changed',
   'The report is done');
 
--- End trip closes a report still waiting -------------------------------------------------------
+-- End trip with a report still waiting, on a stop reached (0085) --------------------------------
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 insert into ids select 'late', id from report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'OTHER', 'Running late');
 select lives_ok($$ select record_trip_attendance(pg_temp.id('s1'), 'END') $$, 'End trip works while on hold');
 reset role;
-select is((select status || ': ' || handling_note from problem_reports where id = pg_temp.id('late')), 'HANDLED: The trip ended',
-  'and closes the report still waiting');
+select is((select status || ' ' || decision || ' ' || missed::text from problem_reports where id = pg_temp.id('late')), 'OPEN SKIP true',
+  'and leaves the stop to plan again, not lost with the trip');
 select ok((select paused_at is null from schedules where id = pg_temp.id('s1')), 'The hold ends with the trip');
-select is(trip_times_missing(pg_temp.id('s1')), 1, 'Only Leaving the Market is missing, not City Hall''s times');
+select is(trip_times_missing(pg_temp.id('s1')), 0, 'A missed stop needs no Leaving, and City Hall''s times aren''t asked for');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 select throws_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'OTHER', 'Late') $$,
   '22023', 'This trip has ended', 'No reports after End trip');
@@ -198,6 +198,8 @@ select start_company_trip(pg_temp.id('trip'), 1000);
 select lives_ok($$ select report_stop(pg_temp.id('trip'), pg_temp.leg('trip', 1), 'WRONG_ADDRESS', 'Office moved') $$,
   'The Driver reports the first stop closed');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select throws_ok($$ select come_back_later((select id from problem_reports where schedule_id = pg_temp.id('trip')), pg_temp.leg('trip', 2)) $$,
+  '22023', 'A Company trip can''t come back to a stop yet. Choose another answer', 'Come back later is for Daily trips (0086)');
 select answer_stop_report((select id from problem_reports where schedule_id = pg_temp.id('trip')), 'SKIP');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select lives_ok($$ select end_company_trip(pg_temp.id('trip'), 1012) $$, 'and ends the trip at the last stop without tapping the first');
