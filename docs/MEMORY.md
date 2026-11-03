@@ -1137,3 +1137,9 @@ account the company owns from day one.
   local demo data. Those demo accounts aren't made by the repo's seed
   scripts; without the arguments it uses seed-uat.mjs's QA accounts. The
   shots show test data only.
+
+## Notes stay off the trip forms (2026-11-03)
+
+- **A request's notes (`requests.details`) never print on a trip form,
+  Daily or Company** (owner's call). The Company Trip Form used to print
+  them after the purpose. They can still show on screen.
