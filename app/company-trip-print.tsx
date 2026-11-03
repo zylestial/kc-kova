@@ -48,7 +48,7 @@ export default function CompanyTripPrint({
             const stop = stopOf(leg.stops[0]);
             const purpose = stop?.urgentReason ? `Urgent: ${stop.urgentReason.name}` : (stop?.destinations[0]?.purposeName ?? "");
             return {
-              purpose: [purpose, stop?.details].filter(Boolean).join(" – "),
+              purpose,
               origin: leg.origin,
               destination: leg.destinationName + (missedHere ? ` (${stopReportLabel(missedHere)})` : ""),
               timeOut: formTimeValue(out) ?? (missedBefore ? "—" : ""),
