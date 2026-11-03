@@ -7,7 +7,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(22);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -135,9 +135,14 @@ insert into ids select 's2leg', l.id from schedule_legs l join schedules s on s.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000f');
 select record_trip_attendance(pg_temp.id('s2'), 'START');
 select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'VEHICLE_PROBLEM', '', false, null, null, null, array[pg_temp.id('r4')]) $$,
-  '22023', 'Only Not available or Wrong address can be for some of the stops here', 'Only a missed kind can be for some stops');
+  '22023', 'Only Not available, Wrong address or Something else can be for some of the stops here', 'A vehicle problem is for the whole stop');
 select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'NOT_AVAILABLE', '', false, null, null, null, array[pg_temp.id('r1')]) $$,
   '22023', 'Choose stops at this place', 'Only requests at this stop');
+insert into ids select 'other_some', id from report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'OTHER', 'Wrong size', false, null, null, null, array[pg_temp.id('r4')]);
+select is((select request_ids = array[pg_temp.id('r4')] from problem_reports where id = pg_temp.id('other_some')), true, 'Something else can name one of the two');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select answer_stop_report(pg_temp.id('other_some'), 'WAIT');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000f');
 insert into ids select 'some', id from report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'NOT_AVAILABLE', '', false, null, null, null, array[pg_temp.id('r4')]);
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 select answer_stop_report(pg_temp.id('some'), 'SKIP');
@@ -146,6 +151,9 @@ select is((select missed::text || ' ' || (request_ids = array[pg_temp.id('r4')])
   'A report for one of the two: the stop is still reached');
 select is((select count(*)::int from notifications where type = 'STOP_MISSED' and related_request_id in (pg_temp.id('r4'), pg_temp.id('r5'))), 1,
   'Only that stop''s requester is told');
+select is((select message from notifications where type = 'STOP_ANSWERED' and account_id = '00000000-0000-0000-0000-00000000000f' and message like 'Not available%'),
+  'Not available at '||(select destination_name from schedule_legs where id = pg_temp.id('s2leg'))||': Skip only what you reported. Do the others at '||(select destination_name from schedule_legs where id = pg_temp.id('s2leg'))||', then go on',
+  'The Driver is told to do the others');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000f');
 select lives_ok($$ select record_stop_tap(pg_temp.id('s2'), pg_temp.id('s2leg'), 'ARRIVE') $$, 'The Driver still taps Arrived there');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
