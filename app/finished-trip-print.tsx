@@ -121,7 +121,7 @@ export default function FinishedTripPrint({
                 <td>{leg?.origin || (i === 0 ? BASE : "")}</td>
                 <td>{legTimes && (formTimeValue(legTimes.out) ?? (missedBefore ? "—" : null))}</td>
                 <td>
-                  {leg?.destinationName || (!leg && i === MAX_LEGS - 1 ? BASE : "")}
+                  {leg?.destinationName}
                   {missedHere && ` (${stopReportLabel(missedHere)})`}
                 </td>
                 <td>{legTimes && (formTimeValue(legTimes.in) ?? (missedHere ? "Missed" : null))}</td>
