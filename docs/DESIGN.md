@@ -235,8 +235,8 @@ A Company trip prints the **Company Trip Form** instead
 the "KOVA Company Trip Flow" prototype): company header, an info grid (date,
 vehicle, plate, Driver, requested by, Position, department / site, both
 odometers, total distance, number of legs), the route and recording rule,
-an eight-row trip record (requester, purpose and details, leg, origin, Time
-Out, destination, Time In, site officer / supplier / contact), the
+an eight-row trip record (requester, purpose, leg, origin, Time Out,
+destination, Time In, site officer / supplier / contact), the
 signatories (requested by, Immediate Supervisor, site officer / supplier,
 PM / CM / Dept. Head) with blank signature lines, and For Finance Use. It
 uses the same portal and `.print-form`, inside `.company-print`. It only

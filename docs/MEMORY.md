@@ -1183,3 +1183,10 @@ account the company owns from day one.
   it, it was done** clears it and tells them otherwise, and the Admin enters
   the Leaving time. Answered Wait there is not covered: the Driver has to
   report again.
+
+
+## Notes stay off the trip forms (2026-11-03)
+
+- **A request's notes (`requests.details`) never print on a trip form,
+  Daily or Company** (owner's call). The Company Trip Form used to print
+  them after the purpose. They can still show on screen.
