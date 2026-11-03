@@ -9,6 +9,7 @@ import { publishedRevision } from "@/lib/trip-record";
  */
 export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; hint: string }> = [
   { kind: "NOT_AVAILABLE", label: "Not available", hint: "Nobody or nothing there to pick up or drop off." },
+  { kind: "NOT_READY", label: "Not ready yet", hint: "Not paid or not ready. The Scheduler can send you back here later." },
   { kind: "WRONG_ADDRESS", label: "Wrong address or closed", hint: "Can't find it, can't get in, or it's closed." },
   { kind: "ROAD_BLOCKED", label: "Road blocked or bad weather", hint: "Flood, accident, road closed." },
   { kind: "VEHICLE_PROBLEM", label: "Vehicle problem", hint: "Breakdown, flat tire." },
@@ -33,8 +34,8 @@ export function answerLabel(answer: (typeof STOP_ANSWERS)[number], report: Pick<
   return report.requestIds.length === 1 ? "Skip this request" : "Skip these requests";
 }
 
-/** The kinds of report that can name some of the requests at a stop (0067, 0085). */
-export const canNameSome = (kind: StopReportKind) => kind === "NOT_AVAILABLE" || kind === "WRONG_ADDRESS" || kind === "OTHER";
+/** The kinds of report that can name some of the requests at a stop (0067, 0085, 0086). */
+export const canNameSome = (kind: StopReportKind) => kind === "NOT_AVAILABLE" || kind === "NOT_READY" || kind === "WRONG_ADDRESS" || kind === "OTHER";
 
 /** What a held trip says instead of its next button: waiting for an answer, or for the route change. */
 export function holdText(problems: ProblemReport[]): string {
@@ -77,6 +78,10 @@ export function answerText(report: Pick<ProblemReport, "decision" | "kind" | "re
       return "End the trip: tap End trip now and head back.";
     case "CHANGE":
       return "Your route is being changed. Wait until it shows here.";
+    case "LATER":
+      return report.requestIds?.length
+        ? `Do the others at ${place}, then go on. You'll come back later for the rest; it's on your route.`
+        : `Go on to the next stop. You'll come back to ${place} later; it's on your route.`;
     default:
       return "Wait for the Scheduler's answer.";
   }
@@ -105,7 +110,26 @@ export function stopChoices(leg: Pick<ScheduleLeg, "stops"> | undefined, request
 
 /** The Scheduler plans its requests again: the whole stop missed, or some of the requests there once answered Skip (0067, 0068). */
 export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds" | "decision">) =>
-  report.missed || (!!report.requestIds?.length && report.decision === "SKIP");
+  report.decision !== "LATER" && (report.missed || (!!report.requestIds?.length && report.decision === "SKIP"));
+
+/**
+ * The stops a report's requests can come back after (0086): those still ahead,
+ * next one first. None on a Company trip, for a vehicle problem, or where this
+ * is the last stop before the way back.
+ */
+export function comeBackChoices(
+  report: Pick<ProblemReport, "kind" | "legId" | "decision">,
+  schedule: Pick<Schedule, "kind">,
+  legs: Array<Pick<ScheduleLeg, "id" | "destinationName" | "isFinal">>,
+  reached: number,
+): Array<{ legId: string; place: string }> {
+  if (schedule.kind === "COMPANY" || report.kind === "VEHICLE_PROBLEM" || report.decision === "CHANGE" || legs.length >= 8) return [];
+  const from = legs.findIndex((leg) => leg.id === report.legId);
+  if (from < 0) return [];
+  return legs
+    .filter((leg, index) => !leg.isFinal && index > from && index + 1 >= reached)
+    .map((leg) => ({ legId: leg.id, place: leg.destinationName }));
+}
 
 /** Left open when the trip ended, so it counts as Skip though nobody answered it (0085): it may have needed no planning. */
 export const leftByTripEnd = (report: Pick<ProblemReport, "status" | "kind" | "decision" | "decidedByAccountId">) =>
@@ -125,6 +149,7 @@ export function stopReportStatus(report: Pick<ProblemReport, "status" | "decisio
 
 /** How a report reads on the trip, e.g. "Missed: Not available". */
 export function stopReportLabel(report: Pick<ProblemReport, "kind" | "missed" | "requestIds" | "decision">): string {
+  if (report.decision === "LATER") return "Coming back later";
   const label =
     report.kind === "NOT_REACHED" ? "Not reached" : (STOP_REPORT_CHOICES.find((choice) => choice.kind === report.kind)?.label ?? "Problem");
   return plansAgain(report) ? `Missed: ${label}` : label;

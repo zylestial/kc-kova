@@ -10,9 +10,9 @@ import { canNameSome, STOP_REPORT_CHOICES } from "@/lib/stop-reports";
  * Reporting a problem at one stop (0061), for the Driver's trip and a
  * Company trip's requester alike: what happened (big buttons, one tap on a
  * phone) and a note. The trip then waits for the Scheduler's answer (0068).
- * Where several requests share the stop, Not available, Wrong address and
- * Something else ask which of them (0067, 0085): some of them, and the stop
- * goes on as planned.
+ * Where several requests share the stop, Not available, Not ready, Wrong
+ * address and Something else ask which of them (0067, 0085, 0086): some of
+ * them, and the stop goes on as planned.
  */
 export default function StopReportForm({
   place,
@@ -69,7 +69,7 @@ export default function StopReportForm({
               {stop.label}
             </label>
           ))}
-          {some && <small>If the Scheduler says skip them, the others stay on the trip.</small>}
+          {some && <small>The others stay as planned, whatever the Scheduler answers about these.</small>}
         </div>
       )}
       {choice && (

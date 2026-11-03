@@ -4,6 +4,7 @@ import {
   answerLabel,
   answerText,
   canNameSome,
+  comeBackChoices,
   holdText,
   jobFlags,
   leftByTripEnd,
@@ -115,6 +116,33 @@ describe("answers to stop reports (0068)", () => {
     expect(waitsForAnswer({ ...base, status: "HANDLED", decision: "WAIT" })).toBe(false);
     expect(waitsForAnswer({ ...base, kind: "NOT_REACHED" })).toBe(false);
     expect(waitsForAnswer({ ...base, legId: undefined })).toBe(false);
+  });
+
+  it("never calls a stop to come back to missed (0086)", () => {
+    const later = report({ legId: "l1", kind: "NOT_READY", missed: true, decision: "LATER", status: "HANDLED" });
+    expect(stopReportLabel(later)).toBe("Coming back later");
+    expect(stopReportStatus(later)).toBe("");
+    expect(canNameSome("NOT_READY")).toBe(true);
+    expect(answerText(later, "Wilcon")).toBe("Go on to the next stop. You'll come back to Wilcon later; it's on your route.");
+    expect(answerText({ ...later, requestIds: ["q1"] }, "Wilcon")).toBe("Do the others at Wilcon, then go on. You'll come back later for the rest; it's on your route.");
+  });
+
+  it("offers the stops still ahead to come back after (0086)", () => {
+    const legs = [
+      { id: "l1", destinationName: "Wilcon", isFinal: false },
+      { id: "l2", destinationName: "Site A", isFinal: false },
+      { id: "l3", destinationName: "Site B", isFinal: false },
+      { id: "l4", destinationName: "ANONANG", isFinal: true },
+    ];
+    const waiting = report({ legId: "l1", kind: "NOT_READY" });
+    const daily = { kind: "DAILY" } as const;
+    expect(comeBackChoices(waiting, daily, legs, 1).map((item) => item.place)).toEqual(["Site A", "Site B"]);
+    expect(comeBackChoices(waiting, daily, legs, 3).map((item) => item.place)).toEqual(["Site B"]);
+    expect(comeBackChoices({ ...waiting, legId: "l3" }, daily, legs, 3)).toEqual([]);
+    expect(comeBackChoices({ ...waiting, kind: "VEHICLE_PROBLEM" }, daily, legs, 1)).toEqual([]);
+    expect(comeBackChoices({ ...waiting, decision: "CHANGE" }, daily, legs, 1)).toEqual([]);
+    expect(comeBackChoices(waiting, { kind: "COMPANY" }, legs, 1)).toEqual([]);
+    expect(comeBackChoices(waiting, daily, [...legs, ...legs.map((leg) => ({ ...leg, id: `${leg.id}x` }))], 1)).toEqual([]);
   });
 
   it("knows a report left open when the trip ended from one the Scheduler answered", () => {
