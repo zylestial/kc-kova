@@ -135,7 +135,7 @@ insert into ids select 's2leg', l.id from schedule_legs l join schedules s on s.
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000f');
 select record_trip_attendance(pg_temp.id('s2'), 'START');
 select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'VEHICLE_PROBLEM', '', false, null, null, null, array[pg_temp.id('r4')]) $$,
-  '22023', 'Only Not available, Wrong address or Something else can be for some of the stops here', 'A vehicle problem is for the whole stop');
+  '22023', 'Only Not available, Not ready, Wrong address or Something else can be for some of the stops here', 'A vehicle problem is for the whole stop');
 select throws_ok($$ select report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'NOT_AVAILABLE', '', false, null, null, null, array[pg_temp.id('r1')]) $$,
   '22023', 'Choose stops at this place', 'Only requests at this stop');
 insert into ids select 'other_some', id from report_stop(pg_temp.id('s2'), pg_temp.id('s2leg'), 'OTHER', 'Wrong size', false, null, null, null, array[pg_temp.id('r4')]);

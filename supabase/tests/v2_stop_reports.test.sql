@@ -5,7 +5,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -198,6 +198,8 @@ select start_company_trip(pg_temp.id('trip'), 1000);
 select lives_ok($$ select report_stop(pg_temp.id('trip'), pg_temp.leg('trip', 1), 'WRONG_ADDRESS', 'Office moved') $$,
   'The Driver reports the first stop closed');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select throws_ok($$ select come_back_later((select id from problem_reports where schedule_id = pg_temp.id('trip')), pg_temp.leg('trip', 2)) $$,
+  '22023', 'A Company trip can''t come back to a stop yet. Choose another answer', 'Come back later is for Daily trips (0086)');
 select answer_stop_report((select id from problem_reports where schedule_id = pg_temp.id('trip')), 'SKIP');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select lives_ok($$ select end_company_trip(pg_temp.id('trip'), 1012) $$, 'and ends the trip at the last stop without tapping the first');
