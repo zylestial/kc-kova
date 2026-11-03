@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   answerStopReport,
+  comeBackLater,
   createCompanyTrip,
   createSchedule,
   discardScheduleDraft,
@@ -29,7 +31,7 @@ import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
 import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
-import { answerLabel, leftByTripEnd, missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
+import { answerLabel, comeBackChoices, leftByTripEnd, missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
 import {
   carriedStops,
   dayCounts,
@@ -106,6 +108,8 @@ export default function Scheduling({
   const [sendingBack, setSendingBack] = useState<{ id: string; reason: string } | null>(null);
   // A missed stop being moved to another day, with the day picked.
   const [movingTo, setMovingTo] = useState<{ id: string; date: string } | null>(null);
+  // A report being answered Come back later, with the stop to come back after.
+  const [comingBack, setComingBack] = useState<{ id: string; afterLegId: string } | null>(null);
   useAutoClear(notice, setNotice);
   const strip = useRef<HTMLDivElement>(null);
   // On phones the strip scrolls; keep the chosen day in view.
@@ -301,6 +305,14 @@ export default function Scheduling({
           : "The Driver is told to end the trip.";
     });
   }
+  /** Sends the Driver on: its requests move to a new stop at the same place (0086), with no Admin. */
+  function sendForLater(item: OpenStopReport, afterLegId: string, afterPlace: string) {
+    void run(async () => {
+      await comeBackLater(item.report.id, afterLegId);
+      setComingBack(null);
+      return `The Driver goes on and comes back to ${item.place} after ${afterPlace}.`;
+    });
+  }
   function sendBack(item: OpenStopReport, reason: string) {
     void run(async () => {
       await releaseMissedStop(item.report.id, true, reason);
@@ -445,6 +457,21 @@ export default function Scheduling({
         const stops = item.stops.map((stop) => [stopNumber(stop) || stop.ownerName, whatText(stop), stop.details].filter(Boolean).join(" · ")).join("; ");
         const reason = sendingBack?.id === report.id ? sendingBack.reason : null;
         const moveDate = movingTo?.id === report.id ? movingTo.date : null;
+        const backAfter = comingBack?.id === report.id ? comingBack.afterLegId : null;
+        // Where it can come back to; the Driver's own "Not ready yet" puts this answer first.
+        const backChoices =
+          waiting && item.stops.length ? comeBackChoices(report, item.schedule, publishedRevision(item.schedule)?.legs ?? [], reached(item.schedule.id)) : [];
+        const backFirst = report.kind === "NOT_READY" && backChoices.length > 0;
+        const backButton = backChoices.length > 0 && (
+          <Button
+            className={backFirst ? "danger" : undefined}
+            variant={backFirst ? undefined : "outline"}
+            disabled={busy}
+            onClick={() => setComingBack({ id: report.id, afterLegId: backChoices[0].legId })}
+          >
+            Come back later
+          </Button>
+        );
         return (
           <div key={report.id} className={"sc-banner" + (changing ? " wait" : waiting || plansAgain(report) ? "" : " wait")}>
             <span>
@@ -490,18 +517,48 @@ export default function Scheduling({
                   Cancel
                 </Button>
               </span>
-            ) : waiting ? (
-              STOP_ANSWERS.filter((answer) => !(changing && answer.decision === "CHANGE")).map((answer, index) => (
+            ) : backAfter !== null ? (
+              <span className="sc-banner-form">
+                <span>Come back after</span>
+                <Select value={backAfter} disabled={busy} onValueChange={(afterLegId) => setComingBack({ id: report.id, afterLegId })}>
+                  <SelectTrigger aria-label="Come back after">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {backChoices.map((choice) => (
+                      <SelectItem key={choice.legId} value={choice.legId}>
+                        {choice.place}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
-                  key={answer.decision}
-                  className={index === 0 ? "danger" : undefined}
-                  variant={index === 0 ? undefined : "outline"}
-                  disabled={busy}
-                  onClick={() => answerReport(item, answer.decision)}
+                  className="danger"
+                  disabled={busy || !backChoices.some((choice) => choice.legId === backAfter)}
+                  onClick={() => sendForLater(item, backAfter, backChoices.find((choice) => choice.legId === backAfter)?.place ?? "that stop")}
                 >
-                  {answerLabel(answer, report)}
+                  Send
                 </Button>
-              ))
+                <Button variant="outline" disabled={busy} onClick={() => setComingBack(null)}>
+                  Cancel
+                </Button>
+              </span>
+            ) : waiting ? (
+              <>
+                {backFirst && backButton}
+                {STOP_ANSWERS.filter((answer) => !(changing && answer.decision === "CHANGE")).map((answer, index) => (
+                  <Button
+                    key={answer.decision}
+                    className={index === 0 && !backFirst ? "danger" : undefined}
+                    variant={index === 0 && !backFirst ? undefined : "outline"}
+                    disabled={busy}
+                    onClick={() => answerReport(item, answer.decision)}
+                  >
+                    {answerLabel(answer, report)}
+                  </Button>
+                ))}
+                {!backFirst && backButton}
+              </>
             ) : plansAgain(report) ? (
               <>
                 <Button className="danger" disabled={busy} onClick={() => planAgain(item)}>
