@@ -1175,6 +1175,10 @@ account the company owns from day one.
   times need no change. Its Leaving time isn't kept, and the next leg's Time Out
   is blank. New-leg times are a made-up 30 minutes. Company trips too since 0087:
   coming back after the last stop makes the new stop the trip's end.
+- **Leaving with a request not done** (owner's pick, 2026-11-03): a link on the
+  stop just left, "Forgot something here? Report it", until the next Arrived,
+  rather than asking at every Leaving. No extra tap, but it only helps a Driver
+  who notices. Answers still read as if at the stop: Wait there says "Stay at".
 - **A report isn't lost when the trip ends** (0085, owner's call 2026-11-03):
   tapping Arrived, reporting, then End trip closed the report, whether
   unanswered or answered End the trip. The stop counted as reached, so no Not

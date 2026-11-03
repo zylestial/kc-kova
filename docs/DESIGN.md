@@ -348,6 +348,10 @@ report unanswered; an older report needing no planning (amber) has
 **Got it**.
 Today's view also shows reports not handled on their own day, naming it.
 
+**Forgot something** (My Schedule and My Trips): right after Leaving, until the
+next Arrived, the stop just left offers "Forgot something here? Report it",
+since Leaving otherwise counts its requests as done. No extra tap at each stop.
+
 **Stop report** (`app/stop-report-form.tsx`, shared by My Schedule and My
 Trips): "What happened at …?", then one big button per kind (label and a
 one-line hint) so it's one tap on a phone; where several requests share the stop, Not
