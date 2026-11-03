@@ -440,7 +440,8 @@ export default function Scheduling({
         // Waiting for an answer (0068); "Change the route" waits on the Admin's approval and can still be answered otherwise.
         const waiting = waitsForAnswer(report);
         const changing = waiting && report.decision === "CHANGE";
-        const stops = item.stops.map((stop) => stopNumber(stop) || stop.ownerName).join(", ");
+        // Which requests, and what each one is, so it can be answered from here.
+        const stops = item.stops.map((stop) => [stopNumber(stop) || stop.ownerName, whatText(stop), stop.details].filter(Boolean).join(" · ")).join("; ");
         const reason = sendingBack?.id === report.id ? sendingBack.reason : null;
         const moveDate = movingTo?.id === report.id ? movingTo.date : null;
         return (
