@@ -373,13 +373,15 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
     Scheduler's change; until then another answer can still be given.
   A stop isn't missed until the answer is Skip. Nothing is missed or
   decided by the reporter alone.
-- **Some of the requests at a stop** (0067): where several requests share
-  a stop, Not available or Wrong address can name some of them
-  (`problem_reports.request_ids`). If the answer is Skip, the stop is
-  still reached (not missed; the Driver taps Arrived / Leaving as usual),
-  only those requesters are told, and the Scheduler plans just those
-  again. Naming all of them is the whole stop. Other kinds are always for
-  the whole stop.
+- **Some of the requests at a stop** (0067, 0085): where several requests
+  share a stop, Not available, Wrong address or Other can name some of them
+  (`problem_reports.request_ids`). The trip still holds until the answer;
+  the Driver is told they can do the others meanwhile. If the answer is
+  Skip, the stop is still reached (not missed; the Driver taps Arrived /
+  Leaving as usual and is told to do the others), only those requesters
+  are told, and the Scheduler plans just those again. Naming all of them is
+  the whole stop. Road blocked and Vehicle problem are always for the whole
+  stop.
 - **Stops not reached** (0066): End trip (in practice "End trip now")
   reports every non-final leg after the last one reached (tapped or
   reported missed) as missed, kind NOT_REACHED. A leg before one reached

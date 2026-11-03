@@ -1153,3 +1153,14 @@ account the company owns from day one.
   Trip Record on Finished Trips already shows requesters, Drivers included.
 - A number in a contact is a tap to call. The contact is one free-text
   "Name and number" field, so `contactPhone` looks for the digits.
+- **One request has a problem** (0085): Skip for some of the requests told
+  the Driver, on screen and in STOP_ANSWERED, to skip the whole place, though
+  the others still had to be done. Now it says to do the others. The hold
+  stays (owner's pick): a Driver never decides alone to drop a request, so
+  they can't tap Leaving until the answer, even with the other one done.
+- Something else can now name some of the requests. Road blocked and Vehicle
+  problem can't, since they stop everything there.
+- A request named on a report is flagged on the Driver's card: "Reported,
+  waiting for the Scheduler", then crossed out as "Skipped, don't do this
+  one" until Plan again takes it off the trip. The banner's Skip button
+  says "Skip this request" in that case, not "Skip it, go to next".
