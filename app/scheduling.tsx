@@ -12,6 +12,7 @@ import {
   handleProblem,
   hydrateKovaData,
   moveRequestDay,
+  markStopReportDone,
   releaseMissedStop,
   currentAccount,
   saveScheduleDraft,
@@ -28,7 +29,7 @@ import { undoEntry, undoStep, type UndoEntry } from "@/lib/scheduling-undo";
 import { currentRevision, openRevision, publishedRevision } from "@/lib/trip-record";
 import { addDays, manilaToday } from "@/lib/timezone";
 import { manilaHhmm } from "@/lib/stop-times";
-import { answerLabel, missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
+import { answerLabel, leftByTripEnd, missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
 import {
   carriedStops,
   dayCounts,
@@ -516,6 +517,15 @@ export default function Scheduling({
                 >
                   Send back to requester
                 </Button>
+                {leftByTripEnd(report) && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void run(async () => (await markStopReportDone(report.id), `${item.place} marked done; the requester is told.`))}
+                  >
+                    Got it, it was done
+                  </Button>
+                )}
               </>
             ) : (
               <Button

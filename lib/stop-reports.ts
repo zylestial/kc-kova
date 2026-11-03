@@ -107,6 +107,10 @@ export function stopChoices(leg: Pick<ScheduleLeg, "stops"> | undefined, request
 export const plansAgain = (report: Pick<ProblemReport, "missed" | "requestIds" | "decision">) =>
   report.missed || (!!report.requestIds?.length && report.decision === "SKIP");
 
+/** Left open when the trip ended, so it counts as Skip though nobody answered it (0085): it may have needed no planning. */
+export const leftByTripEnd = (report: Pick<ProblemReport, "status" | "kind" | "decision" | "decidedByAccountId">) =>
+  report.status === "OPEN" && report.kind !== "NOT_REACHED" && report.decision === "SKIP" && !report.decidedByAccountId;
+
 /**
  * Where an open stop report stands, for Finished Trips. It closes with its
  * answer on Scheduling, never with Mark handled (0083); "" once handled.

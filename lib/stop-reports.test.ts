@@ -6,6 +6,7 @@ import {
   canNameSome,
   holdText,
   jobFlags,
+  leftByTripEnd,
   missedLegs,
   openStopReports,
   STOP_ANSWERS,
@@ -114,6 +115,14 @@ describe("answers to stop reports (0068)", () => {
     expect(waitsForAnswer({ ...base, status: "HANDLED", decision: "WAIT" })).toBe(false);
     expect(waitsForAnswer({ ...base, kind: "NOT_REACHED" })).toBe(false);
     expect(waitsForAnswer({ ...base, legId: undefined })).toBe(false);
+  });
+
+  it("knows a report left open when the trip ended from one the Scheduler answered", () => {
+    const left = report({ legId: "l1", decision: "SKIP" });
+    expect(leftByTripEnd(left)).toBe(true);
+    expect(leftByTripEnd({ ...left, decidedByAccountId: "sched" })).toBe(false);
+    expect(leftByTripEnd({ ...left, kind: "NOT_REACHED" })).toBe(false);
+    expect(leftByTripEnd({ ...left, status: "HANDLED" })).toBe(false);
   });
 
   it("tells the Driver the answer", () => {
