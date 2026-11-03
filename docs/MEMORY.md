@@ -1164,3 +1164,12 @@ account the company owns from day one.
   waiting for the Scheduler", then crossed out as "Skipped, don't do this
   one" until Plan again takes it off the trip. The banner's Skip button
   says "Skip this request" in that case, not "Skip it, go to next".
+- **A report isn't lost when the trip ends** (0085, owner's call 2026-11-03):
+  tapping Arrived, reporting, then End trip closed the report, whether
+  unanswered or answered End the trip. The stop counted as reached, so no Not
+  reached either: the requests stayed on the ended trip looking served, and
+  could never move to the next day. Now it counts as Skip. The catch: every
+  kind counts, so a report that needed no replanning ("Running late", a
+  breakdown after the job was done) also tells the requester their stop was
+  missed, and the Scheduler has no button for "it was done". Answered Wait
+  there is not covered: the Driver has to report again.

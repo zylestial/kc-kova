@@ -359,8 +359,8 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   tied to a leg, so it shows wherever problems do.
 - **Every report holds the trip until it's answered** (0068, owner's call
   2026-10-16): no Arrived / Leaving (`schedules.paused_at`) while any
-  report on the trip waits; End trip still works, and closes the reports
-  still waiting. A Scheduler or Admin answers on Scheduling, and the
+  report on the trip waits; End trip still works (what happens to the
+  reports is under "When the trip ends" below). A Scheduler or Admin answers on Scheduling, and the
   reporter gets STOP_ANSWERED:
   - **Skip it, go to next**: the stop is **missed** (then planned again,
     moved or sent back, below), and its requesters get STOP_MISSED (not
@@ -382,6 +382,11 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   are told, and the Scheduler plans just those again. Naming all of them is
   the whole stop. Road blocked and Vehicle problem are always for the whole
   stop.
+- **When the trip ends** (0085): a report on a stop already reached, not
+  answered or answered End the trip, counts as Skip, so its requests can be
+  planned again, moved or sent back and their requesters are told. Nobody
+  chose it, so it has no `decided_by_account_id`. A report on a stop not
+  reached just closes, since Not reached (below) covers that stop.
 - **Stops not reached** (0066): End trip (in practice "End trip now")
   reports every non-final leg after the last one reached (tapped or
   reported missed) as missed, kind NOT_REACHED. A leg before one reached
