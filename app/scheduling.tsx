@@ -518,7 +518,7 @@ export default function Scheduling({
                 </Button>
               </span>
             ) : backAfter !== null ? (
-              <span className="sc-banner-form">
+              <span className="sc-banner-form pick">
                 <span>Come back after</span>
                 <Select value={backAfter} disabled={busy} onValueChange={(afterLegId) => setComingBack({ id: report.id, afterLegId })}>
                   <SelectTrigger aria-label="Come back after">
