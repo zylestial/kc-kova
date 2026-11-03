@@ -342,7 +342,8 @@ and the banner (amber) then says the Driver waits for the Admin's
 approval, still offering the other three. A missed stop (red) has **Plan
 again** and **Send back to requester** (a reason field, then Send back),
 and **Another day** (a date field, then Move, which opens that day with
-the stop's options); an older report needing no planning (amber) has
+the stop's options), plus **Got it, it was done** if the trip ended with the
+report unanswered; an older report needing no planning (amber) has
 **Got it**.
 Today's view also shows reports not handled on their own day, naming it.
 

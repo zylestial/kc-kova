@@ -385,8 +385,10 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
 - **When the trip ends** (0085): a report on a stop already reached, not
   answered or answered End the trip, counts as Skip, so its requests can be
   planned again, moved or sent back and their requesters are told. Nobody
-  chose it, so it has no `decided_by_account_id`. A report on a stop not
-  reached just closes, since Not reached (below) covers that stop.
+  chose it, so it has no `decided_by_account_id`, and the Scheduler can also
+  answer **Got it, it was done** (`mark_stop_report_done`): not missed, the
+  requests stay on the trip, and the requesters are told. A report on a stop
+  not reached just closes, since Not reached (below) covers that stop.
 - **Stops not reached** (0066): End trip (in practice "End trip now")
   reports every non-final leg after the last one reached (tapped or
   reported missed) as missed, kind NOT_REACHED. A leg before one reached
