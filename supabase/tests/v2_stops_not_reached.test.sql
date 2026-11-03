@@ -7,7 +7,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(51);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -272,6 +272,51 @@ select throws_ok($$ select mark_stop_report_done((select id from problem_reports
 select throws_ok($$ select mark_stop_report_done(pg_temp.id('some')) $$,
   '22023', 'Only a report left open when the trip ended can be marked done. Reload and try again', 'Nor one the Scheduler answered');
 reset role;
+
+-- Answered Wait there, then the trip ends (0087) ----------------------------------------------
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+insert into ids select 'r11', id from create_request(pg_temp.today(), 'URGENT', null, null, '[{"destinationId":"d1","purposeId":"p1"}]', null);
+insert into ids select 'r12', id from create_request(pg_temp.today(), 'URGENT', null, null, '[{"destinationId":"d2","purposeId":"p1"}]', null);
+reset role;
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-000000000013', 'driver6@test.local'),
+  ('00000000-0000-0000-0000-000000000014', 'driver7@test.local');
+insert into accounts (id, username, name, role) values
+  ('00000000-0000-0000-0000-000000000013', 'driver6', 'Dez Driver', 'Driver'),
+  ('00000000-0000-0000-0000-000000000014', 'driver7', 'Del Driver', 'Driver');
+insert into vehicles (plate, name, assigned_driver_id) values
+  ('V6', 'Van 6', '00000000-0000-0000-0000-000000000013'),
+  ('V7', 'Van 7', '00000000-0000-0000-0000-000000000014');
+
+-- Told to wait, still can't get it, and never leaves.
+insert into ids select 's6', pg_temp.one_stop_trip('V6', '00000000-0000-0000-0000-000000000013', array[pg_temp.id('r11')], 'd1');
+select record_stop_tap(pg_temp.id('s6'), pg_temp.first_leg(pg_temp.id('s6')), 'ARRIVE');
+insert into ids select 'waited', id from report_stop(pg_temp.id('s6'), pg_temp.first_leg(pg_temp.id('s6')), 'NOT_AVAILABLE', '');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select answer_stop_report(pg_temp.id('waited'), 'WAIT');
+select pg_temp.act_as('00000000-0000-0000-0000-000000000013');
+select record_trip_attendance(pg_temp.id('s6'), 'END');
+reset role;
+select is((select status || ' ' || decision || ' ' || missed::text || ' ' || (decided_by_account_id is null)::text from problem_reports where id = pg_temp.id('waited')),
+  'OPEN SKIP true true', 'Told to wait and never left: it can be planned again');
+select is((select count(*)::int from notifications where type = 'STOP_MISSED' and related_request_id = pg_temp.id('r11')), 1, 'and its requester is told');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select lives_ok($$ select mark_stop_report_done(pg_temp.id('waited')) $$, 'If it was done after all, the Scheduler can say so');
+reset role;
+
+-- Told to wait, gets it, and leaves.
+insert into ids select 's7', pg_temp.one_stop_trip('V7', '00000000-0000-0000-0000-000000000014', array[pg_temp.id('r12')], 'd2');
+select record_stop_tap(pg_temp.id('s7'), pg_temp.first_leg(pg_temp.id('s7')), 'ARRIVE');
+insert into ids select 'waited_done', id from report_stop(pg_temp.id('s7'), pg_temp.first_leg(pg_temp.id('s7')), 'NOT_AVAILABLE', '');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select answer_stop_report(pg_temp.id('waited_done'), 'WAIT');
+select pg_temp.act_as('00000000-0000-0000-0000-000000000014');
+select record_stop_tap(pg_temp.id('s7'), pg_temp.first_leg(pg_temp.id('s7')), 'LEAVE');
+select record_trip_attendance(pg_temp.id('s7'), 'END');
+reset role;
+select is((select status || ' ' || decision || ' ' || missed::text from problem_reports where id = pg_temp.id('waited_done')),
+  'HANDLED WAIT false', 'Told to wait and then left: it was done');
+select is((select count(*)::int from notifications where type = 'STOP_MISSED' and related_request_id = pg_temp.id('r12')), 0, 'and nobody is told it was missed');
 
 select * from finish();
 rollback;

@@ -5,7 +5,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(39);
+select plan(44);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -166,8 +166,8 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
 insert into ids select 'late', id from report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), 'OTHER', 'Running late');
 select lives_ok($$ select record_trip_attendance(pg_temp.id('s1'), 'END') $$, 'End trip works while on hold');
 reset role;
-select is((select status || ' ' || decision || ' ' || missed::text from problem_reports where id = pg_temp.id('late')), 'OPEN SKIP true',
-  'and leaves the stop to plan again, not lost with the trip');
+select is((select status || ' ' || decision || ' ' || missed::text from problem_reports where id = pg_temp.id('rb')), 'OPEN SKIP true',
+  'The stop was left waiting, so it is planned again, not lost with the trip (0087)');
 select ok((select paused_at is null from schedules where id = pg_temp.id('s1')), 'The hold ends with the trip');
 select is(trip_times_missing(pg_temp.id('s1')), 0, 'A missed stop needs no Leaving, and City Hall''s times aren''t asked for');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000e');
@@ -198,12 +198,47 @@ select start_company_trip(pg_temp.id('trip'), 1000);
 select lives_ok($$ select report_stop(pg_temp.id('trip'), pg_temp.leg('trip', 1), 'WRONG_ADDRESS', 'Office moved') $$,
   'The Driver reports the first stop closed');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$ select come_back_later((select id from problem_reports where schedule_id = pg_temp.id('trip')), pg_temp.leg('trip', 2)) $$,
-  '22023', 'A Company trip can''t come back to a stop yet. Choose another answer', 'Come back later is for Daily trips (0086)');
 select answer_stop_report((select id from problem_reports where schedule_id = pg_temp.id('trip')), 'SKIP');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select lives_ok($$ select end_company_trip(pg_temp.id('trip'), 1012) $$, 'and ends the trip at the last stop without tapping the first');
 select is((select count(*)::int from problem_reports where schedule_id = pg_temp.id('trip')), 1, 'The requester sees their report');
+
+-- A Company trip comes back to a stop (0087) ------------------------------------------------
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+insert into ids select 'g2', (create_request_group('COMPANY', jsonb_build_object(
+  'date', pg_temp.today(), 'startingPointId', 'tsp', 'vehiclePlate', 'TM',
+  'driverId', '00000000-0000-0000-0000-0000000001a5', 'supervisorId', 'tsup', 'headId', 'th',
+  'stops', jsonb_build_array(
+    jsonb_build_object('projectId', 'tp', 'destinationId', 'd1', 'purposeId', 'p1'),
+    jsonb_build_object('projectId', 'tp', 'destinationId', 'd2', 'purposeId', 'p1'))))).id;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+insert into ids select 'trip2', (create_company_trip(pg_temp.today(), 'TM',
+  array(select id from requests where group_id = pg_temp.id('g2') order by stop_letter),
+  (select jsonb_agg(jsonb_build_object('destinationId', rd.destination_id, 'plannedTimeOut', t.out, 'plannedTimeIn', t.inn,
+     'stops', jsonb_build_array(rd.id)) order by r.stop_letter)
+   from requests r join request_destinations rd on rd.request_id = r.id and rd.active
+   join (values ('A', '16:00', '16:30'), ('B', '17:00', '17:30')) as t (letter, out, inn) on t.letter = r.stop_letter
+   where r.group_id = pg_temp.id('g2')))).schedule_id;
+select submit_schedule(pg_temp.id('trip2'), pg_temp.rv(pg_temp.id('trip2')));
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select approve_schedule(pg_temp.id('trip2'), pg_temp.rv(pg_temp.id('trip2')));
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
+select start_company_trip(pg_temp.id('trip2'), 2000);
+insert into ids select 'co_later', id from report_stop(pg_temp.id('trip2'), pg_temp.leg('trip2', 1), 'NOT_READY', 'Not paid yet');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
+select lives_ok($$ select come_back_later(pg_temp.id('co_later'), pg_temp.leg('trip2', 2)) $$, 'A Company trip can come back to a stop');
+reset role;
+select is((select array_agg(l.destination_id order by l.leg_no) from schedule_legs l join schedules s on s.published_revision_id = l.revision_id where s.id = pg_temp.id('trip2')),
+  array['d1', 'd2', 'd1'], 'The stop goes last, so the trip now ends there');
+select is((select array_agg(l.origin = lag_origin order by l.leg_no) from schedule_legs l
+  join schedules s on s.published_revision_id = l.revision_id
+  join lateral (select coalesce(lag(x.destination_name) over (order by x.leg_no), l.origin) as lag_origin, x.id from schedule_legs x where x.revision_id = l.revision_id) prev on prev.id = l.id
+  where s.id = pg_temp.id('trip2')), array[true, true, true], 'Each leg starts where the last one ended');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
+select lives_ok($$ select record_company_stop(pg_temp.id('trip2'), pg_temp.leg('trip2', 2), 'ARRIVE') $$, 'The next stop can be tapped, past the first visit');
+select lives_ok($$ select record_company_stop(pg_temp.id('trip2'), pg_temp.leg('trip2', 2), 'LEAVE') $$, 'and left');
+select lives_ok($$ select end_company_trip(pg_temp.id('trip2'), 2012) $$, 'The trip ends on arriving back at the stop');
+reset role;
 
 select * from finish();
 rollback;
