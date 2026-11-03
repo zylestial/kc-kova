@@ -540,6 +540,7 @@ built against, written before implementation, is kept for history in
 | POST | `/api/problems/:problemId/handle` | `app/api/problems/[problemId]/handle/route.ts` | Admin (note required); Scheduler for a stop report |
 | POST | `/api/problems/:problemId/answer` | `app/api/problems/[problemId]/answer/route.ts` | Scheduler, Admin; a stop report the trip is held for, `{ decision: "SKIP" | "WAIT" | "END" | "CHANGE" }` |
 | POST | `/api/problems/:problemId/missed` | `app/api/problems/[problemId]/missed/route.ts` | Scheduler, Admin; a missed stop, `{ sendBack, reason }` |
+| POST | `/api/problems/:problemId/later` | `app/api/problems/[problemId]/later/route.ts` | Scheduler, Admin; a waiting stop report on a Daily trip, `{ afterLegId }` (`come_back_later`, 0086) |
 | POST | `/api/problems/:problemId/done` | `app/api/problems/[problemId]/done/route.ts` | Scheduler, Admin; a report left open when the trip ended that needed no planning (`mark_stop_report_done`, 0085) |
 | PUT | `/api/booking-options/:group/:id` | `app/api/booking-options/[group]/[id]/route.ts` | Admin |
 | GET | `/api/notifications` | `app/api/notifications/route.ts` | any session (own rows only, RLS) |

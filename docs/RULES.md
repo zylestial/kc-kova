@@ -374,7 +374,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   A stop isn't missed until the answer is Skip. Nothing is missed or
   decided by the reporter alone.
 - **Some of the requests at a stop** (0067, 0085): where several requests
-  share a stop, Not available, Wrong address or Other can name some of them
+  share a stop, Not available, Not ready, Wrong address or Other can name some of them
   (`problem_reports.request_ids`). The trip still holds until the answer;
   the Driver is told they can do the others meanwhile. If the answer is
   Skip, the stop is still reached (not missed; the Driver taps Arrived /
@@ -382,6 +382,15 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   are told, and the Scheduler plans just those again. Naming all of them is
   the whole stop. Road blocked and Vehicle problem are always for the whole
   stop.
+- **Come back later** (0086, Daily trips only): a Scheduler or Admin can
+  answer any waiting report except a Vehicle problem by picking a stop still
+  ahead. The requests (just those the report names, if any) move to a new stop
+  at the same place, right after it. The hold ends and nobody is told "missed".
+  It needs no Admin, an exception to "a change on the road needs the Admin",
+  since it's the same trip and places. It's refused with route changes
+  waiting, or at 8 legs. If all the requests there moved, the first visit stays
+  with no stops and needs no Leaving. Not reaching the new stop is Not reached
+  (below), so it can still go on another day.
 - **When the trip ends** (0085): a report on a stop already reached, not
   answered or answered End the trip, counts as Skip, so its requests can be
   planned again, moved or sent back and their requesters are told. Nobody

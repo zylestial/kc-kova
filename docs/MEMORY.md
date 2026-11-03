@@ -1164,6 +1164,15 @@ account the company owns from day one.
   waiting for the Scheduler", then crossed out as "Skipped, don't do this
   one" until Plan again takes it off the trip. The banner's Skip button
   says "Skip this request" in that case, not "Skip it, go to next".
+- **Come back later** (0086, owner's call 2026-11-03): Wilcon's order is placed
+  but not paid, so the Driver should do the next stop and return, not wait.
+  Skip, Plan again, a route change and the Admin was too many steps and said
+  "missed". The owner picked: the Scheduler decides with one tap, and no Admin.
+  A request's stop can only be on one leg per version, so the request moves to
+  a new leg and the first visit stays. An emptied first visit is `missed` (with
+  decision LATER, shown as "Coming back later"), so the trip editor, forms and
+  times need no change. Its Leaving time isn't kept, and the next leg's Time Out
+  is blank. New-leg times are a made-up 30 minutes. Company trips aren't covered.
 - **A report isn't lost when the trip ends** (0085, owner's call 2026-11-03):
   tapping Arrived, reporting, then End trip closed the report, whether
   unanswered or answered End the trip. The stop counted as reached, so no Not
