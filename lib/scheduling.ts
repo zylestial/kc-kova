@@ -74,6 +74,25 @@ export const carriedStops = (requests: TransportRequest[], day: string, today: s
     )
     .sort((a, b) => a.date.localeCompare(b.date) || byRank(a, b));
 
+/**
+ * A past day's stops still waiting. An "any day that week" stop isn't left
+ * while its week is still on.
+ */
+export const leftOn = (requests: TransportRequest[], day: string, today: string, kind?: TripKind) =>
+  requests
+    .filter(
+      (request) =>
+        waiting(request) &&
+        ofKind(request, kind) &&
+        request.date === day &&
+        !(request.flexibility === "WEEK" && mondayOf(request.date) === mondayOf(today)),
+    )
+    .sort(byRank);
+
+/** The carried stops whose day has passed, for "3 left from past days". */
+export const leftFromPast = (requests: TransportRequest[], day: string, today: string, kind?: TripKind) =>
+  carriedStops(requests, day, today, kind).filter((request) => request.date < today);
+
 /** What the day strip shows under each day. */
 export function dayCounts(requests: TransportRequest[], day: string, kind?: TripKind) {
   const stops = toPlan(requests, day, kind);
