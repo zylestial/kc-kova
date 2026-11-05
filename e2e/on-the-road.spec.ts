@@ -92,8 +92,12 @@ test("several people on a trip that's on the road", async ({ browser }) => {
       await openTrip(driver, trip.id);
       await tapNext(driver, /^Start trip$/);
       await tapNext(driver, /^Arrived at Site Alpha$/);
-      await driver.getByRole("button", { name: "Done", exact: true }).first().click();
-      await expect(driver.getByRole("button", { name: "Done", exact: true })).toHaveCount(0, saved);
+      // Each request at the stop, one at a time (0088).
+      const done = driver.getByRole("button", { name: "Done", exact: true });
+      for (let left = await done.count(); left > 0; left--) {
+        await done.first().click();
+        await expect(done).toHaveCount(left - 1, saved);
+      }
       await tapNext(driver, /^Leaving Site Alpha$/);
     })(),
     scheduler.goto(`/scheduling?date=${today}&type=DAILY`),

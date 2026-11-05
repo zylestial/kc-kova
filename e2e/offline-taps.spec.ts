@@ -51,13 +51,19 @@ test("taps made offline send later with the time they were tapped", async ({ bro
   await expect(button).toHaveText(/^Arrived at Site Alpha$/, saved);
   await button.click();
   await expect(button).toHaveText(/^Leaving Site Alpha$/, saved);
-  // Leaving waits for the task at the stop, which saves the same way (0088).
+  // Leaving waits for each task at the stop, which saves the same way (0088).
   await expect(button).toBeDisabled();
-  await steps.getByRole("button", { name: "Done", exact: true }).click();
+  const done = steps.getByRole("button", { name: "Done", exact: true });
+  const tasks = await done.count();
+  expect(tasks).toBeGreaterThan(0);
+  for (let left = tasks; left > 0; left--) {
+    await done.first().click();
+    await expect(done).toHaveCount(left - 1, saved);
+  }
   await expect(button).toBeEnabled(saved);
   const tappedUntil = Date.now();
-  await expect(steps.getByText("waiting for signal")).toHaveCount(3);
-  await expect(driver.getByRole("dialog").locator(".notice.info", { hasText: "3 taps are saved on this phone" })).toBeVisible();
+  await expect(steps.getByText("waiting for signal")).toHaveCount(2 + tasks);
+  await expect(driver.getByRole("dialog").locator(".notice.info", { hasText: `${2 + tasks} taps are saved on this phone` })).toBeVisible();
 
   // Still offline a while later, so a late send would show in the times.
   await driver.waitForTimeout(5_000);
