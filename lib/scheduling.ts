@@ -74,29 +74,15 @@ export const carriedStops = (requests: TransportRequest[], day: string, today: s
     )
     .sort((a, b) => a.date.localeCompare(b.date) || byRank(a, b));
 
-/**
- * A past day's stops still waiting. An "any day that week" stop isn't left
- * while its week is still on.
- */
-export const leftOn = (requests: TransportRequest[], day: string, today: string, kind?: TripKind) =>
-  requests
-    .filter(
-      (request) =>
-        waiting(request) &&
-        ofKind(request, kind) &&
-        request.date === day &&
-        !(request.flexibility === "WEEK" && mondayOf(request.date) === mondayOf(today)),
-    )
-    .sort(byRank);
-
-/** The carried stops whose day has passed, for "3 left from past days". */
+/** The carried stops whose day has passed: today's pool lists them first, tagged with their day. */
 export const leftFromPast = (requests: TransportRequest[], day: string, today: string, kind?: TripKind) =>
   carriedStops(requests, day, today, kind).filter((request) => request.date < today);
 
-/** What the day strip shows under each day. */
-export function dayCounts(requests: TransportRequest[], day: string, kind?: TripKind) {
+/** What the day strip shows under each day. With `today`, today's own count includes what was left from past days. */
+export function dayCounts(requests: TransportRequest[], day: string, kind?: TripKind, today?: string) {
   const stops = toPlan(requests, day, kind);
-  return { toPlan: stops.length, urgent: stops.filter((stop) => stop.requestType === "URGENT").length };
+  const left = day === today ? leftFromPast(requests, day, day, kind).length : 0;
+  return { toPlan: stops.length + left, left, urgent: stops.filter((stop) => stop.requestType === "URGENT").length };
 }
 
 /**
