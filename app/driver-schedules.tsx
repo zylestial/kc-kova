@@ -24,6 +24,7 @@ import {
 import {
   recordAttendance,
   recordStopTap,
+  recordStopTask,
   reportProblem,
   reportStop,
   submitCompletion,
@@ -34,6 +35,8 @@ import {
   type ScheduleRevision,
   type CompanyTripRun,
   type StopTap,
+  type StopTask,
+  type StopTaskInput,
   type TripAttendance,
   type TripCompletion,
 } from "@/lib/kova-api";
@@ -47,7 +50,7 @@ import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/l
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import SavedTapsBanner from "./saved-taps-banner";
 import StopReportForm from "./stop-report-form";
-import { answerText, holdText, jobFlags, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import { answerText, holdText, jobFlags, latestAnswer, missedLegs, ROAD_REPORT_KINDS, stopChoices, stopReportLabel, TASK_REPORT_KINDS } from "@/lib/stop-reports";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -60,6 +63,8 @@ type Trip = {
   attendance?: TripAttendance;
   /** Arrived/Leaving taps at the stops in between. */
   stopTaps: StopTap[];
+  /** Each request marked Done at its stop (0088). */
+  stopTasks: StopTask[];
   /** A Company trip's Start/End trip, tapped by its requester (0055). */
   run?: CompanyTripRun;
   problems: ProblemReport[];
@@ -72,6 +77,7 @@ function buildTrips(
   completions: TripCompletion[],
   attendance: TripAttendance[],
   stopTaps: StopTap[],
+  stopTasks: StopTask[],
   problems: ProblemReport[],
   driverId: string | null,
   companyRuns: CompanyTripRun[],
@@ -94,6 +100,7 @@ function buildTrips(
           completion,
           attendance: attendance.find((item) => item.scheduleId === schedule.id),
           stopTaps: stopTaps.filter((item) => item.scheduleId === schedule.id),
+          stopTasks: stopTasks.filter((item) => item.scheduleId === schedule.id),
           run: companyRuns.find((item) => item.scheduleId === schedule.id),
           problems: problems.filter((item) => item.scheduleId === schedule.id),
           startable: schedule.date <= today,
@@ -137,10 +144,10 @@ type TripSortKey = "date" | "driver" | "vehicle" | "route" | "status";
  * problem. The database enforces who and when; this only shapes the screen.
  */
 export default function DriverSchedules({ driverId, initialOpenId }: { driverId: string | null; initialOpenId?: string }) {
-  const { schedules, completions, attendance, stopTaps, problems, requests, vehicles, companyRuns } = useKovaData();
+  const { schedules, completions, attendance, stopTaps, stopTasks, problems, requests, vehicles, companyRuns } = useKovaData();
   const trips = useMemo(
-    () => buildTrips(schedules, completions, attendance, stopTaps, problems, driverId, companyRuns),
-    [schedules, completions, attendance, stopTaps, problems, driverId, companyRuns],
+    () => buildTrips(schedules, completions, attendance, stopTaps, stopTasks, problems, driverId, companyRuns),
+    [schedules, completions, attendance, stopTaps, stopTasks, problems, driverId, companyRuns],
   );
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
   const [selectedId, setSelectedId] = useState<string | null>(() => initialOpenId ?? null);
@@ -152,7 +159,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [sort, setSort] = useState<Sort<TripSortKey>>(null);
   const [mode, setMode] = useState<"view" | "complete" | "problem" | "stop">("view");
   /** The stop being reported (0061). */
-  const [reportAt, setReportAt] = useState<{ legId: string; place: string } | null>(null);
+  const [reportAt, setReportAt] = useState<{ legId: string; place: string; requestId?: string; roadOnly?: boolean } | null>(null);
   const [completeStep, setCompleteStep] = useState<"odometer" | "final">("odometer");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -262,6 +269,22 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
         await recordStopTap(selected.schedule.id, { legId: source.legId, kind: source.kind, location }, tappedAt);
       }
       setLocationOff(!location);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusyStop(null);
+    setBusy(false);
+  }
+
+  // Done, or its Undo, for one request at a stop (0088); saved on the phone with no signal, like a tap.
+  async function tapTask(legId: string, requestId: string, kind: StopTaskInput["kind"]) {
+    if (!selected) return;
+    const tappedAt = new Date().toISOString();
+    setBusy(true);
+    setBusyStop(`task:${requestId}`);
+    setError("");
+    try {
+      await recordStopTask(selected.schedule.id, { legId, requestId, kind }, tappedAt);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
     }
@@ -552,12 +575,21 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                 onTap={tapStep}
                 busyKey={busyStop}
                 missed={new Map([...missedLegs(selected.problems)].map(([legId, report]) => [legId, stopReportLabel(report)]))}
-                onReport={(legId, place) => {
-                  setReportAt({ legId, place });
+                onReport={(legId, place, roadOnly) => {
+                  setReportAt({ legId, place, roadOnly });
                   setMode("stop");
                   setError("");
                 }}
-                held={selected.schedule.pausedAt ? holdText(selected.problems, selected.revision.legs, selected.stopTaps) : undefined}
+                held={selected.schedule.pausedAt ? (othersLeft) => holdText(selected.problems, othersLeft) : undefined}
+                taps={selected.stopTaps}
+                tasks={selected.stopTasks}
+                problems={selected.problems}
+                onTask={tapTask}
+                onNotDone={(legId, place, requestId) => {
+                  setReportAt({ legId, place, requestId });
+                  setMode("stop");
+                  setError("");
+                }}
                 flags={jobFlags(selected.problems)}
                 notYet={selected.startable ? undefined : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
               />
@@ -668,6 +700,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <StopReportForm
               place={reportAt.place}
               stops={stopChoices(selected.revision.legs.find((leg) => leg.id === reportAt.legId), requests)}
+              only={stopChoices(selected.revision.legs.find((leg) => leg.id === reportAt.legId), requests).find((stop) => stop.requestId === reportAt.requestId)}
+              kinds={reportAt.requestId ? TASK_REPORT_KINDS : reportAt.roadOnly ? ROAD_REPORT_KINDS : undefined}
               busy={busy}
               onCancel={() => {
                 setMode("view");

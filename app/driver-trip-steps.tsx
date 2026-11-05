@@ -2,12 +2,14 @@
 import { useState } from "react";
 import { Check, Circle, Minus, Phone, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ScheduleLeg } from "@/lib/kova-api";
+import type { ProblemReport, ScheduleLeg, StopTap, StopTask, StopTaskInput } from "@/lib/kova-api";
 import { BASE, legStops, type StopInfo } from "@/lib/trip-record";
 import { tapTimeLabel } from "@/lib/attendance";
 import { hhmmLabel, stopKey, type TimeSource, type TripStep } from "@/lib/stop-times";
 import type { JobFlag } from "@/lib/stop-reports";
+import { asksTasks, tasksOpen, wholeStopWaiting } from "@/lib/stop-tasks";
 import StopJobs from "./stop-jobs";
+import StopTaskActions from "./stop-task-actions";
 
 /** Which tap a step is, so the screen can say which one is saving. */
 export const stepKey = (source: TimeSource) => ("legId" in source ? stopKey(source) : source.kind);
@@ -97,11 +99,17 @@ type Props = {
   notYet?: string;
   /** Stops reported missed (0061), by leg, with what happened. */
   missed?: Map<string, string>;
-  /** Opens the report sheet for a stop. */
-  onReport?: (legId: string, place: string) => void;
-  /** Paused for a vehicle problem: no taps until Resume trip. */
-  /** The trip is held for the Scheduler's answer (0068): this says so instead of the next button. */
-  held?: string;
+  /** Opens the report sheet for a stop; `roadOnly` once its tasks are answered one by one. */
+  onReport?: (legId: string, place: string, roadOnly?: boolean) => void;
+  /** The trip is held for the Scheduler's answer (0068): this says so instead of the next button; it's told if any task here is still to do. */
+  held?: (othersLeft: boolean) => string;
+  taps: StopTap[];
+  tasks: StopTask[];
+  problems: ProblemReport[];
+  /** Done, or Undo, for one request at a stop (0088). */
+  onTask: (legId: string, requestId: string, kind: StopTaskInput["kind"]) => void;
+  /** Opens the report sheet naming this one request. */
+  onNotDone: (legId: string, place: string, requestId: string) => void;
   /** Requests a report names (lib/stop-reports), by request id. */
   flags?: Map<string, JobFlag>;
 };
@@ -112,12 +120,13 @@ type Props = {
  * Left inside. Done taps are ticked with their time; the next one is the
  * only big button. No distances or flags (the Admin sees those); the
  * position is still recorded. "End trip now" covers a trip cut short, with
- * a second tap to confirm. "Problem here?" under the current stop reports
- * it (0061), and the trip waits for the Scheduler's answer (0068). "Forgot
- * something here?" does the same for the stop just left, until the next
- * Arrived: Leaving otherwise counts its requests as done.
+ * a second tap to confirm. After Arrived, each request is Done or Not yet done,
+ * which reports it (0088), and Leaving stays locked until each has an answer.
+ * The link under the current stop reports what isn't about one request (0061).
+ * Any report makes the trip wait for the Scheduler's answer (0068). A stop
+ * Arrived at before tasks existed goes on as it used to.
  */
-export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, flags }: Props) {
+export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, flags, taps, tasks, problems, onTask, onNotDone }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const busy = busyKey !== null;
   const end = steps[steps.length - 1];
@@ -125,7 +134,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
   const started = !!steps[0]?.time.tap;
   const cards = cardsFor(steps, legs, stopsById);
 
-  function row({ step, planned }: Card["rows"][number]) {
+  function row({ step, planned }: Card["rows"][number], open: number) {
     const text = labels(step.time.source);
     const key = stepKey(step.time.source);
     if (step.state === "missed") {
@@ -143,13 +152,16 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
       if (held)
         return (
           <p className="notice error trip-held" role="status">
-            {held}
+            {held(open > 0)}
           </p>
         );
       return (
-        <Button className="primary trip-step-button" disabled={busy} onClick={() => onTap(step.time.source)}>
-          {busyKey === key ? "Saving… stay where you are" : text.button}
-        </Button>
+        <>
+          <Button className="primary trip-step-button" disabled={busy || open > 0} onClick={() => onTap(step.time.source)}>
+            {busyKey === key ? "Saving… stay where you are" : text.button}
+          </Button>
+          {open > 0 && <p className="trip-step-note">Mark {open === 1 ? "the task" : "each task"} above first: {open} left.</p>}
+        </>
       );
     }
     return (
@@ -166,17 +178,39 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
 
   return (
     <div className="trip-steps">
-      {cards.map((card, index) => {
+      {cards.map((card) => {
         const current = card.rows.some((item) => item.step.state === "next");
         const finished = card.rows.every((item) => ["done", "skipped", "missed"].includes(item.step.state));
-        // Just left this stop, and not at the next one yet: a request forgotten here can still be reported.
-        const justLeft = card.rows[1]?.step.state === "done" && cards[index + 1]?.rows[0]?.step.state === "next";
+        const legId = card.legId;
+        // At this stop, between Arrived and Leaving, answering for each request (0088).
+        const live = !!legId && card.rows[1]?.step.state === "next" && asksTasks(taps, legId);
+        const open = live ? tasksOpen(card.served, legId!, tasks, flags ?? new Map()) : 0;
+        const arrived = card.rows[0]?.step.state === "done";
         return (
           <section key={card.title} className={`trip-card${current ? " current" : ""}${finished ? " finished" : ""}`}>
             <header>
               <small>{card.title}</small>
               <h3>{card.place}</h3>
-              <StopJobs stops={card.served} flags={flags} />
+              <StopJobs
+                stops={card.served}
+                flags={flags}
+                actions={
+                  legId
+                    ? (stop) => (
+                        <StopTaskActions
+                          legId={legId}
+                          requestId={stop.requestId}
+                          tasks={tasks}
+                          flag={flags?.get(stop.requestId)}
+                          live={live && !wholeStopWaiting(problems, legId)}
+                          busy={busy}
+                          onTask={onTask}
+                          onNotDone={(leg, requestId) => onNotDone(leg, card.place, requestId)}
+                        />
+                      )
+                    : undefined
+                }
+              />
               {(card.contactName || card.contactNumber) && (
                 <p>
                   {card.contactName}
@@ -189,16 +223,11 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
               )}
             </header>
             {card.rows.map((item) => (
-              <div key={stepKey(item.step.time.source)}>{row(item)}</div>
+              <div key={stepKey(item.step.time.source)}>{row(item, open)}</div>
             ))}
-            {current && started && !held && card.legId && onReport && (
-              <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(card.legId!, card.place)}>
-                Problem here? Report it
-              </button>
-            )}
-            {justLeft && !held && card.legId && onReport && (
-              <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(card.legId!, card.place)}>
-                Forgot something here? Report it
+            {current && started && !held && legId && onReport && (!live || open > 0 || !card.served.length) && (
+              <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(legId, card.place, live)}>
+                {live ? "Vehicle or road problem? Report it" : arrived ? "Problem here? Report it" : "Can't get here? Report it"}
               </button>
             )}
           </section>
@@ -208,7 +237,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
         <div className="trip-steps-end">
           {confirmEnd ? (
             <>
-              <p>End the trip now? The stops left are marked not reached, and the Scheduler plans them again.</p>
+              <p>End the trip now? The stops left are marked not reached, and they go back to the Scheduler to plan again, with any task here not marked Done.</p>
               <Button variant="outline" disabled={busy} onClick={() => setConfirmEnd(false)}>
                 No
               </Button>
