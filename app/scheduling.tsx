@@ -34,6 +34,8 @@ import { manilaHhmm } from "@/lib/stop-times";
 import { answerLabel, comeBackChoices, leftByTripEnd, missedLegs, openStopReports, plansAgain, STOP_ANSWERS, stopReportLabel, waitsForAnswer, type OpenStopReport } from "@/lib/stop-reports";
 import {
   carriedStops,
+  leftFromPast,
+  leftOn,
   dayCounts,
   isWaiting,
   placeGroups,
@@ -56,8 +58,9 @@ import TripEditor from "./scheduler/trip-editor";
 
 const shortDay = (day: string) => dateLabel(day, { weekday: "short", month: "short", day: "numeric" });
 
-/** Days in the date strip, from its first day. */
-const STRIP_DAYS = 14;
+/** Days in the date strip, from its first day: the past week, then two weeks from today. */
+const PAST_DAYS = 7;
+const STRIP_DAYS = PAST_DAYS + 14;
 
 const KINDS: Record<TripKind, string> = { DAILY: "Daily trips", COMPANY: "Company trips" };
 
@@ -84,8 +87,8 @@ export default function Scheduling({
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
   const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
-  // The strip's first day: today, or the chosen day when it's further out.
-  const [anchor, setAnchor] = useState(() => (day >= addDays(today, STRIP_DAYS) ? day : today));
+  // The strip's first day: a week ago, or the chosen day when it's further out.
+  const [anchor, setAnchor] = useState(() => (day >= addDays(today, STRIP_DAYS - PAST_DAYS) ? day : addDays(today, -PAST_DAYS)));
   // The vehicle of the trip a link (a notification, Edit) asked for.
   const [flashPlate, setFlashPlate] = useState(() => {
     const trip = schedules.find((schedule) => schedule.id === initialTripId);
@@ -126,11 +129,14 @@ export default function Scheduling({
   const days = Array.from({ length: STRIP_DAYS }, (_, index) => addDays(anchor, index));
   // "October 2026", or "October 2026 – November 2026" when the strip runs into the next month.
   const months = [...new Set(days.map((item) => dateLabel(item, { month: "long", year: "numeric" })))];
-  const rows = vehicleRows(vehicles, accounts, schedules, day).filter((row) => row.kind === kind);
-  const stops = toPlan(requests, day, kind);
-  const week = weekStops(requests, day, kind);
-  const carried = carriedStops(requests, day, today, kind);
-  const urgent = stops.filter((stop) => stop.requestType === "URGENT");
+  // A past day is to see what happened and what was left: nothing is planned on it.
+  const past = day < today;
+  const rows = vehicleRows(vehicles, accounts, schedules, day).filter((row) => row.kind === kind && (!past || row.trips.length > 0));
+  const stops = past ? leftOn(requests, day, today, kind) : toPlan(requests, day, kind);
+  const week = past ? [] : weekStops(requests, day, kind);
+  const carried = past ? [] : carriedStops(requests, day, today, kind);
+  const urgent = past ? [] : stops.filter((stop) => stop.requestType === "URGENT");
+  const leftText = (count: number) => (count === 1 ? "1 left from a past day" : `${count} left from past days`);
   const trips = rows.flatMap((row) => row.trips);
   const started = (scheduleId: string) =>
     attendance.some((item) => item.scheduleId === scheduleId && item.start) || companyRuns.some((run) => run.scheduleId === scheduleId);
@@ -160,7 +166,8 @@ export default function Scheduling({
     const legs = (schedule && publishedRevision(schedule)?.legs) || [];
     return legs.reduce((count, leg, index) => (stopTaps.some((tap) => tap.legId === leg.id) || missed.has(leg.id) ? index + 1 : count), 0);
   };
-  const reports = openStopReports(problems, schedules, requests, day, kind, today);
+  // Today's page has them, past days' too, to answer from there.
+  const reports = past ? [] : openStopReports(problems, schedules, requests, day, kind, today);
   const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started, reached };
 
   /**
@@ -365,26 +372,20 @@ export default function Scheduling({
         {months.join(" – ")}
       </div>
       <div className="date-strip-wrap sc-strip">
-        {anchor > today && (
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Earlier dates"
-            onClick={() => setAnchor(addDays(anchor, -7) < today ? today : addDays(anchor, -7))}
-          >
-            <ChevronLeft size={18} />
-          </Button>
-        )}
+        <Button variant="outline" size="icon" aria-label="Earlier dates" onClick={() => setAnchor(addDays(anchor, -7))}>
+          <ChevronLeft size={18} />
+        </Button>
         <div className="date-strip" ref={strip}>
           {days.map((item) => {
-            const counts = dayCounts(requests, item, kind);
+            const isPast = item < today;
+            const counts = isPast ? { toPlan: leftOn(requests, item, today, kind).length, urgent: 0 } : dayCounts(requests, item, kind);
             return (
               <button
                 key={item}
                 type="button"
-                className={"date-card" + (item === day ? " selected" : "")}
+                className={"date-card" + (item === day ? " selected" : "") + (isPast ? " past" : "")}
                 aria-pressed={item === day}
-                aria-label={`${fullDate(item)}, ${counts.toPlan} waiting${counts.urgent ? `, ${counts.urgent} urgent` : ""}`}
+                aria-label={`${fullDate(item)}, ${counts.toPlan} ${isPast ? "left" : "waiting"}${counts.urgent ? `, ${counts.urgent} urgent` : ""}`}
                 onClick={() => pickDay(item)}
               >
                 <span>{dateLabel(item, { weekday: "short" })}</span>
@@ -417,6 +418,7 @@ export default function Scheduling({
       <div className="sc-kinds" role="tablist" aria-label="Trip type">
         {(Object.keys(KINDS) as TripKind[]).map((value) => {
           const counts = dayCounts(requests, day, value);
+          const left = past ? leftOn(requests, day, today, value).length : leftFromPast(requests, day, today, value).length;
           return (
             <button
               key={value}
@@ -428,8 +430,15 @@ export default function Scheduling({
             >
               <b>{KINDS[value]}</b>
               <span>
-                {counts.toPlan ? `${counts.toPlan} to plan` : "All planned"}
-                {counts.urgent > 0 && <span className="sc-urgent-count"> · {counts.urgent} urgent</span>}
+                {past ? (
+                  left ? `${left} left` : "Nothing left"
+                ) : (
+                  <>
+                    {counts.toPlan ? `${counts.toPlan} to plan` : "All planned"}
+                    {counts.urgent > 0 && <span className="sc-urgent-count"> · {counts.urgent} urgent</span>}
+                    {left > 0 && <span className="sc-urgent-count"> · {leftText(left)}</span>}
+                  </>
+                )}
                 {` · ${tripsOfKind(value)} ${tripsOfKind(value) === 1 ? "trip" : "trips"}`}
               </span>
             </button>
@@ -606,7 +615,14 @@ export default function Scheduling({
       <div className="sc-banner info">
         <span>
           <b>{shortDay(day)}:</b> {trips.length} {trips.length === 1 ? "trip" : "trips"}
-          {stops.length > urgent.length ? ` · ${stops.length - urgent.length} to plan` : " · all planned"}
+          {past
+            ? stops.length
+              ? ` · ${stops.length} left`
+              : " · nothing left"
+            : stops.length > urgent.length
+              ? ` · ${stops.length - urgent.length} to plan`
+              : " · all planned"}
+          {!past && carried.some((stop) => stop.date < today) && ` · ${leftText(carried.filter((stop) => stop.date < today).length)}`}
         </span>
         {undos.length > 0 && (
           <Button size="sm" variant="outline" disabled={busy} onClick={undoLast}>
@@ -626,6 +642,31 @@ export default function Scheduling({
       )}
 
       <div className="sc-columns">
+        {past ? (
+          <section className="sc-panel">
+            <h2>
+              Left on {shortDay(day)} <span className="count">{stops.length}</span>
+            </h2>
+            <div className="sc-list">
+              {stops.map((stop) => (
+                <StopCard
+                  key={stop.id}
+                  stop={stop}
+                  onOpen={(ids) => {
+                    pickDay(today);
+                    setSheetIds(ids);
+                  }}
+                />
+              ))}
+              {!stops.length && <p className="sc-empty">Nothing left on this day.</p>}
+            </div>
+            {stops.length > 0 && (
+              <Button className="primary sc-plan-today" onClick={() => pickDay(today)}>
+                Plan these today
+              </Button>
+            )}
+          </section>
+        ) : (
         <section className="sc-panel">
           <h2>
             To plan · {day === today ? "today" : shortDay(day)} <span className="count">{stops.length}</span>
@@ -680,10 +721,13 @@ export default function Scheduling({
             </>
           )}
         </section>
+        )}
 
         <section className="sc-vehicles" aria-label="Vehicles">
           <p className="sc-hint">
-            Drag a request onto a vehicle to add it, or tap it to see the options. Drag a leg by ⠿ onto another leg to reorder.
+            {past
+              ? "A past day is view only. Stops left here are planned from today."
+              : "Drag a request onto a vehicle to add it, or tap it to see the options. Drag a leg by ⠿ onto another leg to reorder."}
           </p>
           {rows.map((row) => (
             <VehicleCard
@@ -706,6 +750,7 @@ export default function Scheduling({
                   context={context}
                   waiting={[...stops, ...week, ...carried]}
                   fuel={fuel}
+                  readOnly={past}
                   busy={busy}
                   run={async (action, undo) => {
                     if (await okToEdit(trip.schedule)) await run(action, undo);
@@ -720,7 +765,7 @@ export default function Scheduling({
                 />
               )}
               drop={
-                dragStops.length && !busy
+                dragStops.length && !busy && !past
                   ? (() => {
                       const option = planOn(dragStops, row, context);
                       return { blocked: option.blocked, onDrop: () => add(option, dragStops) };
@@ -731,7 +776,7 @@ export default function Scheduling({
           ))}
           {!rows.length && (
             <p className="sc-empty">
-              {kind === "COMPANY" ? "No vehicle can be requested for company trips yet." : "No vehicles for Daily trips."}
+              {past ? "No trips on this day." : kind === "COMPANY" ? "No vehicle can be requested for company trips yet." : "No vehicles for Daily trips."}
             </p>
           )}
         </section>
