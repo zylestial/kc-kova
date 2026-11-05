@@ -337,8 +337,8 @@ as done; the legs after the last one reached can be edited, which opens
 draft changes for the Admin. Stop reports show as banners above the day
 banner. One waiting for an answer (red, "The Driver is waiting for your
 answer") has **Skip it, go to next**, **Wait there**, **End the trip** and
-**Change the route**, and on a Daily trip **Come back later** (first if the
-report is Not ready yet; it asks which stop to come back after, then Send); Change the route opens the vehicle's trip to edit,
+**Change the route**, and **Come back later** (first if the report is Not
+ready yet; it asks which stop to come back after, then Send); Change the route opens the vehicle's trip to edit,
 and the banner (amber) then says the Driver waits for the Admin's
 approval, still offering the other three. A missed stop (red) has **Plan
 again** and **Send back to requester** (a reason field, then Send back),
@@ -347,6 +347,10 @@ the stop's options), plus **Got it, it was done** if the trip ended with the
 report unanswered; an older report needing no planning (amber) has
 **Got it**.
 Today's view also shows reports not handled on their own day, naming it.
+
+**Forgot something** (My Schedule and My Trips): right after Leaving, until the
+next Arrived, the stop just left offers "Forgot something here? Report it",
+since Leaving otherwise counts its requests as done. No extra tap at each stop.
 
 **Stop report** (`app/stop-report-form.tsx`, shared by My Schedule and My
 Trips): "What happened at …?", then one big button per kind (label and a

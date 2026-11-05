@@ -113,7 +113,9 @@ type Props = {
  * only big button. No distances or flags (the Admin sees those); the
  * position is still recorded. "End trip now" covers a trip cut short, with
  * a second tap to confirm. "Problem here?" under the current stop reports
- * it (0061), and the trip waits for the Scheduler's answer (0068).
+ * it (0061), and the trip waits for the Scheduler's answer (0068). "Forgot
+ * something here?" does the same for the stop just left, until the next
+ * Arrived: Leaving otherwise counts its requests as done.
  */
 export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, flags }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -121,6 +123,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
   const end = steps[steps.length - 1];
   const next = steps.find((step) => step.state === "next");
   const started = !!steps[0]?.time.tap;
+  const cards = cardsFor(steps, legs, stopsById);
 
   function row({ step, planned }: Card["rows"][number]) {
     const text = labels(step.time.source);
@@ -163,9 +166,11 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
 
   return (
     <div className="trip-steps">
-      {cardsFor(steps, legs, stopsById).map((card) => {
+      {cards.map((card, index) => {
         const current = card.rows.some((item) => item.step.state === "next");
         const finished = card.rows.every((item) => ["done", "skipped", "missed"].includes(item.step.state));
+        // Just left this stop, and not at the next one yet: a request forgotten here can still be reported.
+        const justLeft = card.rows[1]?.step.state === "done" && cards[index + 1]?.rows[0]?.step.state === "next";
         return (
           <section key={card.title} className={`trip-card${current ? " current" : ""}${finished ? " finished" : ""}`}>
             <header>
@@ -189,6 +194,11 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {current && started && !held && card.legId && onReport && (
               <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(card.legId!, card.place)}>
                 Problem here? Report it
+              </button>
+            )}
+            {justLeft && !held && card.legId && onReport && (
+              <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(card.legId!, card.place)}>
+                Forgot something here? Report it
               </button>
             )}
           </section>

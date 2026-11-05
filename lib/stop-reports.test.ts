@@ -135,14 +135,12 @@ describe("answers to stop reports (0068)", () => {
       { id: "l4", destinationName: "ANONANG", isFinal: true },
     ];
     const waiting = report({ legId: "l1", kind: "NOT_READY" });
-    const daily = { kind: "DAILY" } as const;
-    expect(comeBackChoices(waiting, daily, legs, 1).map((item) => item.place)).toEqual(["Site A", "Site B"]);
-    expect(comeBackChoices(waiting, daily, legs, 3).map((item) => item.place)).toEqual(["Site B"]);
-    expect(comeBackChoices({ ...waiting, legId: "l3" }, daily, legs, 3)).toEqual([]);
-    expect(comeBackChoices({ ...waiting, kind: "VEHICLE_PROBLEM" }, daily, legs, 1)).toEqual([]);
-    expect(comeBackChoices({ ...waiting, decision: "CHANGE" }, daily, legs, 1)).toEqual([]);
-    expect(comeBackChoices(waiting, { kind: "COMPANY" }, legs, 1)).toEqual([]);
-    expect(comeBackChoices(waiting, daily, [...legs, ...legs.map((leg) => ({ ...leg, id: `${leg.id}x` }))], 1)).toEqual([]);
+    expect(comeBackChoices(waiting, legs, 1).map((item) => item.place)).toEqual(["Site A", "Site B"]);
+    expect(comeBackChoices(waiting, legs, 3).map((item) => item.place)).toEqual(["Site B"]);
+    expect(comeBackChoices({ ...waiting, legId: "l3" }, legs, 3)).toEqual([]);
+    expect(comeBackChoices({ ...waiting, kind: "VEHICLE_PROBLEM" }, legs, 1)).toEqual([]);
+    expect(comeBackChoices({ ...waiting, decision: "CHANGE" }, legs, 1)).toEqual([]);
+    expect(comeBackChoices(waiting, [...legs, ...legs.map((leg) => ({ ...leg, id: `${leg.id}x` }))], 1)).toEqual([]);
   });
 
   it("knows a report left open when the trip ended from one the Scheduler answered", () => {
@@ -188,6 +186,24 @@ describe("answers to stop reports (0068)", () => {
     expect(holdText([waitingAll])).toBe("Reported. Wait for the Scheduler's answer before going on.");
     expect(holdText([waitingSome, waitingAll])).toBe("Reported. Wait for the Scheduler's answer before going on.");
     expect(holdText([{ ...waitingSome, decision: "CHANGE" }])).toBe("Your route is being changed. Wait until it shows here.");
+  });
+
+  it("names the stop when the Driver reported it after Leaving", () => {
+    const legs = [
+      { id: "l1", destinationName: "Wilcon Depot" },
+      { id: "l2", destinationName: "Riverside" },
+    ];
+    const atLeft = report({ legId: "l1", status: "OPEN", kind: "NOT_READY", requestIds: ["q1"] });
+    const atHere = report({ legId: "l2", status: "OPEN", kind: "OTHER", requestIds: ["q2"] });
+    const left = [
+      { legId: "l1", kind: "ARRIVE" as const },
+      { legId: "l1", kind: "LEAVE" as const },
+    ];
+    expect(holdText([atLeft], legs, left)).toBe("Reported Wilcon Depot. Wait for the Scheduler's answer before going on.");
+    // Still at the stop: the usual words.
+    expect(holdText([atLeft], legs, [{ legId: "l1", kind: "ARRIVE" }])).toContain("You can still do the other requests here");
+    // One report is about where the Driver is now.
+    expect(holdText([atLeft, atHere], legs, left)).toContain("before leaving");
   });
 
   it("flags the requests a report names until they're off the trip", () => {

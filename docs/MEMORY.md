@@ -1173,7 +1173,12 @@ account the company owns from day one.
   a new leg and the first visit stays. An emptied first visit is `missed` (with
   decision LATER, shown as "Coming back later"), so the trip editor, forms and
   times need no change. Its Leaving time isn't kept, and the next leg's Time Out
-  is blank. New-leg times are a made-up 30 minutes. Company trips aren't covered.
+  is blank. New-leg times are a made-up 30 minutes. Company trips too since 0087:
+  coming back after the last stop makes the new stop the trip's end.
+- **Leaving with a request not done** (owner's pick, 2026-11-03): a link on the
+  stop just left, "Forgot something here? Report it", until the next Arrived,
+  rather than asking at every Leaving. No extra tap, but it only helps a Driver
+  who notices. Answers still read as if at the stop: Wait there says "Stay at".
 - **A report isn't lost when the trip ends** (0085, owner's call 2026-11-03):
   tapping Arrived, reporting, then End trip closed the report, whether
   unanswered or answered End the trip. The stop counted as reached, so no Not
@@ -1182,8 +1187,9 @@ account the company owns from day one.
   so a report that needed no replanning ("Running late", a breakdown after
   the job was done) also tells the requester their stop was missed; **Got
   it, it was done** clears it and tells them otherwise, and the Admin enters
-  the Leaving time. Answered Wait there is not covered: the Driver has to
-  report again.
+  the Leaving time. Since 0087, so does answered Wait there on the last stop
+  reached if Leaving was never tapped; a forgotten Leaving is the false alarm
+  there. All of this is Daily trips only: a Company trip has no End trip now.
 
 
 ## Notes stay off the trip forms (2026-11-03)

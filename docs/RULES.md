@@ -382,7 +382,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   are told, and the Scheduler plans just those again. Naming all of them is
   the whole stop. Road blocked and Vehicle problem are always for the whole
   stop.
-- **Come back later** (0086, Daily trips only): a Scheduler or Admin can
+- **Come back later** (0086, Company trips too since 0087): a Scheduler or Admin can
   answer any waiting report except a Vehicle problem by picking a stop still
   ahead. The requests (just those the report names, if any) move to a new stop
   at the same place, right after it. The hold ends and nobody is told "missed".
@@ -391,8 +391,9 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   waiting, or at 8 legs. If all the requests there moved, the first visit stays
   with no stops and needs no Leaving. Not reaching the new stop is Not reached
   (below), so it can still go on another day.
-- **When the trip ends** (0085): a report on a stop already reached, not
-  answered or answered End the trip, counts as Skip, so its requests can be
+- **When the trip ends** (0085, 0087): a report on a stop already reached, not
+  answered or answered End the trip, or answered Wait there on the last stop
+  reached with no Leaving tapped, counts as Skip, so its requests can be
   planned again, moved or sent back and their requesters are told. Nobody
   chose it, so it has no `decided_by_account_id`, and the Scheduler can also
   answer **Got it, it was done** (`mark_stop_report_done`): not missed, the
