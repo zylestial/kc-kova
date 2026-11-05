@@ -1,4 +1,4 @@
-import type { ProblemReport, Schedule, ScheduleLeg, StopDecision, StopReportKind, TransportRequest } from "@/lib/kova-api";
+import type { ProblemReport, Schedule, ScheduleLeg, StopDecision, StopReportKind, StopTap, TransportRequest } from "@/lib/kova-api";
 import { publishedRevision } from "@/lib/trip-record";
 
 /**
@@ -38,9 +38,18 @@ export function answerLabel(answer: (typeof STOP_ANSWERS)[number], report: Pick<
 export const canNameSome = (kind: StopReportKind) => kind === "NOT_AVAILABLE" || kind === "NOT_READY" || kind === "WRONG_ADDRESS" || kind === "OTHER";
 
 /** What a held trip says instead of its next button: waiting for an answer, or for the route change. */
-export function holdText(problems: ProblemReport[]): string {
+export function holdText(
+  problems: ProblemReport[],
+  legs: Array<Pick<ScheduleLeg, "id" | "destinationName">> = [],
+  taps: Array<Pick<StopTap, "legId" | "kind">> = [],
+): string {
   const waiting = problems.filter(waitsForAnswer);
   if (waiting.some((item) => item.decision === "CHANGE")) return "Your route is being changed. Wait until it shows here.";
+  // Reported after Leaving: the notice sits on the next stop's card, so it names the stop it's about.
+  const left = waiting.map((item) =>
+    taps.some((tap) => tap.legId === item.legId && tap.kind === "LEAVE") ? legs.find((leg) => leg.id === item.legId)?.destinationName : undefined,
+  );
+  if (waiting.length > 0 && left.every(Boolean)) return `Reported ${[...new Set(left)].join(" and ")}. Wait for the Scheduler's answer before going on.`;
   // Only if every report waiting names some requests: a whole-stop report covers the others too.
   return waiting.length > 0 && waiting.every((item) => item.requestIds?.length)
     ? "Reported. Wait for the Scheduler's answer before leaving. You can still do the other requests here."

@@ -557,7 +557,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   setMode("stop");
                   setError("");
                 }}
-                held={selected.schedule.pausedAt ? holdText(selected.problems) : undefined}
+                held={selected.schedule.pausedAt ? holdText(selected.problems, selected.revision.legs, selected.stopTaps) : undefined}
                 flags={jobFlags(selected.problems)}
                 notYet={selected.startable ? undefined : `Start trip opens on ${dateLabel(selected.schedule.date)}.`}
               />

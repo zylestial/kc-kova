@@ -273,7 +273,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       )}
                       {!reportAt && next && onTheRoad && trip.schedule.pausedAt && (
                         <p className="notice error trip-held" role="status">
-                          {holdText(problemsOf(trip))}
+                          {holdText(problemsOf(trip), trip.revision.legs, stopTaps.filter((tap) => tap.scheduleId === trip.schedule.id))}
                         </p>
                       )}
                       {!reportAt && next && trip.schedule.date <= today && !(onTheRoad && trip.schedule.pausedAt) && (
