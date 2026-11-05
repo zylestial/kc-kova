@@ -1,4 +1,7 @@
 "use client";
+import { tapTimeLabel } from "@/lib/attendance";
+import type { StopTask } from "@/lib/kova-api";
+import { requestDoneAt } from "@/lib/stop-tasks";
 import { legStops, stopWhat, type StopInfo } from "@/lib/trip-record";
 
 type ViewLeg = {
@@ -11,15 +14,19 @@ type ViewLeg = {
   stops: string[];
 };
 
-/** A request's purpose and notes, on one line. */
-const jobText = (stop: StopInfo) => [stopWhat(stop), stop.details].filter(Boolean).join(" · ");
+/** A request's purpose and notes, on one line, with when it was marked Done (0088). */
+const jobLine = (stop: StopInfo, tasks: StopTask[]) => {
+  const done = requestDoneAt(tasks, stop.requestId);
+  return [stopWhat(stop), stop.details, done && `Done ${tapTimeLabel(done)}`].filter(Boolean).join(" · ");
+};
 
 /**
  * Read-only Trip Record: one row per leg, with every requester, purpose and
  * note served at that stop. A shared stop lists each request on its own line.
  * Phones get one route card per leg instead (.route-cards in globals.css).
  */
-export default function TripRecordView({ legs, stopsById }: { legs: ViewLeg[]; stopsById: Map<string, StopInfo> }) {
+export default function TripRecordView({ legs, stopsById, tasks = [] }: { legs: ViewLeg[]; stopsById: Map<string, StopInfo>; tasks?: StopTask[] }) {
+  const jobText = (stop: StopInfo) => jobLine(stop, tasks);
   return (
     <>
       <div className="schedule-table trip-record-view">

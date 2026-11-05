@@ -42,7 +42,7 @@ const routeOf = (trip: { revision: { legs: { destinationName: string }[] } }) =>
  * odometer; reviewing and marking Done stay with the Admin.
  */
 export default function SchedulerFinishedTrips() {
-  const { schedules, completions, requests, problems, accounts } = useKovaData();
+  const { schedules, completions, requests, problems, accounts, stopTasks } = useKovaData();
   const trips = useMemo(
     () => buildScheduledFinishedTrips(schedules, completions, requests, problems),
     [schedules, completions, requests, problems],
@@ -145,7 +145,7 @@ export default function SchedulerFinishedTrips() {
           </DialogHeader>
           {selected && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
+              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
               <p className="helper">{completionMeaning[selected.state]}</p>
               {selected.problems.map((item) => (
                 <p className="helper" key={item.id}>

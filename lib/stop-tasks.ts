@@ -12,6 +12,9 @@ import type { StopInfo } from "@/lib/trip-record";
 export const taskDone = (tasks: StopTask[], legId: string, requestId: string) =>
   tasks.find((task) => task.legId === legId && task.requestId === requestId);
 
+/** When a request was marked Done on these taps (a request is only Done once, whichever visit it was). */
+export const requestDoneAt = (tasks: StopTask[], requestId: string) => tasks.find((task) => task.requestId === requestId)?.at;
+
 /**
  * The stop asks about its tasks once the Driver has Arrived, unless they
  * Arrived before tasks existed (before_tasks), when it goes on as it used to.

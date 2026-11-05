@@ -105,7 +105,7 @@ export default function AdminFinishedTrips({
   /** One of `finishedProblemFilters`, e.g. from a Dashboard tile. */
   initialProblems?: string;
 } = {}) {
-  const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, timeCorrections, accounts, options, companyRuns } =
+  const { schedules, completions, problems: problemReports, requests, attendance, stopTaps, stopTasks, timeCorrections, accounts, options, companyRuns } =
     useKovaData();
   const trips = useMemo(() => buildAdminTrips(schedules, completions, problemReports), [schedules, completions, problemReports]);
   const [filters, setFilters] = useState<TripFilters>(() => ({
@@ -603,7 +603,7 @@ export default function AdminFinishedTrips({
           </DialogHeader>
           {selected && mode === "view" && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
+              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
               {selected.completion ? (
                 <>
                   <p className="helper">

@@ -37,7 +37,7 @@ const columns: SortColumn<SortKey>[] = [
  * Bootstrap only sends this Driver's completions and reports.
  */
 export default function DriverFinishedTrips() {
-  const { schedules, completions, problems, requests } = useKovaData();
+  const { schedules, completions, problems, requests, stopTasks } = useKovaData();
   const trips = useMemo(() => buildFinishedTrips(schedules, completions, problems), [schedules, completions, problems]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort<SortKey>>(null);
@@ -128,7 +128,7 @@ export default function DriverFinishedTrips() {
           </DialogHeader>
           {selected && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} />
+              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
               <p className="helper">
                 Odometer: {readingsLabel(selected.completion)} ·{" "}
                 {completionLabel[selected.completion.status]}

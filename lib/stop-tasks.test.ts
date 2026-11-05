@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BootstrapData, ProblemReport, StopTask } from "@/lib/kova-api";
 import { withSavedTaps, type SavedTap } from "@/lib/saved-taps";
 import { parseStopTaskInput } from "@/lib/attendance-input";
-import { asksTasks, taskDone, tasksOpen, wholeStopWaiting } from "@/lib/stop-tasks";
+import { asksTasks, requestDoneAt, taskDone, tasksOpen, wholeStopWaiting } from "@/lib/stop-tasks";
 
 const done = (legId: string, requestId: string): StopTask => ({
   id: `${legId}-${requestId}`,
@@ -19,6 +19,11 @@ describe("tasks at a stop", () => {
     const tasks = [done("l1", "a")];
     expect(taskDone(tasks, "l1", "a")).toBe(tasks[0]);
     expect(taskDone(tasks, "l2", "a")).toBeUndefined();
+  });
+
+  it("says when a request was done, on whichever visit", () => {
+    expect(requestDoneAt([done("l3", "a")], "a")).toBe("2026-11-05T01:00:00Z");
+    expect(requestDoneAt([done("l3", "a")], "b")).toBeUndefined();
   });
 
   it("asks once the Driver has Arrived, unless they Arrived before tasks existed", () => {
