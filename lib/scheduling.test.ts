@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, RequestGroup, Schedule, ScheduleRevision, TransportRequest, Vehicle } from "@/lib/kova-api";
-import { carriedStops, dayCounts, placeGroups, schedulingHref, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
+import { carriedStops, dayCounts, leftFromPast, leftOn, placeGroups, schedulingHref, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
 
 const group = (patch: Partial<RequestGroup> = {}): RequestGroup => ({
   id: "g",
@@ -71,6 +71,24 @@ describe("what's to plan", () => {
     // The week's list already has the "any day" stop.
     expect(carriedStops(carried, "2026-10-15", "2026-10-14").map((item) => item.id)).toEqual(["p", "m"]);
     expect(carriedStops(carried, "2026-10-20", "2026-10-14").map((item) => item.id)).toEqual(["p", "w", "m"]);
+  });
+
+  it("counts what was left on a past day", () => {
+    const stops = [
+      stop("p", { date: "2026-10-13" }),
+      stop("missed", { date: "2026-10-13", missedAt: "2026-10-13T03:00:00Z" }),
+      stop("planned", { date: "2026-10-13", progress: "SCHEDULING" }),
+      stop("thisWeek", { date: "2026-10-13", flexibility: "WEEK" }),
+      stop("lastWeek", { date: "2026-10-09", flexibility: "WEEK" }),
+      stop("missedToday", { missedAt: "2026-10-14T03:00:00Z", date: "2026-10-14" }),
+    ];
+    expect(leftOn(stops, "2026-10-13", "2026-10-14").map((item) => item.id).sort()).toEqual(["missed", "p"]);
+    // Its week is over, so it's left.
+    expect(leftOn(stops, "2026-10-09", "2026-10-14").map((item) => item.id)).toEqual(["lastWeek"]);
+    expect(leftFromPast(stops, "2026-10-14", "2026-10-14").map((item) => item.id).sort()).toEqual(["lastWeek", "missed", "p"]);
+    const company = stop("x", { date: "2026-10-13", group: group({ form: "COMPANY", vehiclePlate: "NBC-4821" }) });
+    expect(leftOn([company], "2026-10-13", "2026-10-14", "DAILY")).toEqual([]);
+    expect(leftFromPast([company], "2026-10-14", "2026-10-14", "COMPANY").map((item) => item.id)).toEqual(["x"]);
   });
 
   it("groups stops at the same place, but a Company stop only with its own vehicle's", () => {
