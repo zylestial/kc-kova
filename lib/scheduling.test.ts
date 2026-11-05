@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, RequestGroup, Schedule, ScheduleRevision, TransportRequest, Vehicle } from "@/lib/kova-api";
-import { carriedStops, dayCounts, leftFromPast, leftOn, placeGroups, schedulingHref, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
+import { carriedStops, dayCounts, leftFromPast, placeGroups, schedulingHref, toPlan, tripState, vehicleRows, weekStops } from "@/lib/scheduling";
 
 const group = (patch: Partial<RequestGroup> = {}): RequestGroup => ({
   id: "g",
@@ -52,10 +52,10 @@ describe("what's to plan", () => {
     expect(toPlan(requests, "2026-10-14").map((item) => item.id)).toEqual(["b", "c", "a"]);
     expect(weekStops(requests, "2026-10-14").map((item) => item.id)).toEqual(["d"]);
     expect(weekStops(requests, "2026-10-20")).toEqual([]);
-    expect(dayCounts(requests, "2026-10-14")).toEqual({ toPlan: 3, urgent: 1 });
+    expect(dayCounts(requests, "2026-10-14")).toEqual({ toPlan: 3, left: 0, urgent: 1 });
     const company = stop("x", { group: group({ form: "COMPANY", vehiclePlate: "NBC-4821" }) });
     expect(toPlan([...requests, company], "2026-10-14", "COMPANY").map((item) => item.id)).toEqual(["x"]);
-    expect(dayCounts([...requests, company], "2026-10-14", "DAILY")).toEqual({ toPlan: 3, urgent: 1 });
+    expect(dayCounts([...requests, company], "2026-10-14", "DAILY")).toEqual({ toPlan: 3, left: 0, urgent: 1 });
   });
 
   it("carries missed and past-due stops to every other day", () => {
@@ -73,21 +73,22 @@ describe("what's to plan", () => {
     expect(carriedStops(carried, "2026-10-20", "2026-10-14").map((item) => item.id)).toEqual(["p", "w", "m"]);
   });
 
-  it("counts what was left on a past day", () => {
+  it("puts what was left from past days in today's count, not another day's", () => {
     const stops = [
       stop("p", { date: "2026-10-13" }),
       stop("missed", { date: "2026-10-13", missedAt: "2026-10-13T03:00:00Z" }),
       stop("planned", { date: "2026-10-13", progress: "SCHEDULING" }),
       stop("thisWeek", { date: "2026-10-13", flexibility: "WEEK" }),
       stop("lastWeek", { date: "2026-10-09", flexibility: "WEEK" }),
-      stop("missedToday", { missedAt: "2026-10-14T03:00:00Z", date: "2026-10-14" }),
+      stop("t"),
+      stop("missedToday", { missedAt: "2026-10-14T03:00:00Z" }),
     ];
-    expect(leftOn(stops, "2026-10-13", "2026-10-14").map((item) => item.id).sort()).toEqual(["missed", "p"]);
-    // Its week is over, so it's left.
-    expect(leftOn(stops, "2026-10-09", "2026-10-14").map((item) => item.id)).toEqual(["lastWeek"]);
+    // An "any day that week" stop isn't left while its week is on; once it's over, it is.
     expect(leftFromPast(stops, "2026-10-14", "2026-10-14").map((item) => item.id).sort()).toEqual(["lastWeek", "missed", "p"]);
+    expect(dayCounts(stops, "2026-10-14", undefined, "2026-10-14")).toEqual({ toPlan: 5, left: 3, urgent: 0 });
+    expect(dayCounts(stops, "2026-10-15", undefined, "2026-10-14")).toEqual({ toPlan: 0, left: 0, urgent: 0 });
     const company = stop("x", { date: "2026-10-13", group: group({ form: "COMPANY", vehiclePlate: "NBC-4821" }) });
-    expect(leftOn([company], "2026-10-13", "2026-10-14", "DAILY")).toEqual([]);
+    expect(leftFromPast([company], "2026-10-14", "2026-10-14", "DAILY")).toEqual([]);
     expect(leftFromPast([company], "2026-10-14", "2026-10-14", "COMPANY").map((item) => item.id)).toEqual(["x"]);
   });
 

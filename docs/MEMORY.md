@@ -597,10 +597,11 @@ page"; the owner's calls:
   the blue day banner has Undo; no timeline bars; "Plan for me" left out
   for now; "Shorter route" and real drive times (OpenRouteService) deferred.
 - **Date strip:** two weeks of date cards from today, Sundays included,
-  the month on top, like the old planner's cards. Since 2026-11-05 (owner)
-  it also starts with the past week, to see stops left out by date. A past
-  day is view only in the screen; a link to a past date still opens today,
-  because that's where its reports are answered.
+  the month on top, like the old planner's cards. The owner had the past
+  week added on 2026-11-05 (#222), then dropped it the same day: what matters
+  is that stops left from past days are in today's pool, first, tagged "Left
+  from Nov 4", and counted. Other days keep them under Missed or past due, so a
+  Scheduler can still plan one ahead.
 - **Warnings block Submit** and name the stop and times, without minute
   counts. Except (owner, 2026-10-20): a fixed-time stop reached more than
   5 minutes off its time ("19-A asked for 3:00 PM; it arrives 3:20 PM")
