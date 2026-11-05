@@ -24,6 +24,7 @@ export default function StopCard({
   stop,
   inGroup = false,
   carried = false,
+  left = false,
   onOpen,
   onDrag,
 }: {
@@ -32,6 +33,8 @@ export default function StopCard({
   inGroup?: boolean;
   /** Missed or past due, shown on a day other than its own (0065). */
   carried?: boolean;
+  /** In today's pool, left from a past day: tagged with that day instead. */
+  left?: boolean;
   onOpen: (ids: string[]) => void;
   /** Dragging starts (the stop ids) or ends (null). */
   onDrag?: (ids: string[] | null) => void;
@@ -57,6 +60,7 @@ export default function StopCard({
           <b className="sc-id">{stopNumber(stop) || "Request"}</b>
           {urgent && <span className="sc-tag error">Urgent</span>}
           {stop.missedAt && <span className="sc-tag warn">Missed</span>}
+          {left && <span className="sc-tag warn">Left from {dateLabel(stop.date, { month: "short", day: "numeric" })}</span>}
           {stop.group?.form === "COMPANY" && <span className="sc-tag info">Company · {stop.group.vehiclePlate}</span>}
         </span>
         <span className="sc-who">{stop.ownerName}</span>
