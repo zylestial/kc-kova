@@ -5,6 +5,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(35);
 
+-- These test other rules, so taps here read as made before tasks at a stop (0088);
+-- v2_stop_tasks.test.sql tests that rule.
+alter table stop_taps alter column before_tasks set default true;
+alter table company_trip_runs alter column before_tasks set default true;
+
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'admin@test.local'),

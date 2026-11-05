@@ -128,8 +128,12 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   await expect(action).toHaveText("Arrived at UAT Destination", saved);
   await action.click();
   await expect(action).toHaveText("Leaving UAT Destination", saved);
+  await driver.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(action).toBeEnabled(saved);
   await action.click();
   await expect(action).toHaveText("Arrived at UAT Second Destination · End trip", saved);
+  await driver.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(action).toBeEnabled(saved);
   await driver.getByLabel("Ending odometer (km)").fill("48000");
   await action.click();
   await expect(driver.locator(".modal-error")).toContainText("can't be lower than the start (48215 km)");

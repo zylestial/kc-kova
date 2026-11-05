@@ -312,6 +312,17 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   Start/End; a repeat returns the first. Refused before Start trip, after
   End trip, once the trip is submitted, and on a leg not in the approved
   version.
+- **Tasks at a stop** (0088): after Arrived, each request at the stop is
+  marked Done (`stop_tasks`, with its time) or reported Not yet done, which is
+  a stop report naming it. Leaving is refused until each is Done or skipped by
+  the Scheduler; on a Company trip, End trip waits the same way for the last
+  stop, which has no Arrived or Leaving. Done works while the trip is held, so
+  the others can be finished, but not on a request whose report waits or that was
+  skipped. Undo works until Leaving. A request marked Done can't be reported,
+  and a report for the whole stop covers only the requests not Done; with
+  every request Done, a problem is reported at the next stop. A stop with no
+  requests needs nothing marked. A stop Arrived at, or a Company trip started,
+  before 0088 goes on as it used to (`before_tasks`).
 - These are the actual times on the printed form: leg 1 TIME OUT = Start
   trip, leg N TIME IN = Arrived at leg N, leg N+1 TIME OUT = Leaving leg N,
   final TIME IN = End trip. Planned times stay on the Trip Record only.
@@ -394,7 +405,9 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
 - **When the trip ends** (0085, 0087): a report on a stop already reached, not
   answered or answered End the trip, or answered Wait there on the last stop
   reached with no Leaving tapped, counts as Skip, so its requests can be
-  planned again, moved or sent back and their requesters are told. Nobody
+  planned again, moved or sent back and their requesters are told. So do
+  requests not answered at the stop the Driver is at when End trip now is
+  tapped (0088); requests marked Done never are. Nobody
   chose it, so it has no `decided_by_account_id`, and the Scheduler can also
   answer **Got it, it was done** (`mark_stop_report_done`): not missed, the
   requests stay on the trip, and the requesters are told. A report on a stop

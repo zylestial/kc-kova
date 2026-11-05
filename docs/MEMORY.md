@@ -1179,9 +1179,8 @@ account the company owns from day one.
   is blank. New-leg times are a made-up 30 minutes. Company trips too since 0087:
   coming back after the last stop makes the new stop the trip's end.
 - **Leaving with a request not done** (owner's pick, 2026-11-03): a link on the
-  stop just left, "Forgot something here? Report it", until the next Arrived,
-  rather than asking at every Leaving. No extra tap, but it only helps a Driver
-  who notices. Answers still read as if at the stop: Wait there says "Stay at".
+  stop just left, "Forgot something here? Report it". Replaced on 2026-11-05 by
+  tasks at a stop, below, which the owner preferred once they saw the prototype.
 - **A report isn't lost when the trip ends** (0085, owner's call 2026-11-03):
   tapping Arrived, reporting, then End trip closed the report, whether
   unanswered or answered End the trip. The stop counted as reached, so no Not
@@ -1194,6 +1193,30 @@ account the company owns from day one.
   reached if Leaving was never tapped; a forgotten Leaving is the false alarm
   there. All of this is Daily trips only: a Company trip has no End trip now.
 
+
+## Tasks at a stop (0088, owner's request, 2026-11-05)
+
+- **Arrived, then Done or Not yet done per task, then Left.** Prototype: "KOVA
+  Stop Tasks" (https://claude.ai/artifact/AjE8DacXNbjCVf4rXYkv7P). Leaving no
+  longer counts everything as done, so the Forgot link went. The cost is one
+  more tap per request, even at a stop with one.
+- **Not yet done is the stop report**, so the Scheduler's answers, the hold, Come
+  back later and Got it, it was done all work as before. The Driver still waits
+  for the answer before Leaving (owner kept this).
+- **A problem not about one request after Arrived** keeps a small "Vehicle or road
+  problem?" link. It covers only the requests not Done. With all of them Done
+  it's refused: tap Leaving and report at the next stop.
+- **Trips on the road at deploy** (owner's pick): only stops Arrived at after 0088
+  ask. `before_tasks` gets true on old rows through the column default, so their
+  audit triggers don't fire. Older database tests set the default back to true
+  because they test other rules; `v2_stop_tasks.test.sql` tests this one.
+- **Deploying 0088**: push it and merge close together with no trip on the road.
+  The old screen has no Done button, so Leaving would stay locked on any stop
+  Arrived at in between. Check `db push --dry-run` from a branch that has every
+  migration: run from an older branch it says up to date, which fooled me about
+  0087 on 2026-11-05.
+- **Company trips' last stop** has no Arrived, so its tasks can be marked once the
+  stop before is left, before actually getting there. Accepted: End trip waits.
 
 ## Notes stay off the trip forms (2026-11-03)
 

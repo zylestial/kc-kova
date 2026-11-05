@@ -1,4 +1,4 @@
-import type { AttendanceInput, BootstrapData, CompanyRunInput, StopTapInput } from "@/lib/kova-api";
+import type { AttendanceInput, BootstrapData, CompanyRunInput, StopTaskInput, StopTapInput } from "@/lib/kova-api";
 
 /**
  * Taps made with no signal (0077). The phone keeps each one, with the time
@@ -14,6 +14,7 @@ export type SavedTap = { id: string; accountId: string; scheduleId: string } & (
   | { path: "attendance"; body: AttendanceInput & { tappedAt: string } }
   | { path: "stop-taps" | "company-stops"; body: StopTapInput & { tappedAt: string } }
   | { path: "company-run"; body: CompanyRunInput & { tappedAt: string } }
+  | { path: "stop-tasks"; body: StopTaskInput & { tappedAt: string } }
 );
 
 const KEY = "kova-saved-taps";
@@ -39,13 +40,13 @@ export function storeSavedTaps(list: SavedTap[]) {
 /**
  * The loaded data with the account's saved taps added, as if already sent:
  * Start and End trip in attendance or the Company trip's run, Arrived and
- * Leaving in stopTaps, each marked `saved`. A tap the server already has
+ * Leaving in stopTaps, Done and its Undo in stopTasks, each marked `saved`. A tap the server already has
  * (sent, but the answer was lost) is left as the server has it.
  */
 export function withSavedTaps(data: BootstrapData, saved: SavedTap[], accountId: string | undefined): BootstrapData {
   const mine = saved.filter((tap) => tap.accountId === accountId);
   if (!mine.length) return data;
-  let { attendance, stopTaps, companyRuns } = data;
+  let { attendance, stopTaps, stopTasks, companyRuns } = data;
   const revisionOf = (scheduleId: string) => data.schedules.find((schedule) => schedule.id === scheduleId)?.publishedRevisionId ?? "";
 
   for (const tap of mine) {
@@ -80,6 +81,17 @@ export function withSavedTaps(data: BootstrapData, saved: SavedTap[], accountId:
         const endOdometer = tap.body.odometer;
         companyRuns = companyRuns.map((item) => (item === run ? { ...item, endAt: at, endOdometer, saved: true } : item));
       }
+    } else if (tap.path === "stop-tasks") {
+      const { legId, requestId, kind } = tap.body;
+      const same = (item: { legId: string; requestId: string }) => item.legId === legId && item.requestId === requestId;
+      if (kind === "UNDO") {
+        stopTasks = stopTasks.filter((item) => !same(item));
+      } else if (!stopTasks.some(same)) {
+        stopTasks = [
+          ...stopTasks,
+          { id: `saved-${tap.id}`, scheduleId, revisionId: revisionOf(scheduleId) ?? "", legId, requestId, at, recordedByAccountId: tap.accountId, saved: true },
+        ];
+      }
     } else {
       const { legId, kind } = tap.body;
       if (!stopTaps.some((item) => item.legId === legId && item.kind === kind)) {
@@ -101,5 +113,5 @@ export function withSavedTaps(data: BootstrapData, saved: SavedTap[], accountId:
       }
     }
   }
-  return { ...data, attendance, stopTaps, companyRuns };
+  return { ...data, attendance, stopTaps, stopTasks, companyRuns };
 }

@@ -31,6 +31,8 @@ import {
   type TransportRequest,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
+import { requestDoneAt } from "@/lib/stop-tasks";
+import { tapTimeLabel } from "@/lib/attendance";
 import { requestScheduledBy } from "@/lib/scheduled-by";
 import { manilaToday, requestDateError, requestTypeFor } from "@/lib/timezone";
 import RequestFields, {
@@ -88,7 +90,7 @@ export default function MyRequests({
   const router = useRouter();
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
-  const { requests: allRequests, options, cancellations, schedules, accounts } = useKovaData();
+  const { requests: allRequests, options, cancellations, schedules, accounts, stopTasks } = useKovaData();
   const requests = useMemo(
     () =>
       allRequests
@@ -374,6 +376,7 @@ export default function MyRequests({
                   ["Requested by", shown.ownerName],
                   ["Project / Site", projectText(shown)],
                   ["Progress", requestProgressLabel[shown.progress]],
+                  ...(requestDoneAt(stopTasks, shown.id) ? [["Done at the stop", tapTimeLabel(requestDoneAt(stopTasks, shown.id)!)]] : []),
                   ...(shownBy ? [[shownBy.label, shownBy.name]] : []),
                   ["Submitted", submittedLabel(shown.createdAt)],
                 ].map(([label, value]) => (

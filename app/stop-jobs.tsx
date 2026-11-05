@@ -19,11 +19,14 @@ export default function StopJobs({
   stops,
   showRequester = false,
   flags,
+  actions,
 }: {
   stops: StopInfo[];
   showRequester?: boolean;
   /** Requests a report names (lib/stop-reports), by request id. */
   flags?: Map<string, JobFlag>;
+  /** Below a request: its Done, or the buttons to answer for it (0088). */
+  actions?: (stop: StopInfo) => React.ReactNode;
 }) {
   if (!stops.length) return null;
   return (
@@ -51,6 +54,7 @@ export default function StopJobs({
                 )}
               </div>
             )}
+            {actions?.(stop)}
           </li>
         );
       })}

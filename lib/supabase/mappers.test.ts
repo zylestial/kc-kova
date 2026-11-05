@@ -455,6 +455,7 @@ describe("toStopTap", () => {
       at: "2026-10-09T01:00:00Z",
       recordedByAccountId: "d1",
       location: { lat: 16.1, lng: 120.4, accuracyM: 9, distanceM: null, address: null },
+      beforeTasks: false,
     });
   });
 

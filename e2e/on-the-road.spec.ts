@@ -92,6 +92,13 @@ test("several people on a trip that's on the road", async ({ browser }) => {
       await openTrip(driver, trip.id);
       await tapNext(driver, /^Start trip$/);
       await tapNext(driver, /^Arrived at Site Alpha$/);
+      // Each request at the stop, one at a time (0088), once Arrived has saved.
+      await expect(driver.locator(".trip-step-button")).toHaveText(/^Leaving Site Alpha$/, saved);
+      const done = driver.getByRole("button", { name: "Done", exact: true });
+      for (let left = await done.count(); left > 0; left--) {
+        await done.first().click();
+        await expect(done).toHaveCount(left - 1, saved);
+      }
       await tapNext(driver, /^Leaving Site Alpha$/);
     })(),
     scheduler.goto(`/scheduling?date=${today}&type=DAILY`),
@@ -127,7 +134,7 @@ test("several people on a trip that's on the road", async ({ browser }) => {
   // At the next stop nobody is there: the Driver reports it, with no note, and waits (0068).
   const current = after.locator(".trip-card.current");
   const missedPlace = (await current.locator("h3").textContent())!.trim();
-  await current.getByRole("button", { name: /Problem here?/ }).click();
+  await current.getByRole("button", { name: /Can't get here/ }).click();
   await driver.getByRole("button", { name: /^Not available/ }).click();
   await driver.getByRole("button", { name: "Send report" }).click();
   await expect(driver.locator(".trip-held")).toContainText("Wait for the Scheduler's answer", saved);
@@ -168,7 +175,7 @@ test("several people on a trip that's on the road", async ({ browser }) => {
   expect(await notificationsOf(driver, "STOP_ANSWERED", trip.id)).toHaveLength(1);
 
   // A flat tire holds the trip until the Scheduler says wait there.
-  await skipped.locator(".trip-card.current").getByRole("button", { name: /Problem here?/ }).click();
+  await skipped.locator(".trip-card.current").getByRole("button", { name: /Can't get here/ }).click();
   await driver.getByRole("button", { name: /^Vehicle problem/ }).click();
   await driver.getByRole("button", { name: "Send report" }).click();
   await expect(driver.locator(".trip-held")).toBeVisible(saved);

@@ -157,8 +157,12 @@ test("an approved Company trip can be revised before and during the trip", async
   await expect(action).toHaveText("Leaving UAT Destination", saved);
 
   // And the Driver finishes the trip as usual.
+  await driver.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(action).toBeEnabled(saved);
   await action.click();
   await expect(action).toHaveText("Arrived at UAT Second Destination · End trip", saved);
+  await driver.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(action).toBeEnabled(saved);
   await driver.getByLabel("Ending odometer (km)").fill("51040");
   await action.click();
   await expect(driver.getByText("Trip ended and submitted.")).toBeVisible(saved);

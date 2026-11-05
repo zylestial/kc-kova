@@ -217,7 +217,23 @@ export type StopTap = {
   saved?: boolean;
   /** When KOVA got it, for a tap saved on the phone and sent later (0077); left out when it arrived as tapped. */
   sentAt?: string;
+  /** Arrived before tasks at a stop existed (0088): that stop's Leaving needs no tasks marked. */
+  beforeTasks?: boolean;
 };
+/** One request at a stop marked Done (0088). */
+export type StopTask = {
+  id: string;
+  scheduleId: string;
+  revisionId: string;
+  legId: string;
+  requestId: string;
+  at: string;
+  recordedByAccountId: string;
+  /** Tapped with no signal and still on the phone, waiting to send (0077). */
+  saved?: boolean;
+};
+/** What Done or its Undo sends. */
+export type StopTaskInput = { legId: string; requestId: string; kind: "DONE" | "UNDO" };
 /** A requester's record of their Company trip: Start and End trip, each with the odometer (0055). */
 export type CompanyTripRun = {
   id: string;
@@ -233,6 +249,8 @@ export type CompanyTripRun = {
   /** Start and End trip as Attendance taps (0079); not measured from ANONANG. */
   startTap?: AttendanceTap;
   endTap?: AttendanceTap;
+  /** Started before tasks at a stop existed (0088): End trip needs no tasks marked. */
+  beforeTasks?: boolean;
 };
 /** What Start trip / End trip on a Company trip sends. */
 /** odometer is null for a vehicle without one (0078). */
@@ -480,6 +498,7 @@ export type BootstrapData = {
   completions: TripCompletion[];
   attendance: TripAttendance[];
   stopTaps: StopTap[];
+  stopTasks: StopTask[];
   companyRuns: CompanyTripRun[];
   timeCorrections: TripTimeCorrection[];
   problems: ProblemReport[];
@@ -499,6 +518,7 @@ const emptyData: BootstrapData = {
   completions: [],
   attendance: [],
   stopTaps: [],
+  stopTasks: [],
   companyRuns: [],
   timeCorrections: [],
   problems: [],
@@ -745,7 +765,7 @@ export const submitCompletion = (id: string, startOdometer: number | null, endOd
 async function recordTap(
   path: SavedTap["path"],
   scheduleId: string,
-  input: AttendanceInput | StopTapInput | CompanyRunInput,
+  input: AttendanceInput | StopTapInput | CompanyRunInput | StopTaskInput,
   tappedAt: string,
 ): Promise<"sent" | "saved"> {
   const accountId = sessionAccount?.id ?? "";
@@ -773,6 +793,10 @@ export const recordCompanyStop = (id: string, input: StopTapInput, tappedAt = ne
 export const recordStopTap = (id: string, input: StopTapInput, tappedAt = new Date().toISOString()) =>
   recordTap("stop-taps", id, input, tappedAt);
 
+/** Done, or Undo, for one request at a stop (0088); kept in order with the trip's other taps. */
+export const recordStopTask = (id: string, input: StopTaskInput, tappedAt = new Date().toISOString()) =>
+  recordTap("stop-tasks", id, input, tappedAt);
+
 function storeTaps(list: SavedTap[]) {
   savedTaps = list;
   storeSavedTaps(list);
@@ -790,7 +814,7 @@ export function clearRefusedTaps() {
 /** How many of the signed-in account's taps are waiting on this phone. */
 export const savedTapCount = () => getSavedTaps().filter((tap) => tap.accountId === sessionAccount?.id).length;
 
-const TAP_NAMES = { START: "Start trip", END: "End trip", ARRIVE: "Arrived", LEAVE: "Leaving" } as const;
+const TAP_NAMES = { START: "Start trip", END: "End trip", ARRIVE: "Arrived", LEAVE: "Leaving", DONE: "Done", UNDO: "Undo" } as const;
 const tapLine = (tap: SavedTap, why: string) =>
   `${TAP_NAMES[tap.body.kind]} at ${new Date(tap.body.tappedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}: ${why}`;
 

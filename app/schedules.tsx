@@ -101,7 +101,7 @@ export default function Schedules({
   /** A cancellation request to highlight (its request id), from a notification. */
   initialCancellationId?: string;
 }) {
-  const { schedules, requests, vehicles, accounts, completions } = useKovaData();
+  const { schedules, requests, vehicles, accounts, completions, stopTasks } = useKovaData();
   const [view, setView] = useState<ScheduleView>(initialView ?? "week");
   const [date, setDate] = useState(() => initialDate ?? manilaToday());
   const [vehicle, setVehicle] = useState("all");
@@ -463,7 +463,7 @@ export default function Schedules({
                   A request in this schedule was cancelled. The approved route still lists it until a new version is approved.
                 </p>
               )}
-              <TripRecordView legs={selectedRevision.legs} stopsById={stopsById} />
+              <TripRecordView legs={selectedRevision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected?.id)} />
               {cancelling && (
                 <label className="field">
                   <span>Why is this schedule being cancelled? *</span>

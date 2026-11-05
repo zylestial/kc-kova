@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AttendanceInput, CompanyRunInput, StopTapInput, TripTimeInput } from "@/lib/kova-api";
+import type { AttendanceInput, CompanyRunInput, StopTaskInput, StopTapInput, TripTimeInput } from "@/lib/kova-api";
 import { parseWith } from "@/lib/validation";
 
 const location = z.object({
@@ -68,6 +68,18 @@ const stopTapBody = z.object({
  */
 export function parseStopTapInput(body: unknown): StopTapInput | null {
   return parseWith(stopTapBody, body);
+}
+
+const stopTaskBody = z.object({
+  legId: z.uuid(),
+  requestId: z.uuid(),
+  kind: z.enum(["DONE", "UNDO"]),
+  tappedAt,
+});
+
+/** Shape-checks Done or its Undo (0088) before it reaches Postgres. Returns null when the body isn't usable. */
+export function parseStopTaskInput(body: unknown): (StopTaskInput & { tappedAt?: string }) | null {
+  return parseWith(stopTaskBody, body);
 }
 
 const tripTimeBody = z.object({
