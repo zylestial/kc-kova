@@ -673,7 +673,10 @@ export const getSchedules = () => cache.schedules;
 // by the poller (lib/notifications-poll.ts), so neither has to refetch
 // every other table just to update the bell.
 export async function refreshNotifications() {
-  cache = { ...cache, notifications: await request<Notification[]>("/api/notifications") };
+  // Await first: spreading `cache` before the await would put back whatever a
+  // full reload (hydrateKovaData) saved meanwhile, undoing it on screen.
+  const notifications = await request<Notification[]>("/api/notifications");
+  cache = { ...cache, notifications };
   notify();
   return cache.notifications;
 }
