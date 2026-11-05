@@ -1219,6 +1219,22 @@ account the company owns from day one.
 - **Company trips' last stop** has no Arrived, so its tasks can be marked once the
   stop before is left, before actually getting there. Accepted: End trip waits.
 
+## Realtime on the bell (2026-11-05)
+
+- **The bell now uses Supabase Realtime, reversing the v2.2 call below** (owner's
+  decision). A 30-second poll through a function was the biggest cost on
+  Netlify's free credits, which bill waiting time, and a slower poll made the
+  bell late.
+- **Signal only.** The socket says "something's new", and the bell still reads
+  through `GET /api/notifications`, so the one direct browser connection to
+  Supabase carries no screen's data path. `next.config.ts` allows only that
+  project's socket in `connect-src`, read at build time, so changing
+  `NEXT_PUBLIC_SUPABASE_URL` needs a rebuild.
+- **No other table is published**, and `v2_notifications_realtime` fails if one
+  is. `e2e/notifications-live.spec.ts` checks an account can't hear another's,
+  even when it asks by filter or for the whole table.
+- The backup check stays (15 minutes live, 5 without): phones drop sockets.
+
 ## Notes stay off the trip forms (2026-11-03)
 
 - **A request's notes (`requests.details`) never print on a trip form,

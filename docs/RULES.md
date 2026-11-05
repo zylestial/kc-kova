@@ -558,10 +558,11 @@ audit — see `docs/MEMORY.md` and `docs/archive/MEMORY-history.md` for the full
   callable, then grant back only to the roles that need it.
 - **`service_role` is server-only** (`lib/supabase/admin.ts`), never sent
   to the browser, never used from a client component. The anon/publishable
-  key is the only Supabase credential the browser may ever see — and in
-  this repo, the browser doesn't even hold that, since `lib/kova-api.ts`
-  talks to KOVA's own API routes, never Supabase directly (see
-  `docs/ARCHITECTURE.md`).
+  key is the only Supabase credential the browser may ever see. In this repo
+  `lib/kova-api.ts` talks to KOVA's own API routes, never Supabase directly;
+  the one exception is the bell's Realtime signal
+  (`lib/notifications-live.ts`, see `docs/ARCHITECTURE.md`). Don't add a
+  second.
 - **Authorization uses a roles table (`accounts.role`), never
   `user_metadata`.** `user_metadata` is user-editable via the client SDK
   and must never gate permissions; this repo's `is_admin()` and every RPC
