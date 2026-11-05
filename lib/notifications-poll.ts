@@ -1,7 +1,7 @@
 import { refreshNotifications } from "@/lib/kova-api";
 
 /** How often the bell rechecks while the tab is visible. */
-export const NOTIFICATION_POLL_MS = 30_000;
+export const NOTIFICATION_POLL_MS = 300_000;
 
 /**
  * Keeps the bell current by refetching GET /api/notifications every
