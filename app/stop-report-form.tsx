@@ -12,11 +12,14 @@ import { canNameSome, STOP_REPORT_CHOICES } from "@/lib/stop-reports";
  * phone) and a note. The trip then waits for the Scheduler's answer (0068).
  * Where several requests share the stop, Not available, Not ready, Wrong
  * address and Something else ask which of them (0067, 0085, 0086): some of
- * them, and the stop goes on as planned.
+ * them, and the stop goes on as planned. Not yet done on a task (0088) already
+ * names its request, so it only asks why; `kinds` narrows what can be picked.
  */
 export default function StopReportForm({
   place,
   stops = [],
+  only,
+  kinds,
   busy,
   onCancel,
   onSend,
@@ -24,6 +27,10 @@ export default function StopReportForm({
   place: string;
   /** The requests at this stop, e.g. "52-A · Pick up · Cement". */
   stops?: Array<{ requestId: string; label: string }>;
+  /** Not yet done on this one request: it's already named. */
+  only?: { requestId: string; label: string };
+  /** The kinds to offer, in this order; all of them when left out. */
+  kinds?: StopReportKind[];
   busy: boolean;
   onCancel: () => void;
   onSend: (report: { kind: StopReportKind; note: string; requestIds?: string[] }) => void;
@@ -31,8 +38,11 @@ export default function StopReportForm({
   const [kind, setKind] = useState<StopReportKind | null>(null);
   const [note, setNote] = useState("");
   const [picked, setPicked] = useState<Set<string>>(() => new Set(stops.map((stop) => stop.requestId)));
-  const choice = STOP_REPORT_CHOICES.find((item) => item.kind === kind);
-  const asksWhich = stops.length > 1 && !!kind && canNameSome(kind);
+  const choices = kinds
+    ? kinds.map((item) => STOP_REPORT_CHOICES.find((choice) => choice.kind === item)!)
+    : STOP_REPORT_CHOICES;
+  const choice = choices.find((item) => item.kind === kind);
+  const asksWhich = !only && stops.length > 1 && !!kind && canNameSome(kind);
   const some = asksWhich && picked.size < stops.length;
   const ready = !!choice && (!asksWhich || picked.size > 0);
   function pick(requestId: string, on: boolean) {
@@ -44,9 +54,9 @@ export default function StopReportForm({
 
   return (
     <div className="stop-report">
-      <p className="helper">What happened at {place}?</p>
+      <p className="helper">{only ? `Why isn't ${only.label} done yet?` : `What happened at ${place}?`}</p>
       <div className="stop-report-choices" role="group" aria-label="What happened">
-        {STOP_REPORT_CHOICES.map((item) => (
+        {choices.map((item) => (
           <button
             key={item.kind}
             type="button"
@@ -83,7 +93,7 @@ export default function StopReportForm({
         <Button variant="outline" disabled={busy} onClick={onCancel}>
           Back
         </Button>
-        <Button className="primary" disabled={busy || !ready} onClick={() => kind && onSend({ kind, note: note.trim(), requestIds: some ? [...picked] : undefined })}>
+        <Button className="primary" disabled={busy || !ready} onClick={() => kind && onSend({ kind, note: note.trim(), requestIds: only ? [only.requestId] : some ? [...picked] : undefined })}>
           {busy ? "Sending…" : "Send report"}
         </Button>
       </div>

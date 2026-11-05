@@ -1,4 +1,4 @@
-import type { ProblemReport, Schedule, ScheduleLeg, StopDecision, StopReportKind, StopTap, TransportRequest } from "@/lib/kova-api";
+import type { ProblemReport, Schedule, ScheduleLeg, StopDecision, StopReportKind, TransportRequest } from "@/lib/kova-api";
 import { publishedRevision } from "@/lib/trip-record";
 
 /**
@@ -15,6 +15,11 @@ export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; h
   { kind: "VEHICLE_PROBLEM", label: "Vehicle problem", hint: "Breakdown, flat tire." },
   { kind: "OTHER", label: "Something else", hint: "Anything else the Scheduler should know." },
 ];
+
+/** Why a task isn't done yet (0088): only the kinds that can name one request, the Wilcon case first. */
+export const TASK_REPORT_KINDS: StopReportKind[] = ["NOT_READY", "NOT_AVAILABLE", "WRONG_ADDRESS", "OTHER"];
+/** What can still go wrong at a stop once its tasks are being answered one by one (0088). */
+export const ROAD_REPORT_KINDS: StopReportKind[] = ["ROAD_BLOCKED", "VEHICLE_PROBLEM"];
 
 /** The Scheduler's answers (0068), in the order the banner offers them. */
 export const STOP_ANSWERS: Array<{ decision: StopDecision; label: string }> = [
@@ -38,21 +43,12 @@ export function answerLabel(answer: (typeof STOP_ANSWERS)[number], report: Pick<
 export const canNameSome = (kind: StopReportKind) => kind === "NOT_AVAILABLE" || kind === "NOT_READY" || kind === "WRONG_ADDRESS" || kind === "OTHER";
 
 /** What a held trip says instead of its next button: waiting for an answer, or for the route change. */
-export function holdText(
-  problems: ProblemReport[],
-  legs: Array<Pick<ScheduleLeg, "id" | "destinationName">> = [],
-  taps: Array<Pick<StopTap, "legId" | "kind">> = [],
-): string {
+export function holdText(problems: ProblemReport[], othersLeft = true): string {
   const waiting = problems.filter(waitsForAnswer);
   if (waiting.some((item) => item.decision === "CHANGE")) return "Your route is being changed. Wait until it shows here.";
-  // Reported after Leaving: the notice sits on the next stop's card, so it names the stop it's about.
-  const left = waiting.map((item) =>
-    taps.some((tap) => tap.legId === item.legId && tap.kind === "LEAVE") ? legs.find((leg) => leg.id === item.legId)?.destinationName : undefined,
-  );
-  if (waiting.length > 0 && left.every(Boolean)) return `Reported ${[...new Set(left)].join(" and ")}. Wait for the Scheduler's answer before going on.`;
   // Only if every report waiting names some requests: a whole-stop report covers the others too.
   return waiting.length > 0 && waiting.every((item) => item.requestIds?.length)
-    ? "Reported. Wait for the Scheduler's answer before leaving. You can still do the other requests here."
+    ? `Reported. Wait for the Scheduler's answer before leaving.${othersLeft ? " You can still do the other requests here." : ""}`
     : "Reported. Wait for the Scheduler's answer before going on.";
 }
 

@@ -188,22 +188,9 @@ describe("answers to stop reports (0068)", () => {
     expect(holdText([{ ...waitingSome, decision: "CHANGE" }])).toBe("Your route is being changed. Wait until it shows here.");
   });
 
-  it("names the stop when the Driver reported it after Leaving", () => {
-    const legs = [
-      { id: "l1", destinationName: "Wilcon Depot" },
-      { id: "l2", destinationName: "Riverside" },
-    ];
-    const atLeft = report({ legId: "l1", status: "OPEN", kind: "NOT_READY", requestIds: ["q1"] });
-    const atHere = report({ legId: "l2", status: "OPEN", kind: "OTHER", requestIds: ["q2"] });
-    const left = [
-      { legId: "l1", kind: "ARRIVE" as const },
-      { legId: "l1", kind: "LEAVE" as const },
-    ];
-    expect(holdText([atLeft], legs, left)).toBe("Reported Wilcon Depot. Wait for the Scheduler's answer before going on.");
-    // Still at the stop: the usual words.
-    expect(holdText([atLeft], legs, [{ legId: "l1", kind: "ARRIVE" }])).toContain("You can still do the other requests here");
-    // One report is about where the Driver is now.
-    expect(holdText([atLeft, atHere], legs, left)).toContain("before leaving");
+  it("doesn't mention the other requests when none are left to do", () => {
+    const waitingSome = report({ legId: "l1", status: "OPEN", kind: "NOT_READY", requestIds: ["q1"] });
+    expect(holdText([waitingSome], false)).toBe("Reported. Wait for the Scheduler's answer before leaving.");
   });
 
   it("flags the requests a report names until they're off the trip", () => {
