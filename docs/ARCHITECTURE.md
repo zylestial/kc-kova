@@ -76,12 +76,16 @@ Browser (React client components)
 The frontend never talks to Supabase directly and never holds a Supabase
 key — all access goes through KOVA's own API routes, which hold the session
 cookie and (for privileged operations) the service-role key. In-app
-notifications (0035, v2.2) keep this invariant: rather than a client-side
-Supabase Realtime subscription (which would need the anon key and the
-user's JWT in the browser), the browser refetches `GET /api/notifications`
-every 30 seconds while the tab is visible (`lib/notifications-poll.ts`).
-v2.2 used a Server-Sent Events route that held a Vercel function open per
-tab and queried every 4 seconds; v2.5 replaced it with this poll.
+notifications (0035, v2.2) make the one exception, for the signal only. A
+Supabase Realtime socket (0089, `lib/notifications-live.ts`) tells the browser
+that a row was added for this account, using a short-lived token and the anon
+key from `GET /api/notifications/live`, and the `notifications_select` policy
+decides who hears it. The bell itself still reads through
+`GET /api/notifications`: on that signal, straight away when the tab comes back
+into view, and on a backup check while the tab is visible, every 15 minutes
+with Realtime working and every 5 without (`lib/notifications-poll.ts`). v2.2
+used a Server-Sent Events route that held a function open per tab and queried
+every 4 seconds; v2.5 replaced it with a 30-second poll.
 
 ## Authentication
 

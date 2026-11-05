@@ -7,16 +7,17 @@ import type { NextConfig } from "next";
 // is required for script-src (Next's hydration payload script) and
 // style-src (React inline `style={{...}}` usage in app/components); every
 // other directive is locked to 'self'/'none'. All app data access goes
-// through this app's own /api/* routes (no direct browser calls to
-// Supabase), so connect-src 'self' is sufficient.
+// through this app's own /api/* routes; the one direct browser connection to
+// Supabase is the Realtime socket for the bell (lib/notifications-live.ts).
 const isDev = process.env.NODE_ENV === "development";
+const realtimeOrigin = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/^http/, "ws").replace(/\/$/, "");
 const cspHeader = `
   default-src 'self';
   script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
   style-src 'self' 'unsafe-inline';
   img-src 'self' data:;
   font-src 'self';
-  connect-src 'self';
+  connect-src 'self'${realtimeOrigin ? ` ${realtimeOrigin}` : ""};
   object-src 'none';
   base-uri 'self';
   form-action 'self';
