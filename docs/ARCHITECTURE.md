@@ -79,7 +79,8 @@ cookie and (for privileged operations) the service-role key. In-app
 notifications (0035, v2.2) keep this invariant: rather than a client-side
 Supabase Realtime subscription (which would need the anon key and the
 user's JWT in the browser), the browser refetches `GET /api/notifications`
-every 30 seconds while the tab is visible (`lib/notifications-poll.ts`).
+every 5 minutes while the tab is visible, and straight away when the tab comes
+back into view (`lib/notifications-poll.ts`). Push carries what can't wait.
 v2.2 used a Server-Sent Events route that held a Vercel function open per
 tab and queried every 4 seconds; v2.5 replaced it with this poll.
 
