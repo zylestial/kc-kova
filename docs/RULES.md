@@ -422,7 +422,10 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   moved by a Scheduler to any day from today, Sundays included, whatever
   its flexibility; the requester gets REQUEST_MOVED saying why. Scheduling
   lists these stops on every other day, and adding one to a trip moves it
-  to that day. Other stops keep the "any day that week" rule.
+  to that day. Other stops keep the "any day that week" rule. Scheduling
+  also shows past days, view only, to see what was left on each; nothing is
+  planned on a past day. An "any day that week" stop isn't left until its
+  week is over.
 
 ## Booking options
 

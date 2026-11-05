@@ -301,10 +301,11 @@ addresses (`/schedules/new`, `/schedules/company`) redirect to it, and
 `?date=&type=DAILY|COMPANY` keeps the day and kind in the address. From the
 top:
 
-- the month, then two weeks of date cards from today (Sundays included),
-  each with a red badge on its corner, like a phone's notification count,
-  showing how many requests wait that day (no badge on a quiet day; no
-  scrollbar, swipe or use the arrows), arrows to page a week at a time, and "Also
+- the month, then date cards for the past week (paler) and two weeks from
+  today (Sundays included), each with a red badge on its corner, like a
+  phone's notification count, showing how many requests wait that day, or on
+  a past day how many were left (no badge on a quiet day; no
+  scrollbar, swipe or use the arrows), arrows to page a week at a time, as far back as needed, and "Also
   waiting" buttons for days beyond the strip (one swipeable row on phones);
 - a **Daily trips | Company trips** switch, each with its counts;
 - an Urgent banner per urgent stop with **Fit it in**, a banner per trip
@@ -316,7 +317,11 @@ top:
   saying the day it was for), and the
   vehicles (`app/scheduler/vehicle-card.tsx`): folded by default, each
   with its Driver, a summary and the trip's state; one opens when clicked
-  or when something is added to it.
+  or when something is added to it. The switch and the day banner add
+  "3 left from past days" when any are carried. A past day is view only:
+  "Left on <day>" with **Plan these today**, its trips with nothing to
+  change, and no reports (those wait on today's page). Tapping a stop left
+  there opens its options on today.
 
 A stop is dragged onto a vehicle (the card shows whether it can take it)
 or tapped: a sheet slides in from the right with its details and the
