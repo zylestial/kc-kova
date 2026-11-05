@@ -382,9 +382,17 @@ async function main() {
       .eq("revision_id", schedule.published_revision_id)
       .order("leg_no");
     if (legsError) throw new Error(`schedule_legs lookup failed: ${legsError.message}`);
-    for (const kind of ["ARRIVE", "LEAVE"]) {
-      await rpc(driver1, "record_stop_tap", { p_schedule_id: scheduleId, p_leg_id: legs[0].id, p_kind: kind });
+    await rpc(driver1, "record_stop_tap", { p_schedule_id: scheduleId, p_leg_id: legs[0].id, p_kind: "ARRIVE" });
+    // Each task at the stop is Done before Leaving (0088).
+    const { data: legStops, error: legStopsError } = await admin
+      .from("leg_stops")
+      .select("request_destinations(request_id)")
+      .eq("leg_id", legs[0].id);
+    if (legStopsError) throw new Error(`leg_stops lookup failed: ${legStopsError.message}`);
+    for (const stop of legStops) {
+      await rpc(driver1, "record_stop_task", { p_schedule_id: scheduleId, p_leg_id: legs[0].id, p_request_id: stop.request_destinations.request_id });
     }
+    await rpc(driver1, "record_stop_tap", { p_schedule_id: scheduleId, p_leg_id: legs[0].id, p_kind: "LEAVE" });
     await rpc(driver1, "record_trip_attendance", { p_schedule_id: scheduleId, p_kind: "END" });
     await rpc(driver1, "submit_completion", {
       p_schedule_id: scheduleId, p_start_odometer: 15000, p_end_odometer: 15042,

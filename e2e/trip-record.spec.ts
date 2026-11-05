@@ -17,6 +17,7 @@ test("a driver records a finished trip and an admin marks it done", async ({ bro
   // One big button at a time; each done step is ticked.
   await record.getByRole("button", { name: "Start trip" }).click();
   await record.getByRole("button", { name: /^Arrived at / }).click();
+  await record.getByRole("button", { name: "Done", exact: true }).click();
   await record.getByRole("button", { name: /^Leaving / }).click();
   await record.getByRole("button", { name: /^End trip/ }).click();
   await expect(record.locator(".trip-step.done")).toHaveCount(4);

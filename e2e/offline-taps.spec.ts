@@ -16,6 +16,7 @@ type Bootstrap = {
   schedules: Schedule[];
   attendance: { scheduleId: string; start: { at: string } }[];
   stopTaps: { scheduleId: string; kind: string; at: string }[];
+  stopTasks: { scheduleId: string; at: string }[];
 };
 
 test.setTimeout(180_000);
@@ -50,9 +51,13 @@ test("taps made offline send later with the time they were tapped", async ({ bro
   await expect(button).toHaveText(/^Arrived at Site Alpha$/, saved);
   await button.click();
   await expect(button).toHaveText(/^Leaving Site Alpha$/, saved);
+  // Leaving waits for the task at the stop, which saves the same way (0088).
+  await expect(button).toBeDisabled();
+  await steps.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(button).toBeEnabled(saved);
   const tappedUntil = Date.now();
-  await expect(steps.getByText("waiting for signal")).toHaveCount(2);
-  await expect(driver.getByRole("dialog").locator(".notice.info", { hasText: "2 taps are saved on this phone" })).toBeVisible();
+  await expect(steps.getByText("waiting for signal")).toHaveCount(3);
+  await expect(driver.getByRole("dialog").locator(".notice.info", { hasText: "3 taps are saved on this phone" })).toBeVisible();
 
   // Still offline a while later, so a late send would show in the times.
   await driver.waitForTimeout(5_000);
@@ -70,6 +75,9 @@ test("taps made offline send later with the time they were tapped", async ({ bro
     expect(at).toBeLessThan(backOnline);
   }
   expect(arrived).toBeGreaterThanOrEqual(start);
+  const task = Date.parse(data.stopTasks.find((t) => t.scheduleId === trip!.id)!.at);
+  expect(task).toBeGreaterThanOrEqual(arrived);
+  expect(task).toBeLessThan(backOnline);
 
   // Back online, the next tap goes straight through.
   await button.click();

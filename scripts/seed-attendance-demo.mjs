@@ -205,6 +205,7 @@ async function writeStopTaps(trip, driverId, arrivedAt, leftAt) {
     kind,
     at: time,
     recorded_by_account_id: driverId,
+    before_tasks: true,
   });
   const { error: insertError } = await admin.from("stop_taps").insert([row("ARRIVE", arrivedAt), row("LEAVE", leftAt)]);
   if (insertError) throw new Error(`stop_taps insert failed: ${insertError.message}`);

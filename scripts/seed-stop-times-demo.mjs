@@ -216,6 +216,7 @@ async function writeTaps(trip, driverId, date, startTime, endTime, stopTaps) {
     accuracy_m: 14,
     distance_m: distance(position, destination),
     recorded_by_account_id: driverId,
+    before_tasks: true,
   }));
   const { error: tapsError } = await admin.from("stop_taps").insert(rows);
   if (tapsError) throw new Error(`stop_taps insert failed: ${tapsError.message}`);
