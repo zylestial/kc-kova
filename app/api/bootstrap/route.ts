@@ -9,6 +9,7 @@ import {
   toNotification,
   toProblemReport,
   toStopTap,
+  toStopTask,
   toCompanyTripRun,
   toTripTimeCorrection,
   toTripAttendance,
@@ -51,6 +52,7 @@ export const GET = authed(async ({ request, supabase }) => {
     completionsRes,
     attendanceRes,
     stopTapsRes,
+    stopTasksRes,
     companyRunsRes,
     correctionsRes,
     problemsRes,
@@ -126,6 +128,14 @@ export const GET = authed(async ({ request, supabase }) => {
     ),
     allRows((from, to) =>
       supabase
+        .from("stop_tasks")
+        .select("*, schedules!stop_tasks_schedule_id_fkey!inner(schedule_date)")
+        .gte("schedules.schedule_date", since)
+        .order("id")
+        .range(from, to),
+    ),
+    allRows((from, to) =>
+      supabase
         .from("company_trip_runs")
         .select("*, schedules!company_trip_runs_schedule_id_fkey!inner(schedule_date)")
         .gte("schedules.schedule_date", since)
@@ -190,6 +200,7 @@ export const GET = authed(async ({ request, supabase }) => {
     completionsRes,
     attendanceRes,
     stopTapsRes,
+    stopTasksRes,
     companyRunsRes,
     correctionsRes,
     problemsRes,
@@ -223,17 +234,18 @@ export const GET = authed(async ({ request, supabase }) => {
 
   // Their taps and Admin time entries too, so an older trip still under
   // review shows (and prints) its actual times.
-  const [oldAttendanceRes, oldStopTapsRes, oldCompanyRunsRes, oldCorrectionsRes] = oldScheduleIds.length
+  const [oldAttendanceRes, oldStopTapsRes, oldStopTasksRes, oldCompanyRunsRes, oldCorrectionsRes] = oldScheduleIds.length
     ? await Promise.all([
         allRows((from, to) => supabase.from("trip_attendance").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to)),
         allRows((from, to) => supabase.from("stop_taps").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to)),
+        allRows((from, to) => supabase.from("stop_tasks").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to)),
         allRows((from, to) => supabase.from("company_trip_runs").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to)),
         allRows((from, to) =>
           supabase.from("trip_time_corrections").select("*").in("schedule_id", oldScheduleIds).order("id").range(from, to),
         ),
       ])
-    : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
-  if (oldAttendanceRes.error || oldStopTapsRes.error || oldCompanyRunsRes.error || oldCorrectionsRes.error) {
+    : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+  if (oldAttendanceRes.error || oldStopTapsRes.error || oldStopTasksRes.error || oldCompanyRunsRes.error || oldCorrectionsRes.error) {
     return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
   }
 
@@ -285,6 +297,8 @@ export const GET = authed(async ({ request, supabase }) => {
     attendance: [...(attendanceRes.data ?? []), ...(oldAttendanceRes.data ?? [])].map(toTripAttendance),
     // Same visibility as attendance (0045 policy).
     stopTaps: [...(stopTapsRes.data ?? []), ...(oldStopTapsRes.data ?? [])].map(toStopTap),
+    // The trip's people and the request's requester (0088 policy).
+    stopTasks: [...(stopTasksRes.data ?? []), ...(oldStopTasksRes.data ?? [])].map(toStopTask),
     // Whoever can see the Company trip (0055 policy).
     companyRuns: [...(companyRunsRes.data ?? []), ...(oldCompanyRunsRes.data ?? [])].map(toCompanyTripRun),
     // Admin all; a Driver those on their own trips (0046 policy).

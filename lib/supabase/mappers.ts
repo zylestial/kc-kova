@@ -10,6 +10,7 @@ import type {
   NotificationType,
   ProblemReport,
   StopTap,
+  StopTask,
   TripTimeCorrection,
   TripAttendance,
   TripCompletion,
@@ -344,7 +345,30 @@ type StopTapRow = {
   address: string | null;
   recorded_by_account_id: string;
   sent_at?: string | null;
+  before_tasks?: boolean;
 };
+
+type StopTaskRow = {
+  id: string;
+  schedule_id: string;
+  revision_id: string;
+  leg_id: string;
+  request_id: string;
+  at: string;
+  recorded_by_account_id: string;
+};
+
+export function toStopTask(row: StopTaskRow): StopTask {
+  return {
+    id: row.id,
+    scheduleId: row.schedule_id,
+    revisionId: row.revision_id,
+    legId: row.leg_id,
+    requestId: row.request_id,
+    at: row.at,
+    recordedByAccountId: row.recorded_by_account_id,
+  };
+}
 
 export function toStopTap(row: StopTapRow): StopTap {
   return {
@@ -361,10 +385,12 @@ export function toStopTap(row: StopTapRow): StopTap {
         ? null
         : { lat: row.lat, lng: row.lng, accuracyM: row.accuracy_m, distanceM: row.distance_m, address: row.address },
     sentAt: row.sent_at ?? undefined,
+    beforeTasks: row.before_tasks ?? false,
   };
 }
 
 type CompanyTripRunRow = {
+  before_tasks?: boolean;
   id: string;
   schedule_id: string;
   revision_id: string;
@@ -407,6 +433,7 @@ function companyTap(
 
 export function toCompanyTripRun(row: CompanyTripRunRow): CompanyTripRun {
   return {
+    beforeTasks: row.before_tasks ?? false,
     id: row.id,
     scheduleId: row.schedule_id,
     revisionId: row.revision_id,
