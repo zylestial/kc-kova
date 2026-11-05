@@ -83,6 +83,7 @@ export default function TripEditor({
   fuel,
   doneLeg,
   missedLeg,
+  readOnly = false,
   busy,
   run,
 }: {
@@ -99,6 +100,8 @@ export default function TripEditor({
   doneLeg: (legId: string, isLast: boolean) => boolean;
   /** The stop was reported missed (0061): what happened. It's reached, like a done one. */
   missedLeg: (legId: string) => string | undefined;
+  /** A past day: to see what happened, not to change it. */
+  readOnly?: boolean;
   busy: boolean;
   /** Runs a save; the message it returns is shown when it works. `undo`: the trip before it, or "clear". */
   run: (action: () => Promise<string>, undo?: UndoEntry | "clear") => Promise<void>;
@@ -122,7 +125,7 @@ export default function TripEditor({
   // An approved trip is changed through Propose changes; any other can be
   // edited (on the road, past the legs reached, into draft changes), and
   // one waiting for the Admin goes back to draft to resubmit.
-  const editable = state !== "APPROVED";
+  const editable = !readOnly && state !== "APPROVED";
   // Legs up to the last one reached can't change; a draft leg is reached
   // when the leg of the Driver's route it came from is.
   const lastDone = legs.reduce(
@@ -231,8 +234,8 @@ export default function TripEditor({
     const request = requests.find((item) => item.id === id);
     return request ? stopNumber(request) || request.ownerName : "A stop";
   };
-  const problems = tripChecks(legs, timer, company);
-  const suggestions = tripSuggestions(legs, timer, nameOf);
+  const problems = readOnly ? [] : tripChecks(legs, timer, company);
+  const suggestions = readOnly ? [] : tripSuggestions(legs, timer, nameOf);
   const removingLeg = removing === null ? null : legs[removing];
 
   return (
@@ -254,7 +257,7 @@ export default function TripEditor({
         const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
         const lastMovable = legs.length - (legs.at(-1)?.isFinal ? 2 : 1);
-        const warnings = [...legProblems(legs, index, timer), ...legSuggestions(legs, index, timer, nameOf)].map((problem) => problem + ".");
+        const warnings = readOnly ? [] : [...legProblems(legs, index, timer), ...legSuggestions(legs, index, timer, nameOf)].map((problem) => problem + ".");
         return (
           <div
             key={leg.key}
@@ -397,6 +400,11 @@ export default function TripEditor({
         );
       })}
 
+      {readOnly ? (
+        <div className="sc-state">
+          <b>{tripStateLabel[state]}</b>
+        </div>
+      ) : (
       <TripActions
         trip={trip}
         state={state}
@@ -408,6 +416,7 @@ export default function TripEditor({
         problems={problems}
         requestIdOf={(stopId) => requestOf(stopId)?.id}
       />
+      )}
 
       <RemoveLegDialog
         key={removing ?? "closed"}
