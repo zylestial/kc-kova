@@ -92,7 +92,8 @@ test("several people on a trip that's on the road", async ({ browser }) => {
       await openTrip(driver, trip.id);
       await tapNext(driver, /^Start trip$/);
       await tapNext(driver, /^Arrived at Site Alpha$/);
-      // Each request at the stop, one at a time (0088).
+      // Each request at the stop, one at a time (0088), once Arrived has saved.
+      await expect(driver.locator(".trip-step-button")).toHaveText(/^Leaving Site Alpha$/, saved);
       const done = driver.getByRole("button", { name: "Done", exact: true });
       for (let left = await done.count(); left > 0; left--) {
         await done.first().click();
