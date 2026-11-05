@@ -407,6 +407,20 @@ approved version's Driver, `recorded_by_account_id` whoever tapped.
 time (`distance_m()`), null without one. Written only by `record_stop_tap`;
 `authenticated` gets `SELECT` only (the Driver's own rows, Admin all).
 
+### `stop_tasks` (migration 0088)
+
+One row per request marked Done at a leg (unique per leg and request): `at`,
+`sent_at` when it was saved on the phone, `recorded_by_account_id`. Written only
+by `record_stop_task` (with an `_at` twin) and `undo_stop_task`, which deletes it;
+readable by the trip's Driver, the Admin, Scheduler and Finance, the request's
+requester, and whoever can see a Company trip. The trigger
+`stop_taps_tasks_marked` refuses a Leaving tap while `leg_tasks_open` has any
+request not Done and not skipped, and `company_trip_runs_tasks_marked` does the
+same for End trip at a Company trip's last stop. `stop_taps.before_tasks` and
+`company_trip_runs.before_tasks` are true on rows from before 0088, which skip
+this. Done and Undo are saved on the phone with no signal, in order with the
+trip's taps (`stop-tasks` in `lib/saved-taps.ts`).
+
 **Taps saved offline (0077).** Each tap RPC (`record_trip_attendance`,
 `record_stop_tap`, `start_company_trip`, `record_company_stop`,
 `end_company_trip`) has an `_at` twin taking `p_tapped_at` first. The twin
@@ -531,6 +545,7 @@ built against, written before implementation, is kept for history in
 | PATCH | `/api/schedules/:scheduleId/completion` | `app/api/schedules/[scheduleId]/completion/route.ts` | Admin (until Done) |
 | POST | `/api/schedules/:scheduleId/completion/done` | `app/api/schedules/[scheduleId]/completion/done/route.ts` | Admin |
 | POST | `/api/schedules/:scheduleId/attendance` | `app/api/schedules/[scheduleId]/attendance/route.ts` | Assigned Driver, Admin (as Driver); `{ kind: "START" \| "END", location }` |
+| POST | `/api/schedules/:scheduleId/stop-tasks` | `app/api/schedules/[scheduleId]/stop-tasks/route.ts` | Whoever records the trip, between Start and End; Done or Undo for one request at a stop (0088) |
 | POST | `/api/schedules/:scheduleId/stop-taps` | `app/api/schedules/[scheduleId]/stop-taps/route.ts` | Assigned Driver, Admin (as Driver), between Start and End; `{ legId, kind: "ARRIVE" \| "LEAVE", location }` |
 | POST | `/api/schedules/:scheduleId/company-run` | `app/api/schedules/[scheduleId]/company-run/route.ts` | Requester with a stop on the Company trip, Admin; `{ kind: "START" \| "END", odometer, location }` |
 | POST | `/api/schedules/:scheduleId/company-stops` | `app/api/schedules/[scheduleId]/company-stops/route.ts` | Same; `{ legId, kind: "ARRIVE" \| "LEAVE", location }` |

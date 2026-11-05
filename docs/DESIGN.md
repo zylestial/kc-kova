@@ -353,9 +353,16 @@ report unanswered; an older report needing no planning (amber) has
 **Got it**.
 Today's view also shows reports not handled on their own day, naming it.
 
-**Forgot something** (My Schedule and My Trips): right after Leaving, until the
-next Arrived, the stop just left offers "Forgot something here? Report it",
-since Leaving otherwise counts its requests as done. No extra tap at each stop.
+**Tasks at a stop** (My Schedule and My Trips, `app/stop-task-actions.tsx`,
+0088): after Arrived, each request at the stop has **Done** and **Not yet done**.
+Done shows its time with **Undo**, until Leaving. Not yet done opens the stop
+report for that request, asking only why. **Leaving** stays disabled, with "Mark
+each task above first: 2 left", until each has an answer. On a Company trip the
+last stop has no Arrived or Leaving, so its tasks show before **End trip**, which
+waits the same way. The link under the stop is "Can't get here?" before Arrived
+(the full report) and "Vehicle or road problem?" after it, gone once every task
+is done. A stop Arrived at before tasks existed keeps "Problem here?" and no
+task buttons. The Trip Record and My Requests show each request's Done time.
 
 **Stop report** (`app/stop-report-form.tsx`, shared by My Schedule and My
 Trips): "What happened at …?", then one big button per kind (label and a
