@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import {
   recordCompanyRun,
   recordCompanyStop,
+  recordStopTask,
   reportStop,
   type Schedule,
   type ScheduleRevision,
   type StopReportKind,
+  type StopTaskInput,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { useAutoClear } from "@/lib/use-auto-clear";
@@ -17,7 +19,9 @@ import { manilaToday } from "@/lib/timezone";
 import { getPhoneLocation } from "@/lib/phone-location";
 import { companyTripSteps, type CompanyStep } from "@/lib/company-trips";
 import { legStops, routeChangedAt, stopsFor } from "@/lib/trip-record";
-import { answerText, holdText, jobFlags, latestAnswer, missedLegs, stopChoices, stopReportLabel } from "@/lib/stop-reports";
+import { answerText, holdText, jobFlags, latestAnswer, missedLegs, ROAD_REPORT_KINDS, stopChoices, stopReportLabel, TASK_REPORT_KINDS } from "@/lib/stop-reports";
+import { asksTasks, tasksOpen, wholeStopWaiting } from "@/lib/stop-tasks";
+import StopTaskActions from "./stop-task-actions";
 import StopJobs from "./stop-jobs";
 import StopReportForm from "./stop-report-form";
 import SavedTapsBanner from "./saved-taps-banner";
@@ -40,7 +44,7 @@ type Trip = { schedule: Schedule; revision: ScheduleRevision };
  * problem pauses the trip until Resume trip.
  */
 export default function MyTrips({ accountId, initialOpenId }: { accountId: string; initialOpenId?: string }) {
-  const { schedules, requests, vehicles, companyRuns, stopTaps, completions, problems } = useKovaData();
+  const { schedules, requests, vehicles, companyRuns, stopTaps, stopTasks, completions, problems } = useKovaData();
   const today = manilaToday();
   const mine = useMemo(() => new Set(requests.filter((request) => request.ownerAccountId === accountId).map((request) => request.id)), [requests, accountId]);
   const trips: Trip[] = schedules
@@ -61,7 +65,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   const [notice, setNotice] = useState("");
   const [locationOff, setLocationOff] = useState(false);
   /** The stop being reported (0061). */
-  const [reportAt, setReportAt] = useState<{ legId: string; place: string } | null>(null);
+  const [reportAt, setReportAt] = useState<{ legId: string; place: string; requestId?: string; roadOnly?: boolean } | null>(null);
   useAutoClear(notice, setNotice);
 
   const open = trips.find((trip) => trip.schedule.id === openId);
@@ -125,6 +129,19 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     setBusy(false);
   }
 
+  // Done, or its Undo, for one request at a stop (0088); saved on the phone with no signal, like a tap.
+  async function tapTask(trip: Trip, legId: string, requestId: string, kind: StopTaskInput["kind"]) {
+    const tappedAt = new Date().toISOString();
+    setBusy(true);
+    setError("");
+    try {
+      await recordStopTask(trip.schedule.id, { legId, requestId, kind }, tappedAt);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
+  }
+
   async function sendStopReport(trip: Trip, report: { kind: StopReportKind; note: string; requestIds?: string[] }) {
     if (!reportAt) return;
     setBusy(true);
@@ -177,9 +194,22 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
               // The stop the next step is at (End trip is the last stop's arrival).
               const nextLeg = next?.legId ?? (next?.kind === "END" ? trip.revision.legs.at(-1)?.id : undefined);
               const onTheRoad = !!run && !run.endAt;
-              // Just left this stop, and not at the next one yet: a request forgotten there can still be reported.
-              const before = next ? steps[steps.indexOf(next) - 1] : undefined;
-              const leftLeg = before?.kind === "LEAVE" && before.at && !before.missed ? trip.revision.legs.find((leg) => leg.id === before.legId) : undefined;
+              const flags = jobFlags(problemsOf(trip));
+              const taps = stopTaps.filter((tap) => tap.scheduleId === trip.schedule.id);
+              // At this stop, answering for each request (0088): between Arrived and Leaving, or before End trip at
+              // the last stop, which has neither. A stop reached before tasks existed goes on as it used to.
+              const liveLeg =
+                !onTheRoad || !nextLeg || missed.has(nextLeg)
+                  ? undefined
+                  : next?.kind === "LEAVE"
+                    ? asksTasks(taps, nextLeg) ? nextLeg : undefined
+                    : next?.kind === "END" && !run?.beforeTasks
+                      ? nextLeg
+                      : undefined;
+              const tasksLeft = liveLeg
+                ? tasksOpen(legStops(trip.revision.legs.find((leg) => leg.id === liveLeg)?.stops ?? [], stopsById), liveLeg, stopTasks, flags)
+                : 0;
+              const liveHasStops = !!trip.revision.legs.find((leg) => leg.id === liveLeg)?.stops.length;
               // The Scheduler's latest answer to a stop report (0068).
               const answer = onTheRoad && !trip.schedule.pausedAt ? latestAnswer(problemsOf(trip)) : undefined;
               return (
@@ -237,7 +267,25 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                                         trip.revision.legs.find((leg) => leg.id === (step.legId ?? trip.revision.legs.at(-1)?.id))?.stops ?? [],
                                         stopsById,
                                       )}
-                                      flags={jobFlags(problemsOf(trip))}
+                                      flags={flags}
+                                      actions={(stop) => {
+                                        const legId = step.legId ?? trip.revision.legs.at(-1)!.id;
+                                        return (
+                                          <StopTaskActions
+                                            legId={legId}
+                                            requestId={stop.requestId}
+                                            tasks={stopTasks}
+                                            flag={flags.get(stop.requestId)}
+                                            live={legId === liveLeg && !wholeStopWaiting(problemsOf(trip), legId)}
+                                            busy={busy}
+                                            onTask={(leg, requestId, kind) => tapTask(trip, leg, requestId, kind)}
+                                            onNotDone={(leg, requestId) => {
+                                              setReportAt({ legId: leg, place: trip.revision.legs.find((item) => item.id === leg)?.destinationName ?? "this stop", requestId });
+                                              setError("");
+                                            }}
+                                          />
+                                        );
+                                      }}
                                     />
                                   )}
                                 </div>
@@ -263,6 +311,8 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                         <StopReportForm
                           place={reportAt.place}
                           stops={stopChoices(trip.revision.legs.find((leg) => leg.id === reportAt.legId), requests)}
+                          only={stopChoices(trip.revision.legs.find((leg) => leg.id === reportAt.legId), requests).find((stop) => stop.requestId === reportAt.requestId)}
+                          kinds={reportAt.requestId ? TASK_REPORT_KINDS : reportAt.roadOnly ? ROAD_REPORT_KINDS : undefined}
                           busy={busy}
                           onCancel={() => {
                             setReportAt(null);
@@ -273,7 +323,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       )}
                       {!reportAt && next && onTheRoad && trip.schedule.pausedAt && (
                         <p className="notice error trip-held" role="status">
-                          {holdText(problemsOf(trip), trip.revision.legs, stopTaps.filter((tap) => tap.scheduleId === trip.schedule.id))}
+                          {holdText(problemsOf(trip), tasksLeft > 0)}
                         </p>
                       )}
                       {!reportAt && next && trip.schedule.date <= today && !(onTheRoad && trip.schedule.pausedAt) && (
@@ -289,33 +339,21 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                               />
                             </label>
                           )}
-                          <Button className="primary trip-step-button" disabled={busy} onClick={() => tap(trip, next)}>
+                          <Button className="primary trip-step-button" disabled={busy || tasksLeft > 0} onClick={() => tap(trip, next)}>
                             {busy ? "Saving…" : next.label}
                           </Button>
-                          {onTheRoad && nextLeg && (
+                          {tasksLeft > 0 && <p className="trip-step-note">Mark {tasksLeft === 1 ? "the task" : "each task"} above first: {tasksLeft} left.</p>}
+                          {onTheRoad && nextLeg && (!liveLeg || tasksLeft > 0 || !liveHasStops) && (
                             <button
                               type="button"
                               className="trip-step-report"
                               disabled={busy}
                               onClick={() => {
-                                setReportAt({ legId: nextLeg, place: trip.revision.legs.find((leg) => leg.id === nextLeg)?.destinationName ?? "this stop" });
+                                setReportAt({ legId: nextLeg, place: trip.revision.legs.find((leg) => leg.id === nextLeg)?.destinationName ?? "this stop", roadOnly: !!liveLeg });
                                 setError("");
                               }}
                             >
-                              Problem here? Report it
-                            </button>
-                          )}
-                          {onTheRoad && leftLeg && (
-                            <button
-                              type="button"
-                              className="trip-step-report"
-                              disabled={busy}
-                              onClick={() => {
-                                setReportAt({ legId: leftLeg.id, place: leftLeg.destinationName });
-                                setError("");
-                              }}
-                            >
-                              Forgot something at {leftLeg.destinationName}? Report it
+                              {liveLeg ? "Vehicle or road problem? Report it" : next.kind === "ARRIVE" ? "Can't get here? Report it" : "Problem here? Report it"}
                             </button>
                           )}
                         </div>
