@@ -6,7 +6,7 @@ v2.5 is in [`archive/TASKS-history.md`](archive/TASKS-history.md).
 
 ## Status: v2.9 (2026-10-20)
 
-v2 is live, with every migration through 0086 applied to production.
+v2 is live, with every migration through 0089 applied to production.
 `tsc --noEmit`, `eslint`, `vitest`, `next build`, the pgTAP suite,
 `concurrency.sh` and the Playwright suite (`e2e`) all run in CI on every PR.
 Production was reset on 2026-10-20 for the pilot: real staff start on
@@ -64,7 +64,8 @@ so far (plus the old `v1.2-stable`).
 - [x] **What to do at a stop (owner's request, 2026-11-03)**: each request listed with its notes and contact (PR #217), one request's problem at a shared stop, a report no longer lost when the trip ends, and Come back later for Daily trips (PR #218, 0085, 0086). Owner tested locally; 0085 and 0086 on production 2026-11-03.
 - [x] **Retake the welcome tour screenshots**: for the Driver's card and the Scheduling banners, changed in PRs #217 and #218 (2026-11-03).
 - [x] **Tasks at a stop (owner's request, 2026-11-05)**: after Arrived, Done or Not yet done per request; Leaving, and End trip at a Company trip's last stop, wait until each has an answer; replaces "Forgot something here?". PR #223 merged; 0088 on production.
-- [x] **Realtime on the bell (owner's request, 2026-11-05; `feat/realtime-bell`, 0089)**: a new notification shows straight away through a Realtime signal, with a backup check every 15 minutes (5 without Realtime). Needs 0089 on production before merging.
+- [x] **Hosting moved to Netlify (owner's request, 2026-11-06; `chore/netlify-cleanup`)**: kc-kova.netlify.app on the company's Netlify Free account, same database, Push sent from there; Vercel kept as a fallback. Still to do: connect Netlify to the company GitHub so deploys don't need one laptop, and confirm Netlify's terms for company use.
+- [x] **Realtime on the bell (owner's request, 2026-11-05; `feat/realtime-bell`, 0089)**: a new notification shows straight away through a Realtime signal, with a backup check every 15 minutes (5 without Realtime). 0089 is on production.
 - [x] **Stops left from past days in today's pool (owner's request, 2026-11-05)**: listed first in To plan, tagged "Left from Nov 4", and counted; replaces past dates on Scheduling, below, which the owner dropped.
 - [x] **Past dates on Scheduling (owner's request, 2026-11-05; since dropped)**: the strip starts with the past week, badges count what was left, a past day is view only with Plan these today, and the switch says "3 left from past days". No migration. PR #222 merged.
 - [ ] **`docs/PRD.md`, `RULES.md` and `DESIGN.md` have not been reviewed by KOVA's operators.** They were written from the code and the schema; treat them as a first draft to correct.

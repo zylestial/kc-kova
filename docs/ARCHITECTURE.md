@@ -7,6 +7,9 @@
 - **Backend:** Supabase — Postgres, Supabase Auth, Row Level Security (RLS),
   and Postgres RPC functions for anything that needs to be atomic.
 - **Package manager:** pnpm.
+- **Hosting:** Netlify (`kc-kova.netlify.app`, Free plan), with the old
+  Vercel site (`kc-kova.vercel.app`) kept as a fallback on the same database.
+  See "Hosting" under Deployment.
 - **UI:** Tailwind CSS 4, Radix UI primitives, shadcn-style components in
   `components/ui/` (vendored, not hand-edited).
 
@@ -110,8 +113,10 @@ failed sign-ins / 15 minutes per network (high, since an office shares one
 address); `forgot-ip:<address>`, 30 Forgot password requests / 15 minutes;
 `invite:<admin id>`, 150 invite emails an hour per Admin, resends included;
 `push-test:<account id>`, 10 test pushes an hour. A limited request gets
-`429`. The address comes from `x-forwarded-for` (set by Vercel); with none,
-the per-network limits are skipped.
+`429`. The address comes from Netlify's `x-nf-client-connection-ip`, since a
+caller can send `x-forwarded-for` themselves there; on Vercel, which writes
+`x-forwarded-for` itself, from that. With none, the per-network limits are
+skipped.
 
 An attempt is taken before it's made, through `add_login_attempts` (0082),
 which adds to a key's count and returns the new one in one statement, so
@@ -617,8 +622,8 @@ Configuration is entirely in environment variables (`.env.example`):
   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and the server-only `VAPID_PRIVATE_KEY`
   (a pair from `pnpm dlx web-push generate-vapid-keys`), `VAPID_SUBJECT`
   (a `mailto:` or `https:` contact for push services, not a secret;
-  production uses `https://kc-kova.vercel.app`, and `vapidSubject()`
-  tidies a typo or falls back to the site's own address) and the server-only
+  production uses `mailto:kayelens.kova@gmail.com`, and `vapidSubject()`
+  tidies a typo or falls back to `APP_URL`) and the server-only
   `PUSH_SEND_SECRET`. Each environment also needs the Vault secrets
   `push_send_url` (`https://<app>/api/push/send`) and `push_send_secret`
   (the same value as `PUSH_SEND_SECRET`); see 0070's header.
@@ -640,6 +645,27 @@ error the first time a route touches Supabase.
 `Content-Security-Policy`; see `docs/MEMORY.md`, "Content-Security-Policy".
 
 ## Deployment and migrations
+
+### Hosting
+
+KOVA runs on Netlify (`kc-kova.netlify.app`, the company's Netlify account,
+Free plan), moved from Vercel Hobby on 2026-11-06 for company use at no
+cost. `netlify.toml` holds the build settings; the keys are set in the
+Netlify dashboard. The Free plan has 300 credits a month and stops every
+site when they run out: a production deploy costs 15, and function time is
+billed by duration, so keep deploys few and watch Team → Usage.
+
+- **The old Vercel site** uses the same database, so either address shows
+  the same data. Keep one address for staff: Push goes only to the site
+  the Vault secret `push_send_url` names (now Netlify), and unsent offline
+  taps stay with the address they were made on.
+- **`NEXT_PUBLIC_*` values are built in**, including the Realtime socket in
+  the CSP (`next.config.ts`), so changing one needs a new deploy.
+- **Deploying from Windows fails** (symlinks, then a `C:/` path in the edge
+  bundle). Deploy from Netlify's own build (connected to GitHub) or from
+  Linux.
+
+### CI and migrations
 
 CI (`.github/workflows/ci.yml`) runs `pnpm install`, `pnpm exec tsc
 --noEmit`, `pnpm lint`, `pnpm test`, and `pnpm build` on every push and pull
