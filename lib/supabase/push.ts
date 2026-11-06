@@ -23,10 +23,10 @@ export function pushConfigured() {
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) return false;
   if (!configured) {
-    // Push services contact this address if KOVA's pushes misbehave. Vercel
-    // sets VERCEL_PROJECT_PRODUCTION_URL, the site's own host, as a fallback.
-    const site = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    const fallback = site ? `https://${site}` : "mailto:kova@kayelen.invalid";
+    // Push services contact this address if KOVA's pushes misbehave. The
+    // site's own address (APP_URL) is the fallback.
+    const site = process.env.APP_URL?.trim().replace(/\/$/, "");
+    const fallback = site?.startsWith("https://") ? site : "mailto:kova@kayelen.invalid";
     webpush.setVapidDetails(vapidSubject(process.env.VAPID_SUBJECT, fallback), publicKey, privateKey);
     configured = true;
   }

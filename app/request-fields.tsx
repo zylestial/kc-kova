@@ -98,15 +98,6 @@ function choices(options: BookingOption[], kept: Array<{ id: string; name: strin
   return list;
 }
 
-/** Name to show for a chosen option id, for the Review modal. */
-export function optionName(
-  options: BookingOption[],
-  id: string,
-  kept: Array<{ id: string; name: string }> = [],
-) {
-  return options.find((item) => item.id === id)?.name ?? kept.find((item) => item.id === id)?.name ?? "";
-}
-
 export function keptOptions(request?: TransportRequest | null) {
   return {
     projects: request && !request.projectIsOther && request.projectId ? [{ id: request.projectId, name: request.projectName }] : [],

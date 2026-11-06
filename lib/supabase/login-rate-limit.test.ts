@@ -87,4 +87,14 @@ describe("clientIp", () => {
     expect(clientIp(request({ "x-real-ip": "203.0.113.8" }))).toBe("203.0.113.8");
     expect(clientIp(request({}))).toBeNull();
   });
+
+  it("trusts Netlify's own header over a sent x-forwarded-for", () => {
+    const headers = { "x-nf-client-connection-ip": "198.51.100.4", "x-forwarded-for": "203.0.113.9" };
+    expect(clientIp(request(headers), false)).toBe("198.51.100.4");
+  });
+
+  it("ignores the Netlify header on Vercel, where a caller could send it", () => {
+    const headers = { "x-nf-client-connection-ip": "198.51.100.4", "x-forwarded-for": "203.0.113.9" };
+    expect(clientIp(request(headers), true)).toBe("203.0.113.9");
+  });
 });
