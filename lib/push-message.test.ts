@@ -59,7 +59,7 @@ describe("vapidSubject", () => {
   const fallback = "https://kova.test";
 
   it("keeps a good subject", () => {
-    expect(vapidSubject("https://kc-kova.vercel.app", fallback)).toBe("https://kc-kova.vercel.app");
+    expect(vapidSubject("https://kc-kova.netlify.app", fallback)).toBe("https://kc-kova.netlify.app");
     expect(vapidSubject("mailto:ops@kayelen.com", fallback)).toBe("mailto:ops@kayelen.com");
   });
 
