@@ -69,11 +69,16 @@ export async function clearLoginAttempts(key: string) {
 }
 
 /**
- * The caller's IP address as the host reports it (Vercel sets both
- * headers), or null when there is none, so callers skip the per-network
- * limit rather than lump everyone under one key.
+ * The caller's IP address as the host reports it, or null when there is none,
+ * so callers skip the per-network limit rather than lump everyone under one
+ * key. Netlify's own x-nf-client-connection-ip comes first there, since a
+ * caller can send x-forwarded-for themselves. Vercel writes x-forwarded-for
+ * itself but passes other headers through, so there the Netlify header is
+ * ignored.
  */
-export function clientIp(request: Request): string | null {
+export function clientIp(request: Request, onVercel = !!process.env.VERCEL): string | null {
+  const netlify = request.headers.get("x-nf-client-connection-ip")?.trim();
+  if (netlify && !onVercel) return netlify;
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || request.headers.get("x-real-ip")?.trim() || null;
 }
