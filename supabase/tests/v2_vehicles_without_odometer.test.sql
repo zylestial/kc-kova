@@ -4,7 +4,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 -- These test other rules, so taps here read as made before tasks at a stop (0088);
 -- v2_stop_tasks.test.sql tests that rule.
@@ -173,8 +173,8 @@ delete from trip_completions where schedule_id = pg_temp.id('trip');
 delete from stop_taps where schedule_id = pg_temp.id('trip');
 delete from company_trip_runs where schedule_id = pg_temp.id('trip');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000007a6');
-select throws_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, '22023',
-  'Enter the starting odometer reading, in whole kilometres', 'A Company trip with an odometer needs the start reading');
+select lives_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, 'A Company trip with an odometer starts before its reading (0090)');
+select lives_ok($$ select set_start_odometer(pg_temp.id('trip'), 900) $$, 'and takes it after');
 
 select * from finish();
 rollback;
