@@ -25,6 +25,8 @@ import StopTaskActions from "./stop-task-actions";
 import StopJobs from "./stop-jobs";
 import StopReportForm from "./stop-report-form";
 import SavedTapsBanner from "./saved-taps-banner";
+import UnendedTripWarning from "./unended-trip-warning";
+import { unendedTrip } from "@/lib/unended-trip";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -44,7 +46,7 @@ type Trip = { schedule: Schedule; revision: ScheduleRevision };
  * problem pauses the trip until Resume trip.
  */
 export default function MyTrips({ accountId, initialOpenId }: { accountId: string; initialOpenId?: string }) {
-  const { schedules, requests, vehicles, companyRuns, stopTaps, stopTasks, completions, problems } = useKovaData();
+  const { schedules, requests, vehicles, companyRuns, stopTaps, stopTasks, completions, problems, attendance } = useKovaData();
   const today = manilaToday();
   const mine = useMemo(() => new Set(requests.filter((request) => request.ownerAccountId === accountId).map((request) => request.id)), [requests, accountId]);
   const trips: Trip[] = schedules
@@ -64,6 +66,9 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [locationOff, setLocationOff] = useState(false);
+  /** The trip whose Start trip is held while the Driver reads that an earlier trip has no End trip. */
+  const [startHeld, setStartHeld] = useState<string | null>(null);
+  const unendedBefore = (trip: Trip) => unendedTrip(schedules, attendance, companyRuns, accountId, trip.schedule.id);
   /** The stop being reported (0061). */
   const [reportAt, setReportAt] = useState<{ legId: string; place: string; requestId?: string; roadOnly?: boolean } | null>(null);
   useAutoClear(notice, setNotice);
@@ -95,7 +100,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     return trip.schedule.date <= today ? ["Ready to start", "pending"] : ["Upcoming", "info"];
   }
 
-  async function tap(trip: Trip, step: CompanyStep) {
+  async function tap(trip: Trip, step: CompanyStep, anyway = false) {
     // With no signal the tap is saved on the phone with this moment's time (0077).
     const tappedAt = new Date().toISOString();
     const needsOdometer = takesOdometer(trip, step.kind);
@@ -109,6 +114,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
       setError(`The ending reading can't be lower than the start (${run.startOdometer} km).`);
       return;
     }
+    if (!anyway && step.kind === "START" && unendedBefore(trip)) {
+      setStartHeld(trip.schedule.id);
+      return;
+    }
+    setStartHeld(null);
     setBusy(true);
     setError("");
     try {
@@ -223,6 +233,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       setError("");
                       setOdometer("");
                       setReportAt(null);
+                      setStartHeld(null);
                     }}
                   >
                     <span>
@@ -325,6 +336,23 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                         <p className="notice error trip-held" role="status">
                           {holdText(problemsOf(trip), tasksLeft > 0)}
                         </p>
+                      )}
+                      {startHeld === trip.schedule.id && next?.kind === "START" && unendedBefore(trip) && (
+                        <UnendedTripWarning
+                          trip={unendedBefore(trip)!}
+                          busy={busy}
+                          onOpen={
+                            unendedBefore(trip)!.kind === "COMPANY"
+                              ? () => {
+                                  setStartHeld(null);
+                                  setOdometer("");
+                                  setOpenId(unendedBefore(trip)!.scheduleId);
+                                }
+                              : undefined
+                          }
+                          onStart={() => void tap(trip, next, true)}
+                          onCancel={() => setStartHeld(null)}
+                        />
                       )}
                       {!reportAt && next && trip.schedule.date <= today && !(onTheRoad && trip.schedule.pausedAt) && (
                         <div className="my-trip-action">
