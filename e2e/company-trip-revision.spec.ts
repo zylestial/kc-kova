@@ -142,8 +142,9 @@ test("an approved Company trip can be revised before and during the trip", async
   await driver.context().setGeolocation({ latitude: 16.103769, longitude: 120.436222, accuracy: 10 });
   await driver.goto(`/my-trips?open=${trip.id}`);
   const action = driver.locator(".my-trip-action .trip-step-button");
+  await action.click(); // Start trip; the reading comes after it (0090)
   await driver.getByLabel("Starting odometer (km)").fill("51000");
-  await action.click();
+  await driver.getByRole("button", { name: "Save reading" }).click();
   await expect(action).toHaveText("Arrived at UAT Destination", saved);
   await action.click();
   await expect(action).toHaveText("Leaving UAT Destination", saved);
