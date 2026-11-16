@@ -598,7 +598,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   setError("");
                 }}
                 held={selected.schedule.pausedAt ? (othersLeft) => holdText(selected.problems, othersLeft) : undefined}
-                beforeNext={needsReading ? <StartOdometerForm key={selected.schedule.id} initial={lastReading} busy={busy} onSave={(reading) => void saveReading(reading)} /> : undefined}
+                beforeNext={needsReading ? <StartOdometerForm key={selected.schedule.id} className="trip-reading" initial={lastReading} busy={busy} onSave={(reading) => void saveReading(reading)} /> : undefined}
                 taps={selected.stopTaps}
                 tasks={selected.stopTasks}
                 problems={selected.problems}

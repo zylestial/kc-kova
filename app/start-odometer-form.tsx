@@ -12,10 +12,13 @@ export default function StartOdometerForm({
   initial,
   busy,
   onSave,
+  className = "my-trip-action",
 }: {
   initial: number | null;
   busy: boolean;
   onSave: (reading: number) => void;
+  /** "trip-reading" on the Daily trip's Start card, full width like its buttons; My Trips' own layout otherwise. */
+  className?: string;
 }) {
   const [value, setValue] = useState(initial === null ? "" : String(initial));
   const [error, setError] = useState("");
@@ -29,7 +32,7 @@ export default function StartOdometerForm({
     onSave(reading);
   };
   return (
-    <div className="my-trip-action">
+    <div className={className}>
       <label className="field">
         <span>Starting odometer (km)</span>
         <Input inputMode="numeric" placeholder="e.g. 48215" value={value} disabled={busy} onChange={(event) => setValue(event.target.value)} />
