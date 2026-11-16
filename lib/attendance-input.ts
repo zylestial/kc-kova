@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AttendanceInput, CompanyRunInput, StopTaskInput, StopTapInput, TripTimeInput } from "@/lib/kova-api";
+import type { AttendanceInput, CompanyRunInput, StartOdometerInput, StopTaskInput, StopTapInput, TripTimeInput } from "@/lib/kova-api";
 import { parseWith } from "@/lib/validation";
 
 const location = z.object({
@@ -52,6 +52,19 @@ const companyRunBody = z.object({
  */
 export function parseCompanyRunInput(body: unknown): CompanyRunInput | null {
   return parseWith(companyRunBody, body);
+}
+
+const startOdometerBody = z.object({
+  odometer: z.number().int().min(0).max(9_999_999),
+  tappedAt,
+});
+
+/**
+ * Shape-checks the starting odometer entered after Start trip (0090): a
+ * whole number. Who may set it, and until when, is checked in Postgres.
+ */
+export function parseStartOdometerInput(body: unknown): StartOdometerInput | null {
+  return parseWith(startOdometerBody, body);
 }
 
 const stopTapBody = z.object({
