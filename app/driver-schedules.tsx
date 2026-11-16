@@ -49,6 +49,8 @@ import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import SavedTapsBanner from "./saved-taps-banner";
+import UnendedTripWarning from "./unended-trip-warning";
+import { unendedTrip } from "@/lib/unended-trip";
 import StopReportForm from "./stop-report-form";
 import { answerText, holdText, jobFlags, latestAnswer, missedLegs, ROAD_REPORT_KINDS, stopChoices, stopReportLabel, TASK_REPORT_KINDS } from "@/lib/stop-reports";
 
@@ -172,6 +174,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [busyStop, setBusyStop] = useState<string | null>(null);
   /** The last tap had no position: the phone's location is off or blocked. */
   const [locationOff, setLocationOff] = useState(false);
+  /** Start trip, held while the Driver reads that an earlier trip has no End trip. */
+  const [startHeld, setStartHeld] = useState<TimeSource | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
@@ -196,6 +200,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setError("");
     setLocationOff(false);
     setReportAt(null);
+    setStartHeld(null);
   }
 
   // A problem at one stop (0061), with the phone's position when it shares one.
@@ -215,6 +220,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setBusy(false);
   }
 
+  const unended = selected ? unendedTrip(schedules, attendance, companyRuns, driverId, selected.schedule.id) : null;
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
   // A vehicle without an odometer (0078) skips the readings: Complete trip is just the final return.
   const hasOdometer = !selected || vehicles.find((vehicle) => vehicle.plate === selected.revision.plate)?.hasOdometer !== false;
@@ -255,8 +261,13 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   // (Start/End trip, or Arrived/Leaving at a stop). A phone that won't share
   // its position still records the time; the Driver is asked to turn it on.
   // With no signal the tap is saved on the phone with this moment's time (0077).
-  async function tapStep(source: TimeSource) {
+  async function tapStep(source: TimeSource, anyway = false) {
     if (!selected) return;
+    if (!anyway && !("legId" in source) && source.kind === "START" && unended) {
+      setStartHeld(source);
+      return;
+    }
+    setStartHeld(null);
     const tappedAt = new Date().toISOString();
     setBusy(true);
     setBusyStop(stepKey(source));
@@ -568,11 +579,27 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
               <SavedTapsBanner />
+              {startHeld && unended && (
+                <UnendedTripWarning
+                  trip={unended}
+                  busy={busy}
+                  onOpen={
+                    unended.kind === "DAILY"
+                      ? () => {
+                          setStartHeld(null);
+                          setSelectedId(unended.scheduleId);
+                        }
+                      : undefined
+                  }
+                  onStart={() => void tapStep(startHeld, true)}
+                  onCancel={() => setStartHeld(null)}
+                />
+              )}
               <DriverTripSteps
                 steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps), new Set(missedLegs(selected.problems).keys()))}
                 legs={selected.revision.legs}
                 stopsById={stopsById}
-                onTap={tapStep}
+                onTap={(source) => void tapStep(source)}
                 busyKey={busyStop}
                 missed={new Map([...missedLegs(selected.problems)].map(([legId, report]) => [legId, stopReportLabel(report)]))}
                 onReport={(legId, place, roadOnly) => {
