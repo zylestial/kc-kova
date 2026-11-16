@@ -294,6 +294,7 @@ type AttendanceRow = {
   end_recorded_by_account_id: string | null;
   start_sent_at?: string | null;
   end_sent_at?: string | null;
+  start_odometer?: number | null;
 };
 
 function toAttendanceLocation(
@@ -327,6 +328,7 @@ export function toTripAttendance(row: AttendanceRow): TripAttendance {
             sentAt: row.end_sent_at ?? undefined,
           }
         : undefined,
+    startOdometer: row.start_odometer ?? null,
   };
 }
 
