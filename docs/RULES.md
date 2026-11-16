@@ -129,9 +129,11 @@ database stays the authority; these are the page's own rules:
   changes** (a new draft version; the approved times stay in effect until
   the Admin approves the change).
 - **Warnings block Submit** (`tripChecks` in `lib/scheduling-edit.ts`): a
-  leg whose Time In is too soon to drive there, a Time Out before the leg
-  before it arrives, a fixed-time stop reached more than 5 minutes off its
-  time, more than 8 legs, and a Daily trip that doesn't end at ANONANG.
+  Time Out before the leg before it arrives, more than 8 legs, and a Daily
+  trip that doesn't end at ANONANG. **Suggestions don't** (`tripSuggestions`):
+  a Time In sooner than the estimated drive there (owner, 2026-11-16: the
+  estimate is only a guess) and a fixed-time stop reached more than 5
+  minutes off its time.
   There's no end of day (owner's call 2026-10-16: vehicles run any hour,
   Daily or Company); a trip still fits in one calendar day, since its
   times are Time Out / Time In on that date.
