@@ -103,7 +103,7 @@ type Props = {
   onReport?: (legId: string, place: string, roadOnly?: boolean) => void;
   /** The trip is held for the Scheduler's answer (0068): this says so instead of the next button; it's told if any task here is still to do. */
   held?: (othersLeft: boolean) => string;
-  /** Shown instead of the next button until it's done, such as the starting odometer after Start trip (0090). */
+  /** Shown on the Start card after Start trip, holding the next step until it's done: the starting odometer (0090). */
   beforeNext?: ReactNode;
   taps: StopTap[];
   tasks: StopTask[];
@@ -157,7 +157,15 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {held(open > 0)}
           </p>
         );
-      if (beforeNext) return beforeNext;
+      // The starting reading is asked for on the Start card; this step waits for it.
+      if (beforeNext)
+        return (
+          <div className="trip-step later">
+            <Circle size={18} />
+            <span>{text.done}</span>
+            {planned && <small>est. {hhmmLabel(planned)}</small>}
+          </div>
+        );
       return (
         <>
           <Button className="primary trip-step-button" disabled={busy || open > 0} onClick={() => onTap(step.time.source)}>
@@ -181,8 +189,9 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
 
   return (
     <div className="trip-steps">
-      {cards.map((card) => {
-        const current = card.rows.some((item) => item.step.state === "next");
+      {cards.map((card, index) => {
+        // While the starting reading is waited for, the Start card is the current one.
+        const current = beforeNext ? index === 0 : card.rows.some((item) => item.step.state === "next");
         const finished = card.rows.every((item) => ["done", "skipped", "missed"].includes(item.step.state));
         const legId = card.legId;
         // At this stop, between Arrived and Leaving, answering for each request (0088).
@@ -228,6 +237,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {card.rows.map((item) => (
               <div key={stepKey(item.step.time.source)}>{row(item, open)}</div>
             ))}
+            {index === 0 && beforeNext}
             {current && started && !held && legId && onReport && (!live || open > 0 || !card.served.length) && (
               <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(legId, card.place, live)}>
                 {live ? "Vehicle or road problem? Report it" : arrived ? "Problem here? Report it" : "Can't get here? Report it"}
