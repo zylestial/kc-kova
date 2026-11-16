@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, Circle, Minus, Phone, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ProblemReport, ScheduleLeg, StopTap, StopTask, StopTaskInput } from "@/lib/kova-api";
@@ -103,6 +103,8 @@ type Props = {
   onReport?: (legId: string, place: string, roadOnly?: boolean) => void;
   /** The trip is held for the Scheduler's answer (0068): this says so instead of the next button; it's told if any task here is still to do. */
   held?: (othersLeft: boolean) => string;
+  /** Shown instead of the next button until it's done, such as the starting odometer after Start trip (0090). */
+  beforeNext?: ReactNode;
   taps: StopTap[];
   tasks: StopTask[];
   problems: ProblemReport[];
@@ -126,7 +128,7 @@ type Props = {
  * Any report makes the trip wait for the Scheduler's answer (0068). A stop
  * Arrived at before tasks existed goes on as it used to.
  */
-export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, flags, taps, tasks, problems, onTask, onNotDone }: Props) {
+export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, beforeNext, flags, taps, tasks, problems, onTask, onNotDone }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const busy = busyKey !== null;
   const end = steps[steps.length - 1];
@@ -155,6 +157,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {held(open > 0)}
           </p>
         );
+      if (beforeNext) return beforeNext;
       return (
         <>
           <Button className="primary trip-step-button" disabled={busy || open > 0} onClick={() => onTap(step.time.source)}>
