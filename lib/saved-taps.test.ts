@@ -38,6 +38,7 @@ describe("withSavedTaps", () => {
         driverId: DAN,
         start: { at: at("01:00"), recordedByAccountId: DAN, location: null, saved: true },
         end: { at: at("02:30"), recordedByAccountId: DAN, location: null, saved: true },
+        startOdometer: null,
       },
     ]);
     expect(view.stopTaps.map((tap) => [tap.legId, tap.kind, tap.at, tap.saved])).toEqual([
@@ -111,5 +112,23 @@ describe("withSavedTaps", () => {
     const theirs = saved({ path: "attendance", body: { kind: "START", location: null, tappedAt: at("01:00") } }, "someone-else");
     expect(withSavedTaps(loaded, [theirs], DAN)).toBe(loaded);
     expect(withSavedTaps(loaded, [theirs], undefined)).toBe(loaded);
+  });
+
+  it("shows a starting odometer saved after Start trip, on either kind of trip (0090)", () => {
+    const view = withSavedTaps(
+      data(),
+      [
+        saved({ path: "attendance", body: { kind: "START", location: null, tappedAt: at("01:00") } }),
+        saved({ path: "start-odometer", body: { odometer: 48215, tappedAt: at("01:01") } }),
+      ],
+      DAN,
+    );
+    expect(view.attendance[0].startOdometer).toBe(48215);
+    const company = withSavedTaps(
+      data({ companyRuns: [{ id: "run1", scheduleId: "s1", revisionId: "rev1", startAt: at("01:00"), startOdometer: null }] as BootstrapData["companyRuns"] }),
+      [saved({ path: "start-odometer", body: { odometer: 900, tappedAt: at("01:01") } })],
+      DAN,
+    );
+    expect(company.companyRuns[0].startOdometer).toBe(900);
   });
 });

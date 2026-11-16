@@ -189,6 +189,8 @@ export type TripAttendance = {
   driverId: string;
   start: AttendanceTap;
   end?: AttendanceTap;
+  /** The starting reading, entered after Start trip (0090); null until then. */
+  startOdometer?: number | null;
 };
 /** What a Start/End tap sends: the phone's position, or null when it wouldn't share it. */
 export type AttendanceInput = {
@@ -255,6 +257,8 @@ export type CompanyTripRun = {
 /** What Start trip / End trip on a Company trip sends. */
 /** odometer is null for a vehicle without one (0078). */
 export type CompanyRunInput = { kind: "START" | "END"; odometer: number | null; location: AttendanceInput["location"]; tappedAt?: string };
+/** The starting odometer, entered after Start trip on either kind of trip (0090). */
+export type StartOdometerInput = { odometer: number; tappedAt?: string };
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"]; tappedAt?: string };
 /** A problem at one stop (0061); `skip` skips a blocked road instead of waiting. */
@@ -768,7 +772,7 @@ export const submitCompletion = (id: string, startOdometer: number | null, endOd
 async function recordTap(
   path: SavedTap["path"],
   scheduleId: string,
-  input: AttendanceInput | StopTapInput | CompanyRunInput | StopTaskInput,
+  input: AttendanceInput | StopTapInput | CompanyRunInput | StopTaskInput | StartOdometerInput,
   tappedAt: string,
 ): Promise<"sent" | "saved"> {
   const accountId = sessionAccount?.id ?? "";
@@ -799,6 +803,9 @@ export const recordStopTap = (id: string, input: StopTapInput, tappedAt = new Da
 /** Done, or Undo, for one request at a stop (0088); kept in order with the trip's other taps. */
 export const recordStopTask = (id: string, input: StopTaskInput, tappedAt = new Date().toISOString()) =>
   recordTap("stop-tasks", id, input, tappedAt);
+/** The starting odometer after Start trip (0090); kept on the phone with no signal, in order with the taps. */
+export const saveStartOdometer = (id: string, odometer: number, tappedAt = new Date().toISOString()) =>
+  recordTap("start-odometer", id, { odometer }, tappedAt);
 
 function storeTaps(list: SavedTap[]) {
   savedTaps = list;
@@ -819,7 +826,7 @@ export const savedTapCount = () => getSavedTaps().filter((tap) => tap.accountId 
 
 const TAP_NAMES = { START: "Start trip", END: "End trip", ARRIVE: "Arrived", LEAVE: "Leaving", DONE: "Done", UNDO: "Undo" } as const;
 const tapLine = (tap: SavedTap, why: string) =>
-  `${TAP_NAMES[tap.body.kind]} at ${new Date(tap.body.tappedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}: ${why}`;
+  `${tap.path === "start-odometer" ? "Starting odometer" : TAP_NAMES[tap.body.kind]} at ${new Date(tap.body.tappedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}: ${why}`;
 
 /** Worth trying again later: no signal, signed out, or KOVA busy. Anything else is KOVA saying no. */
 const tryLater = (status: number | undefined) => !status || status === 401 || status === 408 || status === 429 || status >= 500;
