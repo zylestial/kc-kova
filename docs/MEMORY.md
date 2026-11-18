@@ -1240,3 +1240,19 @@ account the company owns from day one.
 - **A request's notes (`requests.details`) never print on a trip form,
   Daily or Company** (owner's call). The Company Trip Form used to print
   them after the purpose. They can still show on screen.
+
+## Deleting a waiting stop (2026-11-18)
+
+- **Delete is permanent, the one exception to "nothing is hard-deleted"**
+  (owner's call). Asked for to clear stops left from past days. Cancel was
+  offered as a soft alternative and turned down.
+- **One stop at a time, and the requester isn't told** (owner's calls). No
+  Delete all for past days.
+- **Never a stop that was ever on a trip.** Missed stops, and any stop with
+  a `schedule_requests` or `revision_requests` row (a discarded draft
+  included), are refused: revisions, legs, taps and tasks point at them.
+  Send back or move those instead.
+- **The audit log still holds every deleted row** (`request.delete`, with
+  the before row and who did it); `audit_events` is append-only, so this
+  can't be avoided and is the only way to trace a mistake.
+- **Deleting clears Scheduling's Undo**, whose steps may name the stop.
