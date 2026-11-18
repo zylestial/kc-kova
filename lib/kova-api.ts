@@ -741,6 +741,8 @@ export const updateRequestGroup = (id: string, rowVersion: number, input: Reques
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));
+/** Scheduler or Admin: erases a stop that was never on a trip (0091). */
+export const deleteRequest = (id: string) => refreshAfter(request<void>(`/api/requests/${encodeURIComponent(id)}`, { method: "DELETE" }));
 export const moveRequestDay = (id: string, date: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/move`, { method: "POST", body: JSON.stringify({ date }) }));
 /** The requester's sent-back stop, while the rest of its request is being scheduled, becomes its own request on `date` (0081). */
 export const moveSentBackStop = (id: string, date: string) => refreshAfter(request<void>(`/api/requests/${encodeURIComponent(id)}/new-day`, { method: "POST", body: JSON.stringify({ date }) }));
