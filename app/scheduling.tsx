@@ -9,6 +9,7 @@ import {
   comeBackLater,
   createCompanyTrip,
   createSchedule,
+  deleteRequest,
   discardScheduleDraft,
   getSchedules,
   handleProblem,
@@ -50,6 +51,7 @@ import StopCard, { whatText } from "./scheduler/stop-card";
 import StopSheet from "./scheduler/stop-sheet";
 import PlanOptions from "./scheduler/plan-options";
 import SendBackForm from "./scheduler/send-back-form";
+import DeleteStop from "./scheduler/delete-stop";
 import OthersDraftDialog from "./scheduler/others-draft-dialog";
 import { othersDraftQuestion, scheduledBy } from "@/lib/scheduled-by";
 import VehicleCard from "./scheduler/vehicle-card";
@@ -335,6 +337,14 @@ export default function Scheduling({
       setSheetIds([]);
       return `${stops.map((stop) => stopNumber(stop) || "Request").join(", ")} sent back to the requester.`;
     });
+  }
+  /** Erases one waiting stop for good (0091). Clears Undo, whose steps may name the stop. */
+  function deleteWaiting(stop: TransportRequest) {
+    void run(async () => {
+      await deleteRequest(stop.id);
+      setSheetIds([]);
+      return `${stopNumber(stop) || "Request"} deleted.`;
+    }, "clear");
   }
   const fuel = options.destinations.filter((option) => option.isOtherStop && option.status === "Active");
 
@@ -763,6 +773,14 @@ export default function Scheduling({
               busy={busy}
               onSendBack={(reason) => sendBackWaiting(sheetStops, reason)}
             />
+            {sheetStops.length === 1 && (
+              <DeleteStop
+                label={stopNumber(sheetStops[0]) || "this request"}
+                missed={!!sheetStops[0].missedAt}
+                busy={busy}
+                onDelete={() => deleteWaiting(sheetStops[0])}
+              />
+            )}
           </>
         )}
       </StopSheet>
