@@ -324,7 +324,11 @@ top:
 A stop is dragged onto a vehicle (the card shows whether it can take it)
 or tapped: a sheet slides in from the right with its details and the
 options, best first (`app/scheduler/plan-options.tsx`), each saying when
-it would arrive, how it fits, and what it would make late. Each trip's
+it would arrive, how it fits, and what it would make late. Below them,
+**Or send it back** (a reason, then Send back to requester) and, for a
+single stop, **Or delete it** (`app/scheduler/delete-stop.tsx`): Delete
+52-A asks "Delete 52-A permanently? This can't be undone." (Keep it /
+Delete); greyed out with the reason on a missed stop. Each trip's
 legs (`app/scheduler/trip-editor.tsx`) follow the form: Origin, Time Out,
 Destination (waiting stops and fuel / errand stops), Time In. Legs reorder
 by dragging ⠿ or with the arrows; **Remove** opens the remove-leg dialog
