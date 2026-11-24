@@ -1240,3 +1240,17 @@ account the company owns from day one.
 - **A request's notes (`requests.details`) never print on a trip form,
   Daily or Company** (owner's call). The Company Trip Form used to print
   them after the purpose. They can still show on screen.
+
+## Set a place's location from a trip (2026-11-24)
+
+- **Saving goes to the destination choice, not the trip.** A tap's distance
+  is worked out again from the choice's current location (`placeResolver`),
+  so one save re-checks every trip there, done and locked ones included.
+  Nothing on the trip record changes, which is why it's allowed after Done.
+- **`choiceResolver` finds the choice for a leg** by its ID, or by name
+  for a leg typed in as "Other" before it became a choice. `placeResolver`
+  now goes through it, so the two always agree.
+- **"Use where this tap was" stays, with a warning.** A Driver can tap
+  Arrived before getting there (in the trip that prompted this, the Arrived
+  tap at Ai Home Sto. Tomas was made at K and D), so it only fills in the
+  box; the Admin checks the map and saves.
