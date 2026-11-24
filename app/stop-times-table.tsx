@@ -1,9 +1,13 @@
 "use client";
+import { useState } from "react";
 import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BASE } from "@/lib/trip-record";
 import { coordinatesLabel, mapUrl, sentLaterLabel, tapTimeLabel } from "@/lib/attendance";
-import { atStop, hhmmLabel, stopPlaceLabel, type FormTime, type LegTimes } from "@/lib/stop-times";
+import { atStop, choiceResolver, hhmmLabel, stopPlaceLabel, type FormTime, type LegTimes } from "@/lib/stop-times";
+import type { BookingOption } from "@/lib/kova-api";
+import type { Coordinates } from "@/lib/coordinates";
+import PlaceLocationDialog from "./place-location-dialog";
 
 type Props = {
   times: LegTimes[];
@@ -12,6 +16,8 @@ type Props = {
   nameOf: (accountId: string) => string;
   /** For an Admin reviewing a submitted trip: each time gets a Fill in / Change button. */
   onEdit?: (time: FormTime) => void;
+  /** For an Admin: a place with no location gets a Set location button, saved to its destination choice. */
+  setLocation?: { destinations: BookingOption[]; onSaved: (message: string) => void };
 };
 
 /**
@@ -23,7 +29,27 @@ type Props = {
  * button for an Admin. The Admin's view; Drivers get app/driver-trip-steps.tsx.
  * Phones get one route card per leg instead (.route-cards in globals.css).
  */
-export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Props) {
+export default function StopTimesTable({ times, driverId, nameOf, onEdit, setLocation }: Props) {
+  const [locating, setLocating] = useState<{ choice: BookingOption; tapSpot: Coordinates } | null>(null);
+  const choiceOf = setLocation && choiceResolver(setLocation.destinations);
+
+  /** The "no place location set" note, with a Set location button for an Admin when the place is a choice. */
+  function noPlaceLocation(time: FormTime, place: string, tapSpot: Coordinates) {
+    const source = time.source;
+    const leg = "legId" in source ? times.find((item) => item.leg.id === source.legId)?.leg : undefined;
+    const choice = leg && choiceOf ? choiceOf(leg) : null;
+    if (!choiceOf) return <small className="attendance-flag">No location set for {place}; set it in Request choices to check</small>;
+    if (!choice) return <small className="attendance-flag">{place} isn&apos;t a Request choice; add it there with a location to check</small>;
+    return (
+      <>
+        <small className="attendance-flag">No location set for {place}</small>
+        <Button variant="outline" size="sm" onClick={() => setLocating({ choice, tapSpot })}>
+          Set location
+        </Button>
+      </>
+    );
+  }
+
   function tapDetails(time: FormTime) {
     const tap = time.tap;
     if (!tap) return null;
@@ -40,9 +66,7 @@ export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Prop
         {tap.location && <small className="attendance-coordinates">{coordinatesLabel(tap.location)}</small>}
         {!tap.location && <small className="attendance-flag">No location</small>}
         {at === false && <small className="attendance-flag">Away from {place}</small>}
-        {tap.location && tap.location.distanceM === null && (
-          <small className="attendance-flag">No location set for {place}; set it in Request choices to check</small>
-        )}
+        {tap.location && tap.location.distanceM === null && noPlaceLocation(time, place, tap.location)}
         {sent && <small className="attendance-flag">{sent}</small>}
         {tap.recordedByAccountId !== driverId && <small>Tapped by {nameOf(tap.recordedByAccountId)}</small>}
       </>
@@ -140,6 +164,17 @@ export default function StopTimesTable({ times, driverId, nameOf, onEdit }: Prop
           </li>
         ))}
       </ol>
+      {setLocation && (
+        <PlaceLocationDialog
+          choice={locating?.choice ?? null}
+          tapSpot={locating?.tapSpot ?? null}
+          onClose={() => setLocating(null)}
+          onSaved={(message) => {
+            setLocating(null);
+            setLocation.onSaved(message);
+          }}
+        />
+      )}
     </>
   );
 }

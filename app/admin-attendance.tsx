@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import { useAutoClear } from "@/lib/use-auto-clear";
 import { Download, MapPin } from "lucide-react";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -105,7 +106,14 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
  * a later day is flagged, not refused, so the Admin judges it here. Finance
  * sees the same screen (`eyebrow` names whose it is); it has no actions.
  */
-export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: string } = {}) {
+export default function AdminAttendance({
+  eyebrow = "ADMIN",
+  canSetLocation = false,
+}: {
+  eyebrow?: string;
+  /** Admin: a stop place with no location can be given one from its stop times. */
+  canSetLocation?: boolean;
+} = {}) {
   const { schedules, attendance, companyRuns, stopTaps, timeCorrections, accounts, options } = useKovaData();
   const placeOf = placeResolver(options.destinations);
   const today = manilaToday();
@@ -115,6 +123,8 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
   const [exportFilters, setExportFilters] = useState<AttendanceFilters | null>(null);
   const [sort, setSort] = useState<Sort<AttendanceSortKey>>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  useAutoClear(notice, setNotice);
   const timesFor = (row: AttendanceRow) =>
     legTimes(
       row.revision.legs,
@@ -343,7 +353,19 @@ export default function AdminAttendance({ eyebrow = "ADMIN" }: { eyebrow?: strin
                   {row && `${dateLabel(row.schedule.date)} — ${row.revision.plate} — ${row.revision.driverName}`}
                 </DialogDescription>
               </DialogHeader>
-              {row && <StopTimesTable times={timesFor(row)} driverId={row.revision.driverId} nameOf={nameOf} />}
+              {notice && (
+                <div className="notice success" role="status">
+                  {notice}
+                </div>
+              )}
+              {row && (
+                <StopTimesTable
+                  times={timesFor(row)}
+                  driverId={row.revision.driverId}
+                  nameOf={nameOf}
+                  setLocation={canSetLocation ? { destinations: options.destinations, onSaved: setNotice } : undefined}
+                />
+              )}
               <p className="helper">Missing times are filled in on Finished Trips once the Driver submits the trip.</p>
             </DialogContent>
           </Dialog>

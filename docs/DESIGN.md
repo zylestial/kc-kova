@@ -186,6 +186,16 @@ Signed-in screens sit in `app/(app)/layout.tsx`:
   times sit on the right; actual times show Out/In, the map link and any
   flag, with Change beside the time. Coordinates are hidden there; desktop
   and print are unchanged.
+- **A place with no location can be given one where it shows.** In Actual
+  times on Finished Trips and in Attendance's stop times, a tap flagged
+  "no place location set" has a **Set location** button for an Admin
+  (`app/place-location-dialog.tsx`). It saves to the destination choice,
+  as Request choices' Location box does, so every trip's taps there are
+  checked at once, done trips included. The dialog takes pasted
+  coordinates or a Google Maps link, and **Use where this tap was**
+  fills in the tap's spot, warning it's only right if the Driver tapped
+  at the place. A typed-in place that isn't a choice says to add it in
+  Request choices. Finance sees the note only.
 
 Each role has its own accent, set on `<html data-role>` by `AccountProvider`
 (the viewed role during Admin "View as"). It colors the sidebar, the
