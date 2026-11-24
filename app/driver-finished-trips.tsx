@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useKovaData } from "@/lib/use-kova-data";
-import { buildFinishedTrips } from "@/lib/finished-trips";
+import { buildFinishedTrips, doneBy } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import { sortRows, type Sort } from "@/lib/table-sort";
@@ -37,7 +37,7 @@ const columns: SortColumn<SortKey>[] = [
  * Bootstrap only sends this Driver's completions and reports.
  */
 export default function DriverFinishedTrips() {
-  const { schedules, completions, problems, requests, stopTasks } = useKovaData();
+  const { schedules, completions, problems, requests, stopTasks, accounts } = useKovaData();
   const trips = useMemo(() => buildFinishedTrips(schedules, completions, problems), [schedules, completions, problems]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort<SortKey>>(null);
@@ -50,6 +50,7 @@ export default function DriverFinishedTrips() {
   });
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
+  const selectedDone = doneBy(selected?.completion, accounts);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
 
   return (
@@ -92,6 +93,7 @@ export default function DriverFinishedTrips() {
                       <span className={"badge " + (trip.completion.status === "DONE" ? "complete" : "")}>
                         {completionLabel[trip.completion.status]}
                       </span>
+                      {trip.completion.status === "DONE" && <small>by {doneBy(trip.completion, accounts)?.name ?? "an Admin"}</small>}
                     </td>
                     <td className="c-hide">
                       <Button
@@ -133,7 +135,10 @@ export default function DriverFinishedTrips() {
                 Odometer: {readingsLabel(selected.completion)} ·{" "}
                 {completionLabel[selected.completion.status]}
               </p>
-              <p className="helper">{completionMeaning[selected.completion.status]}</p>
+              <p className="helper">
+                {completionMeaning[selected.completion.status]}
+                {selectedDone && ` Marked done by ${selectedDone.name} on ${selectedDone.at}.`}
+              </p>
               {selected.problems.map((item) => (
                 <p className="helper" key={item.id}>
                   <strong>{item.status === "OPEN" ? "Problem reported" : "Problem handled"}:</strong> {item.note}
