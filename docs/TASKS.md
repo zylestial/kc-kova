@@ -35,6 +35,8 @@ so far (plus the old `v1.2-stable`).
 
 ## Outstanding / follow-ups
 
+- [x] **Show who marked a trip done (`feat/show-done-by`, 2026-11-24)**: Finished Trips says who marked each trip Done and when (from `done_by_account_id` / `done_at`, saved since 0017): "by <name>" in the list, "Marked done by <name> on <date, time>" in the trip, DONE BY and DONE AT in Download CSV. Admin, Finance and Drivers. No migration, no backend change. Not for Schedulers: they can't read trip completions, so it would need a backend change (not asked for).
+
 - [ ] **Set a place's location from a trip (`feat/set-location-from-trip`, 2026-11-24)**: where Actual times on Finished Trips or Attendance's stop times say "no place location set", an Admin gets a Set location button that saves to the destination choice (pasted coordinates, a Google Maps link, or the tap's own spot). No migration. Built and checked locally; not pushed, not deployed.
 
 - [x] **Welcome tour (owner's prototype "KOVA Welcome Tour", 2026-10-30; `feat/welcome-tour`, 0084)**: a step-by-step dialog with screenshots of each role's screens opens on an account's first sign-in and from Help, replacing the text-only Help dialog. Step 1 is the role's menu and what each link is for. Screenshots for PC, tablet and phone, picked by screen width. Seen once per account (`tour_seen_at`, `mark_tour_seen`). **PR #208** merged; 0084 on production (2026-10-30).
