@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAdminTrips, buildFinishedTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
+import { buildAdminTrips, buildFinishedTrips, cleanTrips, doneBy, hasOpenProblem } from "@/lib/finished-trips";
 import type { ProblemReport, Schedule, ScheduleRevision, TripCompletion } from "@/lib/kova-api";
 
 const revision = (id: string): ScheduleRevision => ({
@@ -148,5 +148,22 @@ describe("cleanTrips", () => {
     const trips = buildAdminTrips(schedules, [done], [problem("d", "OPEN")]);
     expect(trips.map((trip) => trip.schedule.id).sort()).toEqual(["c", "d"]);
     expect(cleanTrips(trips)).toEqual([]);
+  });
+});
+
+describe("doneBy", () => {
+  const accounts = [{ id: "a1", name: "Kaye" }];
+  it("names who marked it Done and when, in Manila time", () => {
+    expect(doneBy({ status: "DONE", doneAt: "2026-11-24T07:10:00Z", doneByAccountId: "a1" }, accounts)).toEqual({
+      name: "Kaye",
+      at: "Nov 24, 2026, 3:10 PM",
+    });
+  });
+  it("says an Admin when the account isn't loaded", () => {
+    expect(doneBy({ status: "DONE", doneAt: "2026-11-24T07:10:00Z", doneByAccountId: "gone" }, accounts)?.name).toBe("an Admin");
+  });
+  it("is null until the trip is Done", () => {
+    expect(doneBy({ status: "SUBMITTED" }, accounts)).toBeNull();
+    expect(doneBy(undefined, accounts)).toBeNull();
   });
 });
