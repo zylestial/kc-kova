@@ -39,14 +39,24 @@ export function distanceMetres(a: Place, b: Place): number {
 export const nameKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
 
 /**
- * Finds a leg's destination's saved location as it is now: through the leg's
- * destination choice, or, for a leg typed in as "Other" before it became a
- * choice, through the choice with the same name. Null when there is none.
+ * Finds the destination choice a leg goes to: the leg's own choice, or, for a
+ * leg typed in as "Other" before it became a choice, the choice with the same
+ * name (one with a location first). Null when there is none.
  */
-export function placeResolver(destinations: BookingOption[]): (leg: ScheduleLeg) => Place | null {
-  const byId = new Map(destinations.map((item) => [item.id, item.location ?? null]));
-  const byName = new Map(destinations.filter((item) => item.location).map((item) => [nameKey(item.name), item.location!]));
+export function choiceResolver(destinations: BookingOption[]): (leg: ScheduleLeg) => BookingOption | null {
+  const byId = new Map(destinations.map((item) => [item.id, item]));
+  const byName = new Map<string, BookingOption>();
+  for (const item of destinations) {
+    const key = nameKey(item.name);
+    if (!byName.has(key) || (item.location && !byName.get(key)!.location)) byName.set(key, item);
+  }
   return (leg) => (leg.destinationId ? (byId.get(leg.destinationId) ?? null) : (byName.get(nameKey(leg.destinationName)) ?? null));
+}
+
+/** Finds a leg's destination's saved location as it is now (see choiceResolver). Null when there is none. */
+export function placeResolver(destinations: BookingOption[]): (leg: ScheduleLeg) => Place | null {
+  const choiceOf = choiceResolver(destinations);
+  return (leg) => choiceOf(leg)?.location ?? null;
 }
 
 /** A stop tap's identity, e.g. "ARRIVE:<leg id>". */

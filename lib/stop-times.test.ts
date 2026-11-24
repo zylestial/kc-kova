@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BookingOption, ScheduleLeg, StopTap, TripAttendance, TripTimeCorrection } from "@/lib/kova-api";
-import { atStop, distanceMetres, formTimeValue, placeResolver, legTimes, manilaHhmm, missingTimes, stopPlaceLabel, tripSteps, hhmmLabel } from "@/lib/stop-times";
+import { atStop, choiceResolver, distanceMetres, formTimeValue, placeResolver, legTimes, manilaHhmm, missingTimes, stopPlaceLabel, tripSteps, hhmmLabel } from "@/lib/stop-times";
 
 const leg = (id: string, legNo: number, destinationName: string, isFinal = false): ScheduleLeg => ({
   id,
@@ -163,6 +163,15 @@ describe("checking stop taps against the destination as it is now", () => {
     expect(placeOf({ ...leg("l1", 1, "wilcon calasiao") })).toEqual({ lat: 16.0, lng: 120.3 });
     expect(placeOf(withId({ destinationId: "d2", destinationName: "Market" }))).toBeNull();
     expect(placeOf(withId({ destinationId: "gone" }))).toBeNull();
+  });
+
+  it("finds a leg's choice even when it has no location, so one can be set", () => {
+    const choiceOf = choiceResolver([...destinations, { id: "d3", name: "Wilcon Calasiao", status: "Active" }]);
+    expect(choiceOf(withId({ destinationId: "d2", destinationName: "Market" }))?.id).toBe("d2");
+    expect(choiceOf(leg("l1", 1, " market "))?.id).toBe("d2");
+    expect(choiceOf(leg("l1", 1, "wilcon calasiao"))?.id).toBe("d9");
+    expect(choiceOf(leg("l1", 1, "Nowhere"))).toBeNull();
+    expect(choiceOf(withId({ destinationId: "gone" }))).toBeNull();
   });
 
   it("re-checks a tap made before the place had a location", () => {
