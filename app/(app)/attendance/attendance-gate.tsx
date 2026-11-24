@@ -7,7 +7,7 @@ export default function AttendanceGate() {
   const { viewRole } = useAccount();
   return (
     <RequireRole allow={viewRole === "Admin" || viewRole === "Finance"}>
-      <AdminAttendance eyebrow={viewRole === "Finance" ? "FINANCE" : "ADMIN"} />
+      <AdminAttendance eyebrow={viewRole === "Finance" ? "FINANCE" : "ADMIN"} canSetLocation={viewRole === "Admin"} />
     </RequireRole>
   );
 }
