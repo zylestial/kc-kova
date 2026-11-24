@@ -617,6 +617,7 @@ export default function AdminFinishedTrips({
                     driverId={selected.revision.driverId}
                     nameOf={nameOf}
                     onEdit={isDone || readOnly ? undefined : openTimeEditor}
+                    setLocation={readOnly ? undefined : { destinations: options.destinations, onSaved: setNotice }}
                   />
                   {!isDone && !readOnly && selectedMissing > 0 && (
                     <p className="helper" role="status">
