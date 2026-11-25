@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Account, BookingOption, BookingOptions, OptionGroup, RequestForm as FormType, StopFlexibility, Vehicle } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { stillNeeded } from "@/lib/missing-fields";
+import { destinationChoices } from "@/lib/choice-lists";
 import { canDriveCompany } from "@/lib/request-access";
 import {
   DETAILS_MAX,
@@ -199,8 +200,7 @@ export default function RequestForm({
   const [showErrors, setShowErrors] = useState(false);
   const allowOther = draft.form === "DAILY";
   const projects = choices(options.projects, kept.projects);
-  // Fuel/errand stops are for the Scheduler to add, never a requester's destination.
-  const destinations = choices(options.destinations.filter((item) => !item.isOtherStop), kept.destinations);
+  const destinations = destinationChoices(options.destinations, kept.destinations);
   const purposes = choices(options.purposes, kept.purposes);
   const urgentReasons = choices(options.urgent_reasons, kept.urgent_reasons);
   const company = draft.form === "COMPANY";
