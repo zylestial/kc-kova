@@ -332,8 +332,8 @@ top:
   switch and the day banner add "3 from past days".
 
 A stop is dragged onto a vehicle (the card shows whether it can take it)
-or tapped: a sheet slides in from the right with its details and the
-options, best first (`app/scheduler/plan-options.tsx`), each saying when
+or tapped: a sheet slides in from the right with its details (with a
+Company trip's Supplier, when given) and the options, best first (`app/scheduler/plan-options.tsx`), each saying when
 it would arrive, how it fits, and what it would make late. Each trip's
 legs (`app/scheduler/trip-editor.tsx`) follow the form: Origin, Time Out,
 Destination (waiting stops and fuel / errand stops), Time In. Legs reorder
@@ -384,7 +384,8 @@ Trips): "What happened at …?", then one big button per kind (label and a
 one-line hint) so it's one tap on a phone; where several requests share the stop, Not
 available and Wrong address ask **Which ones?** (a checkbox per request,
 "52-A · Delivery · Cement, 20 bags", all ticked); an optional note; "The
-trip waits here until the Scheduler answers."; Back and Send report.
+trip waits here until the Scheduler answers."; Back and Send report. My
+Schedule and My Trips then list the trip's reports, each with its note.
 
 The v1 screens (Schedule grid, booking flow, Booking Approvals, Daily Vehicle
 Record editor, review and history viewers) were removed with migration 0032.
