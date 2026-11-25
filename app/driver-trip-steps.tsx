@@ -182,8 +182,9 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
         const current = card.rows.some((item) => item.step.state === "next");
         const finished = card.rows.every((item) => ["done", "skipped", "missed"].includes(item.step.state));
         const legId = card.legId;
-        // At this stop, between Arrived and Leaving, answering for each request (0088).
-        const live = !!legId && card.rows[1]?.step.state === "next" && asksTasks(taps, legId);
+        // At this stop, between Arrived and Leaving, answering for each request (0088);
+        // not once the stop is missed (its requests were skipped or moved), so Leaving is open.
+        const live = !!legId && card.rows[1]?.step.state === "next" && asksTasks(taps, legId) && !missed?.has(legId);
         const open = live ? tasksOpen(card.served, legId!, tasks, flags ?? new Map()) : 0;
         const arrived = card.rows[0]?.step.state === "done";
         return (
