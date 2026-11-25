@@ -200,7 +200,6 @@ export default function RequestForm({
   const [showErrors, setShowErrors] = useState(false);
   const allowOther = draft.form === "DAILY";
   const projects = choices(options.projects, kept.projects);
-  // Fuel/errand stops are for the Scheduler to add, never a requester's destination.
   const destinations = destinationChoices(options.destinations, kept.destinations);
   const purposes = choices(options.purposes, kept.purposes);
   const urgentReasons = choices(options.urgent_reasons, kept.urgent_reasons);
