@@ -306,6 +306,15 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                           )}
                         </p>
                       )}
+                      {/* What was reported on this trip, with its note, as My Schedule shows it. */}
+                      {problemsOf(trip).map((item) => (
+                        <p className="helper" key={item.id}>
+                          {item.legId
+                            ? `${stopReportLabel(item)} at ${trip.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}`
+                            : "Problem reported"}
+                          {item.note && `: ${item.note}`}
+                        </p>
+                      ))}
                       {next && trip.schedule.date > today && <p className="helper">Start trip opens on {dateLabel(trip.schedule.date)}.</p>}
                       {reportAt && (
                         <StopReportForm
