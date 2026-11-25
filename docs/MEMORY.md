@@ -1254,3 +1254,14 @@ account the company owns from day one.
   Arrived before getting there (in the trip that prompted this, the Arrived
   tap at Ai Home Sto. Tomas was made at K and D), so it only fills in the
   box; the Admin checks the map and saves.
+
+## Leaving after a problem at a stop (2026-11-25)
+
+- **A missed stop already Arrived at still asks for Leaving.** Skip or Come
+  back later for the whole stop marks it missed, which used to hide its
+  Leaving too, so the next leg had no TIME OUT. Only the screens changed
+  (`tripSteps`, `companyTripSteps`): `record_stop_tap` already took Leaving
+  there, and the tasks trigger lets it through on a missed leg. The task
+  lock is off there, since its requests were skipped or moved.
+- **Wrong address or closed is not a task report.** It's about the whole
+  place, so it's only offered on the stop's own report, before Arrived.
