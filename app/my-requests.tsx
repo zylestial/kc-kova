@@ -370,7 +370,10 @@ export default function MyRequests({
                         ["Vehicle", shown.group.vehiclePlate ?? "—"],
                         ["Driver", shown.group.driver?.name ?? "—"],
                         ["Starting point", shown.group.startingPoint?.name ?? "—"],
-                        ["Department / Site", shown.group.department?.name ?? "—"],
+                        // Since 0058 it's the Project / Site below; only a request from before shows its own.
+                        ...(shown.group.department?.name && shown.group.department.name !== shown.projectName
+                          ? [["Department / Site", shown.group.department.name]]
+                          : []),
                       ]
                     : []),
                   ["Requested by", shown.ownerName],
