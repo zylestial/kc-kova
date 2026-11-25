@@ -374,6 +374,10 @@ export default function MyRequests({
                         ...(shown.group.department?.name && shown.group.department.name !== shown.projectName
                           ? [["Department / Site", shown.group.department.name]]
                           : []),
+                        ["Immediate Supervisor", shown.group.supervisor?.name ?? "—"],
+                        ["Project Manager / Construction Manager / Dept. Head", shown.group.head?.name ?? "—"],
+                        ...(shown.group.siteOfficer ? [["Site Officer / Supplier", shown.group.siteOfficer]] : []),
+                        ...(shown.group.siteCompany ? [["Company / Site", shown.group.siteCompany]] : []),
                       ]
                     : []),
                   ["Requested by", shown.ownerName],
