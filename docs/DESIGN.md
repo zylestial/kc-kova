@@ -364,7 +364,8 @@ Today's view also shows reports not handled on their own day, naming it.
 **Tasks at a stop** (My Schedule and My Trips, `app/stop-task-actions.tsx`,
 0088): after Arrived, each request at the stop has **Done** and **Not yet done**.
 Done shows its time with **Undo**, until Leaving. Not yet done opens the stop
-report for that request, asking only why. **Leaving** stays disabled, with "Mark
+report for that request, asking only why: Not ready yet, Not available or
+Something else (Wrong address or closed is for the whole stop, before Arrived). **Leaving** stays disabled, with "Mark
 each task above first: 2 left", until each has an answer. On a Company trip the
 last stop has no Arrived or Leaving, so its tasks show before **End trip**, which
 waits the same way. The link under the stop is "Can't get here?" before Arrived
