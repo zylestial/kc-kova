@@ -16,6 +16,7 @@ import type {
   TransportRequest,
 } from "@/lib/kova-api";
 import { requestDraftMissing } from "@/lib/missing-fields";
+import { destinationChoices } from "@/lib/choice-lists";
 
 const OTHER_OPTION = "__other__";
 const NO_PROJECT = "__none__";
@@ -142,11 +143,7 @@ export default function RequestFields({
   dateHint?: string;
 }) {
   const projects = choices(options.projects, kept.projects);
-  // Fuel/errand stops are for the Scheduler to add, never a Requester's destination.
-  const destinations = choices(
-    options.destinations.filter((item) => !item.isOtherStop),
-    kept.destinations,
-  );
+  const destinations = destinationChoices(options.destinations, kept.destinations);
   const purposes = choices(options.purposes, kept.purposes);
   const setRow = (key: string, change: Partial<RequestDraft["destinations"][number]>) =>
     onChange({

@@ -1,4 +1,4 @@
-import type { BookingOptions, OptionGroup } from "@/lib/kova-api";
+import type { BookingOption, BookingOptions, OptionGroup } from "@/lib/kova-api";
 
 /** What a request can't do without a list: every request, an Urgent stop, a Company Trip, or nothing. */
 export type ChoiceNeed = "every" | "urgent" | "company" | "optional";
@@ -60,4 +60,20 @@ export function gapEffect(list: ChoiceList): string {
   if (list.need === "every") return "Nobody can send a request until it has one.";
   if (list.need === "urgent") return "Nobody can mark a stop Urgent until it has one.";
   return "Nobody can send a Company Trip until it has one.";
+}
+
+const byName = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+
+/**
+ * The Destination dropdown on a request: Active choices a Requester can pick
+ * (never a fuel/errand stop, which only a Scheduler adds), plus any the
+ * request being edited already uses even if made Inactive (0024), A to Z.
+ */
+export function destinationChoices(options: BookingOption[], kept: Array<{ id: string; name: string }> = []) {
+  const list = options
+    .filter((item) => item.status === "Active" && !item.isOtherStop)
+    .map((item) => ({ id: item.id, name: item.name }));
+  for (const item of kept)
+    if (item.id && !list.some((option) => option.id === item.id)) list.push({ id: item.id, name: `${item.name} (inactive)` });
+  return list.sort((a, b) => byName.compare(a.name, b.name));
 }
