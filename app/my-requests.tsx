@@ -394,6 +394,11 @@ export default function MyRequests({
                 ))}
               </div>
               <p className="helper">{requestProgressMeaning[shown.progress]}</p>
+              {shown.movedAt && shown.group && shown.group.date !== shown.date && (
+                <p className="helper">
+                  <b>Moved by the Scheduler</b> from {dateLabel(shown.group.date)} to {dateLabel(shown.date)}.
+                </p>
+              )}
               {shown.progress === "SENT_BACK" && shown.sentBack?.reason && (
                 <p className="helper">
                   <b>Scheduler&apos;s note:</b> {shown.sentBack.reason}
