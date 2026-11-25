@@ -373,6 +373,12 @@ waits the same way. The link under the stop is "Can't get here?" before Arrived
 is done. A stop Arrived at before tasks existed keeps "Problem here?" and no
 task buttons. The Trip Record and My Requests show each request's Done time.
 
+**A request's details** (My Requests, `app/my-requests.tsx`) show back what
+was entered. A Company Trip also lists its Immediate Supervisor and Head, and
+the Site Officer and Company / Site when given. Department / Site shows only on
+a request from before 0058, when it could differ from the Project / Site. A
+stop the Scheduler put on another day says "Moved by the Scheduler from … to …".
+
 **Stop report** (`app/stop-report-form.tsx`, shared by My Schedule and My
 Trips): "What happened at …?", then one big button per kind (label and a
 one-line hint) so it's one tap on a phone; where several requests share the stop, Not

@@ -370,7 +370,14 @@ export default function MyRequests({
                         ["Vehicle", shown.group.vehiclePlate ?? "—"],
                         ["Driver", shown.group.driver?.name ?? "—"],
                         ["Starting point", shown.group.startingPoint?.name ?? "—"],
-                        ["Department / Site", shown.group.department?.name ?? "—"],
+                        // Since 0058 it's the Project / Site below; only a request from before shows its own.
+                        ...(shown.group.department?.name && shown.group.department.name !== shown.projectName
+                          ? [["Department / Site", shown.group.department.name]]
+                          : []),
+                        ["Immediate Supervisor", shown.group.supervisor?.name ?? "—"],
+                        ["Project Manager / Construction Manager / Dept. Head", shown.group.head?.name ?? "—"],
+                        ...(shown.group.siteOfficer ? [["Site Officer / Supplier", shown.group.siteOfficer]] : []),
+                        ...(shown.group.siteCompany ? [["Company / Site", shown.group.siteCompany]] : []),
                       ]
                     : []),
                   ["Requested by", shown.ownerName],
@@ -387,6 +394,11 @@ export default function MyRequests({
                 ))}
               </div>
               <p className="helper">{requestProgressMeaning[shown.progress]}</p>
+              {shown.movedAt && shown.group && shown.group.date !== shown.date && (
+                <p className="helper">
+                  <b>Moved by the Scheduler</b> from {dateLabel(shown.group.date)} to {dateLabel(shown.date)}.
+                </p>
+              )}
               {shown.progress === "SENT_BACK" && shown.sentBack?.reason && (
                 <p className="helper">
                   <b>Scheduler&apos;s note:</b> {shown.sentBack.reason}
