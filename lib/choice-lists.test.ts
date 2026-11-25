@@ -43,4 +43,17 @@ describe("destinationChoices", () => {
     const list = [item("Anonang"), item("Wilcon Depot")];
     expect(names(destinationChoices(list, [{ id: "Mall", name: "Mall" }]))).toEqual(["Anonang", "Mall (inactive)", "Wilcon Depot"]);
   });
+
+  it("shows a name once, ignoring case and extra spaces", () => {
+    const list = [item("Wilcon Depot"), { ...item(" wilcon   depot "), id: "w2" }, item("Anonang")];
+    expect(destinationChoices(list)).toEqual([
+      { id: "Anonang", name: "Anonang" },
+      { id: "Wilcon Depot", name: "Wilcon Depot" },
+    ]);
+  });
+
+  it("keeps the copy a request already uses", () => {
+    const list = [item("Wilcon Depot"), { ...item("Wilcon Depot"), id: "w2" }];
+    expect(destinationChoices(list, [{ id: "w2", name: "Wilcon Depot" }])).toEqual([{ id: "w2", name: "Wilcon Depot" }]);
+  });
 });
