@@ -67,6 +67,10 @@ const byName = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 /** "  Wilcon   Calasiao " -> "wilcon calasiao": names that match, as option_name_key (0049) matches them. */
 export const choiceNameKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
 
+/** Another choice in the list (Active or not) with the same name as `name`, if any. */
+export const sameNameChoice = (list: BookingOption[], id: string, name: string) =>
+  list.find((item) => item.id !== id && choiceNameKey(item.name) === choiceNameKey(name));
+
 /**
  * The Destination dropdown on a request: Active choices a Requester can pick
  * (never a fuel/errand stop, which only a Scheduler adds), plus any the

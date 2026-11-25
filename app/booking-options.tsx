@@ -24,7 +24,7 @@ import { saveBookingOption, type BookingOption, type OptionGroup } from "@/lib/k
 import { coordinatesLabel, mapUrl } from "@/lib/attendance";
 import { parseCoordinates } from "@/lib/coordinates";
 import { useKovaData } from "@/lib/use-kova-data";
-import { CHOICE_LISTS, activeCount, choiceGaps, gapEffect, needLabel } from "@/lib/choice-lists";
+import { CHOICE_LISTS, activeCount, choiceGaps, gapEffect, needLabel, sameNameChoice } from "@/lib/choice-lists";
 import { ListLayout, PaneHead, PaneTools, SearchResults, SetupBanner, matchesSearch, type StatusFilter } from "./settings-lists";
 
 type Group = OptionGroup;
@@ -86,6 +86,13 @@ export default function BookingOptions() {
     if (!modal) return;
     if (!draft.name.trim()) {
       setError(stillNeeded(["Name"]));
+      return;
+    }
+    const twin = modal.group === "destinations" ? sameNameChoice(options.destinations, draft.id, draft.name) : undefined;
+    if (twin) {
+      setError(
+        `There's already a Destination called "${twin.name}"${twin.status === "Inactive" ? " (Inactive)" : ""}. Edit that one instead.`,
+      );
       return;
     }
     const location = modal.group === "destinations" ? parseCoordinates(draft.location) : null;

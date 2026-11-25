@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyOptions as empty, type BookingOption } from "@/lib/kova-api";
-import { CHOICE_LISTS, activeCount, choiceGaps, destinationChoices, gapEffect } from "@/lib/choice-lists";
+import { CHOICE_LISTS, activeCount, choiceGaps, destinationChoices, gapEffect, sameNameChoice } from "@/lib/choice-lists";
 
 const item = (name: string, status: BookingOption["status"] = "Active") => ({ id: name, name, status }) as BookingOption;
 
@@ -55,5 +55,19 @@ describe("destinationChoices", () => {
   it("keeps the copy a request already uses", () => {
     const list = [item("Wilcon Depot"), { ...item("Wilcon Depot"), id: "w2" }];
     expect(destinationChoices(list, [{ id: "w2", name: "Wilcon Depot" }])).toEqual([{ id: "w2", name: "Wilcon Depot" }]);
+  });
+});
+
+describe("sameNameChoice", () => {
+  const list = [item("Wilcon Depot"), item("Old Yard", "Inactive")];
+
+  it("finds another choice with the same name, ignoring case and extra spaces, Active or not", () => {
+    expect(sameNameChoice(list, "new", "  wilcon  depot")?.id).toBe("Wilcon Depot");
+    expect(sameNameChoice(list, "new", "old yard")?.status).toBe("Inactive");
+  });
+
+  it("ignores the choice being edited and different names", () => {
+    expect(sameNameChoice(list, "Wilcon Depot", "WILCON DEPOT")).toBeUndefined();
+    expect(sameNameChoice(list, "new", "Wilcon Depot 2")).toBeUndefined();
   });
 });
