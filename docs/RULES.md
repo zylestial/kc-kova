@@ -400,7 +400,8 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   It needs no Admin, an exception to "a change on the road needs the Admin",
   since it's the same trip and places. It's refused with route changes
   waiting, or at 8 legs. If all the requests there moved, the first visit stays
-  with no stops and needs no Leaving. Not reaching the new stop is Not reached
+  with no stops; if it was Arrived at, the Driver still taps Leaving, so the
+  next leg's TIME OUT is recorded (same after Skip). Not reaching the new stop is Not reached
   (below), so it can still go on another day.
 - **When the trip ends** (0085, 0087): a report on a stop already reached, not
   answered or answered End the trip, or answered Wait there on the last stop
