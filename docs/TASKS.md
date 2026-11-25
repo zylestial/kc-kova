@@ -35,6 +35,8 @@ so far (plus the old `v1.2-stable`).
 
 ## Outstanding / follow-ups
 
+- [ ] **Destination choices A to Z, no duplicates (`feat/destination-choices-order`, 2026-11-25)**: a request's Destination dropdown lists choices A to Z (ignoring case, numbers in number order) and shows a name once, matched as typed "Other" names are (0049); the copy a request already uses wins. Settings → Request choices won't save a Destination named like another one, Active or Inactive. Screen only, no migration. Open: the same check in the save route, which needs the owner's yes (shared backend). Not deployed.
+
 - [ ] **Set a place's location from a trip (`feat/set-location-from-trip`, 2026-11-24)**: where Actual times on Finished Trips or Attendance's stop times say "no place location set", an Admin gets a Set location button that saves to the destination choice (pasted coordinates, a Google Maps link, or the tap's own spot). No migration. Built and checked locally; not pushed, not deployed.
 
 - [x] **Welcome tour (owner's prototype "KOVA Welcome Tour", 2026-10-30; `feat/welcome-tour`, 0084)**: a step-by-step dialog with screenshots of each role's screens opens on an account's first sign-in and from Help, replacing the text-only Help dialog. Step 1 is the role's menu and what each link is for. Screenshots for PC, tablet and phone, picked by screen width. Seen once per account (`tour_seen_at`, `mark_tour_seen`). **PR #208** merged; 0084 on production (2026-10-30).

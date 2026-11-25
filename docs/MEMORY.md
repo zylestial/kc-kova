@@ -1254,3 +1254,17 @@ account the company owns from day one.
   Arrived before getting there (in the trip that prompted this, the Arrived
   tap at Ai Home Sto. Tomas was made at K and D), so it only fills in the
   box; the Admin checks the map and saves.
+
+## Destination choices A to Z, no duplicates (2026-11-25)
+
+- **Choices come back sorted by ID, which is random**, so the request
+  dropdown sorts them itself (`destinationChoices` in `lib/choice-lists.ts`).
+  Only Destinations; the other dropdowns keep their order.
+- **Names match the way `option_name_key` (0049) matches them**: case and
+  extra spaces ignored (`choiceNameKey`). Typed "Other" names were already
+  matched on the server; duplicates came from Settings.
+- **The dropdown hides a second copy, but keeps the one a request uses**,
+  so an edit still shows its stop's choice. Settings refuses a new or
+  renamed Destination that matches another, Inactive ones included, so the
+  Admin reactivates instead of adding a twin. Only the screen checks; the
+  save route doesn't yet (backend change, ask first).
