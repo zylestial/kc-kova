@@ -231,7 +231,7 @@ export default function TripEditor({
     const request = requests.find((item) => item.id === id);
     return request ? stopNumber(request) || request.ownerName : "A stop";
   };
-  const problems = tripChecks(legs, timer, company);
+  const problems = tripChecks(legs, company);
   const suggestions = tripSuggestions(legs, timer, nameOf);
   const removingLeg = removing === null ? null : legs[removing];
 
@@ -254,7 +254,7 @@ export default function TripEditor({
         const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
         const lastMovable = legs.length - (legs.at(-1)?.isFinal ? 2 : 1);
-        const warnings = [...legProblems(legs, index, timer), ...legSuggestions(legs, index, timer, nameOf)].map((problem) => problem + ".");
+        const warnings = [...legProblems(legs, index),...legSuggestions(legs, index, timer, nameOf)].map((problem) => problem + ".");
         return (
           <div
             key={leg.key}
