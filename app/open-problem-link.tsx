@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { ProblemReport } from "@/lib/kova-api";
+import { useRouter } from "next/navigation";
+import type { ProblemReport, Schedule } from "@/lib/kova-api";
+import { schedulingHref } from "@/lib/scheduling";
 import { stopReportLabel } from "@/lib/stop-reports";
+import { useAccount } from "./(app)/providers";
 
 /**
  * Opening a trip at one of its reports (owner's call 2026-11-26): remembers
@@ -20,7 +23,21 @@ export function useReportFocus(selectedId: string | null) {
   return { focusReport, setFocusReport };
 }
 
-/** "Open problem: Missed: Not available" in a Finished Trips row; opens the trip at that report. */
+/**
+ * Takes the viewer to a trip on Scheduling, where a stop report is answered
+ * (owner's call 2026-11-26). An Admin is switched to the Scheduler view
+ * first, since only that view opens Scheduling.
+ */
+export function useAnswerOnScheduling() {
+  const router = useRouter();
+  const { account, setViewAs } = useAccount();
+  return (schedule: Pick<Schedule, "id" | "date" | "kind">) => {
+    if (account.role === "Admin") setViewAs("Scheduler");
+    router.push(schedulingHref(schedule.date, schedule.kind, schedule.id));
+  };
+}
+
+/** "Open problem: Missed: Not available" in a Finished Trips row; `onOpen` decides where it goes. */
 export default function OpenProblemLink({ problems, onOpen }: { problems: ProblemReport[]; onOpen: (report: ProblemReport) => void }) {
   const problem = problems.find((item) => item.status === "OPEN");
   if (!problem) return null;
