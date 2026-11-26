@@ -1,4 +1,4 @@
-import type { AttendanceInput, BootstrapData, CompanyRunInput, StopTaskInput, StopTapInput } from "@/lib/kova-api";
+import type { AttendanceInput, BootstrapData, CompanyRunInput, StartOdometerInput, StopTaskInput, StopTapInput } from "@/lib/kova-api";
 
 /**
  * Taps made with no signal (0077). The phone keeps each one, with the time
@@ -15,6 +15,7 @@ export type SavedTap = { id: string; accountId: string; scheduleId: string } & (
   | { path: "stop-taps" | "company-stops"; body: StopTapInput & { tappedAt: string } }
   | { path: "company-run"; body: CompanyRunInput & { tappedAt: string } }
   | { path: "stop-tasks"; body: StopTaskInput & { tappedAt: string } }
+  | { path: "start-odometer"; body: StartOdometerInput & { tappedAt: string } }
 );
 
 const KEY = "kova-saved-taps";
@@ -63,6 +64,7 @@ export function withSavedTaps(data: BootstrapData, saved: SavedTap[], accountId:
             revisionId: revisionOf(scheduleId),
             driverId: tap.accountId,
             start: { at, recordedByAccountId: tap.accountId, location: null, saved: true },
+            startOdometer: null,
           },
         ];
       } else if (tap.body.kind === "END" && record && !record.end) {
@@ -81,6 +83,11 @@ export function withSavedTaps(data: BootstrapData, saved: SavedTap[], accountId:
         const endOdometer = tap.body.odometer;
         companyRuns = companyRuns.map((item) => (item === run ? { ...item, endAt: at, endOdometer, saved: true } : item));
       }
+    } else if (tap.path === "start-odometer") {
+      // The reading after Start trip (0090), on whichever kind of trip it is.
+      const startOdometer = tap.body.odometer;
+      attendance = attendance.map((item) => (item.scheduleId === scheduleId ? { ...item, startOdometer } : item));
+      companyRuns = companyRuns.map((item) => (item.scheduleId === scheduleId && !item.endAt ? { ...item, startOdometer } : item));
     } else if (tap.path === "stop-tasks") {
       const { legId, requestId, kind } = tap.body;
       const same = (item: { legId: string; requestId: string }) => item.legId === legId && item.requestId === requestId;

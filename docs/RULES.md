@@ -217,8 +217,8 @@ The Company trip rules (`create_request_group` with `COMPANY`, 0052;
   `record_company_stop`, `end_company_trip`; 0055, Driver since 0079): the
   trip's Driver, or an Admin for them (audited as an override). A trip its
   requester started before 0079 can still be finished by whoever started
-  it. Start trip needs
-  the starting odometer and opens on the trip's date (0056); then Arrived and
+  it. Start trip opens on the trip's date (0056); the starting odometer is
+  entered after it (0090, below); then Arrived and
   Leaving at each stop but the last, in route order; End trip on arriving
   at the last stop needs the ending odometer, never lower than the start.
   A vehicle without an odometer (0078) takes no readings at either end;
@@ -249,6 +249,17 @@ The completion rules:
   the final return, and screens and printed forms say "No odometer" / "N/A".
   Whether readings are needed is read from the vehicle when the trip is
   completed. A vehicle with one still needs both, as before.
+- **The starting odometer comes after Start trip** (owner, 2026-11-16;
+  0090, `set_start_odometer`): on a vehicle with an odometer, Daily or
+  Company, Start trip is tapped first and the screen then asks for the
+  reading in place of the next button, so it's in before Arrived; it's
+  filled in from the vehicle's last reading, and saved on the phone with no
+  signal like a tap. A Daily trip keeps it on `trip_attendance` until
+  Complete trip, which shows it filled in and still editable (the
+  completion's pair is the record). A Company trip keeps it on its run; End
+  trip is unchanged, so a run with no starting reading ends without one.
+  The Driver or an Admin can set or correct it until Complete trip (Daily)
+  or End trip (Company).
 - The trip must be over: the Driver has tapped Start and End (below). Since
   0047 End trip is enough, so a trip back early can be completed before its
   last planned Time In. Problem reports have no such limit, can be filed

@@ -407,6 +407,7 @@ describe("toTripAttendance", () => {
         location: { lat: 16.103769, lng: 120.436222, accuracyM: 12, distanceM: 0, address: "Mabato, Anonang, Pangasinan" },
       },
       end: undefined,
+      startOdometer: null,
     });
   });
 

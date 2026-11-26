@@ -16,6 +16,9 @@ test("a driver records a finished trip and an admin marks it done", async ({ bro
   const record = driver.getByRole("dialog");
   // One big button at a time; each done step is ticked.
   await record.getByRole("button", { name: "Start trip" }).click();
+  // The starting reading comes after Start trip, before Arrived (0090).
+  await record.getByLabel(/Starting odometer/).fill("1000");
+  await record.getByRole("button", { name: "Save reading" }).click();
   await record.getByRole("button", { name: /^Arrived at / }).click();
   await record.getByRole("button", { name: "Done", exact: true }).click();
   await record.getByRole("button", { name: /^Leaving / }).click();

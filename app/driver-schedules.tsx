@@ -27,6 +27,7 @@ import {
   recordStopTask,
   reportProblem,
   reportStop,
+  saveStartOdometer,
   submitCompletion,
   type StopReportKind,
   type ProblemReport,
@@ -51,6 +52,7 @@ import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import SavedTapsBanner from "./saved-taps-banner";
 import UnendedTripWarning from "./unended-trip-warning";
 import { unendedTrip } from "@/lib/unended-trip";
+import StartOdometerForm from "./start-odometer-form";
 import StopReportForm from "./stop-report-form";
 import { answerText, holdText, jobFlags, latestAnswer, missedLegs, ROAD_REPORT_KINDS, stopChoices, stopReportLabel, TASK_REPORT_KINDS } from "@/lib/stop-reports";
 
@@ -224,6 +226,21 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
   // A vehicle without an odometer (0078) skips the readings: Complete trip is just the final return.
   const hasOdometer = !selected || vehicles.find((vehicle) => vehicle.plate === selected.revision.plate)?.hasOdometer !== false;
+  // After Start trip, the starting reading comes before Arrived (owner, 2026-11-16; 0090).
+  const needsReading =
+    !!selected && hasOdometer && !selected.completion && !!selected.attendance && !selected.attendance.end && selected.attendance.startOdometer == null;
+
+  async function saveReading(reading: number) {
+    if (!selected) return;
+    setBusy(true);
+    setError("");
+    try {
+      await saveStartOdometer(selected.schedule.id, reading);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
+  }
   const startNumber = start.trim() === "" ? NaN : Number(start);
   const endNumber = end.trim() === "" ? NaN : Number(end);
   const odometerError =
@@ -608,6 +625,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   setError("");
                 }}
                 held={selected.schedule.pausedAt ? (othersLeft) => holdText(selected.problems, othersLeft) : undefined}
+                beforeNext={needsReading ? <StartOdometerForm key={selected.schedule.id} className="trip-reading" initial={lastReading} busy={busy} onSave={(reading) => void saveReading(reading)} /> : undefined}
                 taps={selected.stopTaps}
                 tasks={selected.stopTasks}
                 problems={selected.problems}
@@ -631,7 +649,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   onClick={() => {
                     setMode("complete");
                     setCompleteStep(hasOdometer ? "odometer" : "final");
-                    if (hasOdometer && !start && lastReading !== null) setStart(String(lastReading));
+                    // The reading entered after Start trip (0090), else the vehicle's last one.
+                    const startReading = selected.attendance?.startOdometer ?? lastReading;
+                    if (hasOdometer && !start && startReading !== null) setStart(String(startReading));
                   }}
                 >
                   Complete trip
@@ -666,7 +686,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   value={start}
                   onChange={(event) => setStart(event.target.value)}
                 />
-                {lastReading !== null && start === String(lastReading) && (
+                {selected.attendance?.startOdometer != null && start === String(selected.attendance.startOdometer) ? (
+                  <small className="field-hint">What you entered after Start trip. Change it if it was wrong.</small>
+                ) : lastReading !== null && start === String(lastReading) && (
                   <small className="field-hint">
                     Filled in from this vehicle&apos;s last trip. Change it if the dashboard shows something different.
                   </small>

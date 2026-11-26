@@ -4,7 +4,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 -- These test other rules, so taps here read as made before tasks at a stop (0088);
 -- v2_stop_tasks.test.sql tests that rule.
@@ -94,9 +94,10 @@ update schedules set schedule_date = schedule_date - 1 where id = pg_temp.id('tr
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select throws_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'ARRIVE') $$, '22023', 'Tap Start trip first',
   'Nothing before Start trip');
-select throws_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, '22023',
-  'Enter the starting odometer reading, in whole kilometres', 'Start trip needs the odometer');
-select lives_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'Jun starts the trip with the odometer');
+select throws_ok($$ select start_company_trip(pg_temp.id('trip'), -1) $$, '22023',
+  'Enter the starting odometer reading, in whole kilometres', 'A negative reading is refused');
+select lives_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, 'Jun starts the trip before typing the odometer (0090)');
+select lives_ok($$ select set_start_odometer(pg_temp.id('trip'), 48215) $$, 'and enters it after');
 select throws_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'LEAVE') $$, '22023', 'Tap Arrived at this stop first',
   'Leaving needs Arrived first');
 select lives_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'ARRIVE') $$, 'Arrived at the first stop');
