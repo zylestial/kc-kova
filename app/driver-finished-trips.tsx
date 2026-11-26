@@ -17,6 +17,7 @@ import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
 import TripFacts from "./trip-facts";
 import TripReports from "./trip-reports";
+import { useTripTimes } from "./use-trip-times";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import { kmLabel, readingsLabel } from "@/lib/odometer";
 
@@ -40,6 +41,7 @@ const columns: SortColumn<SortKey>[] = [
  */
 export default function DriverFinishedTrips() {
   const { schedules, completions, problems, requests, stopTasks, accounts } = useKovaData();
+  const tripTimes = useTripTimes();
   const trips = useMemo(() => buildFinishedTrips(schedules, completions, problems), [schedules, completions, problems]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort<SortKey>>(null);
@@ -147,6 +149,7 @@ export default function DriverFinishedTrips() {
                 stopsById={stopsById}
                 tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)}
                 reports={selected.problems}
+                times={tripTimes(selected)}
               />
               <p className="helper">
                 {completionMeaning[selected.completion.status]}
