@@ -34,6 +34,8 @@ import {
 } from "@/lib/scheduling-edit";
 import StopJobs from "../stop-jobs";
 import RemoveLegDialog from "./remove-leg-dialog";
+import SubmitConfirmDialog from "./submit-confirm-dialog";
+import { dateLabel } from "../planner/format";
 
 type Choice = { id: string; name: string; stops: string[]; urgent: boolean; moveIds: string[]; label: string };
 
@@ -464,6 +466,12 @@ function TripActions({
       await submitSchedule(trip.schedule.id, open!.rowVersion);
       return `${again ? "Resubmitted" : "Submitted"}. The Admin can see it now.`;
     }, "clear");
+  // Asks first, showing the vehicle and Driver (a wrong one used to mean cancelling).
+  const [confirming, setConfirming] = useState(false);
+  const askSubmit = () => (problems.length ? submit() : setConfirming(true));
+  const sending = open ?? trip.revision;
+  const first = legs[0];
+  const last = legs[legs.length - 1];
   const discard = () =>
     run(async () => {
       await discardScheduleDraft(trip.schedule.id, open!.rowVersion);
@@ -502,7 +510,7 @@ function TripActions({
       <div className="sc-state-actions">
         {["DRAFT", "RETURNED", "CHANGES"].includes(state) && (
           <>
-            <Button size="sm" className="primary" disabled={busy} onClick={submit}>
+            <Button size="sm" className="primary" disabled={busy} onClick={askSubmit}>
               {again ? "Resubmit for approval" : "Submit for approval"}
             </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={discard}>
@@ -516,6 +524,26 @@ function TripActions({
           </Button>
         )}
       </div>
+      <SubmitConfirmDialog
+        trip={
+          confirming
+            ? {
+                plate: sending.plate,
+                driverName: sending.driverName,
+                date: dateLabel(trip.schedule.date, { weekday: "short", month: "short", day: "numeric" }),
+                stops: new Set(legs.flatMap((leg) => leg.stops)).size,
+                times: first?.timeOut && last?.timeIn ? `${hhmmLabel(first.timeOut)} → ${hhmmLabel(last.timeIn)}` : "",
+              }
+            : null
+        }
+        again={again}
+        busy={busy}
+        onCancel={() => setConfirming(false)}
+        onSubmit={() => {
+          setConfirming(false);
+          void submit();
+        }}
+      />
     </div>
   );
 }
