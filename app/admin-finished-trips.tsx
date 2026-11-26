@@ -42,6 +42,7 @@ import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import TripFacts from "./trip-facts";
 import TripReports from "./trip-reports";
+import OpenProblemLink, { useReportFocus } from "./open-problem-link";
 import StopTimesTable from "./stop-times-table";
 import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
 import { missedLegs } from "@/lib/stop-reports";
@@ -277,9 +278,18 @@ export default function AdminFinishedTrips({
     .filter((item) => item.status === "ACTIVE" && item.publishedRevisionId && item.id !== selectedId)
     .sort((a, b) => b.date.localeCompare(a.date));
 
+  // A problem in the list opens its trip straight at the report (owner's call 2026-11-26).
+  const { focusReport, setFocusReport } = useReportFocus(selectedId);
+  function openAtProblem(scheduleId: string, report: ProblemReport) {
+    setSelectedId(scheduleId);
+    setFocusReport(report);
+    setNotice("");
+  }
+
   function close() {
     if (busy) return;
     setSelectedId(null);
+    setFocusReport(null);
     reset();
   }
   function reset() {
@@ -480,7 +490,7 @@ export default function AdminFinishedTrips({
                       <span className={"badge " + (trip.completion?.status === "DONE" ? "complete" : "")}>
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
-                      {hasOpenProblem(trip) && <small>Open problem</small>}
+                      <OpenProblemLink problems={trip.problems} onOpen={(problem) => openAtProblem(trip.schedule.id, problem)} />
                       {trip.completion?.status === "SUBMITTED" && missingFor(trip) > 0 && (
                         <small>
                           {missingFor(trip)} {missingFor(trip) === 1 ? "time" : "times"} missing
@@ -616,7 +626,14 @@ export default function AdminFinishedTrips({
           </DialogHeader>
           {selected && mode === "view" && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
+              <TripRecordView
+                key={`${selected.schedule.id}:${focusReport?.id ?? ""}`}
+                legs={selected.revision.legs}
+                stopsById={stopsById}
+                tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)}
+                reports={selected.problems}
+                openReportId={focusReport?.id}
+              />
               {selected.completion ? (
                 <>
                   <p className="helper">
