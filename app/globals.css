@@ -354,3 +354,5 @@ tr.flash-row>td{animation:row-flash 3s ease-out}@keyframes row-flash{0%,60%{back
 /* Stop reports open from where they're noticed: a leg card's tag, a Finished Trips row. */
 .leg-report-tag{display:inline-flex;align-items:center;gap:4px;margin:0 0 6px;padding:2px 8px;border-radius:999px;border:1px solid;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}.leg-report-tag.open{color:var(--warning-fg);background:var(--warning-bg);border-color:var(--warning-border)}.leg-report-tag.handled{color:var(--success-fg);background:var(--success-bg);border-color:var(--success-border)}.route-card .trip-report{margin:0 0 12px}
 .trip-problem-link{display:block;margin-top:4px;padding:0;background:none;border:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--warning-fg);text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:left}
+/* Finished trip leg cards (2026-11-26): the tapped time leads, the planned one beside it. */
+.route-planned .route-tapped{color:var(--foreground);font-weight:650}.route-planned .route-untapped{color:var(--warning-fg);font-weight:600}.route-planned .route-plan-time{font-size:12px;color:#7a879b}
