@@ -233,7 +233,7 @@ export default function BookingOptions() {
               </div>
             ) : (
               <div className="schedule-table">
-                <table>
+                <table data-compact="">
                   <thead>
                     <tr>
                       <th>NAME</th>
@@ -244,15 +244,21 @@ export default function BookingOptions() {
                   </thead>
                   <tbody>
                     {shown.map((item) => (
-                      <tr key={item.id}>
-                        <td>
+                      // On a phone: a card (the c-* classes); tapping it opens Edit.
+                      <tr key={item.id} onClick={() => openModal(selected, "edit", item)}>
+                        <td className="c-title">
                           <b>{item.name}</b>
                           {isDestinations && item.isOtherStop && <small>Fuel or errand stop</small>}
                         </td>
                         {isDestinations && (
-                          <td>
+                          <td className="c-labelled">
                             {item.location ? (
-                              <a href={mapUrl(item.location.lat, item.location.lng)} target="_blank" rel="noreferrer">
+                              <a
+                                href={mapUrl(item.location.lat, item.location.lng)}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                              >
                                 <MapPin size={13} /> {coordinatesLabel(item.location)}
                               </a>
                             ) : (
@@ -260,11 +266,17 @@ export default function BookingOptions() {
                             )}
                           </td>
                         )}
-                        <td>
+                        <td className="c-status">
                           <span className={"badge " + (item.status === "Active" ? "complete" : "")}>{item.status}</span>
                         </td>
-                        <td>
-                          <Button variant="outline" onClick={() => openModal(selected, "edit", item)}>
+                        <td className="c-hide">
+                          <Button
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openModal(selected, "edit", item);
+                            }}
+                          >
                             Edit
                           </Button>
                         </td>
