@@ -49,6 +49,7 @@ import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import SavedTapsBanner from "./saved-taps-banner";
+import TripFacts from "./trip-facts";
 import StopReportForm from "./stop-report-form";
 import { answerText, holdText, jobFlags, latestAnswer, missedLegs, ROAD_REPORT_KINDS, stopChoices, stopReportLabel, TASK_REPORT_KINDS } from "@/lib/stop-reports";
 
@@ -532,9 +533,17 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <DialogTitle>
               {mode === "complete" ? "Complete this trip" : mode === "problem" || mode === "stop" ? "Report a problem" : "Your trip"}
             </DialogTitle>
-            <DialogDescription className="dialog-context">
+            <DialogDescription className="sr-only">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
             </DialogDescription>
+            {selected && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: selected.revision.plate, key: true },
+                  { label: "Date", value: dateLabel(selected.schedule.date) },
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && mode === "view" && selected.schedule.kind === "COMPANY" && (
             <>
