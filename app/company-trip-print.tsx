@@ -3,26 +3,23 @@ import { createPortal } from "react-dom";
 import type { TransportRequest } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import type { FinishedTrip } from "@/lib/finished-trips";
-import { formTimeValue, type LegTimes } from "@/lib/stop-times";
 import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
 import CompanyTripPaper from "./company-trip-paper";
 
 /**
  * The printed Company Trip Form for one finished Company trip: the
  * requester, their Position, department and signatories from the request,
- * the legs with their actual times (the requester's taps or an Admin's
- * entries) and both odometer readings. Signatures and For Finance Use print
+ * the legs with the Scheduler's planned times (owner's call 2026-11-26;
+ * the tapped times show on Finished Trips) and both odometer readings. Signatures and For Finance Use print
  * blank. Rendered into document.body so the print stylesheet shows only
  * this form, like the Daily form (finished-trip-print.tsx).
  */
 export default function CompanyTripPrint({
   trip,
   requests,
-  times,
 }: {
   trip: FinishedTrip;
   requests: TransportRequest[];
-  times: LegTimes[];
 }) {
   const { schedule, revision, completion } = trip;
   const { vehicles, accounts } = useKovaData();
@@ -42,17 +39,17 @@ export default function CompanyTripPrint({
           requestedBy: [...new Set(stops.map((stop) => stop.ownerName))].join(", "),
           position: accounts.find((account) => account.id === group?.ownerAccountId)?.position ?? "",
           department: group?.department?.name ?? "",
-          legs: times.map(({ leg, out, in: timeIn }, index) => {
+          legs: revision.legs.map((leg, index) => {
             const missedHere = missed.get(leg.id);
-            const missedBefore = index > 0 && missed.has(times[index - 1].leg.id);
+            const missedBefore = index > 0 && missed.has(revision.legs[index - 1].id);
             const stop = stopOf(leg.stops[0]);
             const purpose = stop?.urgentReason ? `Urgent: ${stop.urgentReason.name}` : (stop?.destinations[0]?.purposeName ?? "");
             return {
               purpose,
               origin: leg.origin,
               destination: leg.destinationName + (missedHere ? ` (${stopReportLabel(missedHere)})` : ""),
-              timeOut: formTimeValue(out) ?? (missedBefore ? "—" : ""),
-              timeIn: formTimeValue(timeIn) ?? (missedHere ? "Missed" : ""),
+              timeOut: leg.plannedTimeOut || (missedBefore ? "—" : ""),
+              timeIn: leg.plannedTimeIn || (missedHere ? "Missed" : ""),
               contact: stop?.contact ?? "",
               supplier: stop?.supplier?.name ?? "",
             };

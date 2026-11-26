@@ -664,7 +664,7 @@ export default function AdminFinishedTrips({
                   {!isDone && !readOnly && selectedMissing > 0 && (
                     <p className="helper" role="status">
                       {selectedMissing} {selectedMissing === 1 ? "time is" : "times are"} missing. Fill them in from the
-                      Driver&apos;s logbook or a call before marking this trip done; they print on the form.
+                      Driver&apos;s logbook or a call before marking this trip done.
                     </p>
                   )}
                 </>
@@ -773,8 +773,8 @@ export default function AdminFinishedTrips({
               <p className="helper">
                 {timeLabel(editTime)}.{" "}
                 {editTime.tap
-                  ? "The Driver's tap stays on record; your time prints on the form instead."
-                  : "The Driver didn't tap this one. Enter the time it happened; it prints on the form."}
+                  ? "The Driver's tap stays on record; your time is used in its place."
+                  : "The Driver didn't tap this one. Enter the time it happened."}
               </p>
               <label className="field">
                 <span>Time *</span>
@@ -849,14 +849,13 @@ export default function AdminFinishedTrips({
         </DialogContent>
       </Dialog>
       {selected?.completion && selected.schedule.kind === "COMPANY" && (
-        <CompanyTripPrint trip={{ ...selected, completion: selected.completion }} requests={requests} times={selectedTimes} />
+        <CompanyTripPrint trip={{ ...selected, completion: selected.completion }} requests={requests} />
       )}
       {selected?.completion && selected.schedule.kind !== "COMPANY" && (
         <FinishedTripPrint
           trip={{ ...selected, completion: selected.completion }}
           stopsById={stopsById}
           requests={requests}
-          times={selectedTimes}
         />
       )}
     </>
