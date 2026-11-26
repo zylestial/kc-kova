@@ -30,7 +30,7 @@ export const CHOICE_LISTS: ChoiceList[] = [
   { group: "urgent_reasons", section: "Every request", label: "Urgent reasons", one: "Urgent reason", need: "urgent",
     about: "The reasons a requester picks from when they mark a stop Urgent." },
   { group: "starting_points", section: "Company Trips only", label: "Starting points", one: "Starting point", need: "company",
-    about: "Where a Company trip starts. Company trips don't start at ANONANG." },
+    about: "Where a Company trip starts." },
   { group: "suppliers", section: "Company Trips only", label: "Suppliers", one: "Supplier", need: "optional",
     about: "Suppliers a Company Trip stop can name. Optional." },
   { group: "supervisors", section: "Company Trips only", label: "Immediate Supervisors", one: "Immediate Supervisor", need: "company",
