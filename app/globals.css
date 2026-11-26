@@ -343,3 +343,4 @@ tr.flash-row>td{animation:row-flash 3s ease-out}@keyframes row-flash{0%,60%{back
 .my-trip-steps .stop-jobs li{display:block;padding:1px 0 1px 8px;margin:0}.my-trip-steps .stop-jobs li::before,.my-trip-steps .stop-jobs li::after{display:none}
 /* The starting odometer on the Daily trip's Start card (0090): full width like the card's step rows and buttons. */
 .trip-reading{display:flex;flex-direction:column;gap:8px}.trip-reading .field{gap:6px}.trip-reading input{height:52px;font-size:19px;background:white}
+.sc-confirm{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:4px 0;font-size:14px}.sc-confirm dt{color:var(--muted-foreground)}.sc-confirm dd{margin:0}.sc-confirm dd b{font-size:16px}

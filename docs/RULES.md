@@ -137,6 +137,10 @@ database stays the authority; these are the page's own rules:
   There's no end of day (owner's call 2026-10-16: vehicles run any hour,
   Daily or Company); a trip still fits in one calendar day, since its
   times are Time Out / Time In on that date.
+- **Submit asks first** (`submit-confirm-dialog.tsx`, 2026-11-26): Submit
+  and Resubmit open a confirm box showing the vehicle and Driver large,
+  with the date, stops and times, so a trip on the wrong vehicle is caught
+  before the Admin sees it (a trip's vehicle can't be changed afterwards).
 - **Adding a stop** (`planOn`): a Daily vehicle needs an assigned Driver and
   takes one trip a day, so a stop joins that trip (not once it's on the
   road). A Company stop goes only on the vehicle its requester picked,
