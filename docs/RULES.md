@@ -141,6 +141,13 @@ database stays the authority; these are the page's own rules:
   and Resubmit open a confirm box showing the vehicle and Driver large,
   with the date, stops and times, so a trip on the wrong vehicle is caught
   before the Admin sees it (a trip's vehicle can't be changed afterwards).
+- **Pick the vehicle, then plan it** (owner's call 2026-11-26): after Daily
+  or Company, a Vehicle dropdown (name · plate · Driver · state) picks the
+  one vehicle shown; until one is picked, no trip shows. To plan keeps every
+  stop, greying out the ones that can't go on it with `planOn`'s reason, and
+  a stop's sheet offers only that vehicle. Adding a stop from the sheet, a
+  link to a trip (a notification, Edit, Open problem) or Change the route
+  picks that trip's vehicle.
 - **Adding a stop** (`planOn`): a Daily vehicle needs an assigned Driver and
   takes one trip a day, so a stop joins that trip (not once it's on the
   road). A Company stop goes only on the vehicle its requester picked,
