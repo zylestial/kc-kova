@@ -22,7 +22,7 @@ import {
   type ScheduleRevision,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
-import { scheduledBy } from "@/lib/scheduled-by";
+import { cancelledBy, scheduledBy } from "@/lib/scheduled-by";
 import { addDays, manilaToday } from "@/lib/timezone";
 import {
   currentRevision,
@@ -154,6 +154,7 @@ export default function Schedules({
   const selected = schedules.find((schedule) => schedule.id === selectedId);
   const selectedRevision = selected && currentRevision(selected);
   const selectedBy = selectedRevision ? scheduledBy(selectedRevision, accounts) : null;
+  const selectedCancel = cancelledBy(selected, accounts);
   const editable = (schedule: Schedule) => canEdit && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
   const revisable = (schedule: Schedule) => canEdit && scheduleState(schedule) === "APPROVED";
   // Admin can cancel any schedule that is still in force and whose trip the
@@ -455,8 +456,11 @@ export default function Schedules({
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}
                 </p>
               )}
-              {selected.status === "CANCELLED" && (
-                <p className="notice">This schedule was cancelled. Its requests were released or cancelled with it.</p>
+              {selectedCancel && (
+                <p className="notice">
+                  <b>Cancelled by {selectedCancel.name}</b>
+                  {selectedCancel.at && ` on ${selectedCancel.at}`}. Its requests were released or cancelled with it.
+                </p>
               )}
               {needsUpdate(selected) && (
                 <p className="notice">
