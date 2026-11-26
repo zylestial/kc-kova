@@ -17,6 +17,8 @@ import { completionLabel, completionMeaning } from "@/lib/status-text";
 import { hasOpenProblem } from "@/lib/finished-trips";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
+import TripFacts from "./trip-facts";
+import TripReports from "./trip-reports";
 import FilterFold from "./filter-fold";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -138,21 +140,26 @@ export default function SchedulerFinishedTrips() {
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Finished trip</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="sr-only">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} · ${selected.revision.driverName}`}
               {selectedBy && ` — ${selectedBy.label} ${selectedBy.name}`}
             </DialogDescription>
+            {selected && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: selected.revision.plate, key: true },
+                  { label: "Driver", value: selected.revision.driverName, key: true },
+                  { label: "Date", value: dateLabel(selected.schedule.date) },
+                  ...(selectedBy ? [{ label: selectedBy.label, value: selectedBy.name }] : []),
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && (
             <>
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
               <p className="helper">{completionMeaning[selected.state]}</p>
-              {selected.problems.map((item) => (
-                <p className="helper" key={item.id}>
-                  <strong>{item.status === "OPEN" ? "Problem reported" : "Problem handled"}:</strong> {item.note}
-                  {item.status === "HANDLED" && item.handlingNote && ` — ${item.handlingNote}`}
-                </p>
-              ))}
+              <TripReports problems={selected.problems} legs={selected.revision.legs} />
             </>
           )}
         </DialogContent>
