@@ -304,6 +304,11 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   tell how far a trip on the road has got; their screens show no positions
   or flags). A Company trip's stop taps can also be read by whoever can see
   that trip (0055). Nobody else can.
+- **An earlier trip with no End trip warns, never blocks** (owner,
+  2026-11-16; `lib/unended-trip.ts`): tapping Start trip, Daily or Company,
+  while another of the Driver's trips was started and never ended shows
+  "You haven't ended your trip on …" with Open that trip, Start anyway and
+  Cancel. Screen-only; the database doesn't check.
 
 The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
 0044–0046):
