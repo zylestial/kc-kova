@@ -15,6 +15,8 @@ import { stopsFor } from "@/lib/trip-record";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
+import TripFacts from "./trip-facts";
+import TripReports from "./trip-reports";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
 import { kmLabel, readingsLabel } from "@/lib/odometer";
 
@@ -124,22 +126,23 @@ export default function DriverFinishedTrips() {
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Finished trip</DialogTitle>
-            <DialogDescription>{selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}</DialogDescription>
+            <DialogDescription className="sr-only">{selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}</DialogDescription>
+            {selected && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: selected.revision.plate, key: true },
+                  { label: "Date", value: dateLabel(selected.schedule.date) },
+                  { label: "Odometer", value: readingsLabel(selected.completion) },
+                  { label: "Status", value: completionLabel[selected.completion.status] },
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && (
             <>
               <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
-              <p className="helper">
-                Odometer: {readingsLabel(selected.completion)} ·{" "}
-                {completionLabel[selected.completion.status]}
-              </p>
               <p className="helper">{completionMeaning[selected.completion.status]}</p>
-              {selected.problems.map((item) => (
-                <p className="helper" key={item.id}>
-                  <strong>{item.status === "OPEN" ? "Problem reported" : "Problem handled"}:</strong> {item.note}
-                  {item.status === "HANDLED" && item.handlingNote && ` — ${item.handlingNote}`}
-                </p>
-              ))}
+              <TripReports problems={selected.problems} legs={selected.revision.legs} />
             </>
           )}
         </DialogContent>
