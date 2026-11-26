@@ -405,6 +405,27 @@ replaced; derive lists from it with `useMemo` rather than copying them into
 state. A step that needs the cache as it is right now, outside a render
 (Scheduling's Undo), reads `getSchedules()` instead.
 
+## Trip and request popups (2026-11-26)
+
+The owner's calls, for one format everywhere:
+
+- **Labelled facts under the title** (`app/trip-facts.tsx`): a small
+  uppercase label over each value, the vehicle and Driver largest. Used by
+  Finished trip (Admin, Scheduler, Driver), Schedules' Trip Record,
+  Attendance's Stop times, the Driver's trip, Request details and the
+  cancellation confirm. The old one-line "date — plate — Driver" stays as
+  the dialog's hidden description for screen readers.
+- **Leg cards at every size**: the Trip Record (`app/trip-record-view.tsx`)
+  and Actual times (`app/stop-times-table.tsx`) are `.route-cards` on wide
+  screens too; their tables are gone. Tap coordinates still hide on phones.
+- **Stop reports open where they're noticed**: a leg with a report gets a
+  tag ("Missed: Not available", yellow while open, green once handled) that
+  opens the report in the card. "Open problem: …" in an Admin's or
+  Scheduler's Finished Trips row opens the trip at that report
+  (`app/open-problem-link.tsx`). Below the legs, every report is its own
+  block (`app/trip-reports.tsx`): what it was with Open / Handled, then
+  Place, Note, What was done or Status.
+
 ## Sorting tables (2026-10-08)
 
 Every trip table (My Schedule, Attendance, the three Finished Trips screens)

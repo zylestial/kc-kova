@@ -142,7 +142,12 @@ export default function DriverFinishedTrips() {
           </DialogHeader>
           {selected && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
+              <TripRecordView
+                legs={selected.revision.legs}
+                stopsById={stopsById}
+                tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)}
+                reports={selected.problems}
+              />
               <p className="helper">
                 {completionMeaning[selected.completion.status]}
                 {selectedDone && ` Marked done by ${selectedDone.name} on ${selectedDone.at}.`}
