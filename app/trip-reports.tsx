@@ -8,10 +8,21 @@ type Leg = { id?: string; destinationName: string };
  * 2026-11-26): what it was with an Open / Handled tag, then labelled Place,
  * Note, What was done or Status. `action` adds a button (Mark handled).
  */
-export function TripReport({ report, legs, action }: { report: ProblemReport; legs: Leg[]; action?: React.ReactNode }) {
+export function TripReport({
+  report,
+  legs,
+  action,
+  anchor = `report-${report.id}`,
+}: {
+  report: ProblemReport;
+  legs: Leg[];
+  action?: React.ReactNode;
+  /** The element id a link scrolls to; a leg card's copy uses its own. */
+  anchor?: string;
+}) {
   const place = report.legId ? (legs.find((leg) => leg.id === report.legId)?.destinationName ?? "A stop") : "";
   return (
-    <div className="trip-report" id={`report-${report.id}`}>
+    <div className="trip-report" id={anchor}>
       <div className="trip-report-head">
         <b>{report.legId ? stopReportLabel(report) : "Problem on the trip"}</b>
         <span className={"trip-report-tag " + (report.status === "OPEN" ? "open" : "handled")}>
