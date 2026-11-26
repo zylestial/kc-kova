@@ -601,10 +601,33 @@ export default function AdminFinishedTrips({
                       ? "Time Out / Time In"
                       : "Finished trip"}
             </DialogTitle>
-            <DialogDescription className="dialog-context">
+            {/* Read aloud as one line; shown as labelled facts, the vehicle and Driver first. */}
+            <DialogDescription className="sr-only">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} — ${selected.revision.driverName}`}
               {selectedBy && ` — ${selectedBy.label} ${selectedBy.name}`}
             </DialogDescription>
+            {selected && (
+              <dl className="trip-facts" aria-hidden="true">
+                <div>
+                  <dt>Vehicle</dt>
+                  <dd className="trip-facts-key">{selected.revision.plate}</dd>
+                </div>
+                <div>
+                  <dt>Driver</dt>
+                  <dd className="trip-facts-key">{selected.revision.driverName}</dd>
+                </div>
+                <div>
+                  <dt>Date</dt>
+                  <dd>{dateLabel(selected.schedule.date)}</dd>
+                </div>
+                {selectedBy && (
+                  <div>
+                    <dt>{selectedBy.label}</dt>
+                    <dd>{selectedBy.name}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
           </DialogHeader>
           {selected && mode === "view" && (
             <>
@@ -633,25 +656,55 @@ export default function AdminFinishedTrips({
                   )}
                 </>
               ) : (
-                <p className="helper">
-                  {readOnly
-                    ? "The Driver reported a problem but hasn't submitted this trip yet; its odometers show once it's submitted."
-                    : selected.problems.some((item) => !item.legId && item.status === "OPEN")
-                      ? "The Driver reported a problem but hasn't submitted this trip yet. You can handle the problem now; the odometers can be reviewed once it's submitted."
-                      : "The Driver reported a problem at a stop but hasn't submitted this trip yet. Stop reports are answered on Scheduling; the odometers can be reviewed once it's submitted."}
-                </p>
+                <div className="trip-waiting" role="status">
+                  <b>Waiting for the Driver to submit this trip</b>
+                  <span>
+                    {readOnly
+                      ? "The odometers show once it's submitted."
+                      : selected.problems.some((item) => !item.legId && item.status === "OPEN")
+                        ? "You can handle the problem below now. The odometers can be reviewed once it's submitted."
+                        : "Stop reports are answered on Scheduling. The odometers can be reviewed once it's submitted."}
+                  </span>
+                </div>
+              )}
+              {selected.problems.length > 0 && (
+                <h3 className="stop-times-heading">{selected.problems.some((item) => !item.legId) ? "Reported problems" : "Stop reports"}</h3>
               )}
               {selected.problems.map((item) => (
-                <div className="helper" key={item.id}>
-                  <strong>
-                    {item.status === "OPEN" ? "Open" : "Handled"} {item.legId ? "stop report" : "problem"}:
-                  </strong>{" "}
-                  {item.legId &&
-                    `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}${item.note ? ": " : ""}`}
-                  {item.note}
-                  {item.status === "HANDLED" && <div>Handled: {item.handlingNote}</div>}
-                  {/* A stop report closes with its answer on Scheduling, never here (0083). */}
-                  {item.status === "OPEN" && item.legId && <div>{stopReportStatus(item)}</div>}
+                <div className="trip-report" key={item.id}>
+                  <div className="trip-report-head">
+                    <b>{item.legId ? stopReportLabel(item) : "Problem on the trip"}</b>
+                    <span className={"trip-report-tag " + (item.status === "OPEN" ? "open" : "handled")}>
+                      {item.status === "OPEN" ? "Open" : "Handled"}
+                    </span>
+                  </div>
+                  <dl>
+                    {item.legId && (
+                      <>
+                        <dt>Place</dt>
+                        <dd>{selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "A stop"}</dd>
+                      </>
+                    )}
+                    {item.note && (
+                      <>
+                        <dt>Note</dt>
+                        <dd>{item.note}</dd>
+                      </>
+                    )}
+                    {item.status === "HANDLED" && item.handlingNote && (
+                      <>
+                        <dt>What was done</dt>
+                        <dd>{item.handlingNote}</dd>
+                      </>
+                    )}
+                    {/* A stop report closes with its answer on Scheduling, never here (0083). */}
+                    {item.status === "OPEN" && item.legId && (
+                      <>
+                        <dt>Status</dt>
+                        <dd>{stopReportStatus(item)}</dd>
+                      </>
+                    )}
+                  </dl>
                   {item.status === "OPEN" && !item.legId && !readOnly && (
                     <Button
                       variant="outline"
