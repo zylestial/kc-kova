@@ -1279,3 +1279,18 @@ account the company owns from day one.
   renamed Destination that matches another, Inactive ones included, so the
   Admin reactivates instead of adding a twin. Only the screen checks; the
   save route doesn't yet (backend change, ask first).
+## Deleting a waiting stop (2026-11-18)
+
+- **Delete is permanent, the one exception to "nothing is hard-deleted"**
+  (owner's call). Asked for to clear stops left from past days. Cancel was
+  offered as a soft alternative and turned down.
+- **One stop at a time, and the requester isn't told** (owner's calls). No
+  Delete all for past days.
+- **Never a stop that was ever on a trip.** Missed stops, and any stop with
+  a `schedule_requests` or `revision_requests` row (a discarded draft
+  included), are refused: revisions, legs, taps and tasks point at them.
+  Send back or move those instead.
+- **The audit log still holds every deleted row** (`request.delete`, with
+  the before row and who did it); `audit_events` is append-only, so this
+  can't be avoided and is the only way to trace a mistake.
+- **Deleting clears Scheduling's Undo**, whose steps may name the stop.

@@ -188,6 +188,14 @@ The request rules (`create_request_group`, `update_request_group`,
   that week, not a past day, and not while it's in a schedule. The
   requester gets a REQUEST_MOVED notification. The stop keeps the asked-for
   date on its group.
+- **Deleting a stop** (`delete_request`, 0091; owner's call 2026-11-18):
+  only a Scheduler or Admin, one stop at a time, and only a stop that was
+  never on a trip: not missed, and never in any schedule, a discarded
+  draft included (its history points at the stop). It is erased for good
+  with its destinations, cancellation asks and notifications, and its
+  request too once no stop is left; otherwise the request's `row_version`
+  goes up, so an open edit form is stale. The requester isn't told. The
+  only trace is the audit log, which records every deleted row.
 - `create_request` / `update_request` (0051) stay for older requests; the
   app's forms use the group RPCs.
 

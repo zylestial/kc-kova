@@ -356,7 +356,8 @@ head (each an option id plus a name snapshot), `site_officer` and
 `flexibility` (`DAY` \| `FIXED` \| `WEEK`), `fixed_time`, `contact` and
 `supplier_id`/`_name`, plus `moved_at`/`moved_by_account_id` when a
 Scheduler moved it to another day of its week (`move_request_day`, 0053).
-Written only by `create_request_group` / `update_request_group`; read
+Written only by `create_request_group` / `update_request_group`, and
+deleted only by `delete_request` (0091) when its last stop is; read
 through `can_view_request_group` (owner, Admin, Scheduler, the Company
 Trip's Driver, and anyone who may see one of its stops).
 
@@ -531,6 +532,7 @@ built against, written before implementation, is kept for history in
 | PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
 | POST | `/api/request-groups` | `app/api/request-groups/route.ts` | Who may make that form (`can_request_daily` / `can_request_company`); `{ form: "DAILY" \| "COMPANY", date, stops, … }` → the stops |
 | PUT | `/api/request-groups/:groupId` | `app/api/request-groups/[groupId]/route.ts` | Owner, Admin; `rowVersion` required |
+| DELETE | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Scheduler, Admin; a stop never on a trip, erased for good → `204` (`delete_request`, 0091) |
 | POST | `/api/requests/:requestId/move` | `app/api/requests/[requestId]/move/route.ts` | Scheduler; an "any day that week" stop, `{ date }` |
 | POST | `/api/requests/:requestId/new-day` | `app/api/requests/[requestId]/new-day/route.ts` | The requester; their sent-back stop while the rest of its request is being scheduled, `{ date }` → `204` (`move_sent_back_stop`, 0081) |
 | POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403); `kind: "COMPANY"` starts a Company trip |

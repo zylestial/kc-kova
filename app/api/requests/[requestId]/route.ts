@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authed, readJson } from "@/lib/api-route";
 import { REQUEST_SELECT, toTransportRequest } from "@/lib/supabase/mappers";
 import { parseRequestInput } from "@/lib/request-input";
+import { cancellationErrorResponse } from "@/lib/supabase/cancellations";
 import { parseWith, rowVersionBody } from "@/lib/validation";
 import { requestDateError, requestTypeFor } from "@/lib/timezone";
 
@@ -55,4 +56,12 @@ export const PUT = authed<{ requestId: string }>(async ({ request, supabase, acc
     .eq("request_destinations.active", true)
     .single();
   return NextResponse.json(toTransportRequest(row ?? data));
+});
+
+// A Scheduler or Admin deletes a stop for good (0091). delete_request
+// refuses one that was ever on a trip.
+export const DELETE = authed<{ requestId: string }>(async ({ supabase, params: { requestId } }) => {
+  const { error } = await supabase.rpc("delete_request", { p_request_id: requestId });
+  if (error) return cancellationErrorResponse(error, "Could not delete the request.");
+  return new Response(null, { status: 204 });
 });
