@@ -407,10 +407,14 @@ The owner's calls, for one format everywhere:
 - **Stop reports open where they're noticed**: a leg with a report gets a
   tag ("Missed: Not available", yellow while open, green once handled) that
   opens the report in the card. "Open problem: …" in an Admin's or
-  Scheduler's Finished Trips row opens the trip at that report
-  (`app/open-problem-link.tsx`). Below the legs, every report is its own
+  Scheduler's Finished Trips row goes where it's acted on
+  (`app/open-problem-link.tsx`): a stop report to that trip on Scheduling
+  (an Admin is switched to the Scheduler view first), a problem with the
+  whole trip to the trip popup at that report, where Mark handled is.
+  Finance only opens the popup. Below the legs, every report is its own
   block (`app/trip-reports.tsx`): what it was with Open / Handled, then
-  Place, Note, What was done or Status.
+  Place, Note, What was done or Status; an open stop report has **Answer
+  on Scheduling**.
 
 ## Sorting tables (2026-10-08)
 
