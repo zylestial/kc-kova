@@ -41,6 +41,7 @@ import {
   stopNumber,
   toPlan,
   tripState,
+  tripStateLabel,
   vehicleRows,
   weekStops,
   type TripKind,
@@ -94,6 +95,9 @@ export default function Scheduling({
   });
   // Vehicle cards start folded; one opens on a click, when something is added to it, or when a link names its trip.
   const [openPlates, setOpenPlates] = useState<Set<string>>(() => new Set(flashPlate ? [flashPlate] : []));
+  // The vehicle being planned (owner's call 2026-11-26): picked after Daily or
+  // Company, so only its trip shows. A link to a trip picks its vehicle.
+  const [focusPlate, setFocusPlate] = useState<string | undefined>(() => flashPlate);
   const [sheetIds, setSheetIds] = useState<string[]>([]);
   // The stops being dragged onto a vehicle.
   const [dragIds, setDragIds] = useState<string[] | null>(null);
@@ -167,6 +171,21 @@ export default function Scheduling({
   };
   const reports = openStopReports(problems, schedules, requests, day, kind, today);
   const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started, reached };
+  // The picked vehicle's row for this day and kind; none until one is picked.
+  const focused = rows.find((row) => row.vehicle.plate === focusPlate);
+  // Why stops can't go on the picked vehicle ("" when they can): To plan keeps
+  // every stop and greys out these (owner's call 2026-11-26).
+  const blockedOn = (list: TransportRequest[]) => (focused && list.length ? planOn(list, focused, context).blocked : "");
+  /** "Hilux · NCD-3381 · Rey Villanueva · Draft" for the vehicle dropdown. */
+  const vehicleChoice = (row: (typeof rows)[number]) => {
+    const state = !row.trips.length
+      ? "Free"
+      : row.trips.length > 1
+        ? `${row.trips.length} trips`
+        : tripStateLabel[tripState(row.trips[0].schedule, started(row.trips[0].schedule.id))];
+    const driver = row.kind === "COMPANY" ? "Driver per request" : (row.driver?.name ?? "No Driver assigned");
+    return `${row.vehicle.name} · ${row.vehicle.plate} · ${driver} · ${state}`;
+  };
 
   /**
    * Saves the stops onto a vehicle as the option says: a new trip, or the
@@ -214,6 +233,7 @@ export default function Scheduling({
       }
       setSheetIds([]);
       setOpenPlates((plates) => new Set([...plates, option.row.vehicle.plate]));
+      setFocusPlate(option.row.vehicle.plate);
       setNotice(
         `Added to ${name}.` +
           (moved.length ? " Requester notified of the new day." : "") +
@@ -300,6 +320,7 @@ export default function Scheduling({
       await answerStopReport(item.report.id, decision);
       if (decision === "CHANGE") {
         setOpenPlates((plates) => new Set([...plates, item.plate]));
+        setFocusPlate(item.plate);
         setFlashPlate(item.plate);
         return "Change the route below, then submit it. The Driver waits until the Admin approves it.";
       }
@@ -442,6 +463,31 @@ export default function Scheduling({
           );
         })}
       </div>
+
+      {/* Then the vehicle, so the page shows only its trip (owner's call 2026-11-26). */}
+      {rows.length > 0 && (
+        <label className="field sc-vehicle-pick">
+          <span>Vehicle</span>
+          <Select
+            value={focused?.vehicle.plate ?? ""}
+            onValueChange={(plate) => {
+              setFocusPlate(plate);
+              setOpenPlates((plates) => new Set([...plates, plate]));
+            }}
+          >
+            <SelectTrigger aria-label="Vehicle">
+              <SelectValue placeholder={`Pick a vehicle for ${KINDS[kind]}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {rows.map((row) => (
+                <SelectItem key={row.vehicle.plate} value={row.vehicle.plate}>
+                  {vehicleChoice(row)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+      )}
 
       {urgent.map((stop) => (
         <div key={stop.id} className="sc-banner">
@@ -639,7 +685,7 @@ export default function Scheduling({
           </h2>
           <div className="sc-list">
             {left.map((stop) => (
-              <StopCard key={stop.id} stop={stop} left onOpen={setSheetIds} onDrag={setDragIds} />
+              <StopCard key={stop.id} stop={stop} left blocked={blockedOn([stop])} onOpen={setSheetIds} onDrag={setDragIds} />
             ))}
             {placeGroups(stops).map((group) =>
               group.length > 1 ? (
@@ -663,11 +709,11 @@ export default function Scheduling({
                     </Button>
                   </div>
                   {group.map((stop) => (
-                    <StopCard key={stop.id} stop={stop} inGroup onOpen={setSheetIds} onDrag={setDragIds} />
+                    <StopCard key={stop.id} stop={stop} inGroup blocked={blockedOn([stop])} onOpen={setSheetIds} onDrag={setDragIds} />
                   ))}
                 </div>
               ) : (
-                <StopCard key={group[0].id} stop={group[0]} onOpen={setSheetIds} onDrag={setDragIds} />
+                <StopCard key={group[0].id} stop={group[0]} blocked={blockedOn([group[0]])} onOpen={setSheetIds} onDrag={setDragIds} />
               ),
             )}
             {!stops.length && !left.length && <p className="sc-empty">All planned.</p>}
@@ -675,7 +721,7 @@ export default function Scheduling({
           <div className="sc-section">Any day this week ({week.length})</div>
           <div className="sc-list">
             {week.map((stop) => (
-              <StopCard key={stop.id} stop={stop} onOpen={setSheetIds} onDrag={setDragIds} />
+              <StopCard key={stop.id} stop={stop} blocked={blockedOn([stop])} onOpen={setSheetIds} onDrag={setDragIds} />
             ))}
             {!week.length && <p className="sc-empty">None.</p>}
           </div>
@@ -684,7 +730,7 @@ export default function Scheduling({
               <div className="sc-section">Missed or past due ({elsewhere.length})</div>
               <div className="sc-list">
                 {elsewhere.map((stop) => (
-                  <StopCard key={stop.id} stop={stop} carried onOpen={setSheetIds} onDrag={setDragIds} />
+                  <StopCard key={stop.id} stop={stop} carried blocked={blockedOn([stop])} onOpen={setSheetIds} onDrag={setDragIds} />
                 ))}
               </div>
             </>
@@ -692,10 +738,14 @@ export default function Scheduling({
         </section>
 
         <section className="sc-vehicles" aria-label="Vehicles">
-          <p className="sc-hint">
-            Drag a request onto a vehicle to add it, or tap it to see the options. Drag a leg by ⠿ onto another leg to reorder.
-          </p>
-          {rows.map((row) => (
+          {focused ? (
+            <p className="sc-hint">
+              Drag a request onto {focused.vehicle.name} to add it, or tap it to see where it fits. Drag a leg by ⠿ onto another leg to reorder.
+            </p>
+          ) : (
+            rows.length > 0 && <p className="sc-empty">Pick a vehicle above to see its trip and plan stops on it.</p>
+          )}
+          {(focused ? [focused] : []).map((row) => (
             <VehicleCard
               key={row.vehicle.plate}
               row={row}
@@ -757,7 +807,7 @@ export default function Scheduling({
                 {error}
               </div>
             )}
-            <PlanOptions options={planOptions(sheetStops, rows, context)} stops={sheetStops} requests={requests} busy={busy} onAdd={(option) => add(option, sheetStops)} />
+            <PlanOptions options={planOptions(sheetStops, focused ? [focused] : rows, context)} stops={sheetStops} requests={requests} busy={busy} onAdd={(option) => add(option, sheetStops)} />
             <SendBackForm
               requesters={[...new Set(sheetStops.map((stop) => stop.ownerName))].join(", ")}
               busy={busy}
