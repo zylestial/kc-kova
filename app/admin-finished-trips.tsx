@@ -40,9 +40,11 @@ import { runAsAttendance } from "@/lib/company-trips";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
+import TripFacts from "./trip-facts";
+import TripReports from "./trip-reports";
 import StopTimesTable from "./stop-times-table";
 import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
-import { missedLegs, stopReportLabel, stopReportStatus } from "@/lib/stop-reports";
+import { missedLegs } from "@/lib/stop-reports";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -602,26 +604,14 @@ export default function AdminFinishedTrips({
               {selectedBy && ` — ${selectedBy.label} ${selectedBy.name}`}
             </DialogDescription>
             {selected && (
-              <dl className="trip-facts" aria-hidden="true">
-                <div>
-                  <dt>Vehicle</dt>
-                  <dd className="trip-facts-key">{selected.revision.plate}</dd>
-                </div>
-                <div>
-                  <dt>Driver</dt>
-                  <dd className="trip-facts-key">{selected.revision.driverName}</dd>
-                </div>
-                <div>
-                  <dt>Date</dt>
-                  <dd>{dateLabel(selected.schedule.date)}</dd>
-                </div>
-                {selectedBy && (
-                  <div>
-                    <dt>{selectedBy.label}</dt>
-                    <dd>{selectedBy.name}</dd>
-                  </div>
-                )}
-              </dl>
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: selected.revision.plate, key: true },
+                  { label: "Driver", value: selected.revision.driverName, key: true },
+                  { label: "Date", value: dateLabel(selected.schedule.date) },
+                  ...(selectedBy ? [{ label: selectedBy.label, value: selectedBy.name }] : []),
+                ]}
+              />
             )}
           </DialogHeader>
           {selected && mode === "view" && (
@@ -661,45 +651,13 @@ export default function AdminFinishedTrips({
                   </span>
                 </div>
               )}
-              {selected.problems.length > 0 && (
-                <h3 className="stop-times-heading">{selected.problems.some((item) => !item.legId) ? "Reported problems" : "Stop reports"}</h3>
-              )}
-              {selected.problems.map((item) => (
-                <div className="trip-report" key={item.id}>
-                  <div className="trip-report-head">
-                    <b>{item.legId ? stopReportLabel(item) : "Problem on the trip"}</b>
-                    <span className={"trip-report-tag " + (item.status === "OPEN" ? "open" : "handled")}>
-                      {item.status === "OPEN" ? "Open" : "Handled"}
-                    </span>
-                  </div>
-                  <dl>
-                    {item.legId && (
-                      <>
-                        <dt>Place</dt>
-                        <dd>{selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "A stop"}</dd>
-                      </>
-                    )}
-                    {item.note && (
-                      <>
-                        <dt>Note</dt>
-                        <dd>{item.note}</dd>
-                      </>
-                    )}
-                    {item.status === "HANDLED" && item.handlingNote && (
-                      <>
-                        <dt>What was done</dt>
-                        <dd>{item.handlingNote}</dd>
-                      </>
-                    )}
-                    {/* A stop report closes with its answer on Scheduling, never here (0083). */}
-                    {item.status === "OPEN" && item.legId && (
-                      <>
-                        <dt>Status</dt>
-                        <dd>{stopReportStatus(item)}</dd>
-                      </>
-                    )}
-                  </dl>
-                  {item.status === "OPEN" && !item.legId && !readOnly && (
+              <TripReports
+                problems={selected.problems}
+                legs={selected.revision.legs}
+                actionFor={(item) =>
+                  item.status === "OPEN" &&
+                  !item.legId &&
+                  !readOnly && (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -709,9 +667,9 @@ export default function AdminFinishedTrips({
                     >
                       Mark handled
                     </Button>
-                  )}
-                </div>
-              ))}
+                  )
+                }
+              />
               {isDone && <p className="helper">This trip is done and locked.</p>}
               {selected.completion && (
                 <DialogFooter>
