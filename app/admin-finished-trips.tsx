@@ -31,7 +31,7 @@ import {
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { scheduledBy } from "@/lib/scheduled-by";
-import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
+import { buildAdminTrips, cleanTrips, doneBy, hasOpenProblem } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
 import CompanyTripPrint from "./company-trip-print";
@@ -270,6 +270,7 @@ export default function AdminFinishedTrips({
   const selectedMissing = selected ? missingFor(selected) : 0;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const isDone = selected?.completion?.status === "DONE";
+  const selectedDone = doneBy(selected?.completion, accounts);
   // Any other published, active schedule can follow up on a problem.
   const followUps = schedules
     .filter((item) => item.status === "ACTIVE" && item.publishedRevisionId && item.id !== selectedId)
@@ -323,11 +324,14 @@ export default function AdminFinishedTrips({
         completion?.fleetCardUsed,
         completion?.gasReceiptAttached,
         completion ? completionLabel[completion.status] : notSubmitted,
+        doneBy(completion, accounts)?.name,
+        doneBy(completion, accounts)?.at,
       ];
     });
     const header = [
       "DATE", "FORM", "VEHICLE", "DRIVER", "PROJECT / SITE", "STOPS", "TIME OUT", "TIME IN",
       "START ODOMETER", "END ODOMETER", "DISTANCE (KM)", "FULL TANK", "FLEET CARD USED", "GAS RECEIPT ATTACHED", "STATUS",
+      "DONE BY", "DONE AT",
     ];
     downloadCsv(`kova-finished-trips-${today}.csv`, toCsv(header, rows));
     setExportFilters(null);
@@ -478,6 +482,7 @@ export default function AdminFinishedTrips({
                       <span className={"badge " + (trip.completion?.status === "DONE" ? "complete" : "")}>
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
+                      {trip.completion?.status === "DONE" && <small>by {doneBy(trip.completion, accounts)?.name ?? "an Admin"}</small>}
                       {hasOpenProblem(trip) && <small>Open problem</small>}
                       {trip.completion?.status === "SUBMITTED" && missingFor(trip) > 0 && (
                         <small>
@@ -609,6 +614,7 @@ export default function AdminFinishedTrips({
                   <p className="helper">
                     Odometer: {readingsLabel(selected.completion)} ·{" "}
                     {completionLabel[selected.completion.status]}
+                    {selectedDone && ` by ${selectedDone.name}`}
                   </p>
                   <p className="helper">{completionMeaning[selected.completion.status]}</p>
                   <h3 className="stop-times-heading">Actual times</h3>
@@ -659,7 +665,18 @@ export default function AdminFinishedTrips({
                   )}
                 </div>
               ))}
-              {isDone && <p className="helper">This trip is done and locked.</p>}
+              {isDone && (
+                <p className="helper">
+                  {selectedDone && (
+                    <>
+                      <b>
+                        Marked done by {selectedDone.name} on {selectedDone.at}.
+                      </b>{" "}
+                    </>
+                  )}
+                  This trip is locked.
+                </p>
+              )}
               {selected.completion && (
                 <DialogFooter>
                   <Button variant="outline" onClick={() => window.print()}>

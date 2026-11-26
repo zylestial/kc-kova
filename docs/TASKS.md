@@ -36,6 +36,7 @@ so far (plus the old `v1.2-stable`).
 ## Outstanding / follow-ups
 
 - [ ] **Destination choices A to Z, no duplicates (`feat/destination-choices-order`, 2026-11-25)**: a request's Destination dropdown lists choices A to Z (ignoring case, numbers in number order) and shows a name once, matched as typed "Other" names are (0049); the copy a request already uses wins. Settings → Request choices won't save a Destination named like another one, Active or Inactive. Screen only, no migration. Open: the same check in the save route, which needs the owner's yes (shared backend). Not deployed.
+- [x] **Show who marked a trip done (`feat/show-done-by`, 2026-11-24)**: Finished Trips says who marked each trip Done and when (from `done_by_account_id` / `done_at`, saved since 0017): "by <name>" in the list, "Marked done by <name> on <date, time>" in the trip, DONE BY and DONE AT in Download CSV. Admin, Finance and Drivers. No migration, no backend change. Not for Schedulers: they can't read trip completions, so it would need a backend change (not asked for).
 
 - [ ] **Set a place's location from a trip (`feat/set-location-from-trip`, 2026-11-24)**: where Actual times on Finished Trips or Attendance's stop times say "no place location set", an Admin gets a Set location button that saves to the destination choice (pasted coordinates, a Google Maps link, or the tap's own spot). No migration. Built and checked locally; not pushed, not deployed.
 

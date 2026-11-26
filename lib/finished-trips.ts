@@ -1,4 +1,4 @@
-import type { ProblemReport, Schedule, ScheduleRevision, TripCompletion } from "@/lib/kova-api";
+import type { Account, ProblemReport, Schedule, ScheduleRevision, TripCompletion } from "@/lib/kova-api";
 
 /** A schedule that has a submitted completion, with everything the screens show. */
 export type FinishedTrip = {
@@ -75,3 +75,21 @@ export const hasOpenProblem = (trip: { problems: ProblemReport[] }) => trip.prob
  */
 export const cleanTrips = <T extends { completion: { status: string } | null; problems: ProblemReport[] }>(trips: T[]) =>
   trips.filter((trip) => trip.completion?.status === "SUBMITTED" && !hasOpenProblem(trip));
+
+/** Who marked a trip Done and when, e.g. { name: "Kaye", at: "Nov 24, 2026, 3:10 PM" } (Manila time). Null until it's Done. */
+export function doneBy(
+  completion: Pick<TripCompletion, "status" | "doneAt" | "doneByAccountId"> | null | undefined,
+  accounts: Pick<Account, "id" | "name">[],
+): { name: string; at: string } | null {
+  if (completion?.status !== "DONE" || !completion.doneAt) return null;
+  const name = accounts.find((item) => item.id === completion.doneByAccountId)?.name ?? "an Admin";
+  const at = new Date(completion.doneAt).toLocaleString("en-US", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return { name, at };
+}
