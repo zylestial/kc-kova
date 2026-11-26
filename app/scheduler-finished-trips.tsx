@@ -18,7 +18,7 @@ import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
 import TripFacts from "./trip-facts";
 import TripReports from "./trip-reports";
-import OpenProblemLink, { useReportFocus } from "./open-problem-link";
+import OpenProblemLink, { useAnswerOnScheduling, useReportFocus } from "./open-problem-link";
 import FilterFold from "./filter-fold";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -51,6 +51,7 @@ export default function SchedulerFinishedTrips() {
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { focusReport, setFocusReport } = useReportFocus(selectedId);
+  const answerOnScheduling = useAnswerOnScheduling();
   const [sort, setSort] = useState<Sort<SortKey>>(null);
   const [form, setForm] = useState<FormFilterValue>("all");
   const visible = sortRows(
@@ -111,6 +112,8 @@ export default function SchedulerFinishedTrips() {
                       <OpenProblemLink
                         problems={trip.problems}
                         onOpen={(problem) => {
+                          // A stop report is answered on Scheduling (owner's call 2026-11-26).
+                          if (problem.legId) return answerOnScheduling(trip.schedule);
                           setSelectedId(trip.schedule.id);
                           setFocusReport(problem);
                         }}
@@ -180,7 +183,18 @@ export default function SchedulerFinishedTrips() {
                 openReportId={focusReport?.id}
               />
               <p className="helper">{completionMeaning[selected.state]}</p>
-              <TripReports problems={selected.problems} legs={selected.revision.legs} />
+              <TripReports
+                problems={selected.problems}
+                legs={selected.revision.legs}
+                actionFor={(item) =>
+                  item.status === "OPEN" &&
+                  item.legId && (
+                    <Button variant="outline" onClick={() => answerOnScheduling(selected.schedule)}>
+                      Answer on Scheduling
+                    </Button>
+                  )
+                }
+              />
             </>
           )}
         </DialogContent>

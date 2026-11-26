@@ -28,6 +28,7 @@ import {
   markCompletionsDone,
   setTripTime,
   type ProblemReport,
+  type Schedule,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { scheduledBy } from "@/lib/scheduled-by";
@@ -42,7 +43,7 @@ import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
 import TripFacts from "./trip-facts";
 import TripReports from "./trip-reports";
-import OpenProblemLink, { useReportFocus } from "./open-problem-link";
+import OpenProblemLink, { useAnswerOnScheduling, useReportFocus } from "./open-problem-link";
 import StopTimesTable from "./stop-times-table";
 import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
 import { missedLegs } from "@/lib/stop-reports";
@@ -281,8 +282,12 @@ export default function AdminFinishedTrips({
 
   // A problem in the list opens its trip straight at the report (owner's call 2026-11-26).
   const { focusReport, setFocusReport } = useReportFocus(selectedId);
-  function openAtProblem(scheduleId: string, report: ProblemReport) {
-    setSelectedId(scheduleId);
+  const answerOnScheduling = useAnswerOnScheduling();
+  // A stop report is answered on Scheduling; a problem with the whole trip is
+  // marked handled here, and Finance only reads it (owner's call 2026-11-26).
+  function openAtProblem(schedule: Schedule, report: ProblemReport) {
+    if (report.legId && !readOnly) return answerOnScheduling(schedule);
+    setSelectedId(schedule.id);
     setFocusReport(report);
     setNotice("");
   }
@@ -495,7 +500,7 @@ export default function AdminFinishedTrips({
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
                       {trip.completion?.status === "DONE" && <small>by {doneBy(trip.completion, accounts)?.name ?? "an Admin"}</small>}
-                      <OpenProblemLink problems={trip.problems} onOpen={(problem) => openAtProblem(trip.schedule.id, problem)} />
+                      <OpenProblemLink problems={trip.problems} onOpen={(problem) => openAtProblem(trip.schedule, problem)} />
                       {trip.completion?.status === "SUBMITTED" && missingFor(trip) > 0 && (
                         <small>
                           {missingFor(trip)} {missingFor(trip) === 1 ? "time" : "times"} missing
@@ -679,8 +684,12 @@ export default function AdminFinishedTrips({
                 legs={selected.revision.legs}
                 actionFor={(item) =>
                   item.status === "OPEN" &&
-                  !item.legId &&
-                  !readOnly && (
+                  !readOnly &&
+                  (item.legId ? (
+                    <Button variant="outline" onClick={() => answerOnScheduling(selected.schedule)}>
+                      Answer on Scheduling
+                    </Button>
+                  ) : (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -690,7 +699,7 @@ export default function AdminFinishedTrips({
                     >
                       Mark handled
                     </Button>
-                  )
+                  ))
                 }
               />
               {isDone && (
