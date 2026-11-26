@@ -18,6 +18,7 @@ import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
 import TripFacts from "./trip-facts";
 import TripReports from "./trip-reports";
+import { useTripTimes } from "./use-trip-times";
 import OpenProblemLink, { useAnswerOnScheduling, useReportFocus } from "./open-problem-link";
 import FilterFold from "./filter-fold";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
@@ -45,6 +46,7 @@ const routeOf = (trip: { revision: { legs: { destinationName: string }[] } }) =>
  */
 export default function SchedulerFinishedTrips() {
   const { schedules, completions, requests, problems, accounts, stopTasks } = useKovaData();
+  const tripTimes = useTripTimes();
   const trips = useMemo(
     () => buildScheduledFinishedTrips(schedules, completions, requests, problems),
     [schedules, completions, requests, problems],
@@ -181,6 +183,7 @@ export default function SchedulerFinishedTrips() {
                 tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)}
                 reports={selected.problems}
                 openReportId={focusReport?.id}
+                times={tripTimes(selected)}
               />
               <p className="helper">{completionMeaning[selected.state]}</p>
               <TripReports

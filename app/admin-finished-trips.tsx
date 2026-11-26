@@ -638,6 +638,7 @@ export default function AdminFinishedTrips({
                 tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)}
                 reports={selected.problems}
                 openReportId={focusReport?.id}
+                times={selectedTimes}
               />
               {selected.completion ? (
                 <>
