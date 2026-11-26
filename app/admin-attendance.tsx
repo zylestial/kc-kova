@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { atStop, legTimes, placeResolver, type LegTimes } from "@/lib/stop-times";
 import StopTimesTable from "./stop-times-table";
+import TripFacts from "./trip-facts";
 
 /** The Arrived/Leaving taps of a trip (not Start/End): how many were made and how many are flagged. */
 function stopSummary(times: LegTimes[]) {
@@ -349,9 +350,18 @@ export default function AdminAttendance({
             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Stop times</DialogTitle>
-                <DialogDescription className="dialog-context">
+                <DialogDescription className="sr-only">
                   {row && `${dateLabel(row.schedule.date)} — ${row.revision.plate} — ${row.revision.driverName}`}
                 </DialogDescription>
+                {row && (
+                  <TripFacts
+                    facts={[
+                      { label: "Vehicle", value: row.revision.plate, key: true },
+                      { label: "Driver", value: row.revision.driverName, key: true },
+                      { label: "Date", value: dateLabel(row.schedule.date) },
+                    ]}
+                  />
+                )}
               </DialogHeader>
               {notice && (
                 <div className="notice success" role="status">
