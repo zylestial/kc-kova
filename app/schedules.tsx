@@ -42,6 +42,7 @@ import FilterFold from "./filter-fold";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
+import TripFacts from "./trip-facts";
 import { SortSelect, type SortColumn } from "./sortable-head";
 import { sortRows, type Sort } from "@/lib/table-sort";
 
@@ -430,27 +431,26 @@ export default function Schedules({
         <DialogContent className="review-trip-modal">
           <DialogHeader>
             <DialogTitle>Trip Record</DialogTitle>
-            <DialogDescription className="dialog-context">
+            <DialogDescription className="sr-only">
               {selected && dateLabel(selected.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </DialogDescription>
+            {selected && selectedRevision && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: `${vehicleName(selectedRevision.plate)} · ${selectedRevision.plate}`, key: true },
+                  { label: "Driver", value: selectedRevision.driverName, key: true },
+                  { label: "Date", value: dateLabel(selected.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" }) },
+                  { label: "Status", value: scheduleStateLabel[scheduleState(selected)] },
+                  ...(selectedBy ? [{ label: selectedBy.label, value: selectedBy.name }] : []),
+                  { label: "Version", value: `v${selectedRevision.version}` },
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && selectedRevision && (
             <>
-              <div className="driver-trip-details">
-                {[
-                  ["Vehicle", `${vehicleName(selectedRevision.plate)} · ${selectedRevision.plate}`],
-                  ["Driver", selectedRevision.driverName],
-                  ["Status", scheduleStateLabel[scheduleState(selected)], selectedBy && `${selectedBy.label} ${selectedBy.name}`],
-                  ["Version", `v${selectedRevision.version}`],
-                ].map(([label, value, note]) => (
-                  <div key={label}>
-                    <span>{label}</span>
-                    <strong>{value}</strong>
-                    {note && <small className="detail-note">{note}</small>}
-                  </div>
-                ))}
-              </div>
-              <p className="helper">{meaning(selected, selectedRevision.legs)}</p>
+              {/* A cancelled trip says so in its own notice below, with who and when. */}
+              {selected.status !== "CANCELLED" && <p className="helper">{meaning(selected, selectedRevision.legs)}</p>}
               {selectedRevision.status === "RETURNED" && selectedRevision.decisionComment && (
                 <p className="notice">
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}
