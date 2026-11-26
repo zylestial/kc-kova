@@ -326,7 +326,9 @@ top:
   on any day but today "Missed or past due" when there are any: each card tagged
   Missed and saying the day it was for), and the
   vehicles (`app/scheduler/vehicle-card.tsx`): folded by default, each
-  with its Driver, a summary and the trip's state; one opens when clicked
+  led by its name in large type with the plate as a chip beside it and the
+  trip's state on the right, then a smaller line with its Driver and a
+  summary (2026-11-26: a wrong vehicle should stand out); one opens when clicked
   or when something is added to it. Today's **To plan** lists stops left from
   past days first, tagged "Left from Nov 4", and they count in its numbers; the
   switch and the day banner add "3 from past days".

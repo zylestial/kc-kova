@@ -62,20 +62,22 @@ export default function VehicleCard({
       }}
     >
       <button type="button" className="sc-vehicle-head" aria-expanded={open} onClick={onToggle}>
-        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        <b>{vehicle.name}</b>
-        <span className="sc-muted">{kind === "COMPANY" ? "Company trips · Driver per request" : (driver?.name ?? "No Driver assigned")}</span>
+        {open ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        {/* The vehicle first and large, so a wrong one is easy to spot. */}
+        <span className="sc-vehicle-name">{vehicle.name}</span>
+        <span className="sc-plate">{vehicle.plate}</span>
         <span className="sc-space" />
-        <span className="sc-muted">
-          {summary}
-          {trips.length === 1 && byOf(first) && ` · ${byOf(first)}`}
-        </span>
         {trips.length === 1 ? (
           <span className={"sc-tag " + tripStateTone[stateOf(first)]}>{tripStateLabel[stateOf(first)]}</span>
         ) : !trips.length ? (
           <span className="sc-tag ok">Free</span>
         ) : null}
-        <span className="sc-plate">{vehicle.plate}</span>
+        <span className="sc-vehicle-sub">
+          {kind === "COMPANY" ? "Company trips · Driver per request" : (driver?.name ?? "No Driver assigned")}
+          {" · "}
+          {summary}
+          {trips.length === 1 && byOf(first) && ` · ${byOf(first)}`}
+        </span>
       </button>
       {open && (
         <>

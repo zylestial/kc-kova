@@ -344,3 +344,5 @@ tr.flash-row>td{animation:row-flash 3s ease-out}@keyframes row-flash{0%,60%{back
 /* The starting odometer on the Daily trip's Start card (0090): full width like the card's step rows and buttons. */
 .trip-reading{display:flex;flex-direction:column;gap:8px}.trip-reading .field{gap:6px}.trip-reading input{height:52px;font-size:19px;background:white}
 .sc-confirm{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:4px 0;font-size:14px}.sc-confirm dt{color:var(--muted-foreground)}.sc-confirm dd{margin:0}.sc-confirm dd b{font-size:16px}
+/* Scheduling: the vehicle name and plate lead each card; Driver and summary sit below. */
+.sc-vehicle-name{font-size:18px;font-weight:700;color:var(--foreground);line-height:1.2}.sc-vehicle-head .sc-plate{font-size:13px;font-weight:600;color:var(--foreground);font-family:ui-monospace,monospace;background:var(--neutral-bg);border:1px solid var(--neutral-border);border-radius:6px;padding:1px 7px;letter-spacing:.02em}.sc-vehicle-sub{flex-basis:100%;padding-left:28px;font-size:13px;color:var(--steel)}
