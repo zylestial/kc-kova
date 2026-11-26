@@ -19,6 +19,7 @@ import {
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { currentRevision } from "@/lib/trip-record";
+import TripFacts from "./trip-facts";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -129,9 +130,17 @@ export default function CancellationRequests({ highlightRequestId }: { highlight
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{deciding?.action === "confirm" ? "Cancel this request?" : "Keep this request?"}</DialogTitle>
-            <DialogDescription className="dialog-context">
+            <DialogDescription className="sr-only">
               {target && `${target.ownerName} · ${dateLabel(target.date)}`}
             </DialogDescription>
+            {target && (
+              <TripFacts
+                facts={[
+                  { label: "Requested by", value: target.ownerName, key: true },
+                  { label: "Date", value: dateLabel(target.date) },
+                ]}
+              />
+            )}
           </DialogHeader>
           {deciding?.action === "confirm" ? (
             <p className="helper">
