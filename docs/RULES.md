@@ -153,6 +153,9 @@ database stays the authority; these are the page's own rules:
   without a typed time are estimated again.
 - **Taking a stop off** (Remove on its leg) sends it back to the waiting
   list, or back to its requester with a reason (`send_back_requests`).
+- **Needs your attention** (2026-11-26): the Urgent stops, stop reports and
+  trips waiting for the Admin fold under one bar with their counts. Hide
+  keeps them folded until a new one arrives, which opens the bar again.
 - **Undo** reverses the Scheduler's changes on the page one at a time,
   moved "any day that week" stops included; it can't undo a submit or a
   send-back.

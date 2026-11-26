@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -168,6 +168,12 @@ export default function Scheduling({
     return legs.reduce((count, leg, index) => (stopTaps.some((tap) => tap.legId === leg.id) || missed.has(leg.id) ? index + 1 : count), 0);
   };
   const reports = openStopReports(problems, schedules, requests, day, kind, today);
+  // Urgent stops, stop reports and trips waiting for the Admin fold under one
+  // bar (owner's call 2026-11-26). Hidden at a count, they open again when a
+  // new one arrives, so nothing waiting is missed.
+  const alertCount = urgent.length + reports.length + waitingForAdmin.length;
+  const [hiddenAt, setHiddenAt] = useState<number | null>(null);
+  const showAlerts = hiddenAt === null || alertCount > hiddenAt;
   const context: PlanContext = { requests, destinations: options.destinations, day, isToday: day === today, now, started, reached };
 
   /**
@@ -453,6 +459,25 @@ export default function Scheduling({
         })}
       </div>
 
+      {alertCount > 0 && (
+        <button type="button" className="sc-alerts-toggle" aria-expanded={showAlerts} onClick={() => setHiddenAt(showAlerts ? alertCount : null)}>
+          {showAlerts ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronRight size={18} aria-hidden="true" />}
+          <b>Needs your attention</b>
+          <span className="sc-alerts-counts">
+            {[
+              urgent.length > 0 && `${urgent.length} urgent`,
+              reports.length > 0 && `${reports.length} stop ${reports.length === 1 ? "report" : "reports"}`,
+              waitingForAdmin.length > 0 && `${waitingForAdmin.length} waiting for Admin`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+          <span className="sc-space" />
+          <span className="sc-alerts-action">{showAlerts ? "Hide" : "Show"}</span>
+        </button>
+      )}
+      {showAlerts && (
+      <>
       {urgent.map((stop) => (
         <div key={stop.id} className="sc-banner">
           <span>
@@ -619,6 +644,8 @@ export default function Scheduling({
           </span>
         </div>
       ))}
+      </>
+      )}
       <div className="sc-banner info">
         <span>
           <b>{shortDay(day)}:</b> {trips.length} {trips.length === 1 ? "trip" : "trips"}
