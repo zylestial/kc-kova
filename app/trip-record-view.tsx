@@ -14,11 +14,20 @@ type ViewLeg = {
   stops: string[];
 };
 
-/** A request's purpose and notes, on one line, with when it was marked Done (0088). */
-const jobLine = (stop: StopInfo, tasks: StopTask[]) => {
+/**
+ * A request's purpose (bold), its details below, then when it was marked
+ * Done (0088) as a small tag: three kinds of information, each on its own line.
+ */
+function JobLines({ stop, tasks }: { stop: StopInfo; tasks: StopTask[] }) {
   const done = requestDoneAt(tasks, stop.requestId);
-  return [stopWhat(stop), stop.details, done && `Done ${tapTimeLabel(done)}`].filter(Boolean).join(" · ");
-};
+  return (
+    <div className="trip-job">
+      <b>{stopWhat(stop)}</b>
+      {stop.details && <span className="trip-job-details">{stop.details}</span>}
+      {done && <span className="trip-job-done">Done {tapTimeLabel(done)}</span>}
+    </div>
+  );
+}
 
 /**
  * Read-only Trip Record: one row per leg, with every requester, purpose and
@@ -26,7 +35,6 @@ const jobLine = (stop: StopInfo, tasks: StopTask[]) => {
  * Phones get one route card per leg instead (.route-cards in globals.css).
  */
 export default function TripRecordView({ legs, stopsById, tasks = [] }: { legs: ViewLeg[]; stopsById: Map<string, StopInfo>; tasks?: StopTask[] }) {
-  const jobText = (stop: StopInfo) => jobLine(stop, tasks);
   return (
     <>
       <div className="schedule-table trip-record-view">
@@ -45,7 +53,7 @@ export default function TripRecordView({ legs, stopsById, tasks = [] }: { legs: 
                 <tr key={index}>
                   <td>{String(index + 1).padStart(2, "0")}</td>
                   <td>{served.length ? served.map((stop) => <div key={stop.id}>{stop.requester}</div>) : "—"}</td>
-                  <td>{served.length ? served.map((stop) => <div key={stop.id}>{jobText(stop)}</div>) : "—"}</td>
+                  <td>{served.length ? served.map((stop) => <JobLines key={stop.id} stop={stop} tasks={tasks} />) : "—"}</td>
                   <td>{leg.origin}</td>
                   <td>{leg.plannedTimeOut || "—"}</td>
                   <td>{leg.destinationName}</td>
@@ -66,7 +74,10 @@ export default function TripRecordView({ legs, stopsById, tasks = [] }: { legs: 
               <div className="route-card-head">
                 <b>Leg {String(index + 1).padStart(2, "0")}</b>
                 {served.map((stop) => (
-                  <div key={stop.id}>{[stop.requester, jobText(stop)].filter(Boolean).join(" · ")}</div>
+                  <div key={stop.id}>
+                    {stop.requester && <div className="trip-job-requester">{stop.requester}</div>}
+                    <JobLines stop={stop} tasks={tasks} />
+                  </div>
                 ))}
               </div>
               <div className="route-stop route-from">
