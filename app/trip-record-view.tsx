@@ -5,6 +5,7 @@ import { tapTimeLabel } from "@/lib/attendance";
 import type { ProblemReport, StopTask } from "@/lib/kova-api";
 import { stopReportLabel } from "@/lib/stop-reports";
 import { requestDoneAt } from "@/lib/stop-tasks";
+import { formTimeValue, hhmmLabel, type LegTimes } from "@/lib/stop-times";
 import { legStops, stopWhat, type StopInfo } from "@/lib/trip-record";
 import { TripReport } from "./trip-reports";
 
@@ -35,6 +36,26 @@ function JobLines({ stop, tasks }: { stop: StopInfo; tasks: StopTask[] }) {
 }
 
 /**
+ * A leg's Time Out or Time In. On a finished trip the tapped time leads
+ * (owner's call 2026-11-26) with the planned one beside it; otherwise the plan.
+ */
+function LegTime({ label, planned, actual }: { label: string; planned: string; actual: string | null | undefined }) {
+  if (actual === undefined) return <span className="route-planned">{label} {planned || "—"}</span>;
+  return (
+    <span className="route-planned">
+      {actual ? (
+        <b className="route-tapped">
+          {label} {hhmmLabel(actual)}
+        </b>
+      ) : (
+        <span className="route-untapped">{label} not tapped</span>
+      )}
+      {planned && <small className="route-plan-time"> · planned {hhmmLabel(planned)}</small>}
+    </span>
+  );
+}
+
+/**
  * Read-only Trip Record: one route card per leg (.route-cards in
  * globals.css, at every screen size), with every requester, purpose and
  * note served at that stop. A shared stop lists each request on its own line.
@@ -47,13 +68,22 @@ export default function TripRecordView({
   tasks = [],
   reports = [],
   openReportId,
+  times,
 }: {
   legs: ViewLeg[];
   stopsById: Map<string, StopInfo>;
   tasks?: StopTask[];
   reports?: ProblemReport[];
   openReportId?: string | null;
+  /** A finished trip's actual times (useTripTimes); each leg then shows when it was tapped. */
+  times?: LegTimes[];
 }) {
+  // undefined: no actual times given (a plan); null: given but not tapped.
+  const actualOf = (leg: ViewLeg, side: "out" | "in") => {
+    if (!times) return undefined;
+    const found = times.find((item) => item.leg.id === leg.id);
+    return found ? formTimeValue(side === "out" ? found.out : found.in) : null;
+  };
   const [open, setOpen] = useState<Set<string>>(() => new Set(openReportId ? [openReportId] : []));
   const toggle = (id: string) =>
     setOpen((current) => {
@@ -100,11 +130,11 @@ export default function TripRecordView({
                 ))}
               <div className="route-stop route-from">
                 <span className="route-place">{leg.origin}</span>
-                <span className="route-planned">out {leg.plannedTimeOut || "—"}</span>
+                <LegTime label="out" planned={leg.plannedTimeOut} actual={actualOf(leg, "out")} />
               </div>
               <div className="route-stop route-to">
                 <span className="route-place">{leg.destinationName}</span>
-                <span className="route-planned">in {leg.plannedTimeIn || "—"}</span>
+                <LegTime label="in" planned={leg.plannedTimeIn} actual={actualOf(leg, "in")} />
               </div>
               {contact && <div className="route-contact">Contact: {contact}</div>}
             </li>
