@@ -30,41 +30,13 @@ function JobLines({ stop, tasks }: { stop: StopInfo; tasks: StopTask[] }) {
 }
 
 /**
- * Read-only Trip Record: one row per leg, with every requester, purpose and
+ * Read-only Trip Record: one route card per leg (.route-cards in
+ * globals.css, at every screen size), with every requester, purpose and
  * note served at that stop. A shared stop lists each request on its own line.
- * Phones get one route card per leg instead (.route-cards in globals.css).
  */
 export default function TripRecordView({ legs, stopsById, tasks = [] }: { legs: ViewLeg[]; stopsById: Map<string, StopInfo>; tasks?: StopTask[] }) {
   return (
     <>
-      <div className="schedule-table trip-record-view">
-        <table>
-          <thead>
-            <tr>
-              {["LEG", "REQUESTER", "PURPOSE / ACTIVITY", "ORIGIN", "TIME OUT", "DESTINATION", "TIME IN", "CONTACT"].map((title) => (
-                <th key={title}>{title}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {legs.map((leg, index) => {
-              const served = legStops(leg.stops, stopsById);
-              return (
-                <tr key={index}>
-                  <td>{String(index + 1).padStart(2, "0")}</td>
-                  <td>{served.length ? served.map((stop) => <div key={stop.id}>{stop.requester}</div>) : "—"}</td>
-                  <td>{served.length ? served.map((stop) => <JobLines key={stop.id} stop={stop} tasks={tasks} />) : "—"}</td>
-                  <td>{leg.origin}</td>
-                  <td>{leg.plannedTimeOut || "—"}</td>
-                  <td>{leg.destinationName}</td>
-                  <td>{leg.plannedTimeIn || "—"}</td>
-                  <td>{[leg.contactName, leg.contactNumber].filter(Boolean).join(" · ") || "—"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
       <ol className="route-cards route-plan">
         {legs.map((leg, index) => {
           const served = legStops(leg.stops, stopsById);
