@@ -452,6 +452,9 @@ export type Schedule = {
   publishedRevisionId?: string;
   /** Paused for a Vehicle problem until Resume trip (0061). */
   pausedAt?: string;
+  /** When it was cancelled and by whom (Admin), on a CANCELLED schedule. */
+  cancelledAt?: string;
+  cancelledByAccountId?: string;
   createdAt: string;
   updatedAt: string;
   /** Live versions only: the published one and any open draft. */

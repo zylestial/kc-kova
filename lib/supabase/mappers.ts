@@ -592,6 +592,8 @@ type ScheduleRow = {
   kind?: Schedule["kind"];
   /** 0061: paused for a Vehicle problem. */
   paused_at?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by_account_id?: string | null;
   schedule_revisions?: ScheduleRevisionRow[];
 };
 
@@ -607,6 +609,8 @@ export function toSchedule(row: ScheduleRow): Schedule {
     status: row.status,
     publishedRevisionId: row.published_revision_id ?? undefined,
     pausedAt: row.paused_at ?? undefined,
+    cancelledAt: row.cancelled_at ?? undefined,
+    cancelledByAccountId: row.cancelled_by_account_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     revisions: [...(row.schedule_revisions ?? [])]
