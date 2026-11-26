@@ -327,22 +327,24 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
 
   const tripTable = (list: Trip[]) => (
     <div className="schedule-table admin-trip-table my-schedule-table">
-      <table>
+      <table data-compact="">
         <SortableHead columns={columns} sort={sort} onSort={setSort} />
         <tbody>
           {list.map((trip) => {
             const [label, pill] = tripStatusPill[tripStatus(trip)];
             return (
-              <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
-                <td>{dateLabel(trip.schedule.date)}</td>
-                {showDriver && <td>{trip.revision.driverName}</td>}
-                <td className="trip-vehicle">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
-                <td>{routeLabel(trip)}</td>
-                <td>
+              // On a phone: a card (the c-* classes) led by the vehicle, keeping
+              // the big Open button a Driver taps on the road.
+              <tr key={trip.schedule.id} className="c-static" onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
+                <td className="c-meta">{dateLabel(trip.schedule.date)}</td>
+                {showDriver && <td className="c-meta">{trip.revision.driverName}</td>}
+                <td className="trip-vehicle c-title">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
+                <td className="c-sub">{routeLabel(trip)}</td>
+                <td className="c-status">
                   <span className={"status-pill " + pill}>{label}</span>
                   {trip.problems.length > 0 && <small>Problem reported</small>}
                 </td>
-                <td>
+                <td className="c-actions">
                   <Button
                     variant="outline" size="sm"
                     onClick={(event) => {
