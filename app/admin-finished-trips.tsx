@@ -547,7 +547,7 @@ export default function AdminFinishedTrips({
             </DialogDescription>
           </DialogHeader>
           <div className="schedule-table">
-            <table>
+            <table data-compact="">
               <thead>
                 <tr>
                   {["DATE", "PLATE NUMBER", "DRIVER", "DISTANCE"].map((title) => (
@@ -557,11 +557,12 @@ export default function AdminFinishedTrips({
               </thead>
               <tbody>
                 {clean.map((trip) => (
-                  <tr key={trip.schedule.id}>
-                    <td>{dateLabel(trip.schedule.date)}</td>
-                    <td>{trip.revision.plate}</td>
-                    <td>{trip.revision.driverName}</td>
-                    <td>{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
+                  // On a phone: a card per trip, the vehicle first and its distance on the right.
+                  <tr key={trip.schedule.id} className="c-static">
+                    <td className="c-meta">{dateLabel(trip.schedule.date)}</td>
+                    <td className="c-title">{trip.revision.plate}</td>
+                    <td className="c-meta">{trip.revision.driverName}</td>
+                    <td className="c-status">{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
                   </tr>
                 ))}
               </tbody>

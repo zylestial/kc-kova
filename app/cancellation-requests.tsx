@@ -89,7 +89,7 @@ export default function CancellationRequests({ highlightRequestId }: { highlight
           </div>
         </div>
         <div className="schedule-table admin-trip-table">
-          <table>
+          <table data-compact="">
             <thead>
               <tr>
                 {["DATE", "REQUESTER", "DESTINATIONS", "REASON", "ASKED", ""].map((title) => (
@@ -101,16 +101,17 @@ export default function CancellationRequests({ highlightRequestId }: { highlight
               {pending.map((item) => {
                 const request = requests.find((entry) => entry.id === item.requestId);
                 return (
-                  <tr key={item.id} className={item.requestId === flashId ? "flash-row" : undefined}>
-                    <td>{request && dateLabel(request.date)}</td>
-                    <td>{request?.ownerName}</td>
-                    <td>
+                  // On a phone: a card with Decline / Confirm on it (the c-* classes).
+                  <tr key={item.id} className={"c-static" + (item.requestId === flashId ? " flash-row" : "")}>
+                    <td className="c-meta">{request && dateLabel(request.date)}</td>
+                    <td className="c-meta">{request?.ownerName}</td>
+                    <td className="c-title">
                       {request?.destinations.map((destination) => destination.destinationName).join(" → ")}
                       {!scheduleOf(item.requestId) && <small>Not in a schedule any more</small>}
                     </td>
-                    <td>{item.reason || "—"}</td>
-                    <td>{askedLabel(item.requestedAt)}</td>
-                    <td>
+                    <td className="c-labelled">{item.reason || "—"}</td>
+                    <td className="c-labelled">{askedLabel(item.requestedAt)}</td>
+                    <td className="c-actions">
                       <Button variant="outline" onClick={() => setDeciding({ item, action: "decline" })}>
                         Decline
                       </Button>{" "}

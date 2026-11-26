@@ -223,6 +223,15 @@ Consistently used across `app/globals.css`: `850px`, `700px`/`650px`,
 stat/field grid collapses toward 1 column) and hiding secondary chrome
 (workspace label, panel-foot detail) as width decreases.
 
+**Every list table is a short card on a phone** (owner's call 2026-11-26;
+`<table data-compact>` with the `c-*` cell classes, at 700px and below):
+`c-title` leads (the vehicle on trip lists), `c-status` sits on its right,
+`c-meta` cells join on one line with "·", `c-sub` and `c-labelled` take a
+line each (`c-labelled` shows its column heading as a small label, like
+Attendance's START / END), `c-hide` is left out, and `c-actions` keeps a
+row's own buttons (Confirm, Resend, a Driver's big Open) on the card. A
+row that opens something on tap shows "›"; `c-static` drops it.
+
 ## Print layout
 
 The Daily Vehicle Trip & Utilization Form has a dedicated `@media print`

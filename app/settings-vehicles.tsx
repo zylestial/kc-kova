@@ -123,7 +123,7 @@ export default function VehicleList({
               </div>
             ) : (
               <div className="schedule-table">
-                <table>
+                <table data-compact="">
                   <thead>
                     <tr>
                       <th>VEHICLE</th>
@@ -136,13 +136,14 @@ export default function VehicleList({
                   </thead>
                   <tbody>
                     {shown.map((v) => (
-                      <tr key={v.plate}>
-                        <td>
+                      // On a phone: a card (the c-* classes); tapping it opens Edit.
+                      <tr key={v.plate} onClick={() => onEdit(v)}>
+                        <td className="c-title">
                           <b>{v.plate}</b>
                           <small>{v.name}</small>
                         </td>
-                        <td>{v.companyTrips ? "Company trips" : "Daily trips"}</td>
-                        <td>
+                        <td className="c-meta">{v.companyTrips ? "Company trips" : "Daily trips"}</td>
+                        <td className="c-labelled">
                           {v.companyTrips ? (
                             <small>Picked per request</small>
                           ) : vehicleNeedsDriver(v, activeDriverIds) ? (
@@ -151,12 +152,18 @@ export default function VehicleList({
                             driverName(v.assignedDriverId) || <small>No Driver assigned</small>
                           )}
                         </td>
-                        <td>{v.hasOdometer ? "Yes" : <small>No odometer</small>}</td>
-                        <td>
+                        <td className="c-labelled">{v.hasOdometer ? "Yes" : <small>No odometer</small>}</td>
+                        <td className="c-status">
                           <span className={"badge " + (v.status === "Active" ? "complete" : "")}>{v.status}</span>
                         </td>
-                        <td>
-                          <Button variant="outline" onClick={() => onEdit(v)}>
+                        <td className="c-hide">
+                          <Button
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onEdit(v);
+                            }}
+                          >
                             Edit
                           </Button>
                         </td>

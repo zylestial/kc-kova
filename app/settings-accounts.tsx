@@ -162,7 +162,7 @@ export default function AccountList({
               </div>
             ) : (
               <div className="schedule-table">
-                <table>
+                <table data-compact="">
                   <thead>
                     <tr>
                       <th>NAME</th>
@@ -178,8 +178,9 @@ export default function AccountList({
                       const access = accessLabels({ ...a, status: "Active" });
                       const pending = emails[a.id]?.pendingEmail;
                       return (
-                        <tr key={a.id}>
-                          <td>
+                        // On a phone: a card (the c-* classes); tapping it opens Edit.
+                        <tr key={a.id} onClick={() => onEdit(a)}>
+                          <td className="c-title">
                             <b>{a.name}</b>
                             <small>
                               {a.username}
@@ -188,17 +189,24 @@ export default function AccountList({
                             {pending && (
                               <div className="account-email-pending">
                                 <span className="badge">Not confirmed</span> {pending}{" "}
-                                <Button variant="ghost" disabled={!!resending} onClick={() => onResendLink(a)}>
+                                <Button
+                                  variant="ghost"
+                                  disabled={!!resending}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onResendLink(a);
+                                  }}
+                                >
                                   {resending === a.id ? "Sending…" : "Resend"}
                                 </Button>
                               </div>
                             )}
                           </td>
-                          <td>
+                          <td className="c-labelled">
                             {roleLabel(a)}
                             {a.position && <small>{a.position}</small>}
                           </td>
-                          <td>
+                          <td className="c-labelled">
                             {access.length ? (
                               <div className="settings-chips">
                                 {access.map((label) => (
@@ -211,11 +219,17 @@ export default function AccountList({
                               "—"
                             )}
                           </td>
-                          <td>
+                          <td className="c-status">
                             <span className={"badge " + (a.status === "Active" ? "complete" : "")}>{a.status}</span>
                           </td>
-                          <td>
-                            <Button variant="outline" onClick={() => onEdit(a)}>
+                          <td className="c-hide">
+                            <Button
+                              variant="outline"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onEdit(a);
+                              }}
+                            >
                               Edit
                             </Button>
                           </td>
