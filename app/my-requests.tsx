@@ -45,6 +45,7 @@ import RequestFields, {
 import { requestProgressLabel, requestProgressMeaning } from "@/lib/status-text";
 import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 import { flexibilityShort, whenText } from "@/lib/request-draft";
+import TripFacts from "./trip-facts";
 
 // Reuses the existing status-pill colours.
 const progressPill: Record<RequestProgress, string> = {
@@ -354,38 +355,44 @@ export default function MyRequests({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request details</DialogTitle>
-            <DialogDescription className="dialog-context">
+            <DialogDescription className="sr-only">
               {shown && (stopNumber(shown) ? `Request ${stopNumber(shown)} · ` : "") + dateLabel(shown.date)}
             </DialogDescription>
+            {shown && (
+              <TripFacts
+                facts={[
+                  ...(stopNumber(shown) ? [{ label: "Request", value: stopNumber(shown), key: true }] : []),
+                  { label: "Date", value: dateLabel(shown.date) },
+                  { label: "Progress", value: requestProgressLabel[shown.progress] },
+                ]}
+              />
+            )}
           </DialogHeader>
           {shown && (
             <>
-              <div className="driver-trip-details">
-                {[
-                  ["Type", shown.urgentReason ? `Urgent: ${shown.urgentReason.name}` : shown.requestType === "URGENT" ? "Urgent" : "Regular"],
-                  ...(shown.group ? [["When", whenText(shown.date, shown.flexibility, shown.fixedTime ?? "")]] : []),
+              <TripFacts
+                facts={[
                   ...(shown.group?.form === "COMPANY"
                     ? [
-                        ["Form", "Company Trip"],
-                        ["Vehicle", shown.group.vehiclePlate ?? "—"],
-                        ["Driver", shown.group.driver?.name ?? "—"],
-                        ["Starting point", shown.group.startingPoint?.name ?? "—"],
-                        ["Department / Site", shown.group.department?.name ?? "—"],
+                        { label: "Vehicle", value: shown.group.vehiclePlate ?? "—", key: true },
+                        { label: "Driver", value: shown.group.driver?.name ?? "—", key: true },
+                        { label: "Form", value: "Company Trip" },
+                        { label: "Starting point", value: shown.group.startingPoint?.name ?? "—" },
+                        { label: "Department / Site", value: shown.group.department?.name ?? "—" },
                       ]
                     : []),
-                  ["Requested by", shown.ownerName],
-                  ["Project / Site", projectText(shown)],
-                  ["Progress", requestProgressLabel[shown.progress]],
-                  ...(requestDoneAt(stopTasks, shown.id) ? [["Done at the stop", tapTimeLabel(requestDoneAt(stopTasks, shown.id)!)]] : []),
-                  ...(shownBy ? [[shownBy.label, shownBy.name]] : []),
-                  ["Submitted", submittedLabel(shown.createdAt)],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <span>{label}</span>
-                    <strong>{value}</strong>
-                  </div>
-                ))}
-              </div>
+                  {
+                    label: "Type",
+                    value: shown.urgentReason ? `Urgent: ${shown.urgentReason.name}` : shown.requestType === "URGENT" ? "Urgent" : "Regular",
+                  },
+                  ...(shown.group ? [{ label: "When", value: whenText(shown.date, shown.flexibility, shown.fixedTime ?? "") }] : []),
+                  { label: "Requested by", value: shown.ownerName },
+                  { label: "Project / Site", value: projectText(shown) },
+                  ...(requestDoneAt(stopTasks, shown.id) ? [{ label: "Done at the stop", value: tapTimeLabel(requestDoneAt(stopTasks, shown.id)!) }] : []),
+                  ...(shownBy ? [{ label: shownBy.label, value: shownBy.name }] : []),
+                  { label: "Submitted", value: submittedLabel(shown.createdAt) },
+                ]}
+              />
               <p className="helper">{requestProgressMeaning[shown.progress]}</p>
               {shown.progress === "SENT_BACK" && shown.sentBack?.reason && (
                 <p className="helper">
