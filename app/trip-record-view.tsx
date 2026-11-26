@@ -1,10 +1,15 @@
 "use client";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
 import { tapTimeLabel } from "@/lib/attendance";
-import type { StopTask } from "@/lib/kova-api";
+import type { ProblemReport, StopTask } from "@/lib/kova-api";
+import { stopReportLabel } from "@/lib/stop-reports";
 import { requestDoneAt } from "@/lib/stop-tasks";
 import { legStops, stopWhat, type StopInfo } from "@/lib/trip-record";
+import { TripReport } from "./trip-reports";
 
 type ViewLeg = {
+  id?: string;
   origin: string;
   destinationName: string;
   plannedTimeOut: string;
@@ -33,18 +38,54 @@ function JobLines({ stop, tasks }: { stop: StopInfo; tasks: StopTask[] }) {
  * Read-only Trip Record: one route card per leg (.route-cards in
  * globals.css, at every screen size), with every requester, purpose and
  * note served at that stop. A shared stop lists each request on its own line.
+ * A leg with a stop report gets a tag that opens the report in the card
+ * (owner's call 2026-11-26); `openReportId` starts that one open.
  */
-export default function TripRecordView({ legs, stopsById, tasks = [] }: { legs: ViewLeg[]; stopsById: Map<string, StopInfo>; tasks?: StopTask[] }) {
+export default function TripRecordView({
+  legs,
+  stopsById,
+  tasks = [],
+  reports = [],
+  openReportId,
+}: {
+  legs: ViewLeg[];
+  stopsById: Map<string, StopInfo>;
+  tasks?: StopTask[];
+  reports?: ProblemReport[];
+  openReportId?: string | null;
+}) {
+  const [open, setOpen] = useState<Set<string>>(() => new Set(openReportId ? [openReportId] : []));
+  const toggle = (id: string) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   return (
     <>
       <ol className="route-cards route-plan">
         {legs.map((leg, index) => {
           const served = legStops(leg.stops, stopsById);
           const contact = [leg.contactName, leg.contactNumber].filter(Boolean).join(" · ");
+          const legReports = leg.id ? reports.filter((report) => report.legId === leg.id) : [];
           return (
             <li key={index} className="route-card">
               <div className="route-card-head">
                 <b>Leg {String(index + 1).padStart(2, "0")}</b>
+                {legReports.map((report) => (
+                  <button
+                    key={report.id}
+                    type="button"
+                    className={"leg-report-tag " + (report.status === "OPEN" ? "open" : "handled")}
+                    aria-expanded={open.has(report.id)}
+                    onClick={() => toggle(report.id)}
+                  >
+                    <TriangleAlert size={14} aria-hidden="true" />
+                    {stopReportLabel(report)}
+                    {open.has(report.id) ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                  </button>
+                ))}
                 {served.map((stop) => (
                   <div key={stop.id}>
                     {stop.requester && <div className="trip-job-requester">{stop.requester}</div>}
@@ -52,6 +93,11 @@ export default function TripRecordView({ legs, stopsById, tasks = [] }: { legs: 
                   </div>
                 ))}
               </div>
+              {legReports
+                .filter((report) => open.has(report.id))
+                .map((report) => (
+                  <TripReport key={report.id} report={report} legs={legs} anchor={`leg-report-${report.id}`} />
+                ))}
               <div className="route-stop route-from">
                 <span className="route-place">{leg.origin}</span>
                 <span className="route-planned">out {leg.plannedTimeOut || "—"}</span>
