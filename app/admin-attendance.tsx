@@ -78,6 +78,18 @@ const columns: SortColumn<AttendanceSortKey>[] = [
 /** A flag in words; a tap sent later also says when it reached KOVA. */
 const flagText = (flag: TapFlag, tap: AttendanceTap) => (flag === "sent-later" ? sentLaterLabel(tap) : tapFlagLabel[flag]);
 
+/**
+ * A tap in one short line for the phone card (owner's call 2026-11-26: the
+ * stacked rows were hard to read): "2:50 PM at ANONANG", plus its flags.
+ * The map link and coordinates are in View.
+ */
+function tapLine(row: AttendanceRow, tap?: AttendanceTap) {
+  if (!tap) return "—";
+  const company = row.schedule.kind === "COMPANY";
+  const flags = tapFlags(tap, row.schedule.date, company).map((flag) => flagText(flag, tap));
+  return [`${tapTimeLabel(tap.at)}${tap.location ? ` ${tapPlaceLabel(tap, company)}` : ""}`, ...flags].join(" · ");
+}
+
 /** One Start or End tap: its time, where it was (linked to a map), its flags and who tapped if not the Driver. */
 function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap; nameOf: (id: string) => string }) {
   if (!tap) return <>—</>;
@@ -86,7 +98,7 @@ function TapCell({ row, tap, nameOf }: { row: AttendanceRow; tap?: AttendanceTap
     <div className="attendance-tap">
       <b>{tapTimeLabel(tap.at)}</b>
       {tap.location && (
-        <a href={mapUrl(tap.location.lat, tap.location.lng)} target="_blank" rel="noreferrer">
+        <a href={mapUrl(tap.location.lat, tap.location.lng)} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
           <MapPin size={13} /> {tapPlaceLabel(tap, company)}
         </a>
       )}
@@ -282,21 +294,48 @@ export default function AdminAttendance({
         </FilterFold>
         {visible.length ? (
           <div className="schedule-table admin-trip-table">
-            <table>
+            <table data-compact="">
               <SortableHead columns={columns} sort={sort} onSort={setSort} />
               <tbody>
                 {visible.map((row) => (
-                  <tr key={row.schedule.id}>
-                    <td>{dateLabel(row.schedule.date)}</td>
-                    <td>{row.revision.driverName}</td>
-                    <td>{row.revision.plate}</td>
-                    <td>
+                  // On a phone each row is a short card (the c-* cell classes): the
+                  // vehicle, its state, Driver · date, then Start / End and Stops in
+                  // a line each; tapping it opens View.
+                  <tr key={row.schedule.id} onClick={row.attendance ? () => setOpenId(row.schedule.id) : undefined}>
+                    <td className="c-meta">{dateLabel(row.schedule.date)}</td>
+                    <td className="c-meta">{row.revision.driverName}</td>
+                    <td className="c-title">{row.revision.plate}</td>
+                    <td className="c-hide">
                       <TapCell row={row} tap={row.attendance?.start} nameOf={nameOf} />
                     </td>
-                    <td>
+                    <td className="c-hide">
                       <TapCell row={row} tap={row.attendance?.end} nameOf={nameOf} />
                     </td>
-                    <td>
+                    <td className="c-sub c-phone">
+                      <span className="c-label">Start</span> {tapLine(row, row.attendance?.start)}
+                    </td>
+                    <td className="c-sub c-phone">
+                      <span className="c-label">End</span> {tapLine(row, row.attendance?.end)}
+                    </td>
+                    <td className="c-sub c-phone">
+                      {(() => {
+                        const summary = stopSummary(timesFor(row));
+                        if (!summary.expected) return null;
+                        const flags = [
+                          summary.away > 0 && `${summary.away} away from the stop`,
+                          summary.noLocation > 0 && `${summary.noLocation} without a location`,
+                          summary.unchecked > 0 && `${summary.unchecked} not checked`,
+                          summary.sentLater > 0 && `${summary.sentLater} sent later`,
+                        ].filter(Boolean);
+                        return (
+                          <>
+                            <span className="c-label">Stops</span> {summary.tapped} of {summary.expected} tapped
+                            {flags.length > 0 && <span className="attendance-flag"> · {flags.join(" · ")}</span>}
+                          </>
+                        );
+                      })()}
+                    </td>
+                    <td className="c-hide">
                       {(() => {
                         const summary = stopSummary(timesFor(row));
                         if (!summary.expected) return <>—</>;
@@ -310,7 +349,14 @@ export default function AdminAttendance({
                             {summary.unchecked > 0 && <small className="attendance-flag">{summary.unchecked} not checked (no place location)</small>}
                             {summary.sentLater > 0 && <small className="attendance-flag">{summary.sentLater} saved on the phone, sent later</small>}
                             {row.attendance && (
-                              <Button variant="outline" size="sm" onClick={() => setOpenId(row.schedule.id)}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenId(row.schedule.id);
+                                }}
+                              >
                                 View
                               </Button>
                             )}
@@ -318,7 +364,7 @@ export default function AdminAttendance({
                         );
                       })()}
                     </td>
-                    <td>
+                    <td className="c-status">
                       {row.status === "MISSING" && row.schedule.date === today ? (
                         <span className="status-pill pending">Not started yet</span>
                       ) : (
