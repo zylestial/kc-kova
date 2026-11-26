@@ -438,8 +438,9 @@ nothing. The routes call the twin when the body has `tappedAt`
 `lib/saved-taps.ts` (localStorage queue, and the overlay that shows saved
 taps as done) and `sendSavedTaps` in `lib/kova-api.ts`.
 
-With Start/End these are the actual times on the printed form
-(`lib/stop-times.ts`): leg 1 TIME OUT = Start trip, leg N TIME IN =
+With Start/End these are a trip's actual times, shown on Finished Trips
+(`lib/stop-times.ts`; the printed forms use the planned times since
+2026-11-26): leg 1 TIME OUT = Start trip, leg N TIME IN =
 Arrived at leg N, leg N+1 TIME OUT = Leaving leg N, final TIME IN = End trip.
 
 ### `trip_time_corrections` (migration 0046)

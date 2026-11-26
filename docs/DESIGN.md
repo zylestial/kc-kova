@@ -232,7 +232,7 @@ trip table with Name/Sign lines, the final return and full-tank block,
 vehicle control, the PM/COO approval block, Finance use and submission
 control. It is printed from a finished trip in Admin Finished Trips
 (`app/finished-trip-print.tsx`), which fills in what v2 knows (route,
-actual times from the Driver's taps or an Admin's entries, Driver, odometers,
+the Scheduler's planned Time Out / Time In (2026-11-26; the tapped times show on Finished Trips), Driver, odometers,
 submission date) and leaves signatures, unrecorded times,
 fuel checks and Finance fields blank for handwriting. The form is rendered
 into `document.body` as a portal, because `.app-shell{display:none!important}`

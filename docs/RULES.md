@@ -323,9 +323,11 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   every request Done, a problem is reported at the next stop. A stop with no
   requests needs nothing marked. A stop Arrived at, or a Company trip started,
   before 0088 goes on as it used to (`before_tasks`).
-- These are the actual times on the printed form: leg 1 TIME OUT = Start
+- These are a trip's actual times, shown on Finished Trips (each leg card
+  leads with them, the planned time beside it): leg 1 TIME OUT = Start
   trip, leg N TIME IN = Arrived at leg N, leg N+1 TIME OUT = Leaving leg N,
-  final TIME IN = End trip. Planned times stay on the Trip Record only.
+  final TIME IN = End trip. **The printed forms carry the Scheduler's
+  planned times** (owner's call 2026-11-26), not the taps.
 - Same position rules as Start/End, measured from the destination's saved
   location when it has one (Request choices); without one, or for a typed-in
   "other" destination, the tap is kept and flagged "No location set for …"
