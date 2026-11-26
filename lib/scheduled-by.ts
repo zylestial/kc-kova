@@ -40,3 +40,26 @@ export function othersDraftQuestion(schedule: Schedule, meId: string | undefined
   if (!by) return null;
   return drafting(open) ? `${by.name} is drafting this trip. Edit anyway?` : `${by.name} scheduled this trip. Edit anyway?`;
 }
+
+/**
+ * Who cancelled a trip and when, e.g. { name: "Liza", at: "Nov 26, 2026,
+ * 3:40 PM" } (Manila time). Null unless it's cancelled.
+ */
+export function cancelledBy(
+  schedule: Pick<Schedule, "status" | "cancelledAt" | "cancelledByAccountId"> | null | undefined,
+  accounts: Pick<Account, "id" | "name">[],
+): { name: string; at: string } | null {
+  if (schedule?.status !== "CANCELLED") return null;
+  const name = accounts.find((account) => account.id === schedule.cancelledByAccountId)?.name ?? "an Admin";
+  const at = schedule.cancelledAt
+    ? new Date(schedule.cancelledAt).toLocaleString("en-US", {
+        timeZone: "Asia/Manila",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
+  return { name, at };
+}
