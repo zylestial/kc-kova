@@ -198,7 +198,7 @@ export default function RequestForm({
           <section className="request-panel">
             <div className="request-step">Step 1</div>
             <h2>Choose date</h2>
-            <p>The day you need the vehicle. Each stop then says if it&apos;s any time that day, a fixed time, or any day that week.</p>
+            <p>Select the date the vehicle is needed.</p>
             {dateLocked ? (
               <p className="request-locked-note">
                 <b>{fullDate(draft.date)}</b>. Part of this request is being scheduled, so its date can no longer change.
@@ -263,7 +263,7 @@ export default function RequestForm({
                   </label>
                 </div>
                 {dateError && <small className="field-hint">{dateError}</small>}
-                {isAdmin && <p className="request-note">As an Admin you can also pick a past date, for a trip that already happened.</p>}
+                {isAdmin && <p className="request-note">Admins may select a past date to record a completed trip.</p>}
               </>
             )}
           </section>
@@ -275,7 +275,7 @@ export default function RequestForm({
                 {(
                   [
                     ["one", "Single project/site", "Every destination is for the same project or site."],
-                    ["multi", "Multiple projects/sites", "Pick the project or site for each destination."],
+                    ["multi", "Multiple projects/sites", "Select the project or site for each destination."],
                   ] as const
                 ).map(([value, title, hint]) => (
                   <label key={value} className={draft.projectMode === value ? "checked" : ""}>
@@ -315,7 +315,7 @@ export default function RequestForm({
                   id={draft.projectId}
                   other={draft.projectOther}
                   otherMode={draft.projectOtherMode}
-                  error={showErrors && missing.includes("Project / Site") ? "Pick the project or site." : undefined}
+                  error={showErrors && missing.includes("Project / Site") ? "Select the project or site." : undefined}
                   onPick={(pick) => onChange({ ...draft, projectId: pick.id, projectOther: pick.other, projectOtherMode: pick.otherMode })}
                 />
               </div>
@@ -325,7 +325,7 @@ export default function RequestForm({
           <section className="request-panel">
             <div className="request-step">Step 3</div>
             <h2>Where should the vehicle go?</h2>
-            <p>Add each destination. For each one, pick {draft.projectMode === "multi" ? "its project, " : ""}when you need it, and whether it&apos;s urgent.</p>
+            <p>Add each destination with {draft.projectMode === "multi" ? "its project, " : ""}the required time and priority.</p>
             {draft.stops.map((stop, index) => {
               const errors = showErrors ? stopErrors(draft, stop, options) : {};
               const name = `Stop ${letter(index)}`;
@@ -386,7 +386,7 @@ export default function RequestForm({
                     <div className="request-urgent-box">
                       <ChoiceField
                         label="Why is this stop urgent?"
-                        placeholder="Choose a reason…"
+                        placeholder="Select a reason"
                         list={urgentReasons}
                         id={stop.urgentReasonId}
                         other=""
@@ -570,8 +570,7 @@ export default function RequestForm({
             ))}
           </ul>
           <p className="request-note">
-            Each destination becomes its own stop ({prefix || "41-"}A, {prefix || "41-"}B…), so the Scheduler can plan them on different
-            vehicles or combine them with other trips to the same place.
+            Each destination is scheduled as a separate stop ({prefix || "41-"}A, {prefix || "41-"}B…).
           </p>
         </aside>
       </div>

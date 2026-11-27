@@ -24,7 +24,7 @@ test("a Daily request's stops reach Scheduling, the urgent one first", async ({ 
   await urgent.getByRole("combobox", { name: "Destination" }).click();
   await requester.getByRole("option", { name: "UAT Second Destination" }).click();
   await requester.getByRole("button", { name: "Send request" }).click();
-  await expect(urgent.getByText(/Say what's needed at this stop/)).toBeVisible();
+  await expect(urgent.getByText(/Enter the details of this stop/)).toBeVisible();
   await urgent.getByPlaceholder(/20 bags cement/).fill("Pick up 40 bags cement");
   await requester.getByRole("button", { name: "Send request" }).click();
   // Send asks first, listing what is being sent.
