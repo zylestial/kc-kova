@@ -264,29 +264,22 @@ insert into accounts (id, username, name, role, driver_type) values
   ('00000000-0000-0000-0000-0000000001a5', 'jun3', 'Jun Reyes', 'Driver', 'Company car');
 insert into vehicles (plate, name, company_trips) values ('TM', 'Mirage', true);
 insert into booking_options ("group", id, name, status, is_other_stop) values
-  ('starting_points', 'tsp', 'Main Office', 'Active', false),
-  ('departments', 'tdep', 'Purchasing', 'Active', false),
-  ('supervisors', 'tsup', 'A Supervisor', 'Active', false),
-  ('heads', 'th', 'A Head', 'Active', false),
-  ('projects', 'tp', 'Project', 'Active', false),
-  ('purposes', 'tpu', 'Submission', 'Active', false);
+  ('projects', 'tp', 'Project', 'Active', false);
+insert into booking_options ("group", id, name, status) values ('starting_points', 'start-office', 'Main Office', 'Active')
+on conflict ("group", id) do update set status = 'Active';
 
+-- Rhea books it with Jun driving (0094); Ada approves it.
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
-insert into ids select 'g', (create_request_group('COMPANY', jsonb_build_object(
-  'date', pg_temp.today(), 'startingPointId', 'tsp', 'departmentId', 'tdep', 'vehiclePlate', 'TM',
-  'driverId', '00000000-0000-0000-0000-0000000001a5', 'supervisorId', 'tsup', 'headId', 'th',
+insert into ids select 'g', (request_company_trip(null, null, jsonb_build_object(
+  'date', pg_temp.today(), 'departmentId', 'tp', 'vehiclePlate', 'TM',
+  'driverId', '00000000-0000-0000-0000-0000000001a5', 'purpose', 'Submission', 'fleetCard', '1234', 'timeOut', '08:00',
   'stops', jsonb_build_array(
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'd1', 'purposeId', 'tpu'),
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'd2', 'purposeId', 'tpu'))))).id;
+    jsonb_build_object('destinationId', 'd1', 'arriveAt', '08:30', 'leaveAt', '09:00'),
+    jsonb_build_object('destinationId', 'd2', 'arriveAt', '09:30'))))).id;
 reset role;
 insert into ids select 'g-a', id from requests where group_id = pg_temp.id('g') and stop_letter = 'A';
 insert into ids select 'g-b', id from requests where group_id = pg_temp.id('g') and stop_letter = 'B';
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-insert into ids select 'co', (create_company_trip(pg_temp.today(), 'TM',
-  array[pg_temp.id('g-a'), pg_temp.id('g-b')], jsonb_build_array(
-    jsonb_build_object('destinationId', 'd1', 'plannedTimeOut', '08:00', 'plannedTimeIn', '08:30', 'stops', pg_temp.stops_of('g-a')),
-    jsonb_build_object('destinationId', 'd2', 'plannedTimeOut', '09:00', 'plannedTimeIn', '09:30', 'stops', pg_temp.stops_of('g-b'))))).schedule_id;
-select submit_schedule(pg_temp.id('co'), (select row_version from schedule_revisions where schedule_id = pg_temp.id('co')));
+insert into ids select 'co', sr.schedule_id from schedule_requests sr where sr.request_id = pg_temp.id('g-a');
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select approve_schedule(pg_temp.id('co'), (select row_version from schedule_revisions where schedule_id = pg_temp.id('co') and status = 'SUBMITTED'));
 
