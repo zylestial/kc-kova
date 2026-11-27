@@ -399,3 +399,10 @@ td.c-phone{display:none}
 .company-form .request-panel>.request-choice-cards+.field{margin-top:16px}.company-form .request-panel>.trip-daybar-wrap{margin-top:8px}
 .company-form .request-urgent-box{margin-top:12px}
 .passenger-picker{position:relative}.passenger-picker .passenger-suggestions{position:absolute;left:0;right:0;top:100%;z-index:20;margin-top:4px;max-height:280px;overflow-y:auto;box-shadow:0 8px 24px rgba(17,24,39,.12)}
+/* Search dropdown (app/search-select.tsx): type to narrow the list; Add "…" for a new name. */
+.search-select-input{cursor:text}.search-select-input:not(:focus){cursor:pointer}
+.search-select-list{animation:none!important;padding:4px;max-height:300px;overflow-y:auto}.search-select-list ul{list-style:none;margin:0;padding:0}
+.search-select-list li{display:flex;flex-direction:column;gap:1px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:14px;line-height:1.3}
+.search-select-list li small{color:var(--steel);font-size:12.5px}.search-select-list li.active{background:var(--accent)}
+.search-select-list li[aria-selected=true]{font-weight:600}.search-select-list li.add{color:var(--primary);font-weight:600;border-top:1px solid var(--border);border-radius:0 0 6px 6px}
+.search-select-list li.empty{cursor:default;color:var(--steel)}
