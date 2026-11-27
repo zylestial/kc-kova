@@ -268,7 +268,7 @@ export default function AdminFinishedTrips({
   const clean = cleanTrips(visible).filter((trip) => missingFor(trip) === 0);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
-  const selectedBy = selected ? scheduledBy(selected.revision, accounts) : null;
+  const selectedBy = selected ? scheduledBy(selected.revision, accounts, selected.schedule.kind) : null;
   const selectedTimes = selected ? timesFor(selected) : [];
   const selectedMissing = selected ? missingFor(selected) : 0;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));

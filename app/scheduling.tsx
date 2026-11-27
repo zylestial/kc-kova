@@ -791,7 +791,7 @@ export default function Scheduling({
               onToggle={() => toggle(row.vehicle.plate)}
               started={started}
               byOf={(trip) => {
-                const by = scheduledBy(currentRevision(trip.schedule), accounts);
+                const by = scheduledBy(currentRevision(trip.schedule), accounts, trip.schedule.kind);
                 return by ? `${by.label} ${by.name}` : "";
               }}
               renderTrip={(trip, state) => (

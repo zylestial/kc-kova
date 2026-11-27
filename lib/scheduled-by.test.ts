@@ -23,6 +23,11 @@ describe("scheduled by", () => {
     legs: [],
     ...patch,
   });
+  it("names who records a Company trip, not who planned it", () => {
+    expect(scheduledBy(revision({ status: "SUBMITTED" }), accounts, "COMPANY")).toEqual({ label: "Records the trip:", name: "Dan" });
+    expect(scheduledBy(revision({ status: "SUBMITTED" }), accounts, "DAILY")?.label).toBe("Scheduled by");
+  });
+
   const schedule = (patch: Partial<Schedule>): Schedule => ({
     id: "sc",
     date: "2026-10-20",

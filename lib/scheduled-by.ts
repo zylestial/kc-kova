@@ -10,10 +10,13 @@ const plannerId = (revision: ScheduleRevision) =>
 /**
  * Who planned a trip version: "Drafted by" while it's a draft (or returned
  * to one), "Scheduled by" once submitted, naming who submitted it. Null
- * when the account isn't known.
+ * when the account isn't known. A Company trip has no planner (the
+ * requester books it, Company trip v2): it says who records it instead,
+ * whoever drives.
  */
-export function scheduledBy(revision: ScheduleRevision | undefined, accounts: Account[]) {
+export function scheduledBy(revision: ScheduleRevision | undefined, accounts: Account[], kind?: Schedule["kind"]) {
   if (!revision) return null;
+  if (kind === "COMPANY") return revision.driverName ? { label: "Records the trip:", name: revision.driverName } : null;
   const name = accounts.find((account) => account.id === plannerId(revision))?.name;
   return name ? { label: drafting(revision) ? "Drafted by" : "Scheduled by", name } : null;
 }
@@ -23,7 +26,7 @@ export function requestScheduledBy(requestId: string, schedules: Schedule[], acc
   for (const schedule of schedules) {
     if (schedule.status !== "ACTIVE") continue;
     const revision = currentRevision(schedule);
-    if (revision?.requestIds.includes(requestId)) return scheduledBy(revision, accounts);
+    if (revision?.requestIds.includes(requestId)) return scheduledBy(revision, accounts, schedule.kind);
   }
   return null;
 }

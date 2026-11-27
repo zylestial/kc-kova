@@ -154,7 +154,7 @@ export default function Schedules({
 
   const selected = schedules.find((schedule) => schedule.id === selectedId);
   const selectedRevision = selected && currentRevision(selected);
-  const selectedBy = selectedRevision ? scheduledBy(selectedRevision, accounts) : null;
+  const selectedBy = selectedRevision ? scheduledBy(selectedRevision, accounts, selected?.kind) : null;
   const selectedCancel = cancelledBy(selected, accounts);
   const editable = (schedule: Schedule) => canEdit && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
   const revisable = (schedule: Schedule) => canEdit && scheduleState(schedule) === "APPROVED";
@@ -206,8 +206,8 @@ export default function Schedules({
   const requesters = (requestIds: string[]) =>
     [...new Set(requestIds.map((id) => requestsById.get(id)?.ownerName).filter(Boolean))].join(", ");
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
-  const byText = (revision?: ScheduleRevision) => {
-    const by = scheduledBy(revision, accounts);
+  const byText = (revision?: ScheduleRevision, kind?: Schedule["kind"]) => {
+    const by = scheduledBy(revision, accounts, kind);
     return by ? `${by.label} ${by.name}` : "";
   };
 
@@ -230,7 +230,7 @@ export default function Schedules({
         {revision?.driverName ?? "—"}
       </span>
       <small>{revision && requesters(revision.requestIds)}</small>
-      {byText(revision) && <small>{byText(revision)}</small>}
+      {byText(revision, schedule.kind) && <small>{byText(revision, schedule.kind)}</small>}
       {revision?.requestIds.some((id) => requestsById.get(id)?.cancellationPending) && <small>Cancellation requested</small>}
       {needsUpdate(schedule) && <small>Route needs updating</small>}
       <small>{revision?.legs.map((leg) => leg.destinationName).join(" → ")}</small>

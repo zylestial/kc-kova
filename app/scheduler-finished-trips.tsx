@@ -69,7 +69,7 @@ export default function SchedulerFinishedTrips() {
   );
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
-  const selectedBy = selected ? scheduledBy(selected.revision, accounts) : null;
+  const selectedBy = selected ? scheduledBy(selected.revision, accounts, selected.schedule.kind) : null;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
 
   return (
