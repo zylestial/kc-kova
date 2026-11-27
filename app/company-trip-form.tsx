@@ -212,7 +212,7 @@ export default function CompanyTripForm({
     const trip = busyOf(id);
     if (!trip) return "";
     const whose = trip.ownerName === name(id) ? "their own" : `${trip.ownerName}'s`;
-    return `${id === me.id ? "You are" : name(id) + " is"} already on ${whose} trip ${clock(trip.startsAt)}–${clock(trip.endsAt)}`;
+    return `${id === me.id ? "You are" : name(id) + " is"} booked on ${whose} trip, ${clock(trip.startsAt)}–${clock(trip.endsAt)}`;
   };
 
   const drivers: Choice[] = [
@@ -280,8 +280,8 @@ export default function CompanyTripForm({
             <div className="request-trip-fields">
               {dateLocked ? (
                 <p className="request-locked-note">
-                  <b>{fullDate(draft.date)}</b>. This trip is approved, so its date can&apos;t change. To go on another day, cancel it and send a
-                  new request.
+                  <b>{fullDate(draft.date)}</b>. The date of an approved trip cannot be changed. To travel on another date, cancel this trip and
+                  submit a new request.
                 </p>
               ) : (
                 <label className="field">
@@ -299,7 +299,6 @@ export default function CompanyTripForm({
               <label className="field">
                 <span>Starts at</span>
                 <Input value={start?.name ?? "Main Office"} readOnly />
-                <small className="field-note">Every company trip starts at the office.</small>
               </label>
             </div>
           </section>
@@ -310,8 +309,8 @@ export default function CompanyTripForm({
             <div className="request-choice-cards" role="radiogroup" aria-label="Regular or urgent">
               {(
                 [
-                  ["REGULAR", "Regular", "A planned trip."],
-                  ["URGENT", "Urgent", "It can't wait. Pick the reason."],
+                  ["REGULAR", "Regular", "Scheduled in advance."],
+                  ["URGENT", "Urgent", "Requires a reason."],
                 ] as const
               ).map(([value, title, hint]) => (
                 <label key={value} className={draft.priority === value ? "checked" : ""}>
@@ -327,13 +326,13 @@ export default function CompanyTripForm({
               <div className="request-urgent-box">
                 <Pick
                   label="Reason it's urgent"
-                  placeholder="Pick a reason…"
+                  placeholder="Select a reason"
                   value={draft.urgentReasonId}
                   list={urgentReasons}
                   error={shown(errors.urgentReason)}
                   onPick={(id) => set({ urgentReasonId: id })}
                 />
-                <small>Only these reasons count as urgent. An Admin manages the list.</small>
+                <small>The list of urgent reasons is maintained by the Admin.</small>
               </div>
             )}
           </section>
@@ -345,7 +344,7 @@ export default function CompanyTripForm({
               <div className="request-choice-cards" role="radiogroup" aria-label="Which vehicle">
                 {(
                   [
-                    ["company", "Company vehicle", "Booked in KOVA; it can't overlap another trip."],
+                    ["company", "Company vehicle", "Subject to availability."],
                     ["personal", "Personal vehicle", `${personal.name} · ${personal.plate}`],
                   ] as const
                 ).map(([value, title, hint]) => (
@@ -364,7 +363,7 @@ export default function CompanyTripForm({
                 <b>
                   {personal.name} · {personal.plate}
                 </b>
-                . Your personal vehicle, added when you set up your account; you drive it. Ask an Admin to change it in Vehicles.
+                . Personal vehicle, driven by its owner. To update its details, please contact the Admin.
               </p>
             ) : (
               <Pick
@@ -376,7 +375,7 @@ export default function CompanyTripForm({
                     `${item.name} · ${item.plate}` +
                     (draft.timeOut && draft.timeIn ? (vehicleClashes(bookings, item.plate, draft.timeOut, draft.timeIn).length ? " · booked then" : " · free then") : ""),
                 }))}
-                hint={companyVehicles.length ? "Vehicles an Admin allows for company trips." : "No vehicle can be requested for company trips yet. Ask an Admin."}
+                hint={companyVehicles.length ? undefined : "No vehicles are available for company trips. Please contact the Admin."}
                 error={shown(errors.vehicle)}
                 onPick={(id) => set({ vehiclePlate: id })}
               />
@@ -385,14 +384,12 @@ export default function CompanyTripForm({
               <TimeField
                 label="Time Out"
                 value={draft.timeOut}
-                hint="When you leave the office."
                 error={shown(errors.timeOut)}
                 onChange={(value) => set({ timeOut: value })}
               />
               <TimeField
                 label="Time In"
                 value={draft.timeIn}
-                hint="When you arrive at the last destination."
                 error={shown(errors.timeIn)}
                 onChange={(value) => set({ timeIn: value })}
               />
@@ -415,8 +412,8 @@ export default function CompanyTripForm({
             )}
             {clashes.length > 0 ? (
               <div className="notice" role="alert">
-                The {vehicle?.name ?? "vehicle"} is already booked then by {clashes.map((item) => item.ownerName).join(", ")}. Pick another time or
-                vehicle.
+                The {vehicle?.name ?? "vehicle"} is booked by {clashes.map((item) => item.ownerName).join(", ")} at this time. Please select another
+                time or vehicle.
               </div>
             ) : (
               vehicle &&
@@ -425,7 +422,7 @@ export default function CompanyTripForm({
               draft.timeIn &&
               draft.timeIn > draft.timeOut && (
                 <div className="notice success" role="status">
-                  The {vehicle.name} is free then.
+                  The {vehicle.name} is available at this time.
                 </div>
               )
             )}
@@ -434,10 +431,6 @@ export default function CompanyTripForm({
           <section className="request-panel">
             <div className="request-step">Step 4</div>
             <h2>Where are you going?</h2>
-            <p>
-              The trip ends when you arrive at the last destination. Coming back? Add the office as the last one. The whole request is one trip,
-              never joined with another.
-            </p>
             {draft.stops.map((stop, index) => {
               const own = (showErrors && errors.stops?.[index]) || {};
               const title = `Destination ${index + 1}`;
@@ -459,7 +452,7 @@ export default function CompanyTripForm({
                   </div>
                   <Pick
                     label="Destination / Site to visit"
-                    placeholder="Pick a destination…"
+                    placeholder="Select a destination"
                     value={stop.destinationId}
                     list={destinations}
                     error={own.destination}
@@ -471,7 +464,7 @@ export default function CompanyTripForm({
                       <TimeField label="Leave" value={stop.leaveAt} error={own.leaveAt} onChange={(value) => setStop(stop.key, { leaveAt: value })} />
                     </div>
                   ) : (
-                    <p className="request-note">You arrive here at Time In{draft.timeIn ? `, ${clock(draft.timeIn)}` : ""}.</p>
+                    <p className="request-note">Arrival: Time In{draft.timeIn ? ` (${clock(draft.timeIn)})` : ""}</p>
                   )}
                 </div>
               );
@@ -505,8 +498,7 @@ export default function CompanyTripForm({
                 onChange={(event) => set({ purpose: event.target.value })}
               />
               <small className="field-note">
-                One purpose for the whole trip. It prints under Purpose of Trip.
-                {draft.purpose.length >= PURPOSE_MAX - 40 ? ` ${draft.purpose.length}/${PURPOSE_MAX}` : ""}
+                {draft.purpose.length >= PURPOSE_MAX - 40 ? `${draft.purpose.length}/${PURPOSE_MAX}` : ""}
               </small>
               {shown(errors.purpose) && <small className="field-hint">{errors.purpose}</small>}
             </label>
@@ -515,7 +507,6 @@ export default function CompanyTripForm({
           <section className="request-panel">
             <div className="request-step">Step 6</div>
             <h2>Employee and vehicle</h2>
-            <p>Printed in section A of the Company Trip Form.</p>
             <div className="request-trip-fields">
               <Pick
                 label="Department / Project Site"
@@ -540,14 +531,13 @@ export default function CompanyTripForm({
                 <label className="field">
                   <span>Driver</span>
                   <Input value="Me, my own vehicle" readOnly />
-                  <small className="field-note">With your personal vehicle you drive it yourself.</small>
                 </label>
               ) : (
                 <Pick
                   label="Driver"
                   value={draft.driverId}
                   list={drivers}
-                  hint={`Employees an Admin allows to drive company trips. ${iCanDrive ? "You are one of them." : "You are not, so pick a colleague."} Whoever drives records the trip.`}
+                  hint="The driver records the trip in KOVA."
                   error={shown(errors.driver)}
                   onPick={(id) => set({ driverId: id })}
                 />
@@ -584,11 +574,11 @@ export default function CompanyTripForm({
                 })}
               </ul>
             ) : (
-              <p className="request-note">No passengers yet. Leave this empty if you travel alone.</p>
+              <p className="request-note">No passengers added.</p>
             )}
             {peopleBusy.length > 0 && (
               <div className="notice" role="alert">
-                {peopleBusy.join(". ")}. Remove them or change the time.
+                {peopleBusy.join(". ")}. Please remove them or change the time.
               </div>
             )}
             <div className="passenger-picker">
@@ -597,7 +587,7 @@ export default function CompanyTripForm({
               <Input
                 autoComplete="off"
                 maxLength={100}
-                placeholder="Type a name, or pick from the list"
+                placeholder="Search by name"
                 value={query}
                 disabled={full}
                 role="combobox"
@@ -631,7 +621,7 @@ export default function CompanyTripForm({
                           <b>{item.name}</b>
                           <small>
                             {why
-                              ? `Already on ${why.ownerName === item.name ? "their own" : why.ownerName + "'s"} trip ${clock(why.startsAt)}–${clock(why.endsAt)}`
+                              ? `On another trip, ${clock(why.startsAt)}–${clock(why.endsAt)}`
                               : [item.position, item.role].filter(Boolean).join(" · ")}
                           </small>
                         </span>
@@ -651,13 +641,13 @@ export default function CompanyTripForm({
                     >
                       <span>
                         <b>Add &ldquo;{query.trim()}&rdquo; as a guest</b>
-                        <small>Someone not in KOVA, e.g. a supplier&apos;s rep. KOVA can&apos;t check their other trips.</small>
+                        <small>Not a KOVA user. Availability cannot be checked.</small>
                       </span>
                       <span className="badge">Add</span>
                     </button>
                   </li>
                 )}
-                {!matches.length && !canAddGuest && <li className="request-note">{term ? "Already added." : "Everyone is already on this trip."}</li>}
+                {!matches.length && !canAddGuest && <li className="request-note">{term ? "No matching employees." : "All employees have been added."}</li>}
               </ul>
             )}
             </div>
@@ -701,9 +691,9 @@ export default function CompanyTripForm({
             {vehicle ? `${vehicle.name} · ${vehicle.plate}` : "No vehicle yet"} · {clock(draft.timeOut)} to {clock(draft.timeIn)}
           </p>
           <p>{route}</p>
-          <p>Driver: {driverId ? (driverId === me.id ? `${me.name} (you)` : name(driverId)) : "not picked yet"}</p>
+          <p>Driver: {driverId ? (driverId === me.id ? `${me.name} (you)` : name(driverId)) : "Not selected"}</p>
           {draft.purpose.trim() && <p>Purpose: {draft.purpose.trim()}</p>}
-          <p className="request-note">Sending it goes to the Admin for approval. Once approved you print the Company Trip Form from My requests.</p>
+          <p className="request-note">This request will be sent to the Admin for approval. Once approved, the Company Trip Form can be printed from My Requests.</p>
         </aside>
       </div>
     </div>

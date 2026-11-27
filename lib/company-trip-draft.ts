@@ -150,19 +150,19 @@ export type CompanyTripErrors = Partial<
 /** What the form still needs, as the message under each field. */
 export function companyTripErrors(draft: CompanyTripDraft, personalPlate?: string): CompanyTripErrors {
   const errors: CompanyTripErrors = {};
-  if (!draft.date) errors.date = "Pick the date.";
-  if (draft.priority === "URGENT" && !draft.urgentReasonId) errors.urgentReason = "Pick why it's urgent, or set it to Regular.";
-  if (draft.vehicleKind === "company" && !draft.vehiclePlate) errors.vehicle = "Pick the vehicle.";
-  if (draft.vehicleKind === "personal" && !personalPlate) errors.vehicle = "You have no personal vehicle in KOVA. Pick a company vehicle.";
-  if (draft.vehicleKind === "company" && !draft.driverId) errors.driver = "Pick who drives.";
-  if (!draft.timeOut) errors.timeOut = "Add when you leave the office.";
-  if (!draft.timeIn) errors.timeIn = "Add when you arrive at the last destination.";
+  if (!draft.date) errors.date = "Select the date.";
+  if (draft.priority === "URGENT" && !draft.urgentReasonId) errors.urgentReason = "Select a reason, or set the request to Regular.";
+  if (draft.vehicleKind === "company" && !draft.vehiclePlate) errors.vehicle = "Select a vehicle.";
+  if (draft.vehicleKind === "personal" && !personalPlate) errors.vehicle = "No personal vehicle is registered to your account. Select a company vehicle.";
+  if (draft.vehicleKind === "company" && !draft.driverId) errors.driver = "Select the driver.";
+  if (!draft.timeOut) errors.timeOut = "Enter the Time Out.";
+  if (!draft.timeIn) errors.timeIn = "Enter the Time In.";
   const last = draft.stops.length - 1;
   draft.stops.forEach((stop, index) => {
     const own: { destination?: string; arriveAt?: string; leaveAt?: string } = {};
-    if (!stop.destinationId) own.destination = "Pick a destination.";
-    if (index < last && !stop.arriveAt) own.arriveAt = "Add when you arrive.";
-    if (index < last && !stop.leaveAt) own.leaveAt = "Add when you leave.";
+    if (!stop.destinationId) own.destination = "Select a destination.";
+    if (index < last && !stop.arriveAt) own.arriveAt = "Enter the arrival time.";
+    if (index < last && !stop.leaveAt) own.leaveAt = "Enter the departure time.";
     if (Object.keys(own).length) errors.stops = { ...errors.stops, [index]: own };
   });
   // Each time must come after the one before it.
@@ -174,8 +174,8 @@ export function companyTripErrors(draft: CompanyTripDraft, personalPlate?: strin
       break;
     }
   }
-  if (!draft.purpose.trim()) errors.purpose = "Say what the trip is for.";
-  if (!draft.departmentId) errors.department = "Pick the department or project site.";
+  if (!draft.purpose.trim()) errors.purpose = "Enter the purpose of the trip.";
+  if (!draft.departmentId) errors.department = "Select the department or project site.";
   if (!/^\d{4}$/.test(draft.fleetCard.trim())) errors.fleetCard = "Enter the last 4 digits of the Fleet Card.";
   return errors;
 }

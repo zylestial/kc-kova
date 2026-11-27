@@ -53,7 +53,7 @@ describe("companyTripErrors", () => {
 
   it("asks for arrive and leave only at destinations before the last", () => {
     const errors = companyTripErrors(filled({ stops: [{ key: "a", destinationId: "", arriveAt: "", leaveAt: "" }, { key: "b", destinationId: "e", arriveAt: "", leaveAt: "" }] }));
-    expect(errors.stops).toEqual({ 0: { destination: "Pick a destination.", arriveAt: "Add when you arrive.", leaveAt: "Add when you leave." } });
+    expect(errors.stops).toEqual({ 0: { destination: "Select a destination.", arriveAt: "Enter the arrival time.", leaveAt: "Enter the departure time." } });
     expect(companyTripMissing(errors)).toEqual(["Destination 1"]);
   });
 
