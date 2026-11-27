@@ -117,6 +117,7 @@ test("several people on a trip that's on the road", async ({ browser }) => {
   const card = scheduler.locator(`.sc-vehicle[data-plate="${PLATE}"]`);
   await expect(card.locator(".sc-leg").first()).toContainText("DONE", saved);
   await card.getByRole("button", { name: "Resubmit for approval" }).click();
+  await scheduler.getByRole("dialog").getByRole("button", { name: "Yes, resubmit" }).click();
   await expect(scheduler.locator(".notice.success")).toContainText("Resubmitted", saved);
 
   // Until the Admin approves, the Driver's route hasn't changed.
