@@ -96,10 +96,11 @@ should be written, for both humans and AI agents.)
   (`approve_schedule`).
 - Vehicles are never hard-deleted, only marked `Inactive`.
 - A vehicle that **can be requested for company trips** (`company_trips`,
-  off by default) is offered only on the Company Trip form and under
-  Company trips on the Scheduling page, never on a Daily trip (trigger
-  `schedule_revisions_kind_vehicle`, 0054). Every vehicle is a company
-  vehicle; never call the others "non-company".
+  off by default) is offered only on the Company Trip form, never on a
+  Daily trip (trigger `schedule_revisions_kind_vehicle`, 0054). Every
+  vehicle is a company vehicle; never call the others "non-company".
+- A **personal vehicle** (`owner_account_id`, 0092) belongs to one
+  employee: only they book and drive it, for their own Company trips.
 
 ## Requests, schedules and completions (v2)
 
@@ -118,7 +119,10 @@ trigger on `schedule_revisions`; the Scheduling page only offers to add to
 that trip (`planOn` in `lib/scheduling-plan.ts`).
 
 **Scheduling page** (`/scheduling`, owner's calls 2026-10-14/15). The
-database stays the authority; these are the page's own rules:
+database stays the authority; these are the page's own rules. It plans
+Daily trips only since Company trip v2 (2026-11-27): a Company trip is
+booked by its requester, and a link to one opens it on Schedules, where it
+has no Edit or Propose changes.
 
 - **Changing a trip waiting for the Admin takes it back** (0057): a
   Scheduler's `save_schedule_draft` on a `SUBMITTED` revision puts it back
@@ -141,8 +145,7 @@ database stays the authority; these are the page's own rules:
   and Resubmit open a confirm box showing the vehicle and Driver large,
   with the date, stops and times, so a trip on the wrong vehicle is caught
   before the Admin sees it (a trip's vehicle can't be changed afterwards).
-- **Pick the vehicle, then plan it** (owner's call 2026-11-26): after Daily
-  or Company, a Vehicle dropdown (name · plate · Driver · state) picks the
+- **Pick the vehicle, then plan it** (owner's call 2026-11-26): a Vehicle dropdown (name · plate · Driver · state) picks the
   one vehicle shown; until one is picked, no trip shows. To plan keeps every
   stop, greying out the ones that can't go on it with `planOn`'s reason, and
   a stop's sheet offers only that vehicle. Adding a stop from the sheet, a
@@ -150,11 +153,7 @@ database stays the authority; these are the page's own rules:
   picks that trip's vehicle.
 - **Adding a stop** (`planOn`): a Daily vehicle needs an assigned Driver and
   takes one trip a day, so a stop joins that trip (not once it's on the
-  road). A Company stop goes only on the vehicle its requester picked,
-  joining that vehicle's trip for the same department, Driver and starting
-  point if one hasn't started yet, otherwise as a new trip at least 15
-  minutes after the vehicle's last one. A Company request's stops keep the
-  requester's order (52-A before 52-B).
+  road). (The Company paths in `planOn` are no longer reached.)
 - Changing a leg's Time Out moves its Time In by the same amount (the leg
   keeps its length); changing Time In changes only Time In. Later legs
   without a typed time are estimated again.
@@ -213,28 +212,52 @@ The request rules (`create_request_group`, `update_request_group`,
 - `create_request` / `update_request` (0051) stay for older requests; the
   app's forms use the group RPCs.
 
-The Company trip rules (`create_request_group` with `COMPANY`, 0052;
-`create_company_trip` and the triggers in 0054):
+The Company trip rules (Company trip v2, 0092–0097, owner's calls
+2026-11-26/27; `request_company_trip` and the triggers in 0094):
 
-- A Company Trip request names a starting point, a vehicle that can be
-  requested for company trips, a Driver who can drive company trips
-  (`can_drive_company`, 0079: a Company car Driver, or any account an Admin
-  switched "Can drive company trips" on, the requester included; never a
-  Truck driver), an Immediate Supervisor and a PM / CM / Dept. Head; the site
-  officer and site company are optional. All its stops have one Project /
-  Site, and that is its department / site (0058, owner's call 2026-10-15):
-  it prints as the department and decides the "one department per trip"
-  rule. The separate Departments / Sites list is hidden; groups made before
-  0058 keep the department they had.
-- A Company trip (`schedules.kind = 'COMPANY'`) takes only Company Trip
-  requests, all with the same vehicle, Driver, department and starting
-  point; the vehicle and Driver are the requester's, never the Scheduler's.
-  Its first leg starts at the starting point and its last leg ends at the
-  last stop: no leg back to ANONANG. A Company Trip request can't go on a
-  Daily trip.
-- A vehicle may take several Company trips a day as long as their times
-  don't overlap (`schedule_reservations`). Approval, return, revision and
-  cancellation work as for Daily trips.
+- **The request is the trip.** There is no Scheduler step: the requester
+  books it and sending it creates the Company trip (`schedules.kind =
+  'COMPANY'`) and submits it straight to the Admin. One request is one trip,
+  never split or joined with another. The old Company form
+  (`create_request_group` / `update_request_group` with `COMPANY`) and
+  Scheduling's Company planner (`schedule.save` / `schedule.submit` on a
+  Company trip) are refused (trigger `refuse_old_company_trip_paths`).
+- **What it names:** the date; Regular or Urgent (Urgent needs a reason from
+  the Admin's urgent-reasons list; the stops' `request_type` follows it);
+  the vehicle (one that can be requested for company trips, or the
+  requester's own personal vehicle); the Driver (someone who can drive
+  company trips, `can_drive_company`, the requester included, never a Truck
+  driver; a personal vehicle is always driven by its owner); Time Out, the
+  arrive and leave time at each destination but the last, and Time In
+  (arriving at the last one), each after the one before; 1–8 destinations
+  from the list; one free-text Purpose (at most 300 characters, stored on
+  each stop as its purpose); the Department / Project Site (a Project /
+  Site choice, 0058); the Fleet Card's last 4 digits (required); and up to
+  15 passengers, KOVA accounts or typed guests. No supervisor, head, site
+  officer, supplier or contact.
+- **Starts at the Main Office** (the active `start-office` starting point)
+  and ends on arriving at the last destination: no leg back to ANONANG.
+- **Nobody on two trips at once:** a vehicle's or Driver's Company trips
+  can't overlap (`schedule_reservations`), and neither can the requester's,
+  the Driver's or any passenger account's (`assert_people_free`); guests
+  can't be checked. A non-Admin can't book a past date.
+- **Admin approves.** Return with a comment goes back to the requester
+  (notified, and shown on My Requests through `my_company_trips`, 0096), who
+  edits and resends. Editing an approved trip makes a new version for the
+  Admin; the approved one stays in force until then, and its date can't
+  change (cancel and send a new request instead). Nothing can change once
+  the trip has started. The requester or an Admin can cancel it before it
+  starts (`cancel_company_trip`); the Driver is told if it was approved.
+- **The requester prints** the Company Trip Form from My Requests once the
+  trip is approved; it fills in the odometers once the trip has ended
+  (0097). Finished Trips no longer prints Company trips.
+- **Personal vehicles (0092):** an invite with "Can drive company trips"
+  can say "Has a personal vehicle"; the employee then enters its name and
+  plate when setting up their account, and it is added to Vehicles with
+  them as its owner (`owner_account_id`, one per owner). Only its owner books
+  and drives it, only for Company trips; it is never on a Daily trip
+  (trigger `schedule_revisions_kind_vehicle`). Changing its plate keeps its
+  owner and settings (0095).
 - **Its Driver records it** (`start_company_trip`,
   `record_company_stop`, `end_company_trip`; 0055, Driver since 0079): the
   trip's Driver, or an Admin for them (audited as an override). A trip its

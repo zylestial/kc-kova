@@ -249,17 +249,18 @@ hides the app chrome and dialogs are hidden in print, so `.print-form` is the
 only thing shown. This is a core, distinctive feature of the Admin review
 workflow, not an incidental print stylesheet.
 
-A Company trip prints the **Company Trip Form** instead
-(`app/company-trip-paper.tsx`, filled by `app/company-trip-print.tsx`, from
-the "KOVA Company Trip Flow" prototype): company header, an info grid (date,
-vehicle, plate, Driver, requested by, Position, department / site, both
-odometers, total distance, number of legs), the route and recording rule,
-an eight-row trip record (requester, purpose, leg, origin, Time Out,
-destination, Time In, site officer / supplier / contact), the
-signatories (requested by, Immediate Supervisor, site officer / supplier,
-PM / CM / Dept. Head) with blank signature lines, and For Finance Use. It
-uses the same portal and `.print-form`, inside `.company-print`. It only
-appears when an Admin prints; the request form shows no preview.
+A Company trip prints the **Company Trip Form – Employee Fleet Card
+Utilization** (Company trip v2, 2026-11-27; `app/company-trip-paper.tsx`,
+filled by `app/company-trip-print.tsx`, copied from the company's paper in
+the "KOVA Company Trip Flow v2" prototype): one A4 page in black and white,
+the grey logo and corner swooshes, A. Employee and vehicle information and
+B. Trip details filled from the request (destinations joined with "to",
+the purpose, passengers, Time Out / Time In, and the odometers once the
+trip has ended), C. Fleet card / fuel, D. Certification, E. Signatures and
+F. For Finance printed blank, the four reminders in two columns, and the
+contact footer. A long value wraps onto extra ruled lines. The requester
+prints it from My Requests once the trip is approved (named page
+`@page company-trip` with no margin); Finished Trips no longer prints it.
 
 ## Empty and focus states (verified)
 
@@ -300,25 +301,25 @@ router/URL segments are used for in-app navigation.
 | Screen | Component | Shown to |
 | --- | --- | --- |
 | `*-home` | home buttons in `app/page.tsx` | All roles |
-| `new-request` | `app/request-screen.tsx` with `app/request-form.tsx` (New Request prototype: a Daily / Company Trip choice for accounts allowed both; a date strip with Jump to date; one project or a different one per stop; stop cards, each Regular / Urgent with a reason, destination, purpose, Details, how flexible (any time that day / fixed time / any day that week), contact, and on a Company Trip a supplier; the Company Trip's fields and a printed form preview; a summary panel; also used to edit) | Requester, Admin, allowed Drivers |
-| `my-requests` | `app/my-requests.tsx` (one row per stop, numbered 52-A; details show the request's other stops and the Company Trip's fields) | Requester, Admin, allowed Drivers |
+| `new-request` | `app/request-screen.tsx`: a Daily / Company Trip choice for accounts allowed both. The Company Trip form is `app/company-trip-form.tsx` (Company trip v2 prototype: date with "Starts at Main Office"; Regular or Urgent with a reason; Company or Personal vehicle, the vehicle list marked free / booked then, Time Out and Time In, and a 6 AM–7 PM bar of the vehicle's day; destinations, each but the last with Arrive and Leave; one Purpose; Department / Project Site, Fleet Card last 4, Driver ("Me, I'll drive"); passengers by typing a name, busy colleagues greyed with why, or a guest; a summary). The Daily form is `app/request-form.tsx` (New Request prototype: a date strip with Jump to date; one project or a different one per stop; stop cards, each Regular / Urgent with a reason, destination, purpose, Details, how flexible (any time that day / fixed time / any day that week), contact, and on a Company Trip a supplier; the Company Trip's fields and a printed form preview; a summary panel; also used to edit) | Requester, Admin, allowed Drivers |
+| `my-requests` | `app/my-requests.tsx` (one row per Daily stop, numbered 52-A, and one per Company trip, #52 with its route joined by "to", its times and its state: Waiting for approval, Returned to you, Approved, Approved · changes waiting / returned, Completed, Cancelled; a Company trip's details (`app/company-trip-details.tsx`) show the route with times, passengers, the Admin's comment, Edit, Cancel trip and, once approved, Print Company Trip Form) | Requester, Admin, allowed Drivers |
 | `my-trips` | `app/my-trips.tsx` (the requester's approved Company trips as folding cards: the steps in route order with their times, one big button for the next (Start trip at …, Arrived at …, Leaving …, Arrived at … · End trip), an odometer field on Start and End trip, the distance once ended; the same "Problem here?" stop report, hold and Scheduler's answer as the Driver) | Requesters with Company trips |
 | `scheduling` | `app/scheduling.tsx` with `app/scheduler/` at `/scheduling` (see below) | Scheduler |
 | `schedules` | `app/schedules.tsx` (a cancelled trip says "Cancelled by <name> on <date, time>", from `cancelled_by_account_id` / `cancelled_at`) | Scheduler, Admin (review), Finance (view only) |
 | `my-schedule` | `app/driver-schedules.tsx` (a Driver's trips in separate cards: Today / This week / This month / Other trips; on a phone each trip has a full-width Open button, and Sort by shows only once a group has two trips; an Admin viewing as Driver gets filters instead; the trip as cards (`app/driver-trip-steps.tsx`), one per place in route order: Start at ANONANG, each stop (name, each request's number, purpose, notes and contact (`app/stop-jobs.tsx`), a contact with a call link), Back to ANONANG; inside each, Arrived / Left ticked with their time, est. planned times for those ahead, and one big button for the next tap (Start trip, Arrived at …, Leaving …, End trip); "End trip now" with a confirm for a trip cut short (it says the stops left are marked not reached and go back to the Scheduler); "Problem here?" under the current stop opens the stop report (below); a missed stop shows as one warning line; a trip held for the Scheduler shows a red notice in place of the next button ("Reported. Wait for the Scheduler's answer before going on.", or that the route is being changed), and the latest answer shows as a blue notice above the trip ("Scheduler's answer at 3:42 PM: Skip Site Alpha and go on to the next stop."); a "Route changed" notice after an approved change; no requester, distances or coordinates; then a big Complete trip) | Driver |
 | `attendance` | `app/admin-attendance.tsx` (Start/End taps per trip and a Stops column, "N of M tapped" with flags and a View dialog of the stop times; away from the place, no location and late taps flagged in warning color; places link to Google Maps, with the exact coordinates and the phone's ± accuracy below; Download CSV opens a dialog with the same filters, starting from the screen's, and saves the rows they pick) | Admin, Finance |
-| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog opens with labelled facts (Vehicle and Driver largest, then Date and Scheduled by), each request in the Trip Record as its purpose in bold, its details below and a green "Done 10:16 AM" tag (`app/trip-record-view.tsx`, also on Schedules), a "Waiting for the Driver to submit this trip" notice before it's submitted, each stop report or problem as its own block (what it was, Open / Handled, then Place, Note, What was done or Status), and shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily or the Company Trip Form; Download CSV opens a dialog with the same filters, starting from the screen's, and saves the trips they pick; Finance gets it with `readOnly`: Print and Download only; a Done trip says "by <name>" in the list, and its dialog "Marked done by <name> on <date, time>", for Admin, Finance and the Driver, and Download CSV has DONE BY and DONE AT; the Scheduler's list can't show it, since a Scheduler can't read completions) | Driver, Admin, Finance |
+| `finished` | `app/driver-finished-trips.tsx` (Driver), `app/admin-finished-trips.tsx` (Admin; a Form filter: All forms / Daily Vehicle Trips / Company Trips; the trip dialog opens with labelled facts (Vehicle and Driver largest, then Date and Scheduled by, or "Records the trip:" its Driver on a Company trip), each request in the Trip Record as its purpose in bold, its details below and a green "Done 10:16 AM" tag (`app/trip-record-view.tsx`, also on Schedules), a "Waiting for the Driver to submit this trip" notice before it's submitted, each stop report or problem as its own block (what it was, Open / Handled, then Place, Note, What was done or Status), and shows the stop times with Fill in / Change per time, "N times missing" in the list, and Mark as done disabled until none are; Print gives the Daily form (a Company trip has none: its requester prints it); Download CSV opens a dialog with the same filters, starting from the screen's, and saves the trips they pick; Finance gets it with `readOnly`: Print and Download only; a Done trip says "by <name>" in the list, and its dialog "Marked done by <name> on <date, time>", for Admin, Finance and the Driver, and Download CSV has DONE BY and DONE AT; the Scheduler's list can't show it, since a Scheduler can't read completions) | Driver, Admin, Finance |
 | `settings` | `app/settings.tsx` | Admin. Each tab is a rail of lists on the left and one list on the right (`app/settings-lists.tsx`; on a phone the rail first, "All lists" back), with a search across the tab, a yellow banner for what still needs setting up, and a ⚠ count on the list that needs it. Accounts (`app/settings-accounts.tsx`): People by type, Access (Can drive / Can request company trips), Pending invites last; a row shows username · email, type and position, Access chips and Status; Email shows a "Not confirmed" badge and Resend while a new one waits; Edit has Position, Can request company trips, Driver type and a Scheduler's or Company car Driver's request switches; no Add Account, since invites are the only way in. Invite people is a button beside the tabs (`app/invites-panel.tsx`): a box of pasted emails plus one account type and set of request switches for the batch, then a summary of sent / skipped / not emails / couldn't send, and Resend / Cancel per invite. Vehicles (`app/settings-vehicles.tsx`): All, Kind (Can be requested for company trips / Daily trips only), Needs attention (No Driver assigned, No odometer, Inactive); a company vehicle's Driver reads "Picked per request" and its Edit has no Assigned Driver. Request choices (`app/booking-options.tsx`, `lib/choice-lists.ts`): Every request and Company Trips only lists, each tagged Required / Needed for Urgent stops / Needed for Company Trips / Optional) |
 | `account` | `app/(app)/account/my-account.tsx` at `/account` (Username, Email and Password panels, each folded behind Change and asking for the current password; a pending email shows as "Not confirmed") | All roles |
 | link pages | `app/(auth)/join`, `forgot-password`, `reset-password`, `confirm-email` (the sign-in card's look; open signed in or not) — Join shows the invite's email and what it allows ("Requester · Daily requests · Company trips") and asks for name, username and password, plus Position only when the access needs it (required with company trips, optional for an Admin); Forgot password takes only an email (anything else: "Enter a valid email address."); Sign In takes a username or confirmed email and has a Forgot password? link and says "Password changed" after a reset | Anyone with the link |
 | — | `app/booking-options.tsx` | Admin (projects/destinations/purposes, Urgent reasons, Starting points, Suppliers, Immediate Supervisors, PM / CM / Dept. Heads; a destination's Location column and field take pasted coordinates or a Google Maps link) |
 
 **Scheduling** (`app/scheduling.tsx`, prototype "KOVA Scheduler",
-2026-10-14/15) is the Scheduler's one planning screen for Daily and Company
-trips. It replaced Create schedule and the Company trip planner; their old
-addresses (`/schedules/new`, `/schedules/company`) redirect to it, and
-`?date=&type=DAILY|COMPANY` keeps the day and kind in the address. From the
-top:
+2026-10-14/15) is the Scheduler's one planning screen, for Daily trips only
+since Company trip v2 (2026-11-27: a Company trip is booked by its
+requester; `/schedules/company` and a link to a Company trip open it on
+Schedules). It replaced Create schedule; `/schedules/new` redirects to it,
+and `?date=` keeps the day in the address. From the top:
 
 - the month, then two weeks of date cards from today (Sundays included),
   each with a red badge on its corner, like a phone's notification count,
@@ -326,7 +327,7 @@ top:
   past days (no badge on a quiet day; no
   scrollbar, swipe or use the arrows), arrows to page a week at a time, and "Also
   waiting" buttons for days beyond the strip (one swipeable row on phones);
-- a **Daily trips | Company trips** switch, each with its counts;
+- the **Daily trips** tab with its counts;
 - an Urgent banner per urgent stop with **Fit it in**, a banner per trip
   waiting for the Admin, and the blue day banner (trips, still to plan)
   with **Undo**;

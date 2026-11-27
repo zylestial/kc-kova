@@ -227,6 +227,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `name` | text | |
 | `status` | text | `Active` \| `Inactive` |
 | `company_trips` | boolean | 0051. "Can be requested for company trips": offered on the Company Trip form, never on a Daily trip |
+| `owner_account_id` | uuid FK accounts, nullable | 0092. A personal vehicle: its owner books and drives it, only on their Company trips (`company_trips` must be on and there's no assigned Driver; one per owner). Added at account setup from an invite with `has_personal_vehicle` |
 | `has_odometer` | boolean | 0078, default true. Off for a vehicle with no odometer: `submit_completion` and `start_company_trip` store no readings (`vehicle_has_odometer()`), and `trip_completions` / `company_trip_runs` readings are then null |
 
 ### `booking_options`
@@ -368,6 +369,26 @@ back to ANONANG on a Company trip, one department and starting point).
 Since 0058 a Company Trip group's `department_id` / `department_name` is
 its one Project / Site (a `projects` option), set by
 `resolve_group_fields`; the `departments` list is no longer used.
+
+**Company trip v2 (0092–0097, 2026-11-27).** A Company trip is booked by its
+requester: `request_company_trip(p_group_id, p_expected_row_version,
+p_input)` (API `POST /api/company-trips`, `PUT /api/company-trips/:groupId`)
+writes the group and one stop per destination, creates (or, on an edit,
+re-versions) the `COMPANY` schedule with legs from Time Out, each stop's
+arrive / leave time and Time In, checks the people
+(`assert_people_free`) and submits it to the Admin. `request_groups` gains
+`purpose_text`, `fleet_card_last4`, `priority` and `urgent_reason_id` /
+`_name` (0093); `request_group_passengers` holds its passengers (an
+account or a guest name each, read through `can_view_request_group`).
+`company_trip_busy(date, except_group)` (`GET /api/company-trips/busy`)
+lists the day's booked trips for the form, `cancel_company_trip`
+(`POST /api/company-trips/:groupId/cancel`) cancels one, and
+`my_company_trips(since)` (0096, odometers 0097) gives the requester each
+of their trips' state (`WAITING`, `RETURNED`, `APPROVED`,
+`CHANGES_WAITING`, `CHANGES_RETURNED`, `CANCELLED`), the Admin's comment,
+the latest legs' times, passengers and odometers; the bootstrap returns it
+as `companyTrips`. The trigger `refuse_old_company_trip_paths` refuses the
+old Company form and Scheduling's Company planner.
 
 Since 0057 a Scheduler's `save_schedule_draft` on a `SUBMITTED` revision
 takes it back to `DRAFT` (keeping `submitted_at`) instead of refusing it,

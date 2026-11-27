@@ -1294,3 +1294,35 @@ account the company owns from day one.
   the before row and who did it); `audit_events` is append-only, so this
   can't be avoided and is the only way to trace a mistake.
 - **Deleting clears Scheduling's Undo**, whose steps may name the stop.
+
+## Company trip v2: the requester books the trip (2026-11-27)
+
+Built from the owner's prototype "KOVA Company Trip Flow v2", migrations
+0092–0097 (local only until the owner pushes them). The prototype was the
+spec; these are the calls made on top of it.
+
+- **No Scheduler for Company trips** (owner). Sending the request creates
+  the trip and submits it; one request is one trip, never joined. No old
+  Company requests existed, so the old form and Scheduling's Company
+  planner are refused outright (`refuse_old_company_trip_paths`) rather
+  than migrated. `planOn`'s Company paths are left in place but unreached.
+- **Times per stop**: the form asks Time Out, Arrive / Leave at each
+  destination but the last, and Time In. The prototype's screen only showed
+  Time Out / Time In, but legs need a time at each stop.
+- **The requester can't see an unapproved schedule** (`can_view_schedule`
+  only covers published ones), so `my_company_trips` (0096) gives them the
+  state, the Admin's comment and the latest legs; 0097 adds the odometers
+  for the print, which only the Driver and Admin can read in
+  `trip_completions`.
+- **Editing an approved trip** makes a new version; the approved one stays
+  in force, its date can't change, and printing waits until the Admin
+  approves the change (the group already holds the new fields). Known edge:
+  the published version's leg stops point at the request's old
+  destinations, and a removed stop is cancelled before re-approval.
+- **A personal vehicle is a `vehicles` row with `owner_account_id`**, made
+  at account setup; only its owner books and drives it. Its plate is
+  refused at setup if it's already in Vehicles.
+- **A returned Company trip's notification opens My Requests**, and any
+  link to a Company trip that used to open Scheduling opens it on Schedules
+  (`schedulingHref`), which has no Edit for it.
+- **Open:** what Urgent should change besides the red tag (owner to answer).
