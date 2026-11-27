@@ -433,6 +433,10 @@ export type CompanyTripStatus = {
   /** The latest version's legs in order: leg n ends at destination n. */
   legs: Array<{ out: string; in: string }>;
   passengers: CompanyTripPassenger[];
+  /** The trip has ended (0097); the readings are null for a vehicle without an odometer. */
+  finished: boolean;
+  odometerStart: number | null;
+  odometerEnd: number | null;
 };
 /** A Company trip already booked on a day (0094 company_trip_busy). */
 export type CompanyTripBooking = {

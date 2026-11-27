@@ -107,7 +107,7 @@ describe("companyDraftFromGroup", () => {
     const draft = companyDraftFromGroup(
       group,
       [stop("a", "A", "dest-hardware"), stop("b", "B", "dest-warehouse")],
-      { groupId: "g", state: "RETURNED", comment: "", legs: [{ out: "08:00", in: "08:40" }, { out: "09:10", in: "09:50" }], passengers: [{ guestName: "Mr. Tan" }] },
+      { groupId: "g", state: "RETURNED", comment: "", legs: [{ out: "08:00", in: "08:40" }, { out: "09:10", in: "09:50" }], passengers: [{ guestName: "Mr. Tan" }], finished: false, odometerStart: null, odometerEnd: null },
       undefined,
     );
     expect(draft).toMatchObject({ timeOut: "08:00", timeIn: "09:50", priority: "URGENT", urgentReasonId: "urg-materials", vehicleKind: "company" });

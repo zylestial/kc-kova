@@ -186,6 +186,9 @@ export type CompanyTripStatusRow = {
   comment: string | null;
   legs: Array<{ out: string; in: string }> | null;
   passengers: CompanyTripPassenger[] | null;
+  finished?: boolean | null;
+  odometer_start?: number | null;
+  odometer_end?: number | null;
 };
 
 export function toCompanyTripStatus(row: CompanyTripStatusRow): CompanyTripStatus {
@@ -196,6 +199,9 @@ export function toCompanyTripStatus(row: CompanyTripStatusRow): CompanyTripStatu
     comment: row.comment ?? "",
     legs: row.legs ?? [],
     passengers: row.passengers ?? [],
+    finished: !!row.finished,
+    odometerStart: row.odometer_start ?? null,
+    odometerEnd: row.odometer_end ?? null,
   };
 }
 
