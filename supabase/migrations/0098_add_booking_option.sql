@@ -20,16 +20,6 @@ alter table public.booking_option_additions enable row level security;
 create policy booking_option_additions_select on public.booking_option_additions
   for select using ((select auth.role()) = 'authenticated');
 
--- The same name, ignoring case and spaces, is never added twice.
-create or replace function public.option_key(p_name text)
-returns text
-language sql
-immutable
-set search_path = ''
-as $$
-  select lower(regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g'))
-$$;
-
 create or replace function public.add_booking_option(p_group text, p_name text)
 returns public.booking_options
 language plpgsql
@@ -54,11 +44,12 @@ begin
     raise exception 'Enter a name of 2 to 100 characters' using errcode = '22023';
   end if;
 
-  -- Two people adding the same name at once get the same row.
-  perform pg_advisory_xact_lock(hashtext('booking_option:' || p_group || ':' || public.option_key(v_name)));
+  -- Two people adding the same name at once get the same row; the same lock
+  -- and matching as a typed name on a Daily request (0049).
+  perform pg_advisory_xact_lock(hashtext('option:' || p_group || ':' || public.option_name_key(v_name)));
 
   select * into v_found from public.booking_options
-  where "group" = p_group and public.option_key(name) = public.option_key(v_name)
+  where "group" = p_group and public.option_name_key(name) = public.option_name_key(v_name)
   order by status = 'Active' desc
   limit 1;
   if v_found.id is not null then
