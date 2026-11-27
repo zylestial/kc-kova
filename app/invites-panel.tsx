@@ -27,6 +27,7 @@ const blankBatch = () => ({
   canRequestDaily: false,
   canRequestCompany: false,
   canDriveCompany: false,
+  hasPersonalVehicle: false,
 });
 
 export const roleLabel = (invite: Pick<Invite, "role" | "driverType">) =>
@@ -169,6 +170,7 @@ export function InviteDialog({ open, onOpenChange, onSent }: { open: boolean; on
         canRequestDaily: switches && batch.canRequestDaily,
         canRequestCompany: companyAllowed && batch.canRequestCompany,
         canDriveCompany: !isDriver && batch.canDriveCompany,
+        hasPersonalVehicle: !isDriver && batch.canDriveCompany && batch.hasPersonalVehicle,
       });
       setResult(sent);
       onSent();
@@ -300,10 +302,24 @@ export function InviteDialog({ open, onOpenChange, onSent }: { open: boolean; on
                       <label>
                         <Checkbox
                           checked={batch.canDriveCompany}
-                          onCheckedChange={(v) => setBatch({ ...batch, canDriveCompany: v === true })}
+                          onCheckedChange={(v) =>
+                            setBatch({ ...batch, canDriveCompany: v === true, hasPersonalVehicle: v === true && batch.hasPersonalVehicle })
+                          }
                         />
                         Can drive company trips
                       </label>
+                      {batch.canDriveCompany && (
+                        <label className="sub-option">
+                          <Checkbox
+                            checked={batch.hasPersonalVehicle}
+                            onCheckedChange={(v) => setBatch({ ...batch, hasPersonalVehicle: v === true })}
+                          />
+                          Has a personal vehicle
+                        </label>
+                      )}
+                      {batch.canDriveCompany && batch.hasPersonalVehicle && (
+                        <small>They enter its name and plate when they set up their account. It&apos;s added to Vehicles.</small>
+                      )}
                     </div>
                   )}
                 </div>

@@ -343,6 +343,8 @@ export type Invite = {
   canRequestCompany: boolean;
   /** "Can drive company trips" for the new account (0080). */
   canDriveCompany: boolean;
+  /** Sets up their own vehicle when they join (0092). */
+  hasPersonalVehicle: boolean;
   sentAt: string;
   /** Its link no longer works; Resend makes a new one. */
   expired: boolean;
@@ -734,7 +736,7 @@ export const listAccountEmails = () => request<Array<{ accountId: string } & Ema
 export const resendEmailLink = (accountId: string) =>
   request<void>(`/api/accounts/${encodeURIComponent(accountId)}/email-link`, { method: "POST" });
 export const listInvites = () => request<Invite[]>("/api/invites");
-export const sendInvites = (input: { emails: string; role: Role; driverType?: DriverType; canRequestDaily: boolean; canRequestCompany: boolean; canDriveCompany: boolean }) =>
+export const sendInvites = (input: { emails: string; role: Role; driverType?: DriverType; canRequestDaily: boolean; canRequestCompany: boolean; canDriveCompany: boolean; hasPersonalVehicle: boolean }) =>
   request<InviteResult>("/api/invites", { method: "POST", body: JSON.stringify(input) });
 export const resendInvite = (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}/resend`, { method: "POST" });
 export const cancelInvite = (id: string) => request<void>(`/api/invites/${encodeURIComponent(id)}`, { method: "DELETE" });

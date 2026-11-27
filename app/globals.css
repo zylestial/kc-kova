@@ -374,3 +374,5 @@ td.c-phone{display:none}
 /* Scheduling: the vehicle is picked after Daily / Company (2026-11-26); stops that can't go on it are greyed with the reason. */
 .sc-vehicle-pick{display:flex;flex-direction:column;gap:4px;max-width:520px;margin:0 0 12px}.sc-vehicle-pick>span{font-size:12px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--steel)}
 .sc-stop.blocked{opacity:.55;background:var(--neutral-bg)}.sc-stop.blocked:hover{opacity:.75}.sc-blocked{display:block;margin-top:4px;font-size:12.5px;font-weight:600;color:var(--neutral-fg)}
+/* Invite: "Has a personal vehicle" sits under "Can drive company trips" (0092). */
+.person-projects label.sub-option{padding-left:28px}
