@@ -22,6 +22,8 @@ test("a request becomes an approved schedule", async ({ browser }) => {
   await scheduler.locator(".sc-option.best").getByRole("button", { name: "Add" }).click();
   await expect(scheduler.locator(".notice.success")).toContainText("Added to", saved);
   await scheduler.getByRole("button", { name: "Submit for approval" }).click();
+  // Submit asks first, showing the vehicle and Driver.
+  await scheduler.getByRole("dialog").getByRole("button", { name: "Yes, submit" }).click();
   await expect(scheduler.locator(".notice.success")).toContainText("Submitted", saved);
   const { schedules } = (await (await scheduler.request.get("/api/bootstrap")).json()) as { schedules: Schedule[] };
   const trip = schedules.find((s) => s.revisions.some((r) => r.requestIds.includes(request.id)))!;

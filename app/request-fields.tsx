@@ -16,6 +16,7 @@ import type {
   TransportRequest,
 } from "@/lib/kova-api";
 import { requestDraftMissing } from "@/lib/missing-fields";
+import { destinationChoices } from "@/lib/choice-lists";
 
 const OTHER_OPTION = "__other__";
 const NO_PROJECT = "__none__";
@@ -98,15 +99,6 @@ function choices(options: BookingOption[], kept: Array<{ id: string; name: strin
   return list;
 }
 
-/** Name to show for a chosen option id, for the Review modal. */
-export function optionName(
-  options: BookingOption[],
-  id: string,
-  kept: Array<{ id: string; name: string }> = [],
-) {
-  return options.find((item) => item.id === id)?.name ?? kept.find((item) => item.id === id)?.name ?? "";
-}
-
 export function keptOptions(request?: TransportRequest | null) {
   return {
     projects: request && !request.projectIsOther && request.projectId ? [{ id: request.projectId, name: request.projectName }] : [],
@@ -142,11 +134,7 @@ export default function RequestFields({
   dateHint?: string;
 }) {
   const projects = choices(options.projects, kept.projects);
-  // Fuel/errand stops are for the Scheduler to add, never a Requester's destination.
-  const destinations = choices(
-    options.destinations.filter((item) => !item.isOtherStop),
-    kept.destinations,
-  );
+  const destinations = destinationChoices(options.destinations, kept.destinations);
   const purposes = choices(options.purposes, kept.purposes);
   const setRow = (key: string, change: Partial<RequestDraft["destinations"][number]>) =>
     onChange({

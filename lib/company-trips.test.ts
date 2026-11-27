@@ -15,6 +15,9 @@ const group = (id: string, patch: Partial<RequestGroup> = {}): RequestGroup => (
   startingPoint: { id: "main", name: "Main Office" },
   siteOfficer: "",
   siteCompany: "",
+  purpose: "",
+  fleetCard: "",
+  priority: "REGULAR",
   rowVersion: 1,
   createdAt: "",
   ...patch,
@@ -75,5 +78,10 @@ describe("companyTripSteps", () => {
   it("passes over a stop reported missed (0061)", () => {
     const steps = companyTripSteps(legs, { startAt: "t0" }, [], new Set(["l1"]));
     expect(steps.map((step) => !!step.missed)).toEqual([false, true, true, false]);
+  });
+
+  it("still asks for Leaving a missed stop already Arrived at", () => {
+    const steps = companyTripSteps(legs, { startAt: "t0" }, [{ legId: "l1", kind: "ARRIVE", at: "t1" }], new Set(["l1"]));
+    expect(steps.map((step) => !!step.missed)).toEqual([false, false, false, false]);
   });
 });

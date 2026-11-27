@@ -27,6 +27,7 @@ import {
   recordStopTask,
   reportProblem,
   reportStop,
+  saveStartOdometer,
   submitCompletion,
   type StopReportKind,
   type ProblemReport,
@@ -49,6 +50,10 @@ import { getPhoneLocation } from "@/lib/phone-location";
 import { hhmmLabel, legTimes, manilaHhmm, tripSteps, type TimeSource } from "@/lib/stop-times";
 import DriverTripSteps, { stepKey } from "./driver-trip-steps";
 import SavedTapsBanner from "./saved-taps-banner";
+import UnendedTripWarning from "./unended-trip-warning";
+import { unendedTrip } from "@/lib/unended-trip";
+import StartOdometerForm from "./start-odometer-form";
+import TripFacts from "./trip-facts";
 import StopReportForm from "./stop-report-form";
 import { answerText, holdText, jobFlags, latestAnswer, missedLegs, ROAD_REPORT_KINDS, stopChoices, stopReportLabel, TASK_REPORT_KINDS } from "@/lib/stop-reports";
 
@@ -172,6 +177,8 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const [busyStop, setBusyStop] = useState<string | null>(null);
   /** The last tap had no position: the phone's location is off or blocked. */
   const [locationOff, setLocationOff] = useState(false);
+  /** Start trip, held while the Driver reads that an earlier trip has no End trip. */
+  const [startHeld, setStartHeld] = useState<TimeSource | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   useAutoClear(notice, setNotice);
@@ -196,6 +203,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setError("");
     setLocationOff(false);
     setReportAt(null);
+    setStartHeld(null);
   }
 
   // A problem at one stop (0061), with the phone's position when it shares one.
@@ -215,9 +223,33 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
     setBusy(false);
   }
 
+  const unended = selected ? unendedTrip(schedules, attendance, companyRuns, driverId, selected.schedule.id) : null;
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
   // A vehicle without an odometer (0078) skips the readings: Complete trip is just the final return.
   const hasOdometer = !selected || vehicles.find((vehicle) => vehicle.plate === selected.revision.plate)?.hasOdometer !== false;
+  // After Start trip, the starting reading comes before Arrived (owner, 2026-11-16; 0090). Not while
+  // Start trip is still saved on the phone (no signal, 0077): saving a reading needs signal, so the
+  // Driver goes on and is asked once Start trip reaches KOVA, or at Complete trip.
+  const needsReading =
+    !!selected &&
+    hasOdometer &&
+    !selected.completion &&
+    !!selected.attendance &&
+    !selected.attendance.start.saved &&
+    !selected.attendance.end &&
+    selected.attendance.startOdometer == null;
+
+  async function saveReading(reading: number) {
+    if (!selected) return;
+    setBusy(true);
+    setError("");
+    try {
+      await saveStartOdometer(selected.schedule.id, reading);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
+  }
   const startNumber = start.trim() === "" ? NaN : Number(start);
   const endNumber = end.trim() === "" ? NaN : Number(end);
   const odometerError =
@@ -255,8 +287,13 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   // (Start/End trip, or Arrived/Leaving at a stop). A phone that won't share
   // its position still records the time; the Driver is asked to turn it on.
   // With no signal the tap is saved on the phone with this moment's time (0077).
-  async function tapStep(source: TimeSource) {
+  async function tapStep(source: TimeSource, anyway = false) {
     if (!selected) return;
+    if (!anyway && !("legId" in source) && source.kind === "START" && unended) {
+      setStartHeld(source);
+      return;
+    }
+    setStartHeld(null);
     const tappedAt = new Date().toISOString();
     setBusy(true);
     setBusyStop(stepKey(source));
@@ -327,22 +364,24 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
 
   const tripTable = (list: Trip[]) => (
     <div className="schedule-table admin-trip-table my-schedule-table">
-      <table>
+      <table data-compact="">
         <SortableHead columns={columns} sort={sort} onSort={setSort} />
         <tbody>
           {list.map((trip) => {
             const [label, pill] = tripStatusPill[tripStatus(trip)];
             return (
-              <tr key={trip.schedule.id} onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
-                <td>{dateLabel(trip.schedule.date)}</td>
-                {showDriver && <td>{trip.revision.driverName}</td>}
-                <td className="trip-vehicle">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
-                <td>{routeLabel(trip)}</td>
-                <td>
+              // On a phone: a card (the c-* classes) led by the vehicle, keeping
+              // the big Open button a Driver taps on the road.
+              <tr key={trip.schedule.id} className="c-static" onClick={() => { setSelectedId(trip.schedule.id); setNotice(""); }}>
+                <td className="c-meta">{dateLabel(trip.schedule.date)}</td>
+                {showDriver && <td className="c-meta">{trip.revision.driverName}</td>}
+                <td className="trip-vehicle c-title">{vehicleName(trip.revision.plate)} · {trip.revision.plate}</td>
+                <td className="c-sub">{routeLabel(trip)}</td>
+                <td className="c-status">
                   <span className={"status-pill " + pill}>{label}</span>
                   {trip.problems.length > 0 && <small>Problem reported</small>}
                 </td>
-                <td>
+                <td className="c-actions">
                   <Button
                     variant="outline" size="sm"
                     onClick={(event) => {
@@ -532,9 +571,17 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
             <DialogTitle>
               {mode === "complete" ? "Complete this trip" : mode === "problem" || mode === "stop" ? "Report a problem" : "Your trip"}
             </DialogTitle>
-            <DialogDescription className="dialog-context">
+            <DialogDescription className="sr-only">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate}`}
             </DialogDescription>
+            {selected && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: selected.revision.plate, key: true },
+                  { label: "Date", value: dateLabel(selected.schedule.date) },
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && mode === "view" && selected.schedule.kind === "COMPANY" && (
             <>
@@ -568,11 +615,27 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
           {selected && mode === "view" && selected.schedule.kind !== "COMPANY" && (
             <>
               <SavedTapsBanner />
+              {startHeld && unended && (
+                <UnendedTripWarning
+                  trip={unended}
+                  busy={busy}
+                  onOpen={
+                    unended.kind === "DAILY"
+                      ? () => {
+                          setStartHeld(null);
+                          setSelectedId(unended.scheduleId);
+                        }
+                      : undefined
+                  }
+                  onStart={() => void tapStep(startHeld, true)}
+                  onCancel={() => setStartHeld(null)}
+                />
+              )}
               <DriverTripSteps
                 steps={tripSteps(legTimes(selected.revision.legs, selected.attendance, selected.stopTaps), new Set(missedLegs(selected.problems).keys()))}
                 legs={selected.revision.legs}
                 stopsById={stopsById}
-                onTap={tapStep}
+                onTap={(source) => void tapStep(source)}
                 busyKey={busyStop}
                 missed={new Map([...missedLegs(selected.problems)].map(([legId, report]) => [legId, stopReportLabel(report)]))}
                 onReport={(legId, place, roadOnly) => {
@@ -581,6 +644,7 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   setError("");
                 }}
                 held={selected.schedule.pausedAt ? (othersLeft) => holdText(selected.problems, othersLeft) : undefined}
+                beforeNext={needsReading ? <StartOdometerForm key={selected.schedule.id} className="trip-reading" initial={lastReading} busy={busy} onSave={(reading) => void saveReading(reading)} /> : undefined}
                 taps={selected.stopTaps}
                 tasks={selected.stopTasks}
                 problems={selected.problems}
@@ -604,7 +668,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   onClick={() => {
                     setMode("complete");
                     setCompleteStep(hasOdometer ? "odometer" : "final");
-                    if (hasOdometer && !start && lastReading !== null) setStart(String(lastReading));
+                    // The reading entered after Start trip (0090), else the vehicle's last one.
+                    const startReading = selected.attendance?.startOdometer ?? lastReading;
+                    if (hasOdometer && !start && startReading !== null) setStart(String(startReading));
                   }}
                 >
                   Complete trip
@@ -639,7 +705,9 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
                   value={start}
                   onChange={(event) => setStart(event.target.value)}
                 />
-                {lastReading !== null && start === String(lastReading) && (
+                {selected.attendance?.startOdometer != null && start === String(selected.attendance.startOdometer) ? (
+                  <small className="field-hint">What you entered after Start trip. Change it if it was wrong.</small>
+                ) : lastReading !== null && start === String(lastReading) && (
                   <small className="field-hint">
                     Filled in from this vehicle&apos;s last trip. Change it if the dashboard shows something different.
                   </small>

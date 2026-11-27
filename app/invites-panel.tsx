@@ -27,6 +27,7 @@ const blankBatch = () => ({
   canRequestDaily: false,
   canRequestCompany: false,
   canDriveCompany: false,
+  hasPersonalVehicle: false,
 });
 
 export const roleLabel = (invite: Pick<Invite, "role" | "driverType">) =>
@@ -75,7 +76,7 @@ export function InviteTable({
 }) {
   return (
     <div className="schedule-table">
-      <table>
+      <table data-compact="">
         <thead>
           <tr>
             <th>EMAIL</th>
@@ -89,12 +90,13 @@ export function InviteTable({
           {invites.map((invite) => {
             const access = accessLabels({ ...invite, status: "Active" });
             return (
-              <tr key={invite.id}>
-                <td>
+              // On a phone: a card with Resend / Cancel on it (the c-* classes).
+              <tr key={invite.id} className="c-static">
+                <td className="c-title">
                   <b>{invite.email}</b>
                 </td>
-                <td>{roleLabel(invite)}</td>
-                <td>
+                <td className="c-labelled">{roleLabel(invite)}</td>
+                <td className="c-labelled">
                   {access.length ? (
                     <div className="settings-chips">
                       {access.map((label) => (
@@ -107,11 +109,11 @@ export function InviteTable({
                     "—"
                   )}
                 </td>
-                <td>
+                <td className="c-labelled">
                   {new Date(invite.sentAt).toLocaleDateString()}
                   {invite.expired && <span className="status-pill pending">Link expired</span>}
                 </td>
-                <td>
+                <td className="c-actions">
                   <div className="modal-actions">
                     <Button variant="outline" disabled={!!busy} onClick={() => onAct(invite, "resend")}>
                       {busy === `resend:${invite.id}` ? "Sending…" : "Resend"}
@@ -168,6 +170,7 @@ export function InviteDialog({ open, onOpenChange, onSent }: { open: boolean; on
         canRequestDaily: switches && batch.canRequestDaily,
         canRequestCompany: companyAllowed && batch.canRequestCompany,
         canDriveCompany: !isDriver && batch.canDriveCompany,
+        hasPersonalVehicle: !isDriver && batch.canDriveCompany && batch.hasPersonalVehicle,
       });
       setResult(sent);
       onSent();
@@ -299,10 +302,24 @@ export function InviteDialog({ open, onOpenChange, onSent }: { open: boolean; on
                       <label>
                         <Checkbox
                           checked={batch.canDriveCompany}
-                          onCheckedChange={(v) => setBatch({ ...batch, canDriveCompany: v === true })}
+                          onCheckedChange={(v) =>
+                            setBatch({ ...batch, canDriveCompany: v === true, hasPersonalVehicle: v === true && batch.hasPersonalVehicle })
+                          }
                         />
                         Can drive company trips
                       </label>
+                      {batch.canDriveCompany && (
+                        <label className="sub-option">
+                          <Checkbox
+                            checked={batch.hasPersonalVehicle}
+                            onCheckedChange={(v) => setBatch({ ...batch, hasPersonalVehicle: v === true })}
+                          />
+                          Has a personal vehicle
+                        </label>
+                      )}
+                      {batch.canDriveCompany && batch.hasPersonalVehicle && (
+                        <small>They enter its name and plate when they set up their account. It&apos;s added to Vehicles.</small>
+                      )}
                     </div>
                   )}
                 </div>

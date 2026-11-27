@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyOptions as empty, type BookingOption } from "@/lib/kova-api";
-import { CHOICE_LISTS, activeCount, choiceGaps, gapEffect } from "@/lib/choice-lists";
+import { CHOICE_LISTS, activeCount, choiceGaps, destinationChoices, gapEffect, sameNameChoice } from "@/lib/choice-lists";
 
 const item = (name: string, status: BookingOption["status"] = "Active") => ({ id: name, name, status }) as BookingOption;
 
@@ -23,5 +23,51 @@ describe("gapEffect", () => {
     expect(gapEffect(by("purposes"))).toBe("Nobody can send a request until it has one.");
     expect(gapEffect(by("urgent_reasons"))).toBe("Nobody can mark a stop Urgent until it has one.");
     expect(gapEffect(by("heads"))).toBe("Nobody can send a Company Trip until it has one.");
+  });
+});
+
+describe("destinationChoices", () => {
+  const names = (list: Array<{ name: string }>) => list.map((option) => option.name);
+
+  it("lists Active choices A to Z, ignoring case and reading numbers as numbers", () => {
+    const list = [item("wilcon Depot"), item("Site 10"), item("Anonang"), item("Site 2"), item("Old yard", "Inactive")];
+    expect(names(destinationChoices(list))).toEqual(["Anonang", "Site 2", "Site 10", "wilcon Depot"]);
+  });
+
+  it("leaves out fuel/errand stops", () => {
+    const fuel = { ...item("Shell Calasiao"), isOtherStop: true } as BookingOption;
+    expect(names(destinationChoices([item("Anonang"), fuel]))).toEqual(["Anonang"]);
+  });
+
+  it("sorts in a kept Inactive choice with the rest", () => {
+    const list = [item("Anonang"), item("Wilcon Depot")];
+    expect(names(destinationChoices(list, [{ id: "Mall", name: "Mall" }]))).toEqual(["Anonang", "Mall (inactive)", "Wilcon Depot"]);
+  });
+
+  it("shows a name once, ignoring case and extra spaces", () => {
+    const list = [item("Wilcon Depot"), { ...item(" wilcon   depot "), id: "w2" }, item("Anonang")];
+    expect(destinationChoices(list)).toEqual([
+      { id: "Anonang", name: "Anonang" },
+      { id: "Wilcon Depot", name: "Wilcon Depot" },
+    ]);
+  });
+
+  it("keeps the copy a request already uses", () => {
+    const list = [item("Wilcon Depot"), { ...item("Wilcon Depot"), id: "w2" }];
+    expect(destinationChoices(list, [{ id: "w2", name: "Wilcon Depot" }])).toEqual([{ id: "w2", name: "Wilcon Depot" }]);
+  });
+});
+
+describe("sameNameChoice", () => {
+  const list = [item("Wilcon Depot"), item("Old Yard", "Inactive")];
+
+  it("finds another choice with the same name, ignoring case and extra spaces, Active or not", () => {
+    expect(sameNameChoice(list, "new", "  wilcon  depot")?.id).toBe("Wilcon Depot");
+    expect(sameNameChoice(list, "new", "old yard")?.status).toBe("Inactive");
+  });
+
+  it("ignores the choice being edited and different names", () => {
+    expect(sameNameChoice(list, "Wilcon Depot", "WILCON DEPOT")).toBeUndefined();
+    expect(sameNameChoice(list, "new", "Wilcon Depot 2")).toBeUndefined();
   });
 });

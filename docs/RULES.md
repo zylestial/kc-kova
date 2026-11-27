@@ -96,10 +96,11 @@ should be written, for both humans and AI agents.)
   (`approve_schedule`).
 - Vehicles are never hard-deleted, only marked `Inactive`.
 - A vehicle that **can be requested for company trips** (`company_trips`,
-  off by default) is offered only on the Company Trip form and under
-  Company trips on the Scheduling page, never on a Daily trip (trigger
-  `schedule_revisions_kind_vehicle`, 0054). Every vehicle is a company
-  vehicle; never call the others "non-company".
+  off by default) is offered only on the Company Trip form, never on a
+  Daily trip (trigger `schedule_revisions_kind_vehicle`, 0054). Every
+  vehicle is a company vehicle; never call the others "non-company".
+- A **personal vehicle** (`owner_account_id`, 0092) belongs to one
+  employee: only they book and drive it, for their own Company trips.
 
 ## Requests, schedules and completions (v2)
 
@@ -118,7 +119,10 @@ trigger on `schedule_revisions`; the Scheduling page only offers to add to
 that trip (`planOn` in `lib/scheduling-plan.ts`).
 
 **Scheduling page** (`/scheduling`, owner's calls 2026-10-14/15). The
-database stays the authority; these are the page's own rules:
+database stays the authority; these are the page's own rules. It plans
+Daily trips only since Company trip v2 (2026-11-27): a Company trip is
+booked by its requester, and a link to one opens it on Schedules, where it
+has no Edit or Propose changes.
 
 - **Changing a trip waiting for the Admin takes it back** (0057): a
   Scheduler's `save_schedule_draft` on a `SUBMITTED` revision puts it back
@@ -129,24 +133,35 @@ database stays the authority; these are the page's own rules:
   changes** (a new draft version; the approved times stay in effect until
   the Admin approves the change).
 - **Warnings block Submit** (`tripChecks` in `lib/scheduling-edit.ts`): a
-  leg whose Time In is too soon to drive there, a Time Out before the leg
-  before it arrives, a fixed-time stop reached more than 5 minutes off its
-  time, more than 8 legs, and a Daily trip that doesn't end at ANONANG.
+  Time Out before the leg before it arrives, more than 8 legs, and a Daily
+  trip that doesn't end at ANONANG. **Suggestions don't** (`tripSuggestions`):
+  a Time In sooner than the estimated drive there (owner, 2026-11-16: the
+  estimate is only a guess) and a fixed-time stop reached more than 5
+  minutes off its time.
   There's no end of day (owner's call 2026-10-16: vehicles run any hour,
   Daily or Company); a trip still fits in one calendar day, since its
   times are Time Out / Time In on that date.
+- **Submit asks first** (`submit-confirm-dialog.tsx`, 2026-11-26): Submit
+  and Resubmit open a confirm box showing the vehicle and Driver large,
+  with the date, stops and times, so a trip on the wrong vehicle is caught
+  before the Admin sees it (a trip's vehicle can't be changed afterwards).
+- **Pick the vehicle, then plan it** (owner's call 2026-11-26): a Vehicle dropdown (name · plate · Driver · state) picks the
+  one vehicle shown; until one is picked, no trip shows. To plan keeps every
+  stop, greying out the ones that can't go on it with `planOn`'s reason, and
+  a stop's sheet offers only that vehicle. Adding a stop from the sheet, a
+  link to a trip (a notification, Edit, Open problem) or Change the route
+  picks that trip's vehicle.
 - **Adding a stop** (`planOn`): a Daily vehicle needs an assigned Driver and
   takes one trip a day, so a stop joins that trip (not once it's on the
-  road). A Company stop goes only on the vehicle its requester picked,
-  joining that vehicle's trip for the same department, Driver and starting
-  point if one hasn't started yet, otherwise as a new trip at least 15
-  minutes after the vehicle's last one. A Company request's stops keep the
-  requester's order (52-A before 52-B).
+  road). (The Company paths in `planOn` are no longer reached.)
 - Changing a leg's Time Out moves its Time In by the same amount (the leg
   keeps its length); changing Time In changes only Time In. Later legs
   without a typed time are estimated again.
 - **Taking a stop off** (Remove on its leg) sends it back to the waiting
   list, or back to its requester with a reason (`send_back_requests`).
+- **Needs your attention** (2026-11-26): the Urgent stops, stop reports and
+  trips waiting for the Admin fold under one bar with their counts. Hide
+  keeps them folded until a new one arrives, which opens the bar again.
 - **Undo** reverses the Scheduler's changes on the page one at a time,
   moved "any day that week" stops included; it can't undo a submit or a
   send-back.
@@ -186,37 +201,69 @@ The request rules (`create_request_group`, `update_request_group`,
   that week, not a past day, and not while it's in a schedule. The
   requester gets a REQUEST_MOVED notification. The stop keeps the asked-for
   date on its group.
+- **Deleting a stop** (`delete_request`, 0091; owner's call 2026-11-18):
+  only a Scheduler or Admin, one stop at a time, and only a stop that was
+  never on a trip: not missed, and never in any schedule, a discarded
+  draft included (its history points at the stop). It is erased for good
+  with its destinations, cancellation asks and notifications, and its
+  request too once no stop is left; otherwise the request's `row_version`
+  goes up, so an open edit form is stale. The requester isn't told. The
+  only trace is the audit log, which records every deleted row.
 - `create_request` / `update_request` (0051) stay for older requests; the
   app's forms use the group RPCs.
 
-The Company trip rules (`create_request_group` with `COMPANY`, 0052;
-`create_company_trip` and the triggers in 0054):
+The Company trip rules (Company trip v2, 0092–0097, owner's calls
+2026-11-26/27; `request_company_trip` and the triggers in 0094):
 
-- A Company Trip request names a starting point, a vehicle that can be
-  requested for company trips, a Driver who can drive company trips
-  (`can_drive_company`, 0079: a Company car Driver, or any account an Admin
-  switched "Can drive company trips" on, the requester included; never a
-  Truck driver), an Immediate Supervisor and a PM / CM / Dept. Head; the site
-  officer and site company are optional. All its stops have one Project /
-  Site, and that is its department / site (0058, owner's call 2026-10-15):
-  it prints as the department and decides the "one department per trip"
-  rule. The separate Departments / Sites list is hidden; groups made before
-  0058 keep the department they had.
-- A Company trip (`schedules.kind = 'COMPANY'`) takes only Company Trip
-  requests, all with the same vehicle, Driver, department and starting
-  point; the vehicle and Driver are the requester's, never the Scheduler's.
-  Its first leg starts at the starting point and its last leg ends at the
-  last stop: no leg back to ANONANG. A Company Trip request can't go on a
-  Daily trip.
-- A vehicle may take several Company trips a day as long as their times
-  don't overlap (`schedule_reservations`). Approval, return, revision and
-  cancellation work as for Daily trips.
+- **The request is the trip.** There is no Scheduler step: the requester
+  books it and sending it creates the Company trip (`schedules.kind =
+  'COMPANY'`) and submits it straight to the Admin. One request is one trip,
+  never split or joined with another. The old Company form
+  (`create_request_group` / `update_request_group` with `COMPANY`) and
+  Scheduling's Company planner (`schedule.save` / `schedule.submit` on a
+  Company trip) are refused (trigger `refuse_old_company_trip_paths`).
+- **What it names:** the date; Regular or Urgent (Urgent needs a reason from
+  the Admin's urgent-reasons list; the stops' `request_type` follows it);
+  the vehicle (one that can be requested for company trips, or the
+  requester's own personal vehicle); the Driver (someone who can drive
+  company trips, `can_drive_company`, the requester included, never a Truck
+  driver; a personal vehicle is always driven by its owner); Time Out, the
+  arrive and leave time at each destination but the last, and Time In
+  (arriving at the last one), each after the one before; 1–8 destinations
+  from the list; one free-text Purpose (at most 300 characters, stored on
+  each stop as its purpose); the Department / Project Site (a Project /
+  Site choice, 0058); the Fleet Card's last 4 digits (required); and up to
+  15 passengers, KOVA accounts or typed guests. No supervisor, head, site
+  officer, supplier or contact.
+- **Starts at the Main Office** (the active `start-office` starting point)
+  and ends on arriving at the last destination: no leg back to ANONANG.
+- **Nobody on two trips at once:** a vehicle's or Driver's Company trips
+  can't overlap (`schedule_reservations`), and neither can the requester's,
+  the Driver's or any passenger account's (`assert_people_free`); guests
+  can't be checked. A non-Admin can't book a past date.
+- **Admin approves.** Return with a comment goes back to the requester
+  (notified, and shown on My Requests through `my_company_trips`, 0096), who
+  edits and resends. Editing an approved trip makes a new version for the
+  Admin; the approved one stays in force until then, and its date can't
+  change (cancel and send a new request instead). Nothing can change once
+  the trip has started. The requester or an Admin can cancel it before it
+  starts (`cancel_company_trip`); the Driver is told if it was approved.
+- **The requester prints** the Company Trip Form from My Requests once the
+  trip is approved; it fills in the odometers once the trip has ended
+  (0097). Finished Trips no longer prints Company trips.
+- **Personal vehicles (0092):** an invite with "Can drive company trips"
+  can say "Has a personal vehicle"; the employee then enters its name and
+  plate when setting up their account, and it is added to Vehicles with
+  them as its owner (`owner_account_id`, one per owner). Only its owner books
+  and drives it, only for Company trips; it is never on a Daily trip
+  (trigger `schedule_revisions_kind_vehicle`). Changing its plate keeps its
+  owner and settings (0095).
 - **Its Driver records it** (`start_company_trip`,
   `record_company_stop`, `end_company_trip`; 0055, Driver since 0079): the
   trip's Driver, or an Admin for them (audited as an override). A trip its
   requester started before 0079 can still be finished by whoever started
-  it. Start trip needs
-  the starting odometer and opens on the trip's date (0056); then Arrived and
+  it. Start trip opens on the trip's date (0056); the starting odometer is
+  entered after it (0090, below); then Arrived and
   Leaving at each stop but the last, in route order; End trip on arriving
   at the last stop needs the ending odometer, never lower than the start.
   A vehicle without an odometer (0078) takes no readings at either end;
@@ -247,6 +294,17 @@ The completion rules:
   the final return, and screens and printed forms say "No odometer" / "N/A".
   Whether readings are needed is read from the vehicle when the trip is
   completed. A vehicle with one still needs both, as before.
+- **The starting odometer comes after Start trip** (owner, 2026-11-16;
+  0090, `set_start_odometer`): on a vehicle with an odometer, Daily or
+  Company, Start trip is tapped first and the screen then asks for the
+  reading in place of the next button, so it's in before Arrived; it's
+  filled in from the vehicle's last reading, and saved on the phone with no
+  signal like a tap. A Daily trip keeps it on `trip_attendance` until
+  Complete trip, which shows it filled in and still editable (the
+  completion's pair is the record). A Company trip keeps it on its run; End
+  trip is unchanged, so a run with no starting reading ends without one.
+  The Driver or an Admin can set or correct it until Complete trip (Daily)
+  or End trip (Company).
 - The trip must be over: the Driver has tapped Start and End (below). Since
   0047 End trip is enough, so a trip back early can be completed before its
   last planned Time In. Problem reports have no such limit, can be filed
@@ -302,6 +360,11 @@ The attendance rules (`record_trip_attendance`, migration 0042):
   tell how far a trip on the road has got; their screens show no positions
   or flags). A Company trip's stop taps can also be read by whoever can see
   that trip (0055). Nobody else can.
+- **An earlier trip with no End trip warns, never blocks** (owner,
+  2026-11-16; `lib/unended-trip.ts`): tapping Start trip, Daily or Company,
+  while another of the Driver's trips was started and never ended shows
+  "You haven't ended your trip on …" with Open that trip, Start anyway and
+  Cancel. Screen-only; the database doesn't check.
 
 The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
 0044–0046):
@@ -323,9 +386,11 @@ The stop-time rules (`record_stop_tap`, `set_trip_time`, migrations
   every request Done, a problem is reported at the next stop. A stop with no
   requests needs nothing marked. A stop Arrived at, or a Company trip started,
   before 0088 goes on as it used to (`before_tasks`).
-- These are the actual times on the printed form: leg 1 TIME OUT = Start
+- These are a trip's actual times, shown on Finished Trips (each leg card
+  leads with them, the planned time beside it): leg 1 TIME OUT = Start
   trip, leg N TIME IN = Arrived at leg N, leg N+1 TIME OUT = Leaving leg N,
-  final TIME IN = End trip. Planned times stay on the Trip Record only.
+  final TIME IN = End trip. **The printed forms carry the Scheduler's
+  planned times** (owner's call 2026-11-26), not the taps.
 - Same position rules as Start/End, measured from the destination's saved
   location when it has one (Request choices); without one, or for a typed-in
   "other" destination, the tap is kept and flagged "No location set for …"
@@ -400,7 +465,8 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   It needs no Admin, an exception to "a change on the road needs the Admin",
   since it's the same trip and places. It's refused with route changes
   waiting, or at 8 legs. If all the requests there moved, the first visit stays
-  with no stops and needs no Leaving. Not reaching the new stop is Not reached
+  with no stops; if it was Arrived at, the Driver still taps Leaving, so the
+  next leg's TIME OUT is recorded (same after Skip). Not reaching the new stop is Not reached
   (below), so it can still go on another day.
 - **When the trip ends** (0085, 0087): a report on a stop already reached, not
   answered or answered End the trip, or answered Wait there on the last stop
@@ -416,7 +482,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   reports every non-final leg after the last one reached (tapped or
   reported missed) as missed, kind NOT_REACHED. A leg before one reached
   is a forgotten tap, not a missed stop, and still needs the Admin's time.
-  A fuel / errand stop is handled at once; one with requests shows on
+  An other stop (office, fuel, errand) is handled at once; one with requests shows on
   Scheduling like any missed stop. Its requesters get STOP_MISSED, and
   Schedulers and Admins one STOP_REPORTED naming the stops.
 - A missed stop needs no Arrived / Leaving: `trip_times_missing` leaves out
@@ -462,6 +528,19 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   name is added as Active and used. A name matching only an Inactive choice
   stays typed. Done inside `insert_request_destinations`, since Requesters
   can't write choices themselves. Project / Site "Other" is unchanged.
+- Lists are typed into, not picked from a long dropdown (2026-11-27). On
+  Destination and Purpose, a name that isn't on the list shows Add "…",
+  which adds it to the list for everyone right away (`add_booking_option`,
+  0098; same matching and lock as 0049, so a name is never added twice; a
+  name the Admin turned off is refused; 20 new names a day per account).
+  Department / Project Site and every other list stay Admin-only (owner's
+  call), so the old Project / Site "Other…" is gone; a saved request's
+  typed name still shows. Who added a name is in
+  `booking_option_additions`.
+- Sending a request (Daily or Company) asks first: a dialog lists what is
+  being sent, with Go back and Send request (2026-11-27).
+- Screen wording is formal (owner, 2026-11-27): "Select", "Enter", "Please
+  contact the Admin"; a note only where it's needed, no chatty asides.
 
 ## Cross-cutting
 

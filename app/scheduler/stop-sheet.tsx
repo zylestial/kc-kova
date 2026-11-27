@@ -58,6 +58,7 @@ export default function StopSheet({
                     {stop.group.startingPoint?.name}
                   </div>
                 )}
+                {stop.supplier && <div className="sc-muted">Supplier: {stop.supplier.name}</div>}
                 <div className="sc-muted">Contact: {stop.contact || "—"}</div>
               </div>
             ))}

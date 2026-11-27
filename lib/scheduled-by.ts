@@ -10,10 +10,13 @@ const plannerId = (revision: ScheduleRevision) =>
 /**
  * Who planned a trip version: "Drafted by" while it's a draft (or returned
  * to one), "Scheduled by" once submitted, naming who submitted it. Null
- * when the account isn't known.
+ * when the account isn't known. A Company trip has no planner (the
+ * requester books it, Company trip v2): it says who records it instead,
+ * whoever drives.
  */
-export function scheduledBy(revision: ScheduleRevision | undefined, accounts: Account[]) {
+export function scheduledBy(revision: ScheduleRevision | undefined, accounts: Account[], kind?: Schedule["kind"]) {
   if (!revision) return null;
+  if (kind === "COMPANY") return revision.driverName ? { label: "Records the trip:", name: revision.driverName } : null;
   const name = accounts.find((account) => account.id === plannerId(revision))?.name;
   return name ? { label: drafting(revision) ? "Drafted by" : "Scheduled by", name } : null;
 }
@@ -23,7 +26,7 @@ export function requestScheduledBy(requestId: string, schedules: Schedule[], acc
   for (const schedule of schedules) {
     if (schedule.status !== "ACTIVE") continue;
     const revision = currentRevision(schedule);
-    if (revision?.requestIds.includes(requestId)) return scheduledBy(revision, accounts);
+    if (revision?.requestIds.includes(requestId)) return scheduledBy(revision, accounts, schedule.kind);
   }
   return null;
 }
@@ -39,4 +42,27 @@ export function othersDraftQuestion(schedule: Schedule, meId: string | undefined
   const by = scheduledBy(open, accounts);
   if (!by) return null;
   return drafting(open) ? `${by.name} is drafting this trip. Edit anyway?` : `${by.name} scheduled this trip. Edit anyway?`;
+}
+
+/**
+ * Who cancelled a trip and when, e.g. { name: "Liza", at: "Nov 26, 2026,
+ * 3:40 PM" } (Manila time). Null unless it's cancelled.
+ */
+export function cancelledBy(
+  schedule: Pick<Schedule, "status" | "cancelledAt" | "cancelledByAccountId"> | null | undefined,
+  accounts: Pick<Account, "id" | "name">[],
+): { name: string; at: string } | null {
+  if (schedule?.status !== "CANCELLED") return null;
+  const name = accounts.find((account) => account.id === schedule.cancelledByAccountId)?.name ?? "an Admin";
+  const at = schedule.cancelledAt
+    ? new Date(schedule.cancelledAt).toLocaleString("en-US", {
+        timeZone: "Asia/Manila",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
+  return { name, at };
 }

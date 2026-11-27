@@ -27,8 +27,11 @@ export default function StopCard({
   left = false,
   onOpen,
   onDrag,
+  blocked = "",
 }: {
   stop: TransportRequest;
+  /** Why it can't go on the vehicle picked above (planOn); "" when it can, or none is picked. */
+  blocked?: string;
   /** In a place group, which already names the place. */
   inGroup?: boolean;
   /** Missed or past due, shown on a day other than its own (0065). */
@@ -43,9 +46,9 @@ export default function StopCard({
   return (
     <button
       type="button"
-      className={"sc-stop" + (urgent ? " urgent" : stop.flexibility === "FIXED" ? " fixed-time" : "")}
+      className={"sc-stop" + (urgent ? " urgent" : stop.flexibility === "FIXED" ? " fixed-time" : "") + (blocked ? " blocked" : "")}
       onClick={() => onOpen([stop.id])}
-      draggable={!!onDrag}
+      draggable={!!onDrag && !blocked}
       onDragStart={(event) => {
         // Inside a group, only this stop moves.
         event.stopPropagation();
@@ -72,6 +75,7 @@ export default function StopCard({
       </span>
       <span className="sc-meta">{stop.projectName}</span>
       {stop.details && <span className="sc-note">{stop.details}</span>}
+      {blocked && <span className="sc-blocked">Can&apos;t go on this vehicle: {blocked}</span>}
     </button>
   );
 }

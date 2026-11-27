@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, Circle, Minus, Phone, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ProblemReport, ScheduleLeg, StopTap, StopTask, StopTaskInput } from "@/lib/kova-api";
@@ -103,6 +103,8 @@ type Props = {
   onReport?: (legId: string, place: string, roadOnly?: boolean) => void;
   /** The trip is held for the Scheduler's answer (0068): this says so instead of the next button; it's told if any task here is still to do. */
   held?: (othersLeft: boolean) => string;
+  /** Shown on the Start card after Start trip, holding the next step until it's done: the starting odometer (0090). */
+  beforeNext?: ReactNode;
   taps: StopTap[];
   tasks: StopTask[];
   problems: ProblemReport[];
@@ -126,7 +128,7 @@ type Props = {
  * Any report makes the trip wait for the Scheduler's answer (0068). A stop
  * Arrived at before tasks existed goes on as it used to.
  */
-export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, flags, taps, tasks, problems, onTask, onNotDone }: Props) {
+export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey, notYet, missed, onReport, held, beforeNext, flags, taps, tasks, problems, onTask, onNotDone }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const busy = busyKey !== null;
   const end = steps[steps.length - 1];
@@ -155,6 +157,15 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {held(open > 0)}
           </p>
         );
+      // The starting reading is asked for on the Start card; this step waits for it.
+      if (beforeNext)
+        return (
+          <div className="trip-step later">
+            <Circle size={18} />
+            <span>{text.done}</span>
+            {planned && <small>est. {hhmmLabel(planned)}</small>}
+          </div>
+        );
       return (
         <>
           <Button className="primary trip-step-button" disabled={busy || open > 0} onClick={() => onTap(step.time.source)}>
@@ -178,12 +189,14 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
 
   return (
     <div className="trip-steps">
-      {cards.map((card) => {
-        const current = card.rows.some((item) => item.step.state === "next");
+      {cards.map((card, index) => {
+        // While the starting reading is waited for, the Start card is the current one.
+        const current = beforeNext ? index === 0 : card.rows.some((item) => item.step.state === "next");
         const finished = card.rows.every((item) => ["done", "skipped", "missed"].includes(item.step.state));
         const legId = card.legId;
-        // At this stop, between Arrived and Leaving, answering for each request (0088).
-        const live = !!legId && card.rows[1]?.step.state === "next" && asksTasks(taps, legId);
+        // At this stop, between Arrived and Leaving, answering for each request (0088);
+        // not once the stop is missed (its requests were skipped or moved), so Leaving is open.
+        const live = !!legId && card.rows[1]?.step.state === "next" && asksTasks(taps, legId) && !missed?.has(legId);
         const open = live ? tasksOpen(card.served, legId!, tasks, flags ?? new Map()) : 0;
         const arrived = card.rows[0]?.step.state === "done";
         return (
@@ -225,6 +238,7 @@ export default function DriverTripSteps({ steps, legs, stopsById, onTap, busyKey
             {card.rows.map((item) => (
               <div key={stepKey(item.step.time.source)}>{row(item, open)}</div>
             ))}
+            {index === 0 && beforeNext}
             {current && started && !held && legId && onReport && (!live || open > 0 || !card.served.length) && (
               <button type="button" className="trip-step-report" disabled={busy} onClick={() => onReport(legId, card.place, live)}>
                 {live ? "Vehicle or road problem? Report it" : arrived ? "Problem here? Report it" : "Can't get here? Report it"}

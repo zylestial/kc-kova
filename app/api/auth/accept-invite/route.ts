@@ -3,7 +3,7 @@ import { z } from "zod";
 import { readJson } from "@/lib/api-route";
 import { hashToken } from "@/lib/account-tokens";
 import { INVITE_LINK_GONE, type InviteRow } from "@/lib/invites";
-import { positionAsk } from "@/lib/invite-fields";
+import { normalizePlate, positionAsk } from "@/lib/invite-fields";
 import { passwordError } from "@/lib/password-policy";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -17,6 +17,8 @@ const acceptBody = z.object({
   username: z.string().trim().min(1),
   position: z.string().trim().max(100).catch(""),
   password: z.string().min(1),
+  vehicleName: z.string().trim().max(60).catch(""),
+  vehiclePlate: z.string().max(20).catch(""),
 });
 
 /**
@@ -26,6 +28,8 @@ const acceptBody = z.object({
  * twice; if the account can't be made (say, the username is taken) the
  * claim is released and the same link can be tried again. Opening the
  * emailed link proved the email, so it's stored as confirmed. Ends signed in.
+ * An invite with "Has a personal vehicle" (0092) also needs the vehicle's
+ * name and plate; it's added to Vehicles with this account as its owner.
  */
 export async function POST(request: Request) {
   const body = parseWith(acceptBody, await readJson(request));
@@ -54,6 +58,19 @@ export async function POST(request: Request) {
   if (ask === "required" && !position) {
     await release();
     return NextResponse.json({ message: "Add your position; it prints on the Company Trip Form." }, { status: 422 });
+  }
+  const vehicleName = body.vehicleName;
+  const vehiclePlate = normalizePlate(body.vehiclePlate);
+  if (invite.has_personal_vehicle) {
+    if (!vehicleName || !vehiclePlate) {
+      await release();
+      return NextResponse.json({ message: "Add your vehicle's name and license plate." }, { status: 422 });
+    }
+    const { data: plateTaken } = await admin.from("vehicles").select("plate").eq("plate", vehiclePlate).maybeSingle();
+    if (plateTaken) {
+      await release();
+      return NextResponse.json({ message: "That license plate is already in KOVA. Check it, or ask an Admin." }, { status: 409 });
+    }
   }
   const { data: taken } = await admin.from("account_emails").select("account_id").eq("email", invite.email).maybeSingle();
   if (taken) {
@@ -84,6 +101,12 @@ export async function POST(request: Request) {
     .insert({ account_id: accountId, email: invite.email, confirmed_at: now, updated_at: now });
   if (emailError) console.error("[api/auth/accept-invite] email not saved:", emailError);
   await admin.from("account_invites").update({ accepted_account_id: accountId }).eq("id", invite.id);
+  if (invite.has_personal_vehicle) {
+    const { error: vehicleError } = await admin
+      .from("vehicles")
+      .insert({ plate: vehiclePlate, name: vehicleName, status: "Active", company_trips: true, owner_account_id: accountId });
+    if (vehicleError) console.error("[api/auth/accept-invite] personal vehicle not saved:", vehicleError);
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({

@@ -8,6 +8,7 @@ import {
   recordCompanyStop,
   recordStopTask,
   reportStop,
+  saveStartOdometer,
   type Schedule,
   type ScheduleRevision,
   type StopReportKind,
@@ -25,6 +26,10 @@ import StopTaskActions from "./stop-task-actions";
 import StopJobs from "./stop-jobs";
 import StopReportForm from "./stop-report-form";
 import SavedTapsBanner from "./saved-taps-banner";
+import UnendedTripWarning from "./unended-trip-warning";
+import { unendedTrip } from "@/lib/unended-trip";
+import StartOdometerForm from "./start-odometer-form";
+import { lastEndReading } from "@/lib/odometer";
 
 const dateLabel = (date: string) =>
   new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -44,7 +49,7 @@ type Trip = { schedule: Schedule; revision: ScheduleRevision };
  * problem pauses the trip until Resume trip.
  */
 export default function MyTrips({ accountId, initialOpenId }: { accountId: string; initialOpenId?: string }) {
-  const { schedules, requests, vehicles, companyRuns, stopTaps, stopTasks, completions, problems } = useKovaData();
+  const { schedules, requests, vehicles, companyRuns, stopTaps, stopTasks, completions, problems, attendance } = useKovaData();
   const today = manilaToday();
   const mine = useMemo(() => new Set(requests.filter((request) => request.ownerAccountId === accountId).map((request) => request.id)), [requests, accountId]);
   const trips: Trip[] = schedules
@@ -64,6 +69,9 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [locationOff, setLocationOff] = useState(false);
+  /** The trip whose Start trip is held while the Driver reads that an earlier trip has no End trip. */
+  const [startHeld, setStartHeld] = useState<string | null>(null);
+  const unendedBefore = (trip: Trip) => unendedTrip(schedules, attendance, companyRuns, accountId, trip.schedule.id);
   /** The stop being reported (0061). */
   const [reportAt, setReportAt] = useState<{ legId: string; place: string; requestId?: string; roadOnly?: boolean } | null>(null);
   useAutoClear(notice, setNotice);
@@ -71,11 +79,15 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   const open = trips.find((trip) => trip.schedule.id === openId);
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const runOf = (trip: Trip) => companyRuns.find((run) => run.scheduleId === trip.schedule.id);
-  // Start trip asks for the odometer only on a vehicle that has one (0078); End trip, only if Start had a reading.
-  const takesOdometer = (trip: Trip, kind: CompanyStep["kind"]) =>
-    kind === "START"
-      ? vehicles.find((vehicle) => vehicle.plate === trip.revision.plate)?.hasOdometer !== false
-      : kind === "END" && typeof runOf(trip)?.startOdometer === "number";
+  const hasOdometer = (trip: Trip) => vehicles.find((vehicle) => vehicle.plate === trip.revision.plate)?.hasOdometer !== false;
+  // The starting reading comes after Start trip, before Arrived (owner, 2026-11-16; 0090), on a vehicle with an odometer (0078).
+  const needsReading = (trip: Trip) => {
+    const run = runOf(trip);
+    // Not while Start trip is still saved on the phone (no signal, 0077): saving needs signal.
+    return hasOdometer(trip) && !!run && !run.saved && !run.endAt && run.startOdometer == null;
+  };
+  // End trip asks for the ending reading only if the trip has a starting one.
+  const takesOdometer = (trip: Trip, kind: CompanyStep["kind"]) => kind === "END" && typeof runOf(trip)?.startOdometer === "number";
   const problemsOf = (trip: Trip) => problems.filter((item) => item.scheduleId === trip.schedule.id);
   const stepsOf = (trip: Trip) =>
     companyTripSteps(
@@ -95,7 +107,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
     return trip.schedule.date <= today ? ["Ready to start", "pending"] : ["Upcoming", "info"];
   }
 
-  async function tap(trip: Trip, step: CompanyStep) {
+  async function tap(trip: Trip, step: CompanyStep, anyway = false) {
     // With no signal the tap is saved on the phone with this moment's time (0077).
     const tappedAt = new Date().toISOString();
     const needsOdometer = takesOdometer(trip, step.kind);
@@ -109,6 +121,11 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
       setError(`The ending reading can't be lower than the start (${run.startOdometer} km).`);
       return;
     }
+    if (!anyway && step.kind === "START" && unendedBefore(trip)) {
+      setStartHeld(trip.schedule.id);
+      return;
+    }
+    setStartHeld(null);
     setBusy(true);
     setError("");
     try {
@@ -123,6 +140,18 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
         await recordCompanyStop(trip.schedule.id, { legId: step.legId!, kind: step.kind, location }, tappedAt);
       }
       setLocationOff(!location);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
+    }
+    setBusy(false);
+  }
+
+  // The starting odometer, after Start trip (0090); saved on the phone with no signal, like a tap.
+  async function saveReading(trip: Trip, reading: number) {
+    setBusy(true);
+    setError("");
+    try {
+      await saveStartOdometer(trip.schedule.id, reading);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Try again.");
     }
@@ -165,7 +194,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
           <h1>
             My Trips<span className="title-dot">.</span>
           </h1>
-          <p>The approved Company trips you drive. You record each one: Start trip (with the odometer, if the vehicle has one), each stop, then End trip.</p>
+          <p>The approved Company trips you drive. You record each one: Start trip, then the odometer if the vehicle has one, each stop, then End trip.</p>
         </div>
       </div>
       {notice && (
@@ -223,6 +252,7 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                       setError("");
                       setOdometer("");
                       setReportAt(null);
+                      setStartHeld(null);
                     }}
                   >
                     <span>
@@ -306,6 +336,15 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                           )}
                         </p>
                       )}
+                      {/* What was reported on this trip, with its note, as My Schedule shows it. */}
+                      {problemsOf(trip).map((item) => (
+                        <p className="helper" key={item.id}>
+                          {item.legId
+                            ? `${stopReportLabel(item)} at ${trip.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}`
+                            : "Problem reported"}
+                          {item.note && `: ${item.note}`}
+                        </p>
+                      ))}
                       {next && trip.schedule.date > today && <p className="helper">Start trip opens on {dateLabel(trip.schedule.date)}.</p>}
                       {reportAt && (
                         <StopReportForm
@@ -326,23 +365,51 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
                           {holdText(problemsOf(trip), tasksLeft > 0)}
                         </p>
                       )}
+                      {startHeld === trip.schedule.id && next?.kind === "START" && unendedBefore(trip) && (
+                        <UnendedTripWarning
+                          trip={unendedBefore(trip)!}
+                          busy={busy}
+                          onOpen={
+                            unendedBefore(trip)!.kind === "COMPANY"
+                              ? () => {
+                                  setStartHeld(null);
+                                  setOdometer("");
+                                  setOpenId(unendedBefore(trip)!.scheduleId);
+                                }
+                              : undefined
+                          }
+                          onStart={() => void tap(trip, next, true)}
+                          onCancel={() => setStartHeld(null)}
+                        />
+                      )}
                       {!reportAt && next && trip.schedule.date <= today && !(onTheRoad && trip.schedule.pausedAt) && (
                         <div className="my-trip-action">
-                          {takesOdometer(trip, next.kind) && (
-                            <label className="field">
-                              <span>{next.kind === "START" ? "Starting odometer (km)" : "Ending odometer (km)"}</span>
-                              <Input
-                                inputMode="numeric"
-                                placeholder={next.kind === "START" ? "e.g. 48215" : run ? `At least ${run.startOdometer}` : ""}
-                                value={odometer}
-                                onChange={(event) => setOdometer(event.target.value)}
-                              />
-                            </label>
+                          {needsReading(trip) ? (
+                            <StartOdometerForm
+                              key={trip.schedule.id}
+                              initial={lastEndReading(trip.revision.plate, schedules, completions)}
+                              busy={busy}
+                              onSave={(reading) => void saveReading(trip, reading)}
+                            />
+                          ) : (
+                            <>
+                              {takesOdometer(trip, next.kind) && (
+                                <label className="field">
+                                  <span>Ending odometer (km)</span>
+                                  <Input
+                                    inputMode="numeric"
+                                    placeholder={run ? `At least ${run.startOdometer}` : ""}
+                                    value={odometer}
+                                    onChange={(event) => setOdometer(event.target.value)}
+                                  />
+                                </label>
+                              )}
+                              <Button className="primary trip-step-button" disabled={busy || tasksLeft > 0} onClick={() => tap(trip, next)}>
+                                {busy ? "Saving…" : next.label}
+                              </Button>
+                              {tasksLeft > 0 && <p className="trip-step-note">Mark {tasksLeft === 1 ? "the task" : "each task"} above first: {tasksLeft} left.</p>}
+                            </>
                           )}
-                          <Button className="primary trip-step-button" disabled={busy || tasksLeft > 0} onClick={() => tap(trip, next)}>
-                            {busy ? "Saving…" : next.label}
-                          </Button>
-                          {tasksLeft > 0 && <p className="trip-step-note">Mark {tasksLeft === 1 ? "the task" : "each task"} above first: {tasksLeft} left.</p>}
                           {onTheRoad && nextLeg && (!liveLeg || tasksLeft > 0 || !liveHasStops) && (
                             <button
                               type="button"

@@ -19,7 +19,7 @@ makes them:
 | `history.sql` | Which migrations have been applied |
 
 **Not in the backup**, and to be set again by hand on a new project: the
-Vercel environment variables, the Supabase dashboard settings (Auth, SMTP,
+Netlify environment variables, the Supabase dashboard settings (Auth, SMTP,
 URL configuration) and the two Vault secrets for Push (`push_send_url`,
 `push_send_secret`; see migration 0070). KOVA keeps no files in Supabase
 Storage, so there's nothing there to lose.
@@ -95,7 +95,8 @@ psql "$NEW_DB_URL" -v ON_ERROR_STOP=1 \
   -f history.sql
 ```
 
-Then point KOVA at the new project: in Vercel, replace
+Then point KOVA at the new project: in Netlify (and the fallback Vercel
+site, if it's still used), replace
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
 `SUPABASE_SERVICE_ROLE_KEY` with the new project's values and redeploy. Set
 the dashboard settings and the Push Vault secrets again (see "Not in the

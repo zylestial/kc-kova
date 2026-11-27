@@ -13,7 +13,8 @@ type Invite = Awaited<ReturnType<typeof lookUpInvite>>;
 /**
  * Where an invite link lands: the person picks their own name, username
  * and password, plus a Position only when their access needs one
- * (lib/invite-fields.ts). The role and request permissions were chosen by
+ * (lib/invite-fields.ts), and their own vehicle when the invite says they
+ * have one (0092). The role and request permissions were chosen by
  * the Admin who invited them and only show here; an Admin can change any
  * of it later in Settings.
  */
@@ -21,7 +22,15 @@ export default function JoinForm({ token }: { token: string }) {
   const router = useRouter();
   const [invite, setInvite] = useState<Invite | null>(null);
   const [linkError, setLinkError] = useState(token ? "" : "This link is missing its code. Open the link from your invite email again.");
-  const [form, setForm] = useState({ name: "", username: "", position: "", password: "", confirm: "" });
+  const [form, setForm] = useState({
+    name: "",
+    username: "",
+    position: "",
+    vehicleName: "",
+    vehiclePlate: "",
+    password: "",
+    confirm: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -40,6 +49,7 @@ export default function JoinForm({ token }: { token: string }) {
       (!form.name.trim() && "Enter your name.") ||
       usernameError(username) ||
       (invite?.position === "required" && !form.position.trim() && "Add your position; it prints on the Company Trip Form.") ||
+      (invite?.personalVehicle && (!form.vehicleName.trim() || !form.vehiclePlate.trim()) && "Add your vehicle's name and license plate.") ||
       (form.password !== form.confirm && "Passwords do not match.") ||
       passwordError(form.password, username);
     if (problem) {
@@ -49,7 +59,14 @@ export default function JoinForm({ token }: { token: string }) {
     setSaving(true);
     setError("");
     try {
-      const account = await acceptInvite({ token, name: form.name.trim(), username, position: form.position.trim(), password: form.password });
+      const account = await acceptInvite({
+        token,
+        name: form.name.trim(),
+        username,
+        position: form.position.trim(),
+        password: form.password,
+        ...(invite?.personalVehicle ? { vehicleName: form.vehicleName.trim(), vehiclePlate: form.vehiclePlate.trim() } : {}),
+      });
       router.push(account ? "/home" : "/sign-in");
     } catch (caught) {
       setError((caught as Error).message);
@@ -110,6 +127,19 @@ export default function JoinForm({ token }: { token: string }) {
                   />
                   <small>Your job title, e.g. Site Engineer. It prints on the Company Trip Form.</small>
                 </label>
+              )}
+              {invite.personalVehicle && (
+                <>
+                  <label className="field">
+                    <span>Your vehicle</span>
+                    <Input required maxLength={60} placeholder="e.g. Toyota Vios" {...field("vehicleName")} />
+                    <small>Its type or name. You can use it for your company trips.</small>
+                  </label>
+                  <label className="field">
+                    <span>License plate</span>
+                    <Input required maxLength={20} autoCapitalize="characters" placeholder="e.g. ABC 1234" {...field("vehiclePlate")} />
+                  </label>
+                </>
               )}
               <label className="field">
                 <span>Password</span>

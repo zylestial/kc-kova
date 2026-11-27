@@ -12,6 +12,7 @@ export type InviteRow = {
   can_request_daily: boolean;
   can_request_company: boolean;
   can_drive_company: boolean;
+  has_personal_vehicle: boolean;
   sent_at: string;
   expires_at: string;
 };
@@ -25,6 +26,7 @@ export function toInvite(row: InviteRow): Invite {
     canRequestDaily: row.can_request_daily,
     canRequestCompany: row.can_request_company,
     canDriveCompany: row.can_drive_company,
+    hasPersonalVehicle: row.has_personal_vehicle,
     sentAt: row.sent_at,
     expired: new Date(row.expires_at).getTime() <= Date.now(),
   };

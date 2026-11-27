@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Account, Schedule, ScheduleRevision } from "@/lib/kova-api";
-import { othersDraftQuestion, requestScheduledBy, scheduledBy } from "@/lib/scheduled-by";
+import { cancelledBy, othersDraftQuestion, requestScheduledBy, scheduledBy } from "@/lib/scheduled-by";
 
 describe("scheduled by", () => {
   const accounts = [
@@ -23,6 +23,11 @@ describe("scheduled by", () => {
     legs: [],
     ...patch,
   });
+  it("names who records a Company trip, not who planned it", () => {
+    expect(scheduledBy(revision({ status: "SUBMITTED" }), accounts, "COMPANY")).toEqual({ label: "Records the trip:", name: "Dan" });
+    expect(scheduledBy(revision({ status: "SUBMITTED" }), accounts, "DAILY")?.label).toBe("Scheduled by");
+  });
+
   const schedule = (patch: Partial<Schedule>): Schedule => ({
     id: "sc",
     date: "2026-10-20",
@@ -64,5 +69,19 @@ describe("scheduled by", () => {
     expect(requestScheduledBy("r1", [schedule({})], accounts)?.name).toBe("Sam Cruz");
     expect(requestScheduledBy("r2", [schedule({})], accounts)).toBeNull();
     expect(requestScheduledBy("r1", [schedule({ status: "CANCELLED" })], accounts)).toBeNull();
+  });
+});
+
+describe("cancelled by", () => {
+  const accounts = [{ id: "a1", name: "Liza Reyes" }];
+  it("names the Admin and the Manila time", () => {
+    const by = cancelledBy({ status: "CANCELLED", cancelledAt: "2026-11-26T07:40:00Z", cancelledByAccountId: "a1" }, accounts);
+    expect(by).toEqual({ name: "Liza Reyes", at: "Nov 26, 2026, 3:40 PM" });
+  });
+  it("falls back when the account isn't known", () => {
+    expect(cancelledBy({ status: "CANCELLED", cancelledByAccountId: "x" }, accounts)).toEqual({ name: "an Admin", at: "" });
+  });
+  it("is null for a trip that isn't cancelled", () => {
+    expect(cancelledBy({ status: "ACTIVE" }, accounts)).toBeNull();
   });
 });

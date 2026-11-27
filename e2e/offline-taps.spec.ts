@@ -85,7 +85,13 @@ test("taps made offline send later with the time they were tapped", async ({ bro
   expect(task).toBeGreaterThanOrEqual(arrived);
   expect(task).toBeLessThan(backOnline);
 
-  // Back online, the next tap goes straight through.
+  // Back online, Start trip has reached KOVA, so the starting reading is
+  // asked now (0090; it isn't while Start trip waits on the phone).
+  await driver.getByLabel("Starting odometer (km)").fill("12000");
+  await expect(button).toHaveText(/^Save reading$/, saved);
+  await button.click();
+  await expect(button).toHaveText(/^Leaving Site Alpha$/, saved);
+  // The next tap goes straight through.
   await button.click();
   await expect(button).not.toHaveText(/^Leaving Site Alpha$/, saved);
   await expect(steps.getByText("waiting for signal")).toHaveCount(0);

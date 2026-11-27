@@ -59,7 +59,7 @@ export const INVITES_VIEW = {
   about: "People who were emailed an invite and haven't set up their account yet. A link works once, for 7 days.",
 };
 
-type VehicleFacts = Pick<Vehicle, "status" | "companyTrips" | "hasOdometer" | "assignedDriverId">;
+type VehicleFacts = Pick<Vehicle, "status" | "companyTrips" | "hasOdometer" | "assignedDriverId" | "ownerAccountId">;
 
 /** An active Daily vehicle whose Driver isn't an active Driver can't go on a Daily trip (0079). */
 export const vehicleNeedsDriver = (vehicle: VehicleFacts, activeDriverIds: ReadonlySet<string>) =>
@@ -84,8 +84,15 @@ export const VEHICLE_VIEWS: VehicleView[] = [
     section: "Kind",
     label: "Can be requested for company trips",
     about: "Offered on the Company Trip form, with the Driver the requester picks. Never put on a Daily trip.",
-    test: (vehicle) => vehicle.companyTrips,
+    test: (vehicle) => vehicle.companyTrips && !vehicle.ownerAccountId,
     canAdd: true,
+  },
+  {
+    id: "personal",
+    section: "Kind",
+    label: "Personal vehicles",
+    about: "An employee's own vehicle, added when they set up their account. Only its owner books and drives it, for their company trips.",
+    test: (vehicle) => !!vehicle.ownerAccountId,
   },
   {
     id: "daily",

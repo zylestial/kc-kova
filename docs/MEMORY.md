@@ -1219,6 +1219,24 @@ account the company owns from day one.
 - **Company trips' last stop** has no Arrived, so its tasks can be marked once the
   stop before is left, before actually getting there. Accepted: End trip waits.
 
+## Hosting moved to Netlify (2026-11-06)
+
+- **Why:** Vercel Hobby is for personal, non-commercial use, and Pro is $20 a
+  month. Netlify's Free plan has no such rule on its pricing page (its terms
+  for company use are still to confirm). Cloudflare's free 10 ms CPU and
+  Firebase's paid-only server hosting didn't fit.
+- **What moved:** only the site. The database stayed; both addresses use it.
+  Users sign in again at the new address and turn Push on again (new VAPID
+  keys); the Vault `push_send_url` decides which site sends Push.
+- **Credits are the limit.** Netlify bills function time by duration, waiting
+  included, so a 30-second bell poll would have used more than the 300 free
+  credits; that's what Realtime on the bell fixed.
+- **Client IP:** Netlify passes a caller's own `x-forwarded-for` through, so
+  `clientIp()` reads `x-nf-client-connection-ip` there, but not on Vercel,
+  where a caller could send that header instead.
+- **Builds:** Windows deploys fail; Linux or Netlify's own build works.
+  New Netlify projects start private, and only the dashboard changes that.
+
 ## Realtime on the bell (2026-11-05)
 
 - **The bell now uses Supabase Realtime, reversing the v2.2 call below** (owner's
@@ -1254,3 +1272,88 @@ account the company owns from day one.
   Arrived before getting there (in the trip that prompted this, the Arrived
   tap at Ai Home Sto. Tomas was made at K and D), so it only fills in the
   box; the Admin checks the map and saves.
+
+## Leaving after a problem at a stop (2026-11-25)
+
+- **A missed stop already Arrived at still asks for Leaving.** Skip or Come
+  back later for the whole stop marks it missed, which used to hide its
+  Leaving too, so the next leg had no TIME OUT. Only the screens changed
+  (`tripSteps`, `companyTripSteps`): `record_stop_tap` already took Leaving
+  there, and the tasks trigger lets it through on a missed leg. The task
+  lock is off there, since its requests were skipped or moved.
+- **Wrong address or closed is not a task report.** It's about the whole
+  place, so it's only offered on the stop's own report, before Arrived.
+
+## Destination choices A to Z, no duplicates (2026-11-25)
+
+- **Choices come back sorted by ID, which is random**, so the request
+  dropdown sorts them itself (`destinationChoices` in `lib/choice-lists.ts`).
+  Only Destinations; the other dropdowns keep their order.
+- **Names match the way `option_name_key` (0049) matches them**: case and
+  extra spaces ignored (`choiceNameKey`). Typed "Other" names were already
+  matched on the server; duplicates came from Settings.
+- **The dropdown hides a second copy, but keeps the one a request uses**,
+  so an edit still shows its stop's choice. Settings refuses a new or
+  renamed Destination that matches another, Inactive ones included, so the
+  Admin reactivates instead of adding a twin. Only the screen checks; the
+  save route doesn't yet (backend change, ask first).
+## Deleting a waiting stop (2026-11-18)
+
+- **Delete is permanent, the one exception to "nothing is hard-deleted"**
+  (owner's call). Asked for to clear stops left from past days. Cancel was
+  offered as a soft alternative and turned down.
+- **One stop at a time, and the requester isn't told** (owner's calls). No
+  Delete all for past days.
+- **Never a stop that was ever on a trip.** Missed stops, and any stop with
+  a `schedule_requests` or `revision_requests` row (a discarded draft
+  included), are refused: revisions, legs, taps and tasks point at them.
+  Send back or move those instead.
+- **The audit log still holds every deleted row** (`request.delete`, with
+  the before row and who did it); `audit_events` is append-only, so this
+  can't be avoided and is the only way to trace a mistake.
+- **Deleting clears Scheduling's Undo**, whose steps may name the stop.
+
+## Company trip v2: the requester books the trip (2026-11-27)
+
+Built from the owner's prototype "KOVA Company Trip Flow v2", migrations
+0092–0097 (local only until the owner pushes them). The prototype was the
+spec; these are the calls made on top of it.
+
+- **No Scheduler for Company trips** (owner). Sending the request creates
+  the trip and submits it; one request is one trip, never joined. No old
+  Company requests existed, so the old form and Scheduling's Company
+  planner are refused outright (`refuse_old_company_trip_paths`) rather
+  than migrated. `planOn`'s Company paths are left in place but unreached.
+- **Times per stop**: the form asks Time Out, Arrive / Leave at each
+  destination but the last, and Time In. The prototype's screen only showed
+  Time Out / Time In, but legs need a time at each stop.
+- **The requester can't see an unapproved schedule** (`can_view_schedule`
+  only covers published ones), so `my_company_trips` (0096) gives them the
+  state, the Admin's comment and the latest legs; 0097 adds the odometers
+  for the print, which only the Driver and Admin can read in
+  `trip_completions`.
+- **Editing an approved trip** makes a new version; the approved one stays
+  in force, its date can't change, and printing waits until the Admin
+  approves the change (the group already holds the new fields). Known edge:
+  the published version's leg stops point at the request's old
+  destinations, and a removed stop is cancelled before re-approval.
+- **A personal vehicle is a `vehicles` row with `owner_account_id`**, made
+  at account setup; only its owner books and drives it. Its plate is
+  refused at setup if it's already in Vehicles.
+- **A returned Company trip's notification opens My Requests**, and any
+  link to a Company trip that used to open Scheduling opens it on Schedules
+  (`schedulingHref`), which has no Edit for it.
+- **Open:** what Urgent should change besides the red tag (owner to answer).
+
+## Type to add, Send confirm (2026-11-27)
+
+- **Add puts the name on the list for everyone** (user's call), not a
+  one-off "Other". Department / Project Site is given by the Admin, so it
+  has no Add. Requesters add straight away (no Admin approval), as 0049
+  already did on save; a daily cap of 20 stops a runaway.
+- **Never add a nullable column to `booking_options`** (relearned): 0098's
+  first draft did, and 19 pgTAP tests failed because functions test the
+  whole row with `is not null`. "Added by" went to its own table.
+- **Time In stays "arrive at the last destination"**: the user first said
+  it should be back at the office, then dropped it ("its okay"); the note
+  under Time In was removed instead.

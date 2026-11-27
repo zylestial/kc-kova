@@ -1,0 +1,10 @@
+# How Netlify builds KOVA (kc-kova.netlify.app). Kept here, not only in the
+# dashboard, so a deploy from GitHub builds the same way. Settings and keys
+# live in the Netlify dashboard, never in this file.
+[build]
+  command = "pnpm run build"
+  publish = ".next"
+
+[build.environment]
+  # The same major version CI tests with (.github/workflows/ci.yml).
+  NODE_VERSION = "22"

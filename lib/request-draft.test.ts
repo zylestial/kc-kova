@@ -43,24 +43,24 @@ describe("stopErrors", () => {
     const draft = filled();
     const pickUp = { ...draft.stops[0], purposeId: "pu" };
     expect(needsDetails(pickUp, options)).toBe(true);
-    expect(stopErrors(draft, pickUp, options).details).toBe("Say what to pick up, e.g. items, quantity, who receives.");
+    expect(stopErrors(draft, pickUp, options).details).toBe("Enter the details, e.g. items, quantity and recipient.");
     const urgent = { ...draft.stops[0], urgent: true, urgentReasonId: "ur" };
     expect(stopErrors(draft, urgent, options)).toEqual({
-      details: "Say what's needed at this stop, e.g. what to pick up or deliver.",
+      details: "Enter the details of this stop, e.g. items to pick up or deliver.",
     });
   });
 
   it("asks an Urgent stop for its reason instead of a purpose", () => {
     const draft = filled();
     const errors = stopErrors(draft, { ...draft.stops[0], purposeId: "", urgent: true, details: "x" }, options);
-    expect(errors).toEqual({ urgentReason: "Pick why this stop is urgent, or set it to Regular." });
+    expect(errors).toEqual({ urgentReason: "Select a reason, or set the stop to Regular." });
   });
 
   it("needs a time for a fixed stop, and a project per stop in multiple mode", () => {
     const draft = { ...filled(), projectMode: "multi" as const };
     expect(stopErrors(draft, { ...draft.stops[0], flexibility: "FIXED" }, options)).toEqual({
-      project: "Pick the project this stop is for.",
-      fixedTime: "Add the appointment time.",
+      project: "Select the project for this stop.",
+      fixedTime: "Enter the appointment time.",
     });
   });
 
@@ -116,6 +116,9 @@ describe("draftFromGroup", () => {
     date: "2026-10-20",
     siteOfficer: "",
     siteCompany: "",
+    purpose: "",
+    fleetCard: "",
+    priority: "REGULAR",
     rowVersion: 1,
     createdAt: "",
   };

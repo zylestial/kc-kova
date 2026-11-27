@@ -4,7 +4,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 -- These test other rules, so taps here read as made before tasks at a stop (0088);
 -- v2_stop_tasks.test.sql tests that rule.
@@ -51,24 +51,19 @@ create function pg_temp.leg(p_no int) returns uuid language sql as $$
   where s.id = pg_temp.id('trip') and l.leg_no = p_no;
 $$;
 
--- Rhea asks for two stops; Sam plans them as one trip; Ada approves it.
+-- Rhea books two stops with Jun driving (0094); Ada approves it.
+insert into booking_options ("group", id, name, status) values ('starting_points', 'start-office', 'Main Office', 'Active')
+on conflict ("group", id) do update set status = 'Active';
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
-insert into ids select 'g', (create_request_group('COMPANY', jsonb_build_object(
-  'date', (now() at time zone 'Asia/Manila')::date, 'startingPointId', 'tsp', 'departmentId', 'tdep', 'vehiclePlate', 'TM',
-  'driverId', '00000000-0000-0000-0000-0000000001a5', 'supervisorId', 'tsup', 'headId', 'th',
+insert into ids select 'g', (request_company_trip(null, null, jsonb_build_object(
+  'date', (now() at time zone 'Asia/Manila')::date, 'departmentId', 'tp', 'vehiclePlate', 'TM',
+  'driverId', '00000000-0000-0000-0000-0000000001a5', 'purpose', 'Submission', 'fleetCard', '1234', 'timeOut', '08:00',
   'stops', jsonb_build_array(
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'td1', 'purposeId', 'tpu'),
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'td2', 'purposeId', 'tpu'))))).id;
+    jsonb_build_object('destinationId', 'td1', 'arriveAt', '08:30', 'leaveAt', '09:00'),
+    jsonb_build_object('destinationId', 'td2', 'arriveAt', '09:30'))))).id;
 reset role;
-select pg_temp.act_as('00000000-0000-0000-0000-0000000001a3');
-insert into ids select 'trip', (create_company_trip((now() at time zone 'Asia/Manila')::date, 'TM',
-  array(select id from requests where group_id = pg_temp.id('g') order by stop_letter),
-  (select jsonb_agg(jsonb_build_object('destinationId', rd.destination_id, 'plannedTimeOut', t.out, 'plannedTimeIn', t.inn,
-     'stops', jsonb_build_array(rd.id)) order by r.stop_letter)
-   from requests r join request_destinations rd on rd.request_id = r.id and rd.active
-   join (values ('A', '08:00', '08:30'), ('B', '09:00', '09:30')) as t (letter, out, inn) on t.letter = r.stop_letter
-   where r.group_id = pg_temp.id('g')))).schedule_id;
-select submit_schedule(pg_temp.id('trip'), (select row_version from schedule_revisions where schedule_id = pg_temp.id('trip')));
+insert into ids select 'trip', sr.schedule_id from schedule_requests sr join requests r on r.id = sr.request_id
+where r.group_id = pg_temp.id('g') limit 1;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a4');
 select approve_schedule(pg_temp.id('trip'), (select row_version from schedule_revisions where schedule_id = pg_temp.id('trip') and status = 'SUBMITTED'));
 
@@ -94,9 +89,10 @@ update schedules set schedule_date = schedule_date - 1 where id = pg_temp.id('tr
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select throws_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'ARRIVE') $$, '22023', 'Tap Start trip first',
   'Nothing before Start trip');
-select throws_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, '22023',
-  'Enter the starting odometer reading, in whole kilometres', 'Start trip needs the odometer');
-select lives_ok($$ select start_company_trip(pg_temp.id('trip'), 48215) $$, 'Jun starts the trip with the odometer');
+select throws_ok($$ select start_company_trip(pg_temp.id('trip'), -1) $$, '22023',
+  'Enter the starting odometer reading, in whole kilometres', 'A negative reading is refused');
+select lives_ok($$ select start_company_trip(pg_temp.id('trip'), null) $$, 'Jun starts the trip before typing the odometer (0090)');
+select lives_ok($$ select set_start_odometer(pg_temp.id('trip'), 48215) $$, 'and enters it after');
 select throws_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'LEAVE') $$, '22023', 'Tap Arrived at this stop first',
   'Leaving needs Arrived first');
 select lives_ok($$ select record_company_stop(pg_temp.id('trip'), pg_temp.leg(1), 'ARRIVE') $$, 'Arrived at the first stop');

@@ -16,8 +16,8 @@ export const STOP_REPORT_CHOICES: Array<{ kind: StopReportKind; label: string; h
   { kind: "OTHER", label: "Something else", hint: "Anything else the Scheduler should know." },
 ];
 
-/** Why a task isn't done yet (0088): only the kinds that can name one request, the Wilcon case first. */
-export const TASK_REPORT_KINDS: StopReportKind[] = ["NOT_READY", "NOT_AVAILABLE", "WRONG_ADDRESS", "OTHER"];
+/** Why a task isn't done yet (0088): the Wilcon case first. Wrong address is for the whole stop, not one request. */
+export const TASK_REPORT_KINDS: StopReportKind[] = ["NOT_READY", "NOT_AVAILABLE", "OTHER"];
 /** What can still go wrong at a stop once its tasks are being answered one by one (0088). */
 export const ROAD_REPORT_KINDS: StopReportKind[] = ["ROAD_BLOCKED", "VEHICLE_PROBLEM"];
 

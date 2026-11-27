@@ -91,6 +91,9 @@ test("several people on a trip that's on the road", async ({ browser }) => {
     (async () => {
       await openTrip(driver, trip.id);
       await tapNext(driver, /^Start trip$/);
+      // The starting reading comes right after Start trip (0090).
+      await driver.getByLabel("Starting odometer (km)").fill("12000");
+      await tapNext(driver, /^Save reading$/);
       await tapNext(driver, /^Arrived at Site Alpha$/);
       // Each request at the stop, one at a time (0088), once Arrived has saved.
       await expect(driver.locator(".trip-step-button")).toHaveText(/^Leaving Site Alpha$/, saved);
@@ -114,6 +117,7 @@ test("several people on a trip that's on the road", async ({ browser }) => {
   const card = scheduler.locator(`.sc-vehicle[data-plate="${PLATE}"]`);
   await expect(card.locator(".sc-leg").first()).toContainText("DONE", saved);
   await card.getByRole("button", { name: "Resubmit for approval" }).click();
+  await scheduler.getByRole("dialog").getByRole("button", { name: "Yes, resubmit" }).click();
   await expect(scheduler.locator(".notice.success")).toContainText("Resubmitted", saved);
 
   // Until the Admin approves, the Driver's route hasn't changed.

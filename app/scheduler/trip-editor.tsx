@@ -34,6 +34,8 @@ import {
 } from "@/lib/scheduling-edit";
 import StopJobs from "../stop-jobs";
 import RemoveLegDialog from "./remove-leg-dialog";
+import SubmitConfirmDialog from "./submit-confirm-dialog";
+import { dateLabel } from "../planner/format";
 
 type Choice = { id: string; name: string; stops: string[]; urgent: boolean; moveIds: string[]; label: string };
 
@@ -93,7 +95,7 @@ export default function TripEditor({
   context: PlanContext;
   /** Stops of this kind still to plan this day or any day this week. */
   waiting: TransportRequest[];
-  /** Fuel or errand stops an Admin set up (Daily trips only). */
+  /** Other stops an Admin set up, with no request needed: the office, fuel, an errand (Daily trips only). */
   fuel: BookingOption[];
   /** The Driver (or requester) has reached this leg: a tap there, or End trip on the last. */
   doneLeg: (legId: string, isLast: boolean) => boolean;
@@ -157,7 +159,7 @@ export default function TripEditor({
     choice.label = `${choice.name} · ${[...choice.stops.map((id) => stopNumber(requestOf(id)!))].join(", ")}${choice.urgent ? " · Urgent" : ""}`;
   }
   if (!company)
-    choices.fuel = fuel.map((option) => ({ id: option.id, name: option.name, stops: [], urgent: false, moveIds: [], label: `${option.name} (fuel)` }));
+    choices.fuel = fuel.map((option) => ({ id: option.id, name: option.name, stops: [], urgent: false, moveIds: [], label: option.name }));
 
   const save = (next: EditLeg[], message: string, moveIds: string[] = [], sendBack?: { ids: string[]; reason: string }) =>
     run(
@@ -231,7 +233,7 @@ export default function TripEditor({
     const request = requests.find((item) => item.id === id);
     return request ? stopNumber(request) || request.ownerName : "A stop";
   };
-  const problems = tripChecks(legs, timer, company);
+  const problems = tripChecks(legs, company);
   const suggestions = tripSuggestions(legs, timer, nameOf);
   const removingLeg = removing === null ? null : legs[removing];
 
@@ -254,7 +256,7 @@ export default function TripEditor({
         const movable = editable && index > lastDone && !leg.isFinal;
         const origin = index === 0 ? (company ? startingPoint : "ANONANG") : legs[index - 1].destinationName;
         const lastMovable = legs.length - (legs.at(-1)?.isFinal ? 2 : 1);
-        const warnings = [...legProblems(legs, index, timer), ...legSuggestions(legs, index, timer, nameOf)].map((problem) => problem + ".");
+        const warnings = [...legProblems(legs, index),...legSuggestions(legs, index, timer, nameOf)].map((problem) => problem + ".");
         return (
           <div
             key={leg.key}
@@ -372,7 +374,7 @@ export default function TripEditor({
                       </optgroup>
                     )}
                     {choices.fuel.filter((choice) => choice.id !== leg.destinationId).length > 0 && (
-                      <optgroup label="Fuel">
+                      <optgroup label="Other stops">
                         {choices.fuel
                           .filter((choice) => choice.id !== leg.destinationId)
                           .map((choice) => (
@@ -464,6 +466,12 @@ function TripActions({
       await submitSchedule(trip.schedule.id, open!.rowVersion);
       return `${again ? "Resubmitted" : "Submitted"}. The Admin can see it now.`;
     }, "clear");
+  // Asks first, showing the vehicle and Driver (a wrong one used to mean cancelling).
+  const [confirming, setConfirming] = useState(false);
+  const askSubmit = () => (problems.length ? submit() : setConfirming(true));
+  const sending = open ?? trip.revision;
+  const first = legs[0];
+  const last = legs[legs.length - 1];
   const discard = () =>
     run(async () => {
       await discardScheduleDraft(trip.schedule.id, open!.rowVersion);
@@ -502,7 +510,7 @@ function TripActions({
       <div className="sc-state-actions">
         {["DRAFT", "RETURNED", "CHANGES"].includes(state) && (
           <>
-            <Button size="sm" className="primary" disabled={busy} onClick={submit}>
+            <Button size="sm" className="primary" disabled={busy} onClick={askSubmit}>
               {again ? "Resubmit for approval" : "Submit for approval"}
             </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={discard}>
@@ -516,6 +524,26 @@ function TripActions({
           </Button>
         )}
       </div>
+      <SubmitConfirmDialog
+        trip={
+          confirming
+            ? {
+                plate: sending.plate,
+                driverName: sending.driverName,
+                date: dateLabel(trip.schedule.date, { weekday: "short", month: "short", day: "numeric" }),
+                stops: new Set(legs.flatMap((leg) => leg.stops)).size,
+                times: first?.timeOut && last?.timeIn ? `${hhmmLabel(first.timeOut)} → ${hhmmLabel(last.timeIn)}` : "",
+              }
+            : null
+        }
+        again={again}
+        busy={busy}
+        onCancel={() => setConfirming(false)}
+        onSubmit={() => {
+          setConfirming(false);
+          void submit();
+        }}
+      />
     </div>
   );
 }

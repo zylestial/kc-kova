@@ -218,17 +218,17 @@ export function stopErrors(draft: RequestDraft, stop: StopDraft, options: Bookin
   const errors: StopErrors = {};
   if (stop.locked) return errors;
   if (draft.projectMode === "multi" && (stop.projectOtherMode ? !stop.projectOther.trim() : !stop.projectId))
-    errors.project = "Pick the project this stop is for.";
+    errors.project = "Select the project for this stop.";
   if (stop.destinationOtherMode ? !stop.destinationOther.trim() : !stop.destinationId)
-    errors.destination = "Pick a destination.";
-  if (stop.urgent && !stop.urgentReasonId) errors.urgentReason = "Pick why this stop is urgent, or set it to Regular.";
+    errors.destination = "Select a destination.";
+  if (stop.urgent && !stop.urgentReasonId) errors.urgentReason = "Select a reason, or set the stop to Regular.";
   if (!stop.urgent && (stop.purposeOtherMode ? !stop.purposeOther.trim() : !stop.purposeId))
-    errors.purpose = "Pick a purpose.";
+    errors.purpose = "Select a purpose.";
   if (needsDetails(stop, options) && !stop.details.trim())
     errors.details = stop.urgent
-      ? "Say what's needed at this stop, e.g. what to pick up or deliver."
-      : `Say what to ${stopPurpose(stop, options).toLowerCase()}, e.g. items, quantity, who receives.`;
-  if (stop.flexibility === "FIXED" && !stop.fixedTime) errors.fixedTime = "Add the appointment time.";
+      ? "Enter the details of this stop, e.g. items to pick up or deliver."
+      : "Enter the details, e.g. items, quantity and recipient.";
+  if (stop.flexibility === "FIXED" && !stop.fixedTime) errors.fixedTime = "Enter the appointment time.";
   return errors;
 }
 
@@ -375,7 +375,7 @@ export function flexibilityShort(date: string, flexibility: StopFlexibility, fix
 }
 
 export const FLEXIBILITY:Record<StopFlexibility, { label: string; hint: string }> = {
-  DAY: { label: "Any time that day", hint: "The Scheduler picks the time." },
-  FIXED: { label: "Fixed time", hint: "An appointment at an exact time." },
-  WEEK: { label: "Any day that week", hint: "The Scheduler may move it to another day that week and tells you." },
+  DAY: { label: "Any time that day", hint: "The time is set by the Scheduler." },
+  FIXED: { label: "Fixed time", hint: "An appointment at a set time." },
+  WEEK: { label: "Any day that week", hint: "The Scheduler may move it to another day that week and will notify you." },
 };

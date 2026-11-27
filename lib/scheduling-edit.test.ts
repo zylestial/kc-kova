@@ -78,28 +78,31 @@ describe("edits", () => {
 describe("tripChecks", () => {
   const name = (id: string) => id.toUpperCase();
   it("finds nothing wrong with an estimated trip", () => {
-    expect(tripChecks(editLegs(estimated, timer, "08:00"), timer, false)).toEqual([]);
+    expect(tripChecks(editLegs(estimated, timer, "08:00"), false)).toEqual([]);
   });
 
   it("names times that don't work", () => {
     const typed = [estimated[0], leg(2, "b", "09:00", "09:10"), leg(3, null, "09:05", "19:00")];
-    expect(tripChecks(editLegs(typed, timer, "08:00"), timer, false)).toEqual([
-      "Leg 2: Time In 9:10 AM is too soon to drive to b",
-      "Leg 3: Time Out 9:05 AM is before it arrives at b at 9:10 AM",
-    ]);
+    expect(tripChecks(editLegs(typed, timer, "08:00"), false)).toEqual(["Leg 3: Time Out 9:05 AM is before it arrives at b at 9:10 AM"]);
+  });
+
+  it("warns, without blocking, when a Time In is sooner than the estimated drive", () => {
+    const typed = editLegs([estimated[0], leg(2, "b", "09:00", "09:10"), leg(3, null, "09:30", "19:00")], timer, "08:00");
+    expect(tripChecks(typed, false)).toEqual([]);
+    expect(tripSuggestions(typed, timer, name)).toEqual(["Leg 2: Time In 9:10 AM is sooner than the estimated drive to b"]);
   });
 
   it("suggests, without blocking, when a fixed-time stop is reached off its time", () => {
     const fixed = { ...request("b"), flexibility: "FIXED", fixedTime: "10:00" } as TransportRequest;
     const withFixed = legTimer({ requests: [request("a"), fixed], destinations: [] }, false);
     const legs = editLegs([estimated[0], leg(2, "b", "09:00", "09:30"), leg(3, null, "10:00", "10:30")], withFixed, "08:00");
-    expect(tripChecks(legs, withFixed, false)).toEqual([]);
+    expect(tripChecks(legs, false)).toEqual([]);
     expect(tripSuggestions(legs, withFixed, name)).toEqual(["Leg 2: B asked for 10:00 AM; it arrives 9:30 AM"]);
   });
 
   it("wants a Daily trip to end at ANONANG, not a Company trip", () => {
     const open = editLegs(estimated.slice(0, 2), timer, "08:00");
-    expect(tripChecks(open, timer, false)).toEqual(["Must end at ANONANG: the last leg goes to b"]);
-    expect(tripChecks(open, timer, true)).toEqual([]);
+    expect(tripChecks(open, false)).toEqual(["Must end at ANONANG: the last leg goes to b"]);
+    expect(tripChecks(open, true)).toEqual([]);
   });
 });

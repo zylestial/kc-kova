@@ -22,7 +22,7 @@ import {
   type ScheduleRevision,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
-import { scheduledBy } from "@/lib/scheduled-by";
+import { cancelledBy, scheduledBy } from "@/lib/scheduled-by";
 import { addDays, manilaToday } from "@/lib/timezone";
 import {
   currentRevision,
@@ -42,6 +42,7 @@ import FilterFold from "./filter-fold";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
+import TripFacts from "./trip-facts";
 import { SortSelect, type SortColumn } from "./sortable-head";
 import { sortRows, type Sort } from "@/lib/table-sort";
 
@@ -153,9 +154,11 @@ export default function Schedules({
 
   const selected = schedules.find((schedule) => schedule.id === selectedId);
   const selectedRevision = selected && currentRevision(selected);
-  const selectedBy = selectedRevision ? scheduledBy(selectedRevision, accounts) : null;
-  const editable = (schedule: Schedule) => canEdit && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
-  const revisable = (schedule: Schedule) => canEdit && scheduleState(schedule) === "APPROVED";
+  const selectedBy = selectedRevision ? scheduledBy(selectedRevision, accounts, selected?.kind) : null;
+  const selectedCancel = cancelledBy(selected, accounts);
+  // A Company trip is changed by its requester, from My requests (Company trip v2).
+  const editable = (schedule: Schedule) => canEdit && schedule.kind !== "COMPANY" && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
+  const revisable = (schedule: Schedule) => canEdit && schedule.kind !== "COMPANY" && scheduleState(schedule) === "APPROVED";
   // Admin can cancel any schedule that is still in force and whose trip the
   // Driver hasn't submitted (the server enforces that part).
   const cancellable = (schedule: Schedule) => canReview && schedule.status === "ACTIVE";
@@ -204,8 +207,8 @@ export default function Schedules({
   const requesters = (requestIds: string[]) =>
     [...new Set(requestIds.map((id) => requestsById.get(id)?.ownerName).filter(Boolean))].join(", ");
   const vehicleName = (plate: string) => vehicles.find((item) => item.plate === plate)?.name ?? plate;
-  const byText = (revision?: ScheduleRevision) => {
-    const by = scheduledBy(revision, accounts);
+  const byText = (revision?: ScheduleRevision, kind?: Schedule["kind"]) => {
+    const by = scheduledBy(revision, accounts, kind);
     return by ? `${by.label} ${by.name}` : "";
   };
 
@@ -228,7 +231,7 @@ export default function Schedules({
         {revision?.driverName ?? "—"}
       </span>
       <small>{revision && requesters(revision.requestIds)}</small>
-      {byText(revision) && <small>{byText(revision)}</small>}
+      {byText(revision, schedule.kind) && <small>{byText(revision, schedule.kind)}</small>}
       {revision?.requestIds.some((id) => requestsById.get(id)?.cancellationPending) && <small>Cancellation requested</small>}
       {needsUpdate(schedule) && <small>Route needs updating</small>}
       <small>{revision?.legs.map((leg) => leg.destinationName).join(" → ")}</small>
@@ -429,34 +432,36 @@ export default function Schedules({
         <DialogContent className="review-trip-modal">
           <DialogHeader>
             <DialogTitle>Trip Record</DialogTitle>
-            <DialogDescription className="dialog-context">
+            <DialogDescription className="sr-only">
               {selected && dateLabel(selected.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </DialogDescription>
+            {selected && selectedRevision && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: `${vehicleName(selectedRevision.plate)} · ${selectedRevision.plate}`, key: true },
+                  { label: "Driver", value: selectedRevision.driverName, key: true },
+                  { label: "Date", value: dateLabel(selected.date, { weekday: "short", month: "short", day: "numeric", year: "numeric" }) },
+                  { label: "Status", value: scheduleStateLabel[scheduleState(selected)] },
+                  ...(selectedBy ? [{ label: selectedBy.label, value: selectedBy.name }] : []),
+                  { label: "Version", value: `v${selectedRevision.version}` },
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && selectedRevision && (
             <>
-              <div className="driver-trip-details">
-                {[
-                  ["Vehicle", `${vehicleName(selectedRevision.plate)} · ${selectedRevision.plate}`],
-                  ["Driver", selectedRevision.driverName],
-                  ["Status", scheduleStateLabel[scheduleState(selected)], selectedBy && `${selectedBy.label} ${selectedBy.name}`],
-                  ["Version", `v${selectedRevision.version}`],
-                ].map(([label, value, note]) => (
-                  <div key={label}>
-                    <span>{label}</span>
-                    <strong>{value}</strong>
-                    {note && <small className="detail-note">{note}</small>}
-                  </div>
-                ))}
-              </div>
-              <p className="helper">{meaning(selected, selectedRevision.legs)}</p>
+              {/* A cancelled trip says so in its own notice below, with who and when. */}
+              {selected.status !== "CANCELLED" && <p className="helper">{meaning(selected, selectedRevision.legs)}</p>}
               {selectedRevision.status === "RETURNED" && selectedRevision.decisionComment && (
                 <p className="notice">
                   <b>Returned by Admin:</b> {selectedRevision.decisionComment}
                 </p>
               )}
-              {selected.status === "CANCELLED" && (
-                <p className="notice">This schedule was cancelled. Its requests were released or cancelled with it.</p>
+              {selectedCancel && (
+                <p className="notice">
+                  <b>Cancelled by {selectedCancel.name}</b>
+                  {selectedCancel.at && ` on ${selectedCancel.at}`}. Its requests were released or cancelled with it.
+                </p>
               )}
               {needsUpdate(selected) && (
                 <p className="notice">

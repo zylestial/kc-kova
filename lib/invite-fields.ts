@@ -6,7 +6,13 @@ type InviteAccess = {
   canRequestDaily: boolean;
   canRequestCompany: boolean;
   canDriveCompany?: boolean;
+  hasPersonalVehicle?: boolean;
 };
+
+/** A plate as KOVA keeps it: capitals, single spaces. */
+export function normalizePlate(plate: string): string {
+  return plate.trim().toUpperCase().replace(/s+/g, " ");
+}
 
 /**
  * Whether the Join page asks for a Position, from the invite's role and
@@ -36,5 +42,6 @@ export function accessSummary(invite: InviteAccess): string {
   if (daily) parts.push("Daily requests");
   if (invite.canRequestCompany) parts.push("Company trips");
   if (invite.role !== "Driver" && invite.canDriveCompany) parts.push("Drives company trips");
+  if (invite.role !== "Driver" && invite.canDriveCompany && invite.hasPersonalVehicle) parts.push("Own vehicle");
   return parts.join(" · ");
 }

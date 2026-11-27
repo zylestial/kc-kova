@@ -28,21 +28,24 @@ import {
   markCompletionsDone,
   setTripTime,
   type ProblemReport,
+  type Schedule,
 } from "@/lib/kova-api";
 import { useKovaData } from "@/lib/use-kova-data";
 import { scheduledBy } from "@/lib/scheduled-by";
-import { buildAdminTrips, cleanTrips, hasOpenProblem } from "@/lib/finished-trips";
+import { buildAdminTrips, cleanTrips, doneBy, hasOpenProblem } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
-import CompanyTripPrint from "./company-trip-print";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { runAsAttendance } from "@/lib/company-trips";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
 import OlderRecordsNotice from "./older-records-notice";
 import TripRecordView from "./trip-record-view";
+import TripFacts from "./trip-facts";
+import TripReports from "./trip-reports";
+import OpenProblemLink, { useAnswerOnScheduling, useReportFocus } from "./open-problem-link";
 import StopTimesTable from "./stop-times-table";
 import { formTimeValue, legTimes, missingTimes, placeResolver, type FormTime } from "@/lib/stop-times";
-import { missedLegs, stopReportLabel, stopReportStatus } from "@/lib/stop-reports";
+import { missedLegs } from "@/lib/stop-reports";
 import DateRangeFilter from "./date-range-filter";
 import FilterFold from "./filter-fold";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -265,19 +268,33 @@ export default function AdminFinishedTrips({
   const clean = cleanTrips(visible).filter((trip) => missingFor(trip) === 0);
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
-  const selectedBy = selected ? scheduledBy(selected.revision, accounts) : null;
+  const selectedBy = selected ? scheduledBy(selected.revision, accounts, selected.schedule.kind) : null;
   const selectedTimes = selected ? timesFor(selected) : [];
   const selectedMissing = selected ? missingFor(selected) : 0;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
   const isDone = selected?.completion?.status === "DONE";
+  const selectedDone = doneBy(selected?.completion, accounts);
   // Any other published, active schedule can follow up on a problem.
   const followUps = schedules
     .filter((item) => item.status === "ACTIVE" && item.publishedRevisionId && item.id !== selectedId)
     .sort((a, b) => b.date.localeCompare(a.date));
 
+  // A problem in the list opens its trip straight at the report (owner's call 2026-11-26).
+  const { focusReport, setFocusReport } = useReportFocus(selectedId);
+  const answerOnScheduling = useAnswerOnScheduling();
+  // A stop report is answered on Scheduling; a problem with the whole trip is
+  // marked handled here, and Finance only reads it (owner's call 2026-11-26).
+  function openAtProblem(schedule: Schedule, report: ProblemReport) {
+    if (report.legId && !readOnly) return answerOnScheduling(schedule);
+    setSelectedId(schedule.id);
+    setFocusReport(report);
+    setNotice("");
+  }
+
   function close() {
     if (busy) return;
     setSelectedId(null);
+    setFocusReport(null);
     reset();
   }
   function reset() {
@@ -323,11 +340,14 @@ export default function AdminFinishedTrips({
         completion?.fleetCardUsed,
         completion?.gasReceiptAttached,
         completion ? completionLabel[completion.status] : notSubmitted,
+        doneBy(completion, accounts)?.name,
+        doneBy(completion, accounts)?.at,
       ];
     });
     const header = [
       "DATE", "FORM", "VEHICLE", "DRIVER", "PROJECT / SITE", "STOPS", "TIME OUT", "TIME IN",
       "START ODOMETER", "END ODOMETER", "DISTANCE (KM)", "FULL TANK", "FLEET CARD USED", "GAS RECEIPT ATTACHED", "STATUS",
+      "DONE BY", "DONE AT",
     ];
     downloadCsv(`kova-finished-trips-${today}.csv`, toCsv(header, rows));
     setExportFilters(null);
@@ -478,7 +498,8 @@ export default function AdminFinishedTrips({
                       <span className={"badge " + (trip.completion?.status === "DONE" ? "complete" : "")}>
                         {trip.completion ? completionLabel[trip.completion.status] : notSubmitted}
                       </span>
-                      {hasOpenProblem(trip) && <small>Open problem</small>}
+                      {trip.completion?.status === "DONE" && <small>by {doneBy(trip.completion, accounts)?.name ?? "an Admin"}</small>}
+                      <OpenProblemLink problems={trip.problems} onOpen={(problem) => openAtProblem(trip.schedule, problem)} />
                       {trip.completion?.status === "SUBMITTED" && missingFor(trip) > 0 && (
                         <small>
                           {missingFor(trip)} {missingFor(trip) === 1 ? "time" : "times"} missing
@@ -525,7 +546,7 @@ export default function AdminFinishedTrips({
             </DialogDescription>
           </DialogHeader>
           <div className="schedule-table">
-            <table>
+            <table data-compact="">
               <thead>
                 <tr>
                   {["DATE", "PLATE NUMBER", "DRIVER", "DISTANCE"].map((title) => (
@@ -535,11 +556,12 @@ export default function AdminFinishedTrips({
               </thead>
               <tbody>
                 {clean.map((trip) => (
-                  <tr key={trip.schedule.id}>
-                    <td>{dateLabel(trip.schedule.date)}</td>
-                    <td>{trip.revision.plate}</td>
-                    <td>{trip.revision.driverName}</td>
-                    <td>{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
+                  // On a phone: a card per trip, the vehicle first and its distance on the right.
+                  <tr key={trip.schedule.id} className="c-static">
+                    <td className="c-meta">{dateLabel(trip.schedule.date)}</td>
+                    <td className="c-title">{trip.revision.plate}</td>
+                    <td className="c-meta">{trip.revision.driverName}</td>
+                    <td className="c-status">{trip.completion ? kmLabel(trip.completion.distance) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -596,19 +618,39 @@ export default function AdminFinishedTrips({
                       ? "Time Out / Time In"
                       : "Finished trip"}
             </DialogTitle>
-            <DialogDescription className="dialog-context">
+            {/* Read aloud as one line; shown as labelled facts, the vehicle and Driver first. */}
+            <DialogDescription className="sr-only">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} — ${selected.revision.driverName}`}
               {selectedBy && ` — ${selectedBy.label} ${selectedBy.name}`}
             </DialogDescription>
+            {selected && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: selected.revision.plate, key: true },
+                  { label: "Driver", value: selected.revision.driverName, key: true },
+                  { label: "Date", value: dateLabel(selected.schedule.date) },
+                  ...(selectedBy ? [{ label: selectedBy.label, value: selectedBy.name }] : []),
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && mode === "view" && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
+              <TripRecordView
+                key={`${selected.schedule.id}:${focusReport?.id ?? ""}`}
+                legs={selected.revision.legs}
+                stopsById={stopsById}
+                tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)}
+                reports={selected.problems}
+                openReportId={focusReport?.id}
+                times={selectedTimes}
+              />
               {selected.completion ? (
                 <>
                   <p className="helper">
                     Odometer: {readingsLabel(selected.completion)} ·{" "}
                     {completionLabel[selected.completion.status]}
+                    {selectedDone && ` by ${selectedDone.name}`}
                   </p>
                   <p className="helper">{completionMeaning[selected.completion.status]}</p>
                   <h3 className="stop-times-heading">Actual times</h3>
@@ -622,31 +664,33 @@ export default function AdminFinishedTrips({
                   {!isDone && !readOnly && selectedMissing > 0 && (
                     <p className="helper" role="status">
                       {selectedMissing} {selectedMissing === 1 ? "time is" : "times are"} missing. Fill them in from the
-                      Driver&apos;s logbook or a call before marking this trip done; they print on the form.
+                      Driver&apos;s logbook or a call before marking this trip done.
                     </p>
                   )}
                 </>
               ) : (
-                <p className="helper">
-                  {readOnly
-                    ? "The Driver reported a problem but hasn't submitted this trip yet; its odometers show once it's submitted."
-                    : selected.problems.some((item) => !item.legId && item.status === "OPEN")
-                      ? "The Driver reported a problem but hasn't submitted this trip yet. You can handle the problem now; the odometers can be reviewed once it's submitted."
-                      : "The Driver reported a problem at a stop but hasn't submitted this trip yet. Stop reports are answered on Scheduling; the odometers can be reviewed once it's submitted."}
-                </p>
+                <div className="trip-waiting" role="status">
+                  <b>Waiting for the Driver to submit this trip</b>
+                  <span>
+                    {readOnly
+                      ? "The odometers show once it's submitted."
+                      : selected.problems.some((item) => !item.legId && item.status === "OPEN")
+                        ? "You can handle the problem below now. The odometers can be reviewed once it's submitted."
+                        : "Stop reports are answered on Scheduling. The odometers can be reviewed once it's submitted."}
+                  </span>
+                </div>
               )}
-              {selected.problems.map((item) => (
-                <div className="helper" key={item.id}>
-                  <strong>
-                    {item.status === "OPEN" ? "Open" : "Handled"} {item.legId ? "stop report" : "problem"}:
-                  </strong>{" "}
-                  {item.legId &&
-                    `${stopReportLabel(item)} at ${selected.revision.legs.find((leg) => leg.id === item.legId)?.destinationName ?? "a stop"}${item.note ? ": " : ""}`}
-                  {item.note}
-                  {item.status === "HANDLED" && <div>Handled: {item.handlingNote}</div>}
-                  {/* A stop report closes with its answer on Scheduling, never here (0083). */}
-                  {item.status === "OPEN" && item.legId && <div>{stopReportStatus(item)}</div>}
-                  {item.status === "OPEN" && !item.legId && !readOnly && (
+              <TripReports
+                problems={selected.problems}
+                legs={selected.revision.legs}
+                actionFor={(item) =>
+                  item.status === "OPEN" &&
+                  !readOnly &&
+                  (item.legId ? (
+                    <Button variant="outline" onClick={() => answerOnScheduling(selected.schedule)}>
+                      Answer on Scheduling
+                    </Button>
+                  ) : (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -656,15 +700,29 @@ export default function AdminFinishedTrips({
                     >
                       Mark handled
                     </Button>
+                  ))
+                }
+              />
+              {isDone && (
+                <p className="helper">
+                  {selectedDone && (
+                    <>
+                      <b>
+                        Marked done by {selectedDone.name} on {selectedDone.at}.
+                      </b>{" "}
+                    </>
                   )}
-                </div>
-              ))}
-              {isDone && <p className="helper">This trip is done and locked.</p>}
+                  This trip is locked.
+                </p>
+              )}
               {selected.completion && (
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => window.print()}>
-                    Print
-                  </Button>
+                  {/* The requester prints a Company Trip Form from My requests (Company trip v2). */}
+                  {selected.schedule.kind !== "COMPANY" && (
+                    <Button variant="outline" onClick={() => window.print()}>
+                      Print
+                    </Button>
+                  )}
                   {!readOnly && (
                     <>
                       {/* A trip without readings (0078) has none to correct. */}
@@ -718,8 +776,8 @@ export default function AdminFinishedTrips({
               <p className="helper">
                 {timeLabel(editTime)}.{" "}
                 {editTime.tap
-                  ? "The Driver's tap stays on record; your time prints on the form instead."
-                  : "The Driver didn't tap this one. Enter the time it happened; it prints on the form."}
+                  ? "The Driver's tap stays on record; your time is used in its place."
+                  : "The Driver didn't tap this one. Enter the time it happened."}
               </p>
               <label className="field">
                 <span>Time *</span>
@@ -793,15 +851,11 @@ export default function AdminFinishedTrips({
           )}
         </DialogContent>
       </Dialog>
-      {selected?.completion && selected.schedule.kind === "COMPANY" && (
-        <CompanyTripPrint trip={{ ...selected, completion: selected.completion }} requests={requests} times={selectedTimes} />
-      )}
       {selected?.completion && selected.schedule.kind !== "COMPANY" && (
         <FinishedTripPrint
           trip={{ ...selected, completion: selected.completion }}
           stopsById={stopsById}
           requests={requests}
-          times={selectedTimes}
         />
       )}
     </>

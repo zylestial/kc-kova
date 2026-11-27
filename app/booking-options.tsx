@@ -24,7 +24,7 @@ import { saveBookingOption, type BookingOption, type OptionGroup } from "@/lib/k
 import { coordinatesLabel, mapUrl } from "@/lib/attendance";
 import { parseCoordinates } from "@/lib/coordinates";
 import { useKovaData } from "@/lib/use-kova-data";
-import { CHOICE_LISTS, activeCount, choiceGaps, gapEffect, needLabel } from "@/lib/choice-lists";
+import { CHOICE_LISTS, activeCount, choiceGaps, gapEffect, needLabel, sameNameChoice } from "@/lib/choice-lists";
 import { ListLayout, PaneHead, PaneTools, SearchResults, SetupBanner, matchesSearch, type StatusFilter } from "./settings-lists";
 
 type Group = OptionGroup;
@@ -86,6 +86,13 @@ export default function BookingOptions() {
     if (!modal) return;
     if (!draft.name.trim()) {
       setError(stillNeeded(["Name"]));
+      return;
+    }
+    const twin = modal.group === "destinations" ? sameNameChoice(options.destinations, draft.id, draft.name) : undefined;
+    if (twin) {
+      setError(
+        `There's already a Destination called "${twin.name}"${twin.status === "Inactive" ? " (Inactive)" : ""}. Edit that one instead.`,
+      );
       return;
     }
     const location = modal.group === "destinations" ? parseCoordinates(draft.location) : null;
@@ -233,7 +240,7 @@ export default function BookingOptions() {
               </div>
             ) : (
               <div className="schedule-table">
-                <table>
+                <table data-compact="">
                   <thead>
                     <tr>
                       <th>NAME</th>
@@ -244,15 +251,27 @@ export default function BookingOptions() {
                   </thead>
                   <tbody>
                     {shown.map((item) => (
-                      <tr key={item.id}>
-                        <td>
+                      // On a phone: a card (the c-* classes); tapping it opens Edit.
+                      <tr key={item.id} onClick={() => openModal(selected, "edit", item)}>
+                        <td className="c-title">
                           <b>{item.name}</b>
-                          {isDestinations && item.isOtherStop && <small>Fuel or errand stop</small>}
+                          {isDestinations && item.isOtherStop && <small>Other stop (no request needed)</small>}
+                          {item.addedBy && (
+                            <small>
+                              Added by {item.addedBy.name} on{" "}
+                              {new Date(item.addedBy.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" })}
+                            </small>
+                          )}
                         </td>
                         {isDestinations && (
-                          <td>
+                          <td className="c-labelled">
                             {item.location ? (
-                              <a href={mapUrl(item.location.lat, item.location.lng)} target="_blank" rel="noreferrer">
+                              <a
+                                href={mapUrl(item.location.lat, item.location.lng)}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                              >
                                 <MapPin size={13} /> {coordinatesLabel(item.location)}
                               </a>
                             ) : (
@@ -260,11 +279,17 @@ export default function BookingOptions() {
                             )}
                           </td>
                         )}
-                        <td>
+                        <td className="c-status">
                           <span className={"badge " + (item.status === "Active" ? "complete" : "")}>{item.status}</span>
                         </td>
-                        <td>
-                          <Button variant="outline" onClick={() => openModal(selected, "edit", item)}>
+                        <td className="c-hide">
+                          <Button
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openModal(selected, "edit", item);
+                            }}
+                          >
                             Edit
                           </Button>
                         </td>
@@ -311,7 +336,7 @@ export default function BookingOptions() {
             </label>
             {modal?.group === "destinations" && (
               <div className="field">
-                <span>Fuel/errand stop</span>
+                <span>Other stop (office, fuel, errand)</span>
                 <div className="person-projects">
                   <label>
                     <Checkbox

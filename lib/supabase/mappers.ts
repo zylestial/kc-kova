@@ -1,4 +1,7 @@
 import type {
+  CompanyTripPassenger,
+  CompanyTripState,
+  CompanyTripStatus,
   BookingOption,
   BookingOptions,
   RequestProgress,
@@ -29,6 +32,7 @@ type VehicleRow = {
   assigned_driver_id: string | null;
   company_trips: boolean;
   has_odometer: boolean;
+  owner_account_id?: string | null;
 };
 
 export function toVehicle(row: VehicleRow): Vehicle {
@@ -39,6 +43,7 @@ export function toVehicle(row: VehicleRow): Vehicle {
     assignedDriverId: row.assigned_driver_id ?? undefined,
     companyTrips: row.company_trips,
     hasOdometer: row.has_odometer,
+    ownerAccountId: row.owner_account_id ?? undefined,
   };
 }
 
@@ -48,7 +53,10 @@ type BookingOptionRow = {
   name: string;
   status: "Active" | "Inactive";
   is_other_stop: boolean;
+  /** Who added it by typing it on a request (0098); one row at most. */
+  booking_option_additions?: AdditionRow | AdditionRow[] | null;
 };
+type AdditionRow = { account_name: string; added_at: string };
 
 /** A destination's saved position (destination_locations, 0044). */
 export type DestinationLocationRow = { destination_id: string; lat: number; lng: number };
@@ -65,6 +73,8 @@ export function toBookingOptions(rows: BookingOptionRow[], locations: Destinatio
 /** One option; a destination's position is added when it has one. */
 export function toBookingOption(row: Omit<BookingOptionRow, "group">, location?: DestinationLocationRow | null): BookingOption {
   const option: BookingOption = { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop };
+  const added = [row.booking_option_additions ?? []].flat()[0];
+  if (added) option.addedBy = { name: added.account_name, at: added.added_at };
   if (location) option.location = { lat: location.lat, lng: location.lng };
   return option;
 }
@@ -136,6 +146,12 @@ export type RequestGroupRow = {
   head_name: string;
   site_officer: string;
   site_company: string;
+  // 0093
+  purpose_text?: string;
+  fleet_card_last4?: string;
+  priority?: "REGULAR" | "URGENT";
+  urgent_reason_id?: string | null;
+  urgent_reason_name?: string;
   row_version: number;
   created_at: string;
 };
@@ -159,8 +175,38 @@ export function toRequestGroup(row: RequestGroupRow): RequestGroup {
     head: choice(row.head_id, row.head_name),
     siteOfficer: row.site_officer,
     siteCompany: row.site_company,
+    purpose: row.purpose_text ?? "",
+    fleetCard: row.fleet_card_last4 ?? "",
+    priority: row.priority ?? "REGULAR",
+    urgentReason: choice(row.urgent_reason_id, row.urgent_reason_name),
     rowVersion: row.row_version,
     createdAt: row.created_at,
+  };
+}
+
+export type CompanyTripStatusRow = {
+  group_id: string;
+  schedule_id: string | null;
+  state: CompanyTripState;
+  comment: string | null;
+  legs: Array<{ out: string; in: string }> | null;
+  passengers: CompanyTripPassenger[] | null;
+  finished?: boolean | null;
+  odometer_start?: number | null;
+  odometer_end?: number | null;
+};
+
+export function toCompanyTripStatus(row: CompanyTripStatusRow): CompanyTripStatus {
+  return {
+    groupId: row.group_id,
+    scheduleId: row.schedule_id ?? undefined,
+    state: row.state,
+    comment: row.comment ?? "",
+    legs: row.legs ?? [],
+    passengers: row.passengers ?? [],
+    finished: !!row.finished,
+    odometerStart: row.odometer_start ?? null,
+    odometerEnd: row.odometer_end ?? null,
   };
 }
 
@@ -294,6 +340,7 @@ type AttendanceRow = {
   end_recorded_by_account_id: string | null;
   start_sent_at?: string | null;
   end_sent_at?: string | null;
+  start_odometer?: number | null;
 };
 
 function toAttendanceLocation(
@@ -327,6 +374,7 @@ export function toTripAttendance(row: AttendanceRow): TripAttendance {
             sentAt: row.end_sent_at ?? undefined,
           }
         : undefined,
+    startOdometer: row.start_odometer ?? null,
   };
 }
 
@@ -590,6 +638,8 @@ type ScheduleRow = {
   kind?: Schedule["kind"];
   /** 0061: paused for a Vehicle problem. */
   paused_at?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by_account_id?: string | null;
   schedule_revisions?: ScheduleRevisionRow[];
 };
 
@@ -605,6 +655,8 @@ export function toSchedule(row: ScheduleRow): Schedule {
     status: row.status,
     publishedRevisionId: row.published_revision_id ?? undefined,
     pausedAt: row.paused_at ?? undefined,
+    cancelledAt: row.cancelled_at ?? undefined,
+    cancelledByAccountId: row.cancelled_by_account_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     revisions: [...(row.schedule_revisions ?? [])]

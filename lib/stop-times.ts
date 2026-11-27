@@ -167,10 +167,14 @@ export type TripStep = {
  * until End trip is tapped; a step before the latest tap that was never
  * tapped is "skipped" (an Admin fills its time in). Arrived and Leaving at
  * a stop reported missed are "missed": the next step after them is next.
+ * A missed stop already Arrived at (Skip or Come back later after a problem
+ * there) still asks for Leaving, so the next leg's TIME OUT is recorded.
  */
 export function tripSteps(times: LegTimes[], missed: ReadonlySet<string> = new Set()): TripStep[] {
   const sequence = times.flatMap((item) => [item.out, item.in]);
-  const isMissed = (time: FormTime) => "legId" in time.source && missed.has(time.source.legId);
+  const arrived = new Set(times.filter((item) => item.in.tap && "legId" in item.in.source).map((item) => item.leg.id));
+  const isMissed = (time: FormTime) =>
+    "legId" in time.source && missed.has(time.source.legId) && !(time.source.kind === "LEAVE" && arrived.has(time.source.legId));
   let last = -1;
   sequence.forEach((time, index) => {
     if (time.tap || isMissed(time)) last = index;

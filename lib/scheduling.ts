@@ -24,6 +24,12 @@ export type TripKind = "DAILY" | "COMPANY";
  * trip's vehicle; the old planner links and notifications lead here.
  */
 export function schedulingHref(date?: string, kind?: TripKind, tripId?: string) {
+  // Company trips are booked by the requester, not planned on Scheduling
+  // (Company trip v2): a link to one opens it on Schedules.
+  if (kind === "COMPANY") {
+    if (tripId) return `/schedules?open=${encodeURIComponent(tripId)}`;
+    return date ? `/schedules?date=${encodeURIComponent(date)}` : "/schedules";
+  }
   const query = [date && `date=${encodeURIComponent(date)}`, kind && `type=${kind}`, tripId && `trip=${encodeURIComponent(tripId)}`]
     .filter(Boolean)
     .join("&");

@@ -7,6 +7,9 @@
 - **Backend:** Supabase — Postgres, Supabase Auth, Row Level Security (RLS),
   and Postgres RPC functions for anything that needs to be atomic.
 - **Package manager:** pnpm.
+- **Hosting:** Netlify (`kc-kova.netlify.app`, Free plan), with the old
+  Vercel site (`kc-kova.vercel.app`) kept as a fallback on the same database.
+  See "Hosting" under Deployment.
 - **UI:** Tailwind CSS 4, Radix UI primitives, shadcn-style components in
   `components/ui/` (vendored, not hand-edited).
 
@@ -110,8 +113,10 @@ failed sign-ins / 15 minutes per network (high, since an office shares one
 address); `forgot-ip:<address>`, 30 Forgot password requests / 15 minutes;
 `invite:<admin id>`, 150 invite emails an hour per Admin, resends included;
 `push-test:<account id>`, 10 test pushes an hour. A limited request gets
-`429`. The address comes from `x-forwarded-for` (set by Vercel); with none,
-the per-network limits are skipped.
+`429`. The address comes from Netlify's `x-nf-client-connection-ip`, since a
+caller can send `x-forwarded-for` themselves there; on Vercel, which writes
+`x-forwarded-for` itself, from that. With none, the per-network limits are
+skipped.
 
 An attempt is taken before it's made, through `add_login_attempts` (0082),
 which adds to a key's count and returns the new one in one statement, so
@@ -227,6 +232,7 @@ KOVA enforces permissions in two places, and both must independently hold:
 | `name` | text | |
 | `status` | text | `Active` \| `Inactive` |
 | `company_trips` | boolean | 0051. "Can be requested for company trips": offered on the Company Trip form, never on a Daily trip |
+| `owner_account_id` | uuid FK accounts, nullable | 0092. A personal vehicle: its owner books and drives it, only on their Company trips (`company_trips` must be on and there's no assigned Driver; one per owner). Added at account setup from an invite with `has_personal_vehicle` |
 | `has_odometer` | boolean | 0078, default true. Off for a vehicle with no odometer: `submit_completion` and `start_company_trip` store no readings (`vehicle_has_odometer()`), and `trip_completions` / `company_trip_runs` readings are then null |
 
 ### `booking_options`
@@ -356,7 +362,8 @@ head (each an option id plus a name snapshot), `site_officer` and
 `flexibility` (`DAY` \| `FIXED` \| `WEEK`), `fixed_time`, `contact` and
 `supplier_id`/`_name`, plus `moved_at`/`moved_by_account_id` when a
 Scheduler moved it to another day of its week (`move_request_day`, 0053).
-Written only by `create_request_group` / `update_request_group`; read
+Written only by `create_request_group` / `update_request_group`, and
+deleted only by `delete_request` (0091) when its last stop is; read
 through `can_view_request_group` (owner, Admin, Scheduler, the Company
 Trip's Driver, and anyone who may see one of its stops).
 
@@ -367,6 +374,35 @@ back to ANONANG on a Company trip, one department and starting point).
 Since 0058 a Company Trip group's `department_id` / `department_name` is
 its one Project / Site (a `projects` option), set by
 `resolve_group_fields`; the `departments` list is no longer used.
+
+**Company trip v2 (0092–0097, 2026-11-27).** A Company trip is booked by its
+requester: `request_company_trip(p_group_id, p_expected_row_version,
+p_input)` (API `POST /api/company-trips`, `PUT /api/company-trips/:groupId`)
+writes the group and one stop per destination, creates (or, on an edit,
+re-versions) the `COMPANY` schedule with legs from Time Out, each stop's
+arrive / leave time and Time In, checks the people
+(`assert_people_free`) and submits it to the Admin. `request_groups` gains
+`purpose_text`, `fleet_card_last4`, `priority` and `urgent_reason_id` /
+`_name` (0093); `request_group_passengers` holds its passengers (an
+account or a guest name each, read through `can_view_request_group`).
+`company_trip_busy(date, except_group)` (`GET /api/company-trips/busy`)
+lists the day's booked trips for the form, `cancel_company_trip`
+(`POST /api/company-trips/:groupId/cancel`) cancels one, and
+`my_company_trips(since)` (0096, odometers 0097) gives the requester each
+of their trips' state (`WAITING`, `RETURNED`, `APPROVED`,
+`CHANGES_WAITING`, `CHANGES_RETURNED`, `CANCELLED`), the Admin's comment,
+the latest legs' times, passengers and odometers; the bootstrap returns it
+as `companyTrips`. The trigger `refuse_old_company_trip_paths` refuses the
+old Company form and Scheduling's Company planner.
+
+**Typed choices (0098, 2026-11-27).** `add_booking_option(p_group, p_name)`
+(API `POST /api/booking-options/:group`, destinations and purposes only)
+lets any Active account add a name to the list, or returns the one already
+there (`option_name_key`, 0049). Who added it goes in
+`booking_option_additions` rather than new `booking_options` columns,
+since older functions test a whole `booking_options` row with
+`is not null`. The screens use one search dropdown,
+`app/search-select.tsx` (role combobox, options role option).
 
 Since 0057 a Scheduler's `save_schedule_draft` on a `SUBMITTED` revision
 takes it back to `DRAFT` (keeping `submitted_at`) instead of refusing it,
@@ -438,8 +474,9 @@ nothing. The routes call the twin when the body has `tappedAt`
 `lib/saved-taps.ts` (localStorage queue, and the overlay that shows saved
 taps as done) and `sendSavedTaps` in `lib/kova-api.ts`.
 
-With Start/End these are the actual times on the printed form
-(`lib/stop-times.ts`): leg 1 TIME OUT = Start trip, leg N TIME IN =
+With Start/End these are a trip's actual times, shown on Finished Trips
+(`lib/stop-times.ts`; the printed forms use the planned times since
+2026-11-26): leg 1 TIME OUT = Start trip, leg N TIME IN =
 Arrived at leg N, leg N+1 TIME OUT = Leaving leg N, final TIME IN = End trip.
 
 ### `trip_time_corrections` (migration 0046)
@@ -531,6 +568,7 @@ built against, written before implementation, is kept for history in
 | PUT | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Owner Requester/Admin, unscheduled only |
 | POST | `/api/request-groups` | `app/api/request-groups/route.ts` | Who may make that form (`can_request_daily` / `can_request_company`); `{ form: "DAILY" \| "COMPANY", date, stops, … }` → the stops |
 | PUT | `/api/request-groups/:groupId` | `app/api/request-groups/[groupId]/route.ts` | Owner, Admin; `rowVersion` required |
+| DELETE | `/api/requests/:requestId` | `app/api/requests/[requestId]/route.ts` | Scheduler, Admin; a stop never on a trip, erased for good → `204` (`delete_request`, 0091) |
 | POST | `/api/requests/:requestId/move` | `app/api/requests/[requestId]/move/route.ts` | Scheduler; an "any day that week" stop, `{ date }` |
 | POST | `/api/requests/:requestId/new-day` | `app/api/requests/[requestId]/new-day/route.ts` | The requester; their sent-back stop while the rest of its request is being scheduled, `{ date }` → `204` (`move_sent_back_stop`, 0081) |
 | POST | `/api/schedules` | `app/api/schedules/route.ts` | Scheduler (Admin gets 403); `kind: "COMPANY"` starts a Company trip |
@@ -617,8 +655,8 @@ Configuration is entirely in environment variables (`.env.example`):
   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and the server-only `VAPID_PRIVATE_KEY`
   (a pair from `pnpm dlx web-push generate-vapid-keys`), `VAPID_SUBJECT`
   (a `mailto:` or `https:` contact for push services, not a secret;
-  production uses `https://kc-kova.vercel.app`, and `vapidSubject()`
-  tidies a typo or falls back to the site's own address) and the server-only
+  production uses `mailto:kayelens.kova@gmail.com`, and `vapidSubject()`
+  tidies a typo or falls back to `APP_URL`) and the server-only
   `PUSH_SEND_SECRET`. Each environment also needs the Vault secrets
   `push_send_url` (`https://<app>/api/push/send`) and `push_send_secret`
   (the same value as `PUSH_SEND_SECRET`); see 0070's header.
@@ -640,6 +678,27 @@ error the first time a route touches Supabase.
 `Content-Security-Policy`; see `docs/MEMORY.md`, "Content-Security-Policy".
 
 ## Deployment and migrations
+
+### Hosting
+
+KOVA runs on Netlify (`kc-kova.netlify.app`, the company's Netlify account,
+Free plan), moved from Vercel Hobby on 2026-11-06 for company use at no
+cost. `netlify.toml` holds the build settings; the keys are set in the
+Netlify dashboard. The Free plan has 300 credits a month and stops every
+site when they run out: a production deploy costs 15, and function time is
+billed by duration, so keep deploys few and watch Team → Usage.
+
+- **The old Vercel site** uses the same database, so either address shows
+  the same data. Keep one address for staff: Push goes only to the site
+  the Vault secret `push_send_url` names (now Netlify), and unsent offline
+  taps stay with the address they were made on.
+- **`NEXT_PUBLIC_*` values are built in**, including the Realtime socket in
+  the CSP (`next.config.ts`), so changing one needs a new deploy.
+- **Deploying from Windows fails** (symlinks, then a `C:/` path in the edge
+  bundle). Deploy from Netlify's own build (connected to GitHub) or from
+  Linux.
+
+### CI and migrations
 
 CI (`.github/workflows/ci.yml`) runs `pnpm install`, `pnpm exec tsc
 --noEmit`, `pnpm lint`, `pnpm test`, and `pnpm build` on every push and pull

@@ -11,6 +11,8 @@ import {
   toStopTap,
   toStopTask,
   toCompanyTripRun,
+  toCompanyTripStatus,
+  type CompanyTripStatusRow,
   toTripTimeCorrection,
   toTripAttendance,
   toTripCompletion,
@@ -60,10 +62,11 @@ export const GET = authed(async ({ request, supabase }) => {
     oldCancellationsRes,
     oldCompletionsRes,
     oldProblemsRes,
+    companyTripsRes,
   ] = await Promise.all([
     allRows((from, to) => supabase.from("accounts").select("*").order("id").range(from, to)),
     allRows((from, to) => supabase.from("vehicles").select("*").order("plate").range(from, to)),
-    allRows((from, to) => supabase.from("booking_options").select("*").order("group").order("id").range(from, to)),
+    allRows((from, to) => supabase.from("booking_options").select("*, booking_option_additions(account_name, added_at)").order("group").order("id").range(from, to)),
     allRows((from, to) =>
       supabase
         .from("destination_locations")
@@ -186,6 +189,8 @@ export const GET = authed(async ({ request, supabase }) => {
         .order("id")
         .range(from, to),
     ),
+    // The account's own Company trip requests, where each one is (0096).
+    supabase.rpc("my_company_trips", { p_since: since }),
   ]);
 
   const firstError = [
@@ -208,6 +213,7 @@ export const GET = authed(async ({ request, supabase }) => {
     oldCancellationsRes,
     oldCompletionsRes,
     oldProblemsRes,
+    companyTripsRes,
   ].find((res) => res.error)?.error;
   if (firstError) {
     return NextResponse.json({ message: "Could not load application data." }, { status: 500 });
@@ -305,5 +311,6 @@ export const GET = authed(async ({ request, supabase }) => {
     timeCorrections: [...(correctionsRes.data ?? []), ...(oldCorrectionsRes.data ?? [])].map(toTripTimeCorrection),
     problems: [...(problemsRes.data ?? []), ...oldProblems].map(toProblemReport),
     notifications: (notificationsRes.data ?? []).map(toNotification),
+    companyTrips: ((companyTripsRes.data ?? []) as CompanyTripStatusRow[]).map(toCompanyTripStatus),
   });
 });

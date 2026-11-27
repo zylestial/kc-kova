@@ -145,24 +145,22 @@ export function editInput(date: string, plate: string, legs: EditLeg[], requestI
  * Submit is refused until these are fixed. A Daily trip must end at
  * ANONANG; a Company trip ends at its last stop.
  */
-export function tripChecks(legs: EditLeg[], timer: Timer, company: boolean): string[] {
+export function tripChecks(legs: EditLeg[], company: boolean): string[] {
   const problems: string[] = [];
   if (!legs.length) return problems;
   if (legs.length > MAX_LEGS) problems.push(`Over ${MAX_LEGS} legs: this trip has ${legs.length}`);
-  legs.forEach((_, index) => problems.push(...legProblems(legs, index, timer).map((problem) => `Leg ${index + 1}: ${problem}`)));
+  legs.forEach((_, index) => problems.push(...legProblems(legs, index).map((problem) => `Leg ${index + 1}: ${problem}`)));
   if (!company && !legs.at(-1)!.isFinal) problems.push(`Must end at ANONANG: the last leg goes to ${legs.at(-1)!.destinationName}`);
   return problems;
 }
 
 /**
- * What's wrong with one leg, with the times involved: too little time to
- * drive there, or leaving before it arrives from the stop before.
+ * What's wrong with one leg, with the times involved: leaving before it
+ * arrives from the stop before.
  */
-export function legProblems(legs: EditLeg[], index: number, timer: Timer): string[] {
+export function legProblems(legs: EditLeg[], index: number): string[] {
   const leg = legs[index];
   const problems: string[] = [];
-  const wait = timer.waitAt(legs, index);
-  if (wait < 0) problems.push(`Time In ${hhmmLabel(leg.timeIn)} is too soon to drive to ${leg.destinationName}`);
   const before = legs[index - 1];
   if (before && toMinutes(leg.timeOut) < toMinutes(before.timeIn))
     problems.push(`Time Out ${hhmmLabel(leg.timeOut)} is before it arrives at ${before.destinationName} at ${hhmmLabel(before.timeIn)}`);
@@ -171,12 +169,15 @@ export function legProblems(legs: EditLeg[], index: number, timer: Timer): strin
 
 /**
  * What the Scheduler may want to change on one leg, without blocking
- * Submit (owner, 2026-10-20): each fixed-time stop it reaches more than 5
- * minutes off the time asked for.
+ * Submit: a Time In sooner than the estimated drive there (owner,
+ * 2026-11-16: the estimate is only a guess), and each fixed-time stop it
+ * reaches more than 5 minutes off the time asked for (owner, 2026-10-20).
  */
 export function legSuggestions(legs: EditLeg[], index: number, timer: Timer, nameOf: (requestId: string) => string): string[] {
   const leg = legs[index];
   const suggestions: string[] = [];
+  if (timer.waitAt(legs, index) < 0)
+    suggestions.push(`Time In ${hhmmLabel(leg.timeIn)} is sooner than the estimated drive to ${leg.destinationName}`);
   for (const stopId of leg.stops) {
     const request = timer.requestOf(stopId);
     if (request?.flexibility !== "FIXED" || !request.fixedTime) continue;

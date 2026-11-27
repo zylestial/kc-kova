@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAttendanceInput, parseCompanyRunInput, parseStopTapInput, parseTripTimeInput, tapRpc } from "@/lib/attendance-input";
+import { parseAttendanceInput, parseCompanyRunInput, parseStartOdometerInput, parseStopTapInput, parseTripTimeInput, tapRpc } from "@/lib/attendance-input";
 
 describe("parseAttendanceInput", () => {
   it("accepts a tap with a position", () => {
@@ -100,5 +100,19 @@ describe("taps saved on the phone (0077)", () => {
       "record_stop_tap_at",
       { p_tapped_at: "2026-10-22T01:15:00.000Z", p_kind: "ARRIVE" },
     ]);
+  });
+});
+
+describe("parseStartOdometerInput", () => {
+  it("accepts a whole-number reading, with the time of a saved one", () => {
+    expect(parseStartOdometerInput({ odometer: 48215 })).toEqual({ odometer: 48215 });
+    expect(parseStartOdometerInput({ odometer: 0, tappedAt: "2026-11-16T01:00:00.000Z" })).toEqual({ odometer: 0, tappedAt: "2026-11-16T01:00:00.000Z" });
+  });
+
+  it("rejects a missing, negative or fractional reading", () => {
+    expect(parseStartOdometerInput({})).toBeNull();
+    expect(parseStartOdometerInput({ odometer: null })).toBeNull();
+    expect(parseStartOdometerInput({ odometer: -1 })).toBeNull();
+    expect(parseStartOdometerInput({ odometer: 12.5 })).toBeNull();
   });
 });

@@ -11,6 +11,9 @@ const group = (patch: Partial<RequestGroup> = {}): RequestGroup => ({
   date: "2026-10-14",
   siteOfficer: "",
   siteCompany: "",
+  purpose: "",
+  fleetCard: "",
+  priority: "REGULAR",
   rowVersion: 1,
   createdAt: "",
   ...patch,
@@ -155,7 +158,9 @@ describe("links", () => {
   it("opens Scheduling on a day and kind", () => {
     expect(schedulingHref()).toBe("/scheduling");
     expect(schedulingHref("2026-10-15")).toBe("/scheduling?date=2026-10-15");
-    expect(schedulingHref("2026-10-15", "COMPANY")).toBe("/scheduling?date=2026-10-15&type=COMPANY");
+    // Company trips aren't planned on Scheduling any more: they open on Schedules.
+    expect(schedulingHref("2026-10-15", "COMPANY")).toBe("/schedules?date=2026-10-15");
+    expect(schedulingHref("2026-10-15", "COMPANY", "s1")).toBe("/schedules?open=s1");
     expect(schedulingHref("2026-10-15", "DAILY", "s1")).toBe("/scheduling?date=2026-10-15&type=DAILY&trip=s1");
   });
 });

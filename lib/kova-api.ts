@@ -40,6 +40,8 @@ export type Vehicle = {
   companyTrips: boolean;
   /** Off for a vehicle with no odometer: its trips record no readings (0078). */
   hasOdometer: boolean;
+  /** A personal vehicle: its owner set it up when joining and is the only one who books and drives it (0092). */
+  ownerAccountId?: string;
 };
 export type BookingOption = {
   id: string;
@@ -49,6 +51,8 @@ export type BookingOption = {
   isOtherStop?: boolean;
   /** Destinations only: where it is, to check a Driver's Arrived/Leaving taps there (0044). */
   location?: { lat: number; lng: number } | null;
+  /** Typed on a request and added to the list by this person (0098). */
+  addedBy?: { name: string; at: string };
 };
 export type RequestProgress =
   | "NOT_YET_SCHEDULED"
@@ -91,6 +95,11 @@ export type RequestGroup = {
   head?: { id: string; name: string };
   siteOfficer: string;
   siteCompany: string;
+  /** Company trip v2 (0093): one purpose for the whole trip, the Fleet Card's last 4, Regular or Urgent. */
+  purpose: string;
+  fleetCard: string;
+  priority: "REGULAR" | "URGENT";
+  urgentReason?: { id: string; name: string };
   rowVersion: number;
   createdAt: string;
 };
@@ -189,6 +198,8 @@ export type TripAttendance = {
   driverId: string;
   start: AttendanceTap;
   end?: AttendanceTap;
+  /** The starting reading, entered after Start trip (0090); null until then. */
+  startOdometer?: number | null;
 };
 /** What a Start/End tap sends: the phone's position, or null when it wouldn't share it. */
 export type AttendanceInput = {
@@ -255,6 +266,8 @@ export type CompanyTripRun = {
 /** What Start trip / End trip on a Company trip sends. */
 /** odometer is null for a vehicle without one (0078). */
 export type CompanyRunInput = { kind: "START" | "END"; odometer: number | null; location: AttendanceInput["location"]; tappedAt?: string };
+/** The starting odometer, entered after Start trip on either kind of trip (0090). */
+export type StartOdometerInput = { odometer: number; tappedAt?: string };
 /** What an Arrived/Leaving tap sends. */
 export type StopTapInput = { legId: string; kind: StopTap["kind"]; location: AttendanceInput["location"]; tappedAt?: string };
 /** A problem at one stop (0061); `skip` skips a blocked road instead of waiting. */
@@ -339,6 +352,8 @@ export type Invite = {
   canRequestCompany: boolean;
   /** "Can drive company trips" for the new account (0080). */
   canDriveCompany: boolean;
+  /** Sets up their own vehicle when they join (0092). */
+  hasPersonalVehicle: boolean;
   sentAt: string;
   /** Its link no longer works; Resend makes a new one. */
   expired: boolean;
@@ -388,6 +403,51 @@ export type RequestGroupInput = {
   headId: string;
   siteOfficer: string;
   siteCompany: string;
+};
+/** What the Company trip form sends (0094): the request is the trip. */
+export type CompanyTripInput = {
+  date: string;
+  departmentId: string;
+  /** A company trip vehicle, or the requester's own personal vehicle. */
+  vehiclePlate: string;
+  /** Ignored for a personal vehicle: its owner drives. */
+  driverId: string;
+  purpose: string;
+  /** The Fleet Card's last 4 digits. */
+  fleetCard: string;
+  priority: "REGULAR" | "URGENT";
+  urgentReasonId: string;
+  /** Leaving the Main Office, "HH:MM". */
+  timeOut: string;
+  /** In order. The last one's arriveAt is Time In; its leaveAt is ignored. */
+  stops: Array<{ destinationId: string; arriveAt: string; leaveAt: string }>;
+  passengers: CompanyTripPassenger[];
+};
+export type CompanyTripPassenger = { accountId: string } | { guestName: string };
+/** Where the requester's own Company trip is (0096). */
+export type CompanyTripState = "WAITING" | "RETURNED" | "APPROVED" | "CHANGES_WAITING" | "CHANGES_RETURNED" | "CANCELLED";
+export type CompanyTripStatus = {
+  groupId: string;
+  scheduleId?: string;
+  state: CompanyTripState;
+  /** The Admin's comment when returned. */
+  comment: string;
+  /** The latest version's legs in order: leg n ends at destination n. */
+  legs: Array<{ out: string; in: string }>;
+  passengers: CompanyTripPassenger[];
+  /** The trip has ended (0097); the readings are null for a vehicle without an odometer. */
+  finished: boolean;
+  odometerStart: number | null;
+  odometerEnd: number | null;
+};
+/** A Company trip already booked on a day (0094 company_trip_busy). */
+export type CompanyTripBooking = {
+  scheduleId: string;
+  plate: string;
+  ownerName: string;
+  startsAt: string;
+  endsAt: string;
+  accountIds: string[];
 };
 /** What the New request form and the Edit modal send. The server sets the type from the date. */
 export type RequestInput = {
@@ -448,6 +508,9 @@ export type Schedule = {
   publishedRevisionId?: string;
   /** Paused for a Vehicle problem until Resume trip (0061). */
   pausedAt?: string;
+  /** When it was cancelled and by whom (Admin), on a CANCELLED schedule. */
+  cancelledAt?: string;
+  cancelledByAccountId?: string;
   createdAt: string;
   updatedAt: string;
   /** Live versions only: the published one and any open draft. */
@@ -503,6 +566,8 @@ export type BootstrapData = {
   timeCorrections: TripTimeCorrection[];
   problems: ProblemReport[];
   notifications: Notification[];
+  /** The signed-in account's own Company trip requests (0096). */
+  companyTrips: CompanyTripStatus[];
 };
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
@@ -523,6 +588,7 @@ const emptyData: BootstrapData = {
   timeCorrections: [],
   problems: [],
   notifications: [],
+  companyTrips: [],
 };
 // Replaced (never mutated) on every load, so a changed reference means new data.
 let cache: BootstrapData = emptyData;
@@ -623,12 +689,20 @@ export async function signOut() {
  * no longer works.
  */
 export const lookUpInvite = (token: string) =>
-  request<{ email: string; role: Role; access: string; position: "required" | "optional" | "none" }>(
+  request<{ email: string; role: Role; access: string; position: "required" | "optional" | "none"; personalVehicle: boolean }>(
     `/api/auth/invite?token=${encodeURIComponent(token)}`,
   );
 
 /** Sets up the invited account and signs in as it (null when the sign-in itself failed). */
-export async function acceptInvite(input: { token: string; name: string; username: string; position: string; password: string }) {
+export async function acceptInvite(input: {
+  token: string;
+  name: string;
+  username: string;
+  position: string;
+  password: string;
+  vehicleName?: string;
+  vehiclePlate?: string;
+}) {
   const result = await request<{ account: Account | null }>("/api/auth/accept-invite", { method: "POST", body: JSON.stringify(input) });
   sessionAccount = result.account;
   if (sessionAccount) await hydrateKovaData();
@@ -727,20 +801,36 @@ export const listAccountEmails = () => request<Array<{ accountId: string } & Ema
 export const resendEmailLink = (accountId: string) =>
   request<void>(`/api/accounts/${encodeURIComponent(accountId)}/email-link`, { method: "POST" });
 export const listInvites = () => request<Invite[]>("/api/invites");
-export const sendInvites = (input: { emails: string; role: Role; driverType?: DriverType; canRequestDaily: boolean; canRequestCompany: boolean; canDriveCompany: boolean }) =>
+export const sendInvites = (input: { emails: string; role: Role; driverType?: DriverType; canRequestDaily: boolean; canRequestCompany: boolean; canDriveCompany: boolean; hasPersonalVehicle: boolean }) =>
   request<InviteResult>("/api/invites", { method: "POST", body: JSON.stringify(input) });
 export const resendInvite = (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}/resend`, { method: "POST" });
 export const cancelInvite = (id: string) => request<void>(`/api/invites/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const saveVehicle =(vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
+/** Adds a typed destination or purpose to the list for everyone, or returns the one already there (0098). */
+export const addBookingOption = (group: "destinations" | "purposes", name: string) =>
+  refreshAfter(request<BookingOption>(`/api/booking-options/${group}`, { method: "POST", body: JSON.stringify({ name }) }));
 export const saveBookingOption = (group: OptionGroup, option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 /** Returns the group's stops, A first. */
 export const createRequestGroup = (form: RequestForm, input: RequestGroupInput) =>
   refreshAfter(request<TransportRequest[]>("/api/request-groups", { method: "POST", body: JSON.stringify({ ...input, form }) }));
 export const updateRequestGroup = (id: string, rowVersion: number, input: RequestGroupInput) =>
   refreshAfter(request<TransportRequest[]>(`/api/request-groups/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
+/** Sends a Company trip request (0094); returns its stops, A first. */
+export const requestCompanyTrip = (input: CompanyTripInput) =>
+  refreshAfter(request<TransportRequest[]>("/api/company-trips", { method: "POST", body: JSON.stringify(input) }));
+/** Resends an edited Company trip request to the Admin. */
+export const updateCompanyTrip = (groupId: string, rowVersion: number, input: CompanyTripInput) =>
+  refreshAfter(request<TransportRequest[]>(`/api/company-trips/${encodeURIComponent(groupId)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
+export const cancelCompanyTrip = (groupId: string, reason: string) =>
+  refreshAfter(request<void>(`/api/company-trips/${encodeURIComponent(groupId)}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }));
+/** Company trips already booked on a date, leaving out the request being edited. */
+export const companyTripBookings = (date: string, exceptGroupId?: string) =>
+  request<CompanyTripBooking[]>(`/api/company-trips/busy?date=${encodeURIComponent(date)}${exceptGroupId ? "&except=" + encodeURIComponent(exceptGroupId) : ""}`);
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));
+/** Scheduler or Admin: erases a stop that was never on a trip (0091). */
+export const deleteRequest = (id: string) => refreshAfter(request<void>(`/api/requests/${encodeURIComponent(id)}`, { method: "DELETE" }));
 export const moveRequestDay = (id: string, date: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/move`, { method: "POST", body: JSON.stringify({ date }) }));
 /** The requester's sent-back stop, while the rest of its request is being scheduled, becomes its own request on `date` (0081). */
 export const moveSentBackStop = (id: string, date: string) => refreshAfter(request<void>(`/api/requests/${encodeURIComponent(id)}/new-day`, { method: "POST", body: JSON.stringify({ date }) }));
@@ -749,9 +839,6 @@ export const confirmCancellation = (id: string) => refreshAfter(request<Cancella
 export const declineCancellation = (id: string, note: string) => refreshAfter(request<CancellationRequest>(`/api/cancellations/${encodeURIComponent(id)}/decline`, { method: "POST", body: JSON.stringify({ note }) }));
 export const cancelSchedule = (id: string, reason: string) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }));
 export const createSchedule = (input: ScheduleInput) => refreshAfter(request<Schedule>("/api/schedules", { method: "POST", body: JSON.stringify(input) }));
-/** A new Company trip (0054); edits then go through saveScheduleDraft like any schedule. */
-export const createCompanyTrip = (input: ScheduleInput) =>
-  refreshAfter(request<Schedule>("/api/schedules", { method: "POST", body: JSON.stringify({ ...input, kind: "COMPANY" }) }));
 export const saveScheduleDraft = (id: string, rowVersion: number | null, input: ScheduleInput) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const submitSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/submit`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
 export const approveSchedule = (id: string, rowVersion: number) => refreshAfter(request<Schedule>(`/api/schedules/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify({ rowVersion }) }));
@@ -768,7 +855,7 @@ export const submitCompletion = (id: string, startOdometer: number | null, endOd
 async function recordTap(
   path: SavedTap["path"],
   scheduleId: string,
-  input: AttendanceInput | StopTapInput | CompanyRunInput | StopTaskInput,
+  input: AttendanceInput | StopTapInput | CompanyRunInput | StopTaskInput | StartOdometerInput,
   tappedAt: string,
 ): Promise<"sent" | "saved"> {
   const accountId = sessionAccount?.id ?? "";
@@ -799,6 +886,9 @@ export const recordStopTap = (id: string, input: StopTapInput, tappedAt = new Da
 /** Done, or Undo, for one request at a stop (0088); kept in order with the trip's other taps. */
 export const recordStopTask = (id: string, input: StopTaskInput, tappedAt = new Date().toISOString()) =>
   recordTap("stop-tasks", id, input, tappedAt);
+/** The starting odometer after Start trip (0090); kept on the phone with no signal, in order with the taps. */
+export const saveStartOdometer = (id: string, odometer: number, tappedAt = new Date().toISOString()) =>
+  recordTap("start-odometer", id, { odometer }, tappedAt);
 
 function storeTaps(list: SavedTap[]) {
   savedTaps = list;
@@ -819,7 +909,7 @@ export const savedTapCount = () => getSavedTaps().filter((tap) => tap.accountId 
 
 const TAP_NAMES = { START: "Start trip", END: "End trip", ARRIVE: "Arrived", LEAVE: "Leaving", DONE: "Done", UNDO: "Undo" } as const;
 const tapLine = (tap: SavedTap, why: string) =>
-  `${TAP_NAMES[tap.body.kind]} at ${new Date(tap.body.tappedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}: ${why}`;
+  `${tap.path === "start-odometer" ? "Starting odometer" : TAP_NAMES[tap.body.kind]} at ${new Date(tap.body.tappedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}: ${why}`;
 
 /** Worth trying again later: no signal, signed out, or KOVA busy. Anything else is KOVA saying no. */
 const tryLater = (status: number | undefined) => !status || status === 401 || status === 408 || status === 429 || status >= 500;

@@ -3,7 +3,7 @@
 -- Run locally with `supabase test db` (never against a hosted project).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(26);
 
 -- Fixtures -----------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -105,36 +105,26 @@ select lives_ok(
   'Two days ahead is fine: the date no longer sets Regular or Urgent');
 
 -- Company Trip --------------------------------------------------------------
+-- The requester books it on its own form now (0094, v2_company_trips.test.sql);
+-- this form refuses it.
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000db');
 select throws_ok($$ select create_request_group('COMPANY', pg_temp.company()) $$, '42501', 'Not authorized to create requests',
   'Only accounts an Admin allows can request company trips');
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000de');
-select lives_ok($$ select create_request_group('COMPANY', pg_temp.company()) $$,
-  'An Admin can, without the switch or a Position (0059)');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000da');
-select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"vehiclePlate":""}')) $$, '22023', 'Select a vehicle',
-  'A Company Trip needs a vehicle');
-select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"vehiclePlate":"VD"}')) $$, '22023',
-  'This vehicle can''t be requested for company trips', 'and one that can be requested for company trips');
-select throws_ok(
-  $$ select create_request_group('COMPANY', pg_temp.company('{"driverId":"00000000-0000-0000-0000-0000000000d2"}')) $$,
-  '22023', 'Select someone who can drive company trips', 'A Truck driver cannot be picked');
-select throws_ok($$ select create_request_group('COMPANY', pg_temp.company('{"headId":""}')) $$, '22023',
-  'Project Manager / Construction Manager / Dept. Head is required', 'The PM / CM / Dept. Head is required');
-select throws_ok(
-  $$ select create_request_group('COMPANY', pg_temp.company(jsonb_build_object('stops', jsonb_build_array(
-       pg_temp.stop('{"destinationId":"","destinationOther":"Somewhere new"}'))))) $$,
-  '22023', 'Stop A: choose the destination from the list', 'A Company Trip has no typed destinations');
-select throws_ok(
-  $$ select create_request_group('COMPANY', pg_temp.company(jsonb_build_object('stops', jsonb_build_array(
-       pg_temp.stop('{"destinationId":"d1"}'), pg_temp.stop('{"projectId":"p2"}'))))) $$,
-  '22023', 'A company trip is for one Project / Site. Pick the same one for every stop',
-  'A Company Trip''s stops share one Project / Site (0058)');
-select lives_ok($$ insert into ids select 'g2', id from create_request_group('COMPANY', pg_temp.company()) $$,
-  'A complete Company Trip');
+select throws_ok($$ select create_request_group('COMPANY', pg_temp.company()) $$, '22023',
+  'Company trips have a new form. Reload KOVA and send it again', 'The old Company Trip form is refused');
 reset role;
-select is((select vehicle_plate || ' / ' || supplier_name from requests where group_id = pg_temp.id('g2')),
-  'VM / Wilcon Depot – Mandaue', 'Its stops carry the chosen vehicle and their supplier');
+insert into booking_options ("group", id, name, status) values ('starting_points', 'start-office', 'Main Office', 'Active')
+on conflict ("group", id) do update set status = 'Active';
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000da');
+select lives_ok($$ insert into ids select 'g2', id from request_company_trip(null, null, jsonb_build_object(
+    'date', pg_temp.d(), 'departmentId', 'p1', 'vehiclePlate', 'VM', 'driverId', '00000000-0000-0000-0000-0000000000d1',
+    'purpose', 'Pick up rebar samples', 'fleetCard', '4821', 'timeOut', '08:00',
+    'stops', jsonb_build_array(jsonb_build_object('destinationId', 'd1', 'arriveAt', '08:45')))) $$,
+  'A complete Company Trip, on its own form');
+reset role;
+select is((select vehicle_plate || ' / ' || request_type from requests where group_id = pg_temp.id('g2')),
+  'VM / REGULAR', 'Its stop carries the chosen vehicle');
 select is((select driver_name from request_groups where id = pg_temp.id('g2')), 'Jun Reyes', 'and the group the chosen Driver');
 select is((select department_id || ' / ' || department_name from request_groups where id = pg_temp.id('g2')),
   'p1 / Riverside Townhomes', 'Its Department / Site is its Project / Site (0058)');

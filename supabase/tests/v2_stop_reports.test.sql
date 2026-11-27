@@ -180,24 +180,29 @@ select throws_ok($$ select report_stop(pg_temp.id('s1'), pg_temp.leg('s1', 2), '
   '22023', 'This trip has ended', 'No reports after End trip');
 
 -- A Company trip passes a missed stop -------------------------------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
-insert into ids select 'g', (create_request_group('COMPANY', jsonb_build_object(
-  'date', pg_temp.today(), 'startingPointId', 'tsp', 'vehiclePlate', 'TM',
-  'driverId', '00000000-0000-0000-0000-0000000001a5', 'supervisorId', 'tsup', 'headId', 'th',
-  'stops', jsonb_build_array(
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'd1', 'purposeId', 'p1'),
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'd2', 'purposeId', 'p1'))))).id;
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-insert into ids select 'trip', (create_company_trip(pg_temp.today(), 'TM',
-  array(select id from requests where group_id = pg_temp.id('g') order by stop_letter),
-  (select jsonb_agg(jsonb_build_object('destinationId', rd.destination_id, 'plannedTimeOut', t.out, 'plannedTimeIn', t.inn,
-     'stops', jsonb_build_array(rd.id)) order by r.stop_letter)
-   from requests r join request_destinations rd on rd.request_id = r.id and rd.active
-   join (values ('A', '14:00', '14:30'), ('B', '15:00', '15:30')) as t (letter, out, inn) on t.letter = r.stop_letter
-   where r.group_id = pg_temp.id('g')))).schedule_id;
-select submit_schedule(pg_temp.id('trip'), pg_temp.rv(pg_temp.id('trip')));
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-select approve_schedule(pg_temp.id('trip'), pg_temp.rv(pg_temp.id('trip')));
+-- Rhea books it with Jun driving (0094): City Hall, then the Market; Ada approves it.
+reset role;
+insert into booking_options ("group", id, name, status) values ('starting_points', 'start-office', 'Main Office', 'Active')
+on conflict ("group", id) do update set status = 'Active';
+create function pg_temp.book(p_out text) returns uuid language plpgsql as $$
+declare v_group uuid; v_trip uuid;
+begin
+  perform pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
+  v_group := (public.request_company_trip(null, null, jsonb_build_object(
+    'date', pg_temp.today(), 'departmentId', 'tp', 'vehiclePlate', 'TM',
+    'driverId', '00000000-0000-0000-0000-0000000001a5', 'purpose', 'Inspection', 'fleetCard', '1234', 'timeOut', p_out,
+    'stops', jsonb_build_array(
+      jsonb_build_object('destinationId', 'd1', 'arriveAt', to_char(p_out::time + interval '30 min', 'HH24:MI'),
+        'leaveAt', to_char(p_out::time + interval '60 min', 'HH24:MI')),
+      jsonb_build_object('destinationId', 'd2', 'arriveAt', to_char(p_out::time + interval '90 min', 'HH24:MI')))))).id;
+  select sr.schedule_id into v_trip from public.schedule_requests sr join public.requests r on r.id = sr.request_id
+  where r.group_id = v_group limit 1;
+  perform pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+  perform public.approve_schedule(v_trip, pg_temp.rv(v_trip));
+  return v_trip;
+end;
+$$;
+insert into ids select 'trip', pg_temp.book('14:00');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select start_company_trip(pg_temp.id('trip'), 1000);
 select lives_ok($$ select report_stop(pg_temp.id('trip'), pg_temp.leg('trip', 1), 'WRONG_ADDRESS', 'Office moved') $$,
@@ -209,24 +214,8 @@ select lives_ok($$ select end_company_trip(pg_temp.id('trip'), 1012) $$, 'and en
 select is((select count(*)::int from problem_reports where schedule_id = pg_temp.id('trip')), 1, 'The requester sees their report');
 
 -- A Company trip comes back to a stop (0087) ------------------------------------------------
-select pg_temp.act_as('00000000-0000-0000-0000-0000000001a1');
-insert into ids select 'g2', (create_request_group('COMPANY', jsonb_build_object(
-  'date', pg_temp.today(), 'startingPointId', 'tsp', 'vehiclePlate', 'TM',
-  'driverId', '00000000-0000-0000-0000-0000000001a5', 'supervisorId', 'tsup', 'headId', 'th',
-  'stops', jsonb_build_array(
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'd1', 'purposeId', 'p1'),
-    jsonb_build_object('projectId', 'tp', 'destinationId', 'd2', 'purposeId', 'p1'))))).id;
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
-insert into ids select 'trip2', (create_company_trip(pg_temp.today(), 'TM',
-  array(select id from requests where group_id = pg_temp.id('g2') order by stop_letter),
-  (select jsonb_agg(jsonb_build_object('destinationId', rd.destination_id, 'plannedTimeOut', t.out, 'plannedTimeIn', t.inn,
-     'stops', jsonb_build_array(rd.id)) order by r.stop_letter)
-   from requests r join request_destinations rd on rd.request_id = r.id and rd.active
-   join (values ('A', '16:00', '16:30'), ('B', '17:00', '17:30')) as t (letter, out, inn) on t.letter = r.stop_letter
-   where r.group_id = pg_temp.id('g2')))).schedule_id;
-select submit_schedule(pg_temp.id('trip2'), pg_temp.rv(pg_temp.id('trip2')));
-select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
-select approve_schedule(pg_temp.id('trip2'), pg_temp.rv(pg_temp.id('trip2')));
+reset role;
+insert into ids select 'trip2', pg_temp.book('16:00');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000001a5');
 select start_company_trip(pg_temp.id('trip2'), 2000);
 insert into ids select 'co_later', id from report_stop(pg_temp.id('trip2'), pg_temp.leg('trip2', 1), 'NOT_READY', 'Not paid yet');

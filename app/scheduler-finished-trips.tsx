@@ -14,9 +14,12 @@ import { scheduledBy } from "@/lib/scheduled-by";
 import { buildScheduledFinishedTrips } from "@/lib/trip-finish";
 import { stopsFor } from "@/lib/trip-record";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
-import { hasOpenProblem } from "@/lib/finished-trips";
 import { sortRows, type Sort } from "@/lib/table-sort";
 import TripRecordView from "./trip-record-view";
+import TripFacts from "./trip-facts";
+import TripReports from "./trip-reports";
+import { useTripTimes } from "./use-trip-times";
+import OpenProblemLink, { useAnswerOnScheduling, useReportFocus } from "./open-problem-link";
 import FilterFold from "./filter-fold";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { SortableHead, SortSelect, type SortColumn } from "./sortable-head";
@@ -43,11 +46,14 @@ const routeOf = (trip: { revision: { legs: { destinationName: string }[] } }) =>
  */
 export default function SchedulerFinishedTrips() {
   const { schedules, completions, requests, problems, accounts, stopTasks } = useKovaData();
+  const tripTimes = useTripTimes();
   const trips = useMemo(
     () => buildScheduledFinishedTrips(schedules, completions, requests, problems),
     [schedules, completions, requests, problems],
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { focusReport, setFocusReport } = useReportFocus(selectedId);
+  const answerOnScheduling = useAnswerOnScheduling();
   const [sort, setSort] = useState<Sort<SortKey>>(null);
   const [form, setForm] = useState<FormFilterValue>("all");
   const visible = sortRows(
@@ -63,7 +69,7 @@ export default function SchedulerFinishedTrips() {
   );
 
   const selected = trips.find((trip) => trip.schedule.id === selectedId);
-  const selectedBy = selected ? scheduledBy(selected.revision, accounts) : null;
+  const selectedBy = selected ? scheduledBy(selected.revision, accounts, selected.schedule.kind) : null;
   const stopsById = new Map(stopsFor(requests).map((stop) => [stop.id, stop]));
 
   return (
@@ -105,7 +111,15 @@ export default function SchedulerFinishedTrips() {
                     <td className="c-title">{routeOf(trip)}</td>
                     <td className="c-status">
                       <span className={"badge " + (trip.state === "DONE" ? "complete" : "")}>{completionLabel[trip.state]}</span>
-                      {hasOpenProblem(trip) && <small>Open problem</small>}
+                      <OpenProblemLink
+                        problems={trip.problems}
+                        onOpen={(problem) => {
+                          // A stop report is answered on Scheduling (owner's call 2026-11-26).
+                          if (problem.legId) return answerOnScheduling(trip.schedule);
+                          setSelectedId(trip.schedule.id);
+                          setFocusReport(problem);
+                        }}
+                      />
                     </td>
                     <td className="c-hide">
                       <Button
@@ -134,25 +148,56 @@ export default function SchedulerFinishedTrips() {
         )}
       </section>
 
-      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
+      <Dialog
+        open={!!selected}
+        onOpenChange={(open) => {
+          if (open) return;
+          setSelectedId(null);
+          setFocusReport(null);
+        }}
+      >
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Finished trip</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="sr-only">
               {selected && `${dateLabel(selected.schedule.date)} — ${selected.revision.plate} · ${selected.revision.driverName}`}
               {selectedBy && ` — ${selectedBy.label} ${selectedBy.name}`}
             </DialogDescription>
+            {selected && (
+              <TripFacts
+                facts={[
+                  { label: "Vehicle", value: selected.revision.plate, key: true },
+                  { label: "Driver", value: selected.revision.driverName, key: true },
+                  { label: "Date", value: dateLabel(selected.schedule.date) },
+                  ...(selectedBy ? [{ label: selectedBy.label, value: selectedBy.name }] : []),
+                ]}
+              />
+            )}
           </DialogHeader>
           {selected && (
             <>
-              <TripRecordView legs={selected.revision.legs} stopsById={stopsById} tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)} />
+              <TripRecordView
+                key={`${selected.schedule.id}:${focusReport?.id ?? ""}`}
+                legs={selected.revision.legs}
+                stopsById={stopsById}
+                tasks={stopTasks.filter((task) => task.scheduleId === selected.schedule.id)}
+                reports={selected.problems}
+                openReportId={focusReport?.id}
+                times={tripTimes(selected)}
+              />
               <p className="helper">{completionMeaning[selected.state]}</p>
-              {selected.problems.map((item) => (
-                <p className="helper" key={item.id}>
-                  <strong>{item.status === "OPEN" ? "Problem reported" : "Problem handled"}:</strong> {item.note}
-                  {item.status === "HANDLED" && item.handlingNote && ` — ${item.handlingNote}`}
-                </p>
-              ))}
+              <TripReports
+                problems={selected.problems}
+                legs={selected.revision.legs}
+                actionFor={(item) =>
+                  item.status === "OPEN" &&
+                  item.legId && (
+                    <Button variant="outline" onClick={() => answerOnScheduling(selected.schedule)}>
+                      Answer on Scheduling
+                    </Button>
+                  )
+                }
+              />
             </>
           )}
         </DialogContent>
