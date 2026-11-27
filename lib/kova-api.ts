@@ -632,12 +632,20 @@ export async function signOut() {
  * no longer works.
  */
 export const lookUpInvite = (token: string) =>
-  request<{ email: string; role: Role; access: string; position: "required" | "optional" | "none" }>(
+  request<{ email: string; role: Role; access: string; position: "required" | "optional" | "none"; personalVehicle: boolean }>(
     `/api/auth/invite?token=${encodeURIComponent(token)}`,
   );
 
 /** Sets up the invited account and signs in as it (null when the sign-in itself failed). */
-export async function acceptInvite(input: { token: string; name: string; username: string; position: string; password: string }) {
+export async function acceptInvite(input: {
+  token: string;
+  name: string;
+  username: string;
+  position: string;
+  password: string;
+  vehicleName?: string;
+  vehiclePlate?: string;
+}) {
   const result = await request<{ account: Account | null }>("/api/auth/accept-invite", { method: "POST", body: JSON.stringify(input) });
   sessionAccount = result.account;
   if (sessionAccount) await hydrateKovaData();

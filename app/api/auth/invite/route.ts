@@ -17,11 +17,14 @@ export async function GET(request: Request) {
     canRequestDaily: invite.can_request_daily,
     canRequestCompany: invite.can_request_company,
     canDriveCompany: invite.can_drive_company,
+    hasPersonalVehicle: invite.has_personal_vehicle,
   };
   return NextResponse.json({
     email: invite.email,
     role: invite.role,
     access: accessSummary(access),
     position: positionAsk(access),
+    // They enter their own vehicle when they join (0092).
+    personalVehicle: invite.has_personal_vehicle,
   });
 }
