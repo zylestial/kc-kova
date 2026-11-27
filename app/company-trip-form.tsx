@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchSelect } from "@/app/search-select";
+import RequestConfirmDialog from "@/app/request-confirm-dialog";
 import { addBookingOption, companyTripBookings, type Account, type BookingOptions, type CompanyTripBooking, type Vehicle } from "@/lib/kova-api";
 import { destinationChoices } from "@/lib/choice-lists";
 import { canDriveCompany } from "@/lib/request-access";
@@ -174,6 +175,8 @@ export default function CompanyTripForm({
   const [query, setQuery] = useState("");
   // The passenger list opens as a dropdown while the box has focus.
   const [picking, setPicking] = useState(false);
+  // Send request asks first, listing what is being sent.
+  const [confirming, setConfirming] = useState(false);
   // The day's other Company trips, for free / booked and busy people.
   const [day, setDay] = useState<{ key: string; bookings: CompanyTripBooking[] }>({ key: "", bookings: [] });
   const dayKey = `${draft.date}|${groupId ?? ""}`;
@@ -255,12 +258,26 @@ export default function CompanyTripForm({
       requestAnimationFrame(() => document.querySelector<HTMLElement>(".request-form [aria-invalid=true]")?.focus());
       return;
     }
-    onSubmit();
+    setConfirming(true);
   }
 
   const lastIndex = draft.stops.length - 1;
   const destinationName = (id: string) => destinations.find((item) => item.id === id)?.name ?? "";
   const route = [start?.name ?? "Main Office", ...draft.stops.map((stop) => destinationName(stop.destinationId) || "?")].join(" to ");
+  const urgentName = urgentReasons.find((item) => item.id === draft.urgentReasonId)?.name ?? "";
+  const passengerNames = draft.passengers.map((item) => ("accountId" in item ? name(item.accountId) : `${item.guestName} (guest)`));
+  const confirmRows = [
+    { label: "Date", value: draft.date ? fullDate(draft.date) : "" },
+    { label: "Priority", value: draft.priority === "URGENT" ? `Urgent: ${urgentName}` : "Regular" },
+    { label: "Vehicle", value: vehicle ? `${vehicle.name} · ${vehicle.plate}` : "" },
+    { label: "Time", value: `${clock(draft.timeOut)} to ${clock(draft.timeIn)}` },
+    { label: "Route", value: route },
+    { label: "Purpose", value: draft.purpose.trim() },
+    { label: "Department", value: departments.find((item) => item.id === draft.departmentId)?.name ?? "" },
+    { label: "Fleet Card", value: `Ending in ${draft.fleetCard.trim()}` },
+    { label: "Driver", value: driverId ? name(driverId) : "" },
+    { label: "Passengers", value: passengerNames.join(", ") || "None" },
+  ];
 
   return (
     <div className="request-form company-form">
@@ -689,6 +706,18 @@ export default function CompanyTripForm({
           <p className="request-note">This request will be sent to the Admin for approval. Once approved, the Company Trip Form can be printed from My Requests.</p>
         </aside>
       </div>
+      <RequestConfirmDialog
+        open={confirming}
+        title={groupId ? "Send these changes?" : "Send this request?"}
+        description="Please review the details before they are sent to the Admin for approval."
+        rows={confirmRows}
+        confirmLabel={groupId ? "Send changes" : "Send request"}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          onSubmit();
+        }}
+      />
     </div>
   );
 }
