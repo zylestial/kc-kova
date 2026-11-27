@@ -91,23 +91,19 @@ insert into ids values ('s1', pg_temp.publish('W1', 'r1'));
 insert into ids values ('s2', pg_temp.publish('W2', 'r2'));
 
 -- Company trips ------------------------------------------------------------
+-- Rhea books two stops with Jun driving (0094); Ada approves it.
+insert into booking_options ("group", id, name, status) values ('starting_points', 'start-office', 'Main Office', 'Active')
+on conflict ("group", id) do update set status = 'Active';
 select pg_temp.act_as('00000000-0000-0000-0000-0000000007a5');
-insert into ids select 'g', (create_request_group('COMPANY', jsonb_build_object(
-  'date', (now() at time zone 'Asia/Manila')::date, 'startingPointId', 'wsp', 'departmentId', 'wdep', 'vehiclePlate', 'WM',
-  'driverId', '00000000-0000-0000-0000-0000000007a6', 'supervisorId', 'wsup', 'headId', 'wh',
+insert into ids select 'g', (request_company_trip(null, null, jsonb_build_object(
+  'date', (now() at time zone 'Asia/Manila')::date, 'departmentId', 'wpr', 'vehiclePlate', 'WM',
+  'driverId', '00000000-0000-0000-0000-0000000007a6', 'purpose', 'Inspection', 'fleetCard', '1234', 'timeOut', '08:00',
   'stops', jsonb_build_array(
-    jsonb_build_object('projectId', 'wpr', 'destinationId', 'wd1', 'purposeId', 'wp1'),
-    jsonb_build_object('projectId', 'wpr', 'destinationId', 'wd2', 'purposeId', 'wp1'))))).id;
+    jsonb_build_object('destinationId', 'wd1', 'arriveAt', '08:30', 'leaveAt', '09:00'),
+    jsonb_build_object('destinationId', 'wd2', 'arriveAt', '09:30'))))).id;
 reset role;
-select pg_temp.act_as('00000000-0000-0000-0000-0000000007a2');
-insert into ids select 'trip', (create_company_trip((now() at time zone 'Asia/Manila')::date, 'WM',
-  array(select id from requests where group_id = pg_temp.id('g') order by stop_letter),
-  (select jsonb_agg(jsonb_build_object('destinationId', rd.destination_id, 'plannedTimeOut', t.out, 'plannedTimeIn', t.inn,
-     'stops', jsonb_build_array(rd.id)) order by r.stop_letter)
-   from requests r join request_destinations rd on rd.request_id = r.id and rd.active
-   join (values ('A', '08:00', '08:30'), ('B', '09:00', '09:30')) as t (letter, out, inn) on t.letter = r.stop_letter
-   where r.group_id = pg_temp.id('g')))).schedule_id;
-select submit_schedule(pg_temp.id('trip'), pg_temp.rv(pg_temp.id('trip')));
+insert into ids select 'trip', sr.schedule_id from schedule_requests sr join requests r on r.id = sr.request_id
+where r.group_id = pg_temp.id('g') limit 1;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000007a1');
 select approve_schedule(pg_temp.id('trip'), pg_temp.rv(pg_temp.id('trip')));
 reset role;
