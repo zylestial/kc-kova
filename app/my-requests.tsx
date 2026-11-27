@@ -46,6 +46,8 @@ import { requestProgressLabel, requestProgressMeaning } from "@/lib/status-text"
 import { requestDraftMissing, stillNeeded } from "@/lib/missing-fields";
 import { flexibilityShort, whenText } from "@/lib/request-draft";
 import TripFacts from "./trip-facts";
+import CompanyTripDetails, { companyTripLabel } from "./company-trip-details";
+import { clock } from "@/lib/company-trip-draft";
 
 // Reuses the existing status-pill colours.
 const progressPill: Record<RequestProgress, string> = {
@@ -91,7 +93,7 @@ export default function MyRequests({
   const router = useRouter();
   const account = currentAccount();
   const isAdmin = account?.role === "Admin";
-  const { requests: allRequests, options, cancellations, schedules, accounts, stopTasks } = useKovaData();
+  const { requests: allRequests, options, cancellations, schedules, accounts, stopTasks, companyTrips, vehicles } = useKovaData();
   const requests = useMemo(
     () =>
       allRequests
@@ -135,6 +137,22 @@ export default function MyRequests({
       (type === "all" || request.requestType === type) &&
       formMatches(form, kindOf(request)),
   );
+  // A Company trip is one request, whatever its destinations: one row (Company trip v2).
+  const companyStops = (groupId: string) =>
+    requests.filter((item) => item.group?.id === groupId).sort((a, b) => a.stopLetter.localeCompare(b.stopLetter));
+  const seenGroups = new Set<string>();
+  const rows = visible.filter((request) => {
+    if (request.group?.form !== "COMPANY") return true;
+    if (seenGroups.has(request.group.id)) return false;
+    seenGroups.add(request.group.id);
+    return true;
+  });
+  const companyRoute = (groupId: string) => {
+    const stops = companyStops(groupId);
+    const active = stops.filter((item) => item.status === "ACTIVE");
+    return (active.length ? active : stops).map((item) => item.destinations[0]?.destinationName ?? "").join(" to ");
+  };
+  const statusOf = (request: TransportRequest) => companyTrips.find((item) => item.groupId === request.group?.id);
 
   // Keep the details modal showing the latest copy after a refresh.
   const shown = selected ? requests.find((item) => item.id === selected.id) ?? selected : null;
@@ -251,7 +269,7 @@ export default function MyRequests({
           <div>
             <ClipboardList size={20} />
             <h2>Your requests</h2>
-            <span className="count">{visible.length}</span>
+            <span className="count">{rows.length}</span>
           </div>
         </div>
         <OlderRecordsNotice />
@@ -302,25 +320,37 @@ export default function MyRequests({
                 </tr>
               </thead>
               <tbody>
-                {visible.map((request) => (
+                {rows.map((request) => {
+                  const company = request.group?.form === "COMPANY" ? statusOf(request) : undefined;
+                  const isCompany = request.group?.form === "COMPANY";
+                  const companyState = isCompany ? companyTripLabel(company?.state, request.progress) : undefined;
+                  return (
                   <tr key={request.id} onClick={() => { setSelected(request); setError(""); }}>
                     <td className="c-meta">
-                      {stopNumber(request) || "—"}
-                      {request.group?.form === "COMPANY" && <small>Company trip</small>}
+                      {isCompany ? `#${request.group!.number}` : stopNumber(request) || "—"}
+                      {isCompany && <small>Company trip</small>}
                     </td>
                     <td className="c-meta">
                       {dateLabel(request.date)}
-                      {request.group && <small>{flexibilityShort(request.date, request.flexibility, request.fixedTime ?? "")}</small>}
+                      {isCompany
+                        ? company?.legs.length ? <small>{clock(company.legs[0].out)} to {clock(company.legs.at(-1)!.in)}</small> : null
+                        : request.group && <small>{flexibilityShort(request.date, request.flexibility, request.fixedTime ?? "")}</small>}
                     </td>
                     <td className="c-meta">
                       <span className={"badge " + (request.requestType === "URGENT" ? "urgent" : "")}>{request.requestType}</span>
+                      {isCompany && request.urgentReason && <small className="urgent-reason">{request.urgentReason.name}</small>}
                     </td>
                     <td className="c-sub">{projectText(request)}</td>
-                    <td className="c-title">{destinationsText(request)}</td>
+                    <td className="c-title">{isCompany ? companyRoute(request.group!.id) : destinationsText(request)}</td>
                     <td className="c-status">
-                      <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
+                      {companyState ? (
+                        <span className={"status-pill " + companyState.pill}>{companyState.label}</span>
+                      ) : (
+                        <span className={"status-pill " + progressPill[request.progress]}>{requestProgressLabel[request.progress]}</span>
+                      )}
                       {request.cancellationPending && <small>Cancellation requested</small>}
-                      {request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Fix it and save to resend</small>}
+                      {!isCompany && request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Fix it and save to resend</small>}
+                      {company?.state === "RETURNED" && <small>Edit it and send it again</small>}
                     </td>
                     <td className="c-hide">{submittedLabel(request.createdAt)}</td>
                     <td className="c-hide">
@@ -336,7 +366,8 @@ export default function MyRequests({
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -351,7 +382,18 @@ export default function MyRequests({
         )}
       </section>
 
-      <Dialog open={!!shown} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+      {shown?.group?.form === "COMPANY" && (
+        <CompanyTripDetails
+          key={shown.group.id}
+          stops={companyStops(shown.group.id)}
+          status={statusOf(shown)}
+          vehicles={vehicles}
+          accounts={accounts}
+          onClose={() => setSelected(null)}
+          onEdit={() => router.push("/requests/new?edit=" + encodeURIComponent(shown.group!.id))}
+        />
+      )}
+      <Dialog open={!!shown && shown.group?.form !== "COMPANY"} onOpenChange={(open) => { if (!open) setSelected(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request details</DialogTitle>
