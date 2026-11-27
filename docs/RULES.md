@@ -528,6 +528,19 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   name is added as Active and used. A name matching only an Inactive choice
   stays typed. Done inside `insert_request_destinations`, since Requesters
   can't write choices themselves. Project / Site "Other" is unchanged.
+- Lists are typed into, not picked from a long dropdown (2026-11-27). On
+  Destination and Purpose, a name that isn't on the list shows Add "…",
+  which adds it to the list for everyone right away (`add_booking_option`,
+  0098; same matching and lock as 0049, so a name is never added twice; a
+  name the Admin turned off is refused; 20 new names a day per account).
+  Department / Project Site and every other list stay Admin-only (owner's
+  call), so the old Project / Site "Other…" is gone; a saved request's
+  typed name still shows. Who added a name is in
+  `booking_option_additions`.
+- Sending a request (Daily or Company) asks first: a dialog lists what is
+  being sent, with Go back and Send request (2026-11-27).
+- Screen wording is formal (owner, 2026-11-27): "Select", "Enter", "Please
+  contact the Admin"; a note only where it's needed, no chatty asides.
 
 ## Cross-cutting
 

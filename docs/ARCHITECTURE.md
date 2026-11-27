@@ -390,6 +390,15 @@ the latest legs' times, passengers and odometers; the bootstrap returns it
 as `companyTrips`. The trigger `refuse_old_company_trip_paths` refuses the
 old Company form and Scheduling's Company planner.
 
+**Typed choices (0098, 2026-11-27).** `add_booking_option(p_group, p_name)`
+(API `POST /api/booking-options/:group`, destinations and purposes only)
+lets any Active account add a name to the list, or returns the one already
+there (`option_name_key`, 0049). Who added it goes in
+`booking_option_additions` rather than new `booking_options` columns,
+since older functions test a whole `booking_options` row with
+`is not null`. The screens use one search dropdown,
+`app/search-select.tsx` (role combobox, options role option).
+
 Since 0057 a Scheduler's `save_schedule_draft` on a `SUBMITTED` revision
 takes it back to `DRAFT` (keeping `submitted_at`) instead of refusing it,
 so the Scheduling page can change a trip that's waiting for the Admin.

@@ -1326,3 +1326,16 @@ spec; these are the calls made on top of it.
   link to a Company trip that used to open Scheduling opens it on Schedules
   (`schedulingHref`), which has no Edit for it.
 - **Open:** what Urgent should change besides the red tag (owner to answer).
+
+## Type to add, Send confirm (2026-11-27)
+
+- **Add puts the name on the list for everyone** (user's call), not a
+  one-off "Other". Department / Project Site is given by the Admin, so it
+  has no Add. Requesters add straight away (no Admin approval), as 0049
+  already did on save; a daily cap of 20 stops a runaway.
+- **Never add a nullable column to `booking_options`** (relearned): 0098's
+  first draft did, and 19 pgTAP tests failed because functions test the
+  whole row with `is not null`. "Added by" went to its own table.
+- **Time In stays "arrive at the last destination"**: the user first said
+  it should be back at the office, then dropped it ("its okay"); the note
+  under Time In was removed instead.

@@ -440,6 +440,19 @@ The owner's calls, for one format everywhere:
   Place, Note, What was done or Status; an open stop report has **Answer
   on Scheduling**.
 
+## Search dropdowns and Send confirm (2026-11-27)
+
+The request forms' list fields (Destination, Purpose, Project / Site,
+Department, Vehicle, Driver, urgent reason) are one search dropdown
+(`app/search-select.tsx`): click to see the list, type to narrow it,
+arrows / Enter / Esc work. Destination and Purpose end the list with
+Add "…" when no name matches exactly; it adds the name to the list for
+everyone and picks it. No match elsewhere reads "No matches found."
+Short fixed lists (filters, status, role) stay plain dropdowns. Send
+request opens `app/request-confirm-dialog.tsx` listing the date, route,
+vehicle, times and people (Company) or each stop (Daily), with Go back and
+Send request.
+
 ## Sorting tables (2026-10-08)
 
 Every trip table (My Schedule, Attendance, the three Finished Trips screens)
