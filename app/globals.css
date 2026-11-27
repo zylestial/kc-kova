@@ -406,3 +406,5 @@ td.c-phone{display:none}
 .search-select-list li small{color:var(--steel);font-size:12.5px}.search-select-list li.active{background:var(--accent)}
 .search-select-list li[aria-selected=true]{font-weight:600}.search-select-list li.add{color:var(--primary);font-weight:600;border-top:1px solid var(--border);border-radius:0 0 6px 6px}
 .search-select-list li.empty{cursor:default;color:var(--steel)}
+/* Send request confirmation (app/request-confirm-dialog.tsx). */
+.request-confirm-row{display:contents}.request-confirm dd{overflow-wrap:anywhere}
