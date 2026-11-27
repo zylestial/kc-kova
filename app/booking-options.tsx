@@ -255,7 +255,7 @@ export default function BookingOptions() {
                       <tr key={item.id} onClick={() => openModal(selected, "edit", item)}>
                         <td className="c-title">
                           <b>{item.name}</b>
-                          {isDestinations && item.isOtherStop && <small>Fuel or errand stop</small>}
+                          {isDestinations && item.isOtherStop && <small>Other stop (no request needed)</small>}
                         </td>
                         {isDestinations && (
                           <td className="c-labelled">
@@ -330,7 +330,7 @@ export default function BookingOptions() {
             </label>
             {modal?.group === "destinations" && (
               <div className="field">
-                <span>Fuel/errand stop</span>
+                <span>Other stop (office, fuel, errand)</span>
                 <div className="person-projects">
                   <label>
                     <Checkbox

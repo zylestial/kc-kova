@@ -351,7 +351,7 @@ single stop, **Or delete it** (`app/scheduler/delete-stop.tsx`): Delete
 52-A asks "Delete 52-A permanently? This can't be undone." (Keep it /
 Delete); greyed out with the reason on a missed stop. Each trip's
 legs (`app/scheduler/trip-editor.tsx`) follow the form: Origin, Time Out,
-Destination (waiting stops and fuel / errand stops), Time In. Legs reorder
+Destination (waiting stops, then "Other stops": the office, fuel or an errand, listed by name with no "(fuel)"), Time In. Legs reorder
 by dragging ⠿ or with the arrows; **Remove** opens the remove-leg dialog
 (back to To plan, or back to the requester with a reason). Warnings (⚠)
 name the stop and the times involved and block Submit. Below the legs a

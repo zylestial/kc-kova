@@ -95,7 +95,7 @@ export default function TripEditor({
   context: PlanContext;
   /** Stops of this kind still to plan this day or any day this week. */
   waiting: TransportRequest[];
-  /** Fuel or errand stops an Admin set up (Daily trips only). */
+  /** Other stops an Admin set up, with no request needed: the office, fuel, an errand (Daily trips only). */
   fuel: BookingOption[];
   /** The Driver (or requester) has reached this leg: a tap there, or End trip on the last. */
   doneLeg: (legId: string, isLast: boolean) => boolean;
@@ -159,7 +159,7 @@ export default function TripEditor({
     choice.label = `${choice.name} · ${[...choice.stops.map((id) => stopNumber(requestOf(id)!))].join(", ")}${choice.urgent ? " · Urgent" : ""}`;
   }
   if (!company)
-    choices.fuel = fuel.map((option) => ({ id: option.id, name: option.name, stops: [], urgent: false, moveIds: [], label: `${option.name} (fuel)` }));
+    choices.fuel = fuel.map((option) => ({ id: option.id, name: option.name, stops: [], urgent: false, moveIds: [], label: option.name }));
 
   const save = (next: EditLeg[], message: string, moveIds: string[] = [], sendBack?: { ids: string[]; reason: string }) =>
     run(
@@ -374,7 +374,7 @@ export default function TripEditor({
                       </optgroup>
                     )}
                     {choices.fuel.filter((choice) => choice.id !== leg.destinationId).length > 0 && (
-                      <optgroup label="Fuel">
+                      <optgroup label="Other stops">
                         {choices.fuel
                           .filter((choice) => choice.id !== leg.destinationId)
                           .map((choice) => (
