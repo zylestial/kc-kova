@@ -1,68 +1,51 @@
 "use client";
 import { createPortal } from "react-dom";
-import type { TransportRequest } from "@/lib/kova-api";
-import { useKovaData } from "@/lib/use-kova-data";
-import type { FinishedTrip } from "@/lib/finished-trips";
-import { missedLegs, stopReportLabel } from "@/lib/stop-reports";
-import CompanyTripPaper from "./company-trip-paper";
+import type { Account, CompanyTripStatus, RequestGroup, TransportRequest, Vehicle } from "@/lib/kova-api";
+import CompanyTripPaper, { type CompanyTripPaperData } from "./company-trip-paper";
+
+/** What a Company trip request prints (Company trip v2): sections A and B from the request, odometers once it has ended. */
+export function companyPaperData(
+  group: RequestGroup,
+  stops: TransportRequest[],
+  status: CompanyTripStatus | undefined,
+  vehicles: Vehicle[],
+  accounts: Account[],
+): CompanyTripPaperData {
+  const active = stops.filter((stop) => stop.status === "ACTIVE");
+  const vehicle = vehicles.find((item) => item.plate === group.vehiclePlate);
+  const legs = status?.legs ?? [];
+  const passengers = (status?.passengers ?? []).map((item) =>
+    "accountId" in item ? (accounts.find((account) => account.id === item.accountId)?.name ?? "") : item.guestName,
+  );
+  return {
+    date: group.date,
+    employeeName: group.ownerName,
+    position: accounts.find((account) => account.id === group.ownerAccountId)?.position ?? "",
+    department: group.department?.name ?? "",
+    plate: group.vehiclePlate ?? "",
+    vehicleName: vehicle?.name ?? "",
+    personal: !!vehicle?.ownerAccountId,
+    driverName: group.driver && group.driver.id !== group.ownerAccountId ? group.driver.name : "",
+    fleetCard: group.fleetCard,
+    destinations: (active.length ? active : stops).map((stop) => stop.destinations[0]?.destinationName ?? ""),
+    purpose: group.purpose,
+    passengers: passengers.filter(Boolean).join(", "),
+    timeOut: legs[0]?.out ?? "",
+    timeIn: legs.at(-1)?.in ?? "",
+    odometerStart: status?.odometerStart,
+    odometerEnd: status?.odometerEnd,
+    noOdometer: !!status?.finished && status.odometerStart == null,
+  };
+}
 
 /**
- * The printed Company Trip Form for one finished Company trip: the
- * requester, their Position, department and signatories from the request,
- * the legs with the Scheduler's planned times (owner's call 2026-11-26;
- * the tapped times show on Finished Trips) and both odometer readings. Signatures and For Finance Use print
- * blank. Rendered into document.body so the print stylesheet shows only
- * this form, like the Daily form (finished-trip-print.tsx).
+ * The printed Company Trip Form, rendered into document.body so the print
+ * stylesheet shows only this page (dialogs and the app hide when printing).
  */
-export default function CompanyTripPrint({
-  trip,
-  requests,
-}: {
-  trip: FinishedTrip;
-  requests: TransportRequest[];
-}) {
-  const { schedule, revision, completion } = trip;
-  const { vehicles, accounts } = useKovaData();
-  const stops = requests.filter((request) => revision.requestIds.includes(request.id));
-  const group = stops[0]?.group;
-  const stopOf = (stopId?: string) => stops.find((request) => request.destinations.some((item) => item.id === stopId));
-  // A stop reported missed (0061) has no Time In, and the leg after it no Time Out.
-  const missed = missedLegs(trip.problems);
+export default function CompanyTripPrint({ data }: { data: CompanyTripPaperData }) {
   return createPortal(
     <div className="print-form company-print">
-      <CompanyTripPaper
-        data={{
-          date: schedule.date,
-          vehicleName: vehicles.find((item) => item.plate === revision.plate)?.name ?? "",
-          plate: revision.plate,
-          driverName: revision.driverName,
-          requestedBy: [...new Set(stops.map((stop) => stop.ownerName))].join(", "),
-          position: accounts.find((account) => account.id === group?.ownerAccountId)?.position ?? "",
-          department: group?.department?.name ?? "",
-          legs: revision.legs.map((leg, index) => {
-            const missedHere = missed.get(leg.id);
-            const missedBefore = index > 0 && missed.has(revision.legs[index - 1].id);
-            const stop = stopOf(leg.stops[0]);
-            const purpose = stop?.urgentReason ? `Urgent: ${stop.urgentReason.name}` : (stop?.destinations[0]?.purposeName ?? "");
-            return {
-              purpose,
-              origin: leg.origin,
-              destination: leg.destinationName + (missedHere ? ` (${stopReportLabel(missedHere)})` : ""),
-              timeOut: leg.plannedTimeOut || (missedBefore ? "—" : ""),
-              timeIn: leg.plannedTimeIn || (missedHere ? "Missed" : ""),
-              contact: stop?.contact ?? "",
-              supplier: stop?.supplier?.name ?? "",
-            };
-          }),
-          supervisor: group?.supervisor?.name ?? "",
-          head: group?.head?.name ?? "",
-          siteOfficer: group?.siteOfficer ?? "",
-          siteCompany: group?.siteCompany ?? "",
-          odometerStart: completion.startOdometer ?? undefined,
-          odometerEnd: completion.endOdometer ?? undefined,
-          noOdometer: completion.startOdometer === null,
-        }}
-      />
+      <CompanyTripPaper data={data} />
     </div>,
     document.body,
   );
