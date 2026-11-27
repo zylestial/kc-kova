@@ -27,6 +27,8 @@ test("a Daily request's stops reach Scheduling, the urgent one first", async ({ 
   await expect(urgent.getByText(/Say what's needed at this stop/)).toBeVisible();
   await urgent.getByPlaceholder(/20 bags cement/).fill("Pick up 40 bags cement");
   await requester.getByRole("button", { name: "Send request" }).click();
+  // Send asks first, listing what is being sent.
+  await requester.getByRole("dialog").getByRole("button", { name: "Send request" }).click();
   await requester.waitForURL((url) => url.pathname === "/requests");
   await expect(requester.locator(".notice.success")).toBeVisible({ timeout: 30_000 });
 

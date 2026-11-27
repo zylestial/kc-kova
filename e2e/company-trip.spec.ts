@@ -63,6 +63,8 @@ test("a Company trip goes from request to the printed form", async ({ browser })
   await requester.getByLabel("Fleet Card No. / last 4 digits").fill("4821");
   await pick(requester, requester, "Driver", /Jun Reyes/);
   await requester.getByRole("button", { name: "Send request" }).click();
+  // Send asks first, listing what is being sent.
+  await requester.getByRole("dialog").getByRole("button", { name: "Send request" }).click();
   await requester.waitForURL((url) => url.pathname === "/requests");
   await expect(requester.locator(".notice.success")).toContainText("sent to the Admin for approval", saved);
 
