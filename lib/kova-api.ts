@@ -804,6 +804,9 @@ export const sendInvites = (input: { emails: string; role: Role; driverType?: Dr
 export const resendInvite = (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}/resend`, { method: "POST" });
 export const cancelInvite = (id: string) => request<void>(`/api/invites/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const saveVehicle =(vehicle: Vehicle, originalPlate?: string) => refreshAfter(request<Vehicle>(originalPlate ? `/api/vehicles/${encodeURIComponent(originalPlate)}` : "/api/vehicles", { method: originalPlate ? "PUT" : "POST", body: JSON.stringify(vehicle) }));
+/** Adds a typed destination or purpose to the list for everyone, or returns the one already there (0098). */
+export const addBookingOption = (group: "destinations" | "purposes", name: string) =>
+  refreshAfter(request<BookingOption>(`/api/booking-options/${group}`, { method: "POST", body: JSON.stringify({ name }) }));
 export const saveBookingOption = (group: OptionGroup, option: BookingOption) => refreshAfter(request<BookingOption>(`/api/booking-options/${group}/${encodeURIComponent(option.id)}`, { method: "PUT", body: JSON.stringify(option) }));
 /** Returns the group's stops, A first. */
 export const createRequestGroup = (form: RequestForm, input: RequestGroupInput) =>
