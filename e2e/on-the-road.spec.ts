@@ -91,6 +91,9 @@ test("several people on a trip that's on the road", async ({ browser }) => {
     (async () => {
       await openTrip(driver, trip.id);
       await tapNext(driver, /^Start trip$/);
+      // The starting reading comes right after Start trip (0090).
+      await driver.getByLabel("Starting odometer (km)").fill("12000");
+      await tapNext(driver, /^Save reading$/);
       await tapNext(driver, /^Arrived at Site Alpha$/);
       // Each request at the stop, one at a time (0088), once Arrived has saved.
       await expect(driver.locator(".trip-step-button")).toHaveText(/^Leaving Site Alpha$/, saved);
