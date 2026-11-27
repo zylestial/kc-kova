@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   answerStopReport,
   comeBackLater,
-  createCompanyTrip,
   createSchedule,
   deleteRequest,
   discardScheduleDraft,
@@ -63,7 +62,9 @@ const shortDay = (day: string) => dateLabel(day, { weekday: "short", month: "sho
 /** Days in the date strip, from its first day. */
 const STRIP_DAYS = 14;
 
-const KINDS: Record<TripKind, string> = { DAILY: "Daily trips", COMPANY: "Company trips" };
+// Company trips are booked by their requester and approved by the Admin
+// (Company trip v2), so Scheduling plans Daily trips only.
+const KINDS: Partial<Record<TripKind, string>> = { DAILY: "Daily trips" };
 
 /**
  * Scheduling (prototype "KOVA Scheduler"): the day strip, then Daily trips
@@ -87,7 +88,7 @@ export default function Scheduling({
   const { requests, schedules, vehicles, accounts, attendance, companyRuns, stopTaps, problems, options } = useKovaData();
   const today = manilaToday();
   const [day, setDay] = useState(initialDate && initialDate >= today ? initialDate : today);
-  const [kind, setKind] = useState<TripKind>(initialKind ?? "DAILY");
+  const [kind, setKind] = useState<TripKind>(initialKind === "DAILY" ? initialKind : "DAILY");
   // The strip's first day: today, or the chosen day when it's further out.
   const [anchor, setAnchor] = useState(() => (day >= addDays(today, STRIP_DAYS) ? day : today));
   // The vehicle of the trip a link (a notification, Edit) asked for.
@@ -236,7 +237,7 @@ export default function Scheduling({
         await saveScheduleDraft(option.trip.schedule.id, option.rowVersion, option.input);
         setUndos((list) => [...list, before]);
       } else {
-        const created = await (kind === "COMPANY" ? createCompanyTrip(option.input) : createSchedule(option.input));
+        const created = await createSchedule(option.input);
         setUndos((list) => [...list, { scheduleId: created.id, kind, input: null, submitted: false, moves }]);
       }
       setSheetIds([]);
@@ -296,7 +297,7 @@ export default function Scheduling({
       }
       else if (step.action === "create") {
         // Made again under a new id: earlier entries for the trip follow it.
-        const created = await (step.kind === "COMPANY" ? createCompanyTrip(step.input) : createSchedule(step.input));
+        const created = await createSchedule(step.input);
         setUndos((list) => list.map((item) => (item.scheduleId === entry.scheduleId ? { ...item, scheduleId: created.id } : item)));
       }
       for (const move of entry.moves) await moveRequestDay(move.id, move.from);
