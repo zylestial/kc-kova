@@ -35,7 +35,6 @@ import { scheduledBy } from "@/lib/scheduled-by";
 import { buildAdminTrips, cleanTrips, doneBy, hasOpenProblem } from "@/lib/finished-trips";
 import { stopsFor } from "@/lib/trip-record";
 import FinishedTripPrint from "./finished-trip-print";
-import CompanyTripPrint from "./company-trip-print";
 import FormFilter, { formMatches, type FormFilterValue } from "./form-filter";
 import { runAsAttendance } from "@/lib/company-trips";
 import { completionLabel, completionMeaning } from "@/lib/status-text";
@@ -718,9 +717,12 @@ export default function AdminFinishedTrips({
               )}
               {selected.completion && (
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => window.print()}>
-                    Print
-                  </Button>
+                  {/* The requester prints a Company Trip Form from My requests (Company trip v2). */}
+                  {selected.schedule.kind !== "COMPANY" && (
+                    <Button variant="outline" onClick={() => window.print()}>
+                      Print
+                    </Button>
+                  )}
                   {!readOnly && (
                     <>
                       {/* A trip without readings (0078) has none to correct. */}
@@ -849,9 +851,6 @@ export default function AdminFinishedTrips({
           )}
         </DialogContent>
       </Dialog>
-      {selected?.completion && selected.schedule.kind === "COMPANY" && (
-        <CompanyTripPrint trip={{ ...selected, completion: selected.completion }} requests={requests} />
-      )}
       {selected?.completion && selected.schedule.kind !== "COMPANY" && (
         <FinishedTripPrint
           trip={{ ...selected, completion: selected.completion }}
