@@ -180,6 +180,8 @@ export default function CompanyTripForm({
   const today = manilaToday();
   const [showErrors, setShowErrors] = useState(false);
   const [query, setQuery] = useState("");
+  // The passenger list opens as a dropdown while the box has focus.
+  const [picking, setPicking] = useState(false);
   // The day's other Company trips, for free / booked and busy people.
   const [day, setDay] = useState<{ key: string; bookings: CompanyTripBooking[] }>({ key: "", bookings: [] });
   const dayKey = `${draft.date}|${groupId ?? ""}`;
@@ -589,20 +591,30 @@ export default function CompanyTripForm({
                 {peopleBusy.join(". ")}. Remove them or change the time.
               </div>
             )}
+            <div className="passenger-picker">
             <label className="field">
               <span>Add a passenger</span>
               <Input
                 autoComplete="off"
                 maxLength={100}
-                placeholder="Type a name"
+                placeholder="Type a name, or pick from the list"
                 value={query}
                 disabled={full}
-                onChange={(event) => setQuery(event.target.value)}
+                role="combobox"
+                aria-expanded={picking && !full}
+                onFocus={() => setPicking(true)}
+                onBlur={() => setPicking(false)}
+                onKeyDown={(event) => event.key === "Escape" && setPicking(false)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPicking(true);
+                }}
               />
               {full && <small className="field-note">A trip can have at most {PASSENGERS_MAX} passengers.</small>}
             </label>
-            {!full && (
-              <ul className="passenger-suggestions">
+            {!full && picking && (
+              // mousedown keeps focus in the box, so a pick lands before the list closes.
+              <ul className="passenger-suggestions" role="listbox" onMouseDown={(event) => event.preventDefault()}>
                 {matches.map((item) => {
                   const why = busyOf(item.id);
                   return (
@@ -645,9 +657,10 @@ export default function CompanyTripForm({
                     </button>
                   </li>
                 )}
-                {!matches.length && !canAddGuest && term && <li className="request-note">Already added.</li>}
+                {!matches.length && !canAddGuest && <li className="request-note">{term ? "Already added." : "Everyone is already on this trip."}</li>}
               </ul>
             )}
+            </div>
           </section>
 
           {error && (
