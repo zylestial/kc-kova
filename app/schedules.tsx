@@ -156,8 +156,9 @@ export default function Schedules({
   const selectedRevision = selected && currentRevision(selected);
   const selectedBy = selectedRevision ? scheduledBy(selectedRevision, accounts, selected?.kind) : null;
   const selectedCancel = cancelledBy(selected, accounts);
-  const editable = (schedule: Schedule) => canEdit && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
-  const revisable = (schedule: Schedule) => canEdit && scheduleState(schedule) === "APPROVED";
+  // A Company trip is changed by its requester, from My requests (Company trip v2).
+  const editable = (schedule: Schedule) => canEdit && schedule.kind !== "COMPANY" && ["DRAFT", "RETURNED"].includes(scheduleState(schedule));
+  const revisable = (schedule: Schedule) => canEdit && schedule.kind !== "COMPANY" && scheduleState(schedule) === "APPROVED";
   // Admin can cancel any schedule that is still in force and whose trip the
   // Driver hasn't submitted (the server enforces that part).
   const cancellable = (schedule: Schedule) => canReview && schedule.status === "ACTIVE";
