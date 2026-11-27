@@ -93,6 +93,11 @@ export type RequestGroup = {
   head?: { id: string; name: string };
   siteOfficer: string;
   siteCompany: string;
+  /** Company trip v2 (0093): one purpose for the whole trip, the Fleet Card's last 4, Regular or Urgent. */
+  purpose: string;
+  fleetCard: string;
+  priority: "REGULAR" | "URGENT";
+  urgentReason?: { id: string; name: string };
   rowVersion: number;
   createdAt: string;
 };
@@ -397,6 +402,47 @@ export type RequestGroupInput = {
   siteOfficer: string;
   siteCompany: string;
 };
+/** What the Company trip form sends (0094): the request is the trip. */
+export type CompanyTripInput = {
+  date: string;
+  departmentId: string;
+  /** A company trip vehicle, or the requester's own personal vehicle. */
+  vehiclePlate: string;
+  /** Ignored for a personal vehicle: its owner drives. */
+  driverId: string;
+  purpose: string;
+  /** The Fleet Card's last 4 digits. */
+  fleetCard: string;
+  priority: "REGULAR" | "URGENT";
+  urgentReasonId: string;
+  /** Leaving the Main Office, "HH:MM". */
+  timeOut: string;
+  /** In order. The last one's arriveAt is Time In; its leaveAt is ignored. */
+  stops: Array<{ destinationId: string; arriveAt: string; leaveAt: string }>;
+  passengers: CompanyTripPassenger[];
+};
+export type CompanyTripPassenger = { accountId: string } | { guestName: string };
+/** Where the requester's own Company trip is (0096). */
+export type CompanyTripState = "WAITING" | "RETURNED" | "APPROVED" | "CHANGES_WAITING" | "CHANGES_RETURNED" | "CANCELLED";
+export type CompanyTripStatus = {
+  groupId: string;
+  scheduleId?: string;
+  state: CompanyTripState;
+  /** The Admin's comment when returned. */
+  comment: string;
+  /** The latest version's legs in order: leg n ends at destination n. */
+  legs: Array<{ out: string; in: string }>;
+  passengers: CompanyTripPassenger[];
+};
+/** A Company trip already booked on a day (0094 company_trip_busy). */
+export type CompanyTripBooking = {
+  scheduleId: string;
+  plate: string;
+  ownerName: string;
+  startsAt: string;
+  endsAt: string;
+  accountIds: string[];
+};
 /** What the New request form and the Edit modal send. The server sets the type from the date. */
 export type RequestInput = {
   date: string;
@@ -514,6 +560,8 @@ export type BootstrapData = {
   timeCorrections: TripTimeCorrection[];
   problems: ProblemReport[];
   notifications: Notification[];
+  /** The signed-in account's own Company trip requests (0096). */
+  companyTrips: CompanyTripStatus[];
 };
 
 const apiBase = (process.env.NEXT_PUBLIC_KOVA_API_BASE_URL || "").replace(/\/$/, "");
@@ -534,6 +582,7 @@ const emptyData: BootstrapData = {
   timeCorrections: [],
   problems: [],
   notifications: [],
+  companyTrips: [],
 };
 // Replaced (never mutated) on every load, so a changed reference means new data.
 let cache: BootstrapData = emptyData;
@@ -757,6 +806,17 @@ export const createRequestGroup = (form: RequestForm, input: RequestGroupInput) 
   refreshAfter(request<TransportRequest[]>("/api/request-groups", { method: "POST", body: JSON.stringify({ ...input, form }) }));
 export const updateRequestGroup = (id: string, rowVersion: number, input: RequestGroupInput) =>
   refreshAfter(request<TransportRequest[]>(`/api/request-groups/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
+/** Sends a Company trip request (0094); returns its stops, A first. */
+export const requestCompanyTrip = (input: CompanyTripInput) =>
+  refreshAfter(request<TransportRequest[]>("/api/company-trips", { method: "POST", body: JSON.stringify(input) }));
+/** Resends an edited Company trip request to the Admin. */
+export const updateCompanyTrip = (groupId: string, rowVersion: number, input: CompanyTripInput) =>
+  refreshAfter(request<TransportRequest[]>(`/api/company-trips/${encodeURIComponent(groupId)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
+export const cancelCompanyTrip = (groupId: string, reason: string) =>
+  refreshAfter(request<void>(`/api/company-trips/${encodeURIComponent(groupId)}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }));
+/** Company trips already booked on a date, leaving out the request being edited. */
+export const companyTripBookings = (date: string, exceptGroupId?: string) =>
+  request<CompanyTripBooking[]>(`/api/company-trips/busy?date=${encodeURIComponent(date)}${exceptGroupId ? "&except=" + encodeURIComponent(exceptGroupId) : ""}`);
 export const updateRequest = (id: string, rowVersion: number, input: RequestInput) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, rowVersion }) }));
 export const cancelRequest = (id: string) => refreshAfter(request<TransportRequest>(`/api/requests/${encodeURIComponent(id)}/cancel`, { method: "POST" }));
 export const sendBackRequests = (requestIds: string[], reason: string) => refreshAfter(request<TransportRequest[]>("/api/requests/send-back", { method: "POST", body: JSON.stringify({ requestIds, reason }) }));

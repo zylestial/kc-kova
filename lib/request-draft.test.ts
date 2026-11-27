@@ -116,6 +116,9 @@ describe("draftFromGroup", () => {
     date: "2026-10-20",
     siteOfficer: "",
     siteCompany: "",
+    purpose: "",
+    fleetCard: "",
+    priority: "REGULAR",
     rowVersion: 1,
     createdAt: "",
   };

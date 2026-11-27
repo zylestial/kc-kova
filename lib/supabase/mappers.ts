@@ -1,4 +1,7 @@
 import type {
+  CompanyTripPassenger,
+  CompanyTripState,
+  CompanyTripStatus,
   BookingOption,
   BookingOptions,
   RequestProgress,
@@ -138,6 +141,12 @@ export type RequestGroupRow = {
   head_name: string;
   site_officer: string;
   site_company: string;
+  // 0093
+  purpose_text?: string;
+  fleet_card_last4?: string;
+  priority?: "REGULAR" | "URGENT";
+  urgent_reason_id?: string | null;
+  urgent_reason_name?: string;
   row_version: number;
   created_at: string;
 };
@@ -161,8 +170,32 @@ export function toRequestGroup(row: RequestGroupRow): RequestGroup {
     head: choice(row.head_id, row.head_name),
     siteOfficer: row.site_officer,
     siteCompany: row.site_company,
+    purpose: row.purpose_text ?? "",
+    fleetCard: row.fleet_card_last4 ?? "",
+    priority: row.priority ?? "REGULAR",
+    urgentReason: choice(row.urgent_reason_id, row.urgent_reason_name),
     rowVersion: row.row_version,
     createdAt: row.created_at,
+  };
+}
+
+export type CompanyTripStatusRow = {
+  group_id: string;
+  schedule_id: string | null;
+  state: CompanyTripState;
+  comment: string | null;
+  legs: Array<{ out: string; in: string }> | null;
+  passengers: CompanyTripPassenger[] | null;
+};
+
+export function toCompanyTripStatus(row: CompanyTripStatusRow): CompanyTripStatus {
+  return {
+    groupId: row.group_id,
+    scheduleId: row.schedule_id ?? undefined,
+    state: row.state,
+    comment: row.comment ?? "",
+    legs: row.legs ?? [],
+    passengers: row.passengers ?? [],
   };
 }
 
