@@ -127,7 +127,7 @@ A person has exactly one role; there is no multi-role account.
    requests),
    Vehicles (each vehicle's assigned Driver, and whether it can be requested
    for company trips) and the request choices (Projects/Sites, Destinations,
-   Purposes, which destinations are fuel/errand stops, Urgent reasons,
+   Purposes, which destinations are other stops (office, fuel, errand), Urgent reasons,
    Starting points, Suppliers, Immediate Supervisors and
    PM / CM / Dept. Heads). Nothing is ever hard-deleted; entries are marked
    Inactive so past records keep displaying correctly.

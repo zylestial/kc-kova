@@ -459,7 +459,7 @@ The on-the-road rules (`apply_changes_on_road` 0060/0063/0064, `report_stop`
   reports every non-final leg after the last one reached (tapped or
   reported missed) as missed, kind NOT_REACHED. A leg before one reached
   is a forgotten tap, not a missed stop, and still needs the Admin's time.
-  A fuel / errand stop is handled at once; one with requests shows on
+  An other stop (office, fuel, errand) is handled at once; one with requests shows on
   Scheduling like any missed stop. Its requesters get STOP_MISSED, and
   Schedulers and Admins one STOP_REPORTED naming the stops.
 - A missed stop needs no Arrived / Leaving: `trip_times_missing` leaves out
