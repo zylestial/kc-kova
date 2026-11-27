@@ -59,6 +59,7 @@ type Vehicle = {
   assignedDriverId?: string | null;
   companyTrips: boolean;
   hasOdometer: boolean;
+  ownerAccountId?: string;
 };
 const UNASSIGNED = "unassigned";
 const blankAccount = () => ({
@@ -80,6 +81,7 @@ const blankVehicle = () => ({
   assignedDriverId: UNASSIGNED,
   companyTrips: false,
   hasOdometer: true,
+  ownerAccountId: undefined as string | undefined,
 });
 function TextField({
   label,
@@ -261,6 +263,7 @@ export default function Settings() {
       assignedDriverId: v.assignedDriverId || UNASSIGNED,
       companyTrips: v.companyTrips,
       hasOdometer: v.hasOdometer,
+      ownerAccountId: v.ownerAccountId,
     });
     setOriginalPlate(v.plate);
     setVehicleModal("edit");
@@ -609,6 +612,15 @@ export default function Settings() {
               value={vehicle.name}
               onChange={(v) => setVehicle({ ...vehicle, name: v })}
             />
+            {vehicle.ownerAccountId ? (
+              <div className="field">
+                <span>Personal vehicle</span>
+                <small>
+                  Owner: {accounts.find((a) => a.id === vehicle.ownerAccountId)?.name ?? "former employee"}. Only they book
+                  and drive it, for their company trips.
+                </small>
+              </div>
+            ) : (
             <div className="field">
               <span>Company trips</span>
               <div className="person-projects">
@@ -621,6 +633,7 @@ export default function Settings() {
                 </label>
               </div>
             </div>
+            )}
             <div className="field">
               <span>Odometer</span>
               <div className="person-projects">

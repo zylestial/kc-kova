@@ -40,6 +40,8 @@ export type Vehicle = {
   companyTrips: boolean;
   /** Off for a vehicle with no odometer: its trips record no readings (0078). */
   hasOdometer: boolean;
+  /** A personal vehicle: its owner set it up when joining and is the only one who books and drives it (0092). */
+  ownerAccountId?: string;
 };
 export type BookingOption = {
   id: string;

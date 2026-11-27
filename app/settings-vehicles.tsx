@@ -142,9 +142,11 @@ export default function VehicleList({
                           <b>{v.plate}</b>
                           <small>{v.name}</small>
                         </td>
-                        <td className="c-meta">{v.companyTrips ? "Company trips" : "Daily trips"}</td>
+                        <td className="c-meta">{v.ownerAccountId ? "Personal vehicle" : v.companyTrips ? "Company trips" : "Daily trips"}</td>
                         <td className="c-labelled">
-                          {v.companyTrips ? (
+                          {v.ownerAccountId ? (
+                            <>Owner: {driverName(v.ownerAccountId) || "former employee"}</>
+                          ) : v.companyTrips ? (
                             <small>Picked per request</small>
                           ) : vehicleNeedsDriver(v, activeDriverIds) ? (
                             <span className="status-pill pending">No Driver</span>

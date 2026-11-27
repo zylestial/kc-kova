@@ -29,6 +29,7 @@ type VehicleRow = {
   assigned_driver_id: string | null;
   company_trips: boolean;
   has_odometer: boolean;
+  owner_account_id?: string | null;
 };
 
 export function toVehicle(row: VehicleRow): Vehicle {
@@ -39,6 +40,7 @@ export function toVehicle(row: VehicleRow): Vehicle {
     assignedDriverId: row.assigned_driver_id ?? undefined,
     companyTrips: row.company_trips,
     hasOdometer: row.has_odometer,
+    ownerAccountId: row.owner_account_id ?? undefined,
   };
 }
 
