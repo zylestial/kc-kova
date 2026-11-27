@@ -1219,6 +1219,24 @@ account the company owns from day one.
 - **Company trips' last stop** has no Arrived, so its tasks can be marked once the
   stop before is left, before actually getting there. Accepted: End trip waits.
 
+## Hosting moved to Netlify (2026-11-06)
+
+- **Why:** Vercel Hobby is for personal, non-commercial use, and Pro is $20 a
+  month. Netlify's Free plan has no such rule on its pricing page (its terms
+  for company use are still to confirm). Cloudflare's free 10 ms CPU and
+  Firebase's paid-only server hosting didn't fit.
+- **What moved:** only the site. The database stayed; both addresses use it.
+  Users sign in again at the new address and turn Push on again (new VAPID
+  keys); the Vault `push_send_url` decides which site sends Push.
+- **Credits are the limit.** Netlify bills function time by duration, waiting
+  included, so a 30-second bell poll would have used more than the 300 free
+  credits; that's what Realtime on the bell fixed.
+- **Client IP:** Netlify passes a caller's own `x-forwarded-for` through, so
+  `clientIp()` reads `x-nf-client-connection-ip` there, but not on Vercel,
+  where a caller could send that header instead.
+- **Builds:** Windows deploys fail; Linux or Netlify's own build works.
+  New Netlify projects start private, and only the dashboard changes that.
+
 ## Realtime on the bell (2026-11-05)
 
 - **The bell now uses Supabase Realtime, reversing the v2.2 call below** (owner's

@@ -67,7 +67,7 @@ export async function reverseGeocode(lat: number, lng: number, timeoutMs = 4000)
   }).toString();
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "KOVA fleet scheduling (https://kc-kova.vercel.app)" },
+      headers: { "User-Agent": `KOVA fleet scheduling (${process.env.APP_URL || "https://kc-kova.netlify.app"})` },
       signal: AbortSignal.timeout(timeoutMs),
       cache: "no-store",
     });
