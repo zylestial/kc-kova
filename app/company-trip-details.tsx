@@ -15,6 +15,7 @@ import {
 } from "@/lib/kova-api";
 import { clock } from "@/lib/company-trip-draft";
 import TripFacts from "./trip-facts";
+import CompanyTripPrint, { companyPaperData } from "./company-trip-print";
 
 /** A Company trip's place, in the requester's words (0096), once it has run its progress wins. */
 export function companyTripLabel(state: CompanyTripState | undefined, progress: RequestProgress): { label: string; pill: string } {
@@ -41,8 +42,8 @@ export function companyTripLabel(state: CompanyTripState | undefined, progress: 
 const MEANING: Partial<Record<CompanyTripState, string>> = {
   WAITING: "Sent to the Admin. You'll be notified when it's approved or returned.",
   RETURNED: "The Admin returned it. Edit it and send it again.",
-  APPROVED: "Approved. Print the Company Trip Form and bring it on the trip.",
-  CHANGES_WAITING: "Your changes are with the Admin. Until they decide, the trip stays as it was approved.",
+  APPROVED: "Approved. Print the Company Trip Form and bring it on the trip. Its odometer readings fill in once the trip ends.",
+  CHANGES_WAITING: "Your changes are with the Admin. Until they decide, the trip stays as it was approved. Print the form again once they approve.",
   CHANGES_RETURNED: "The Admin returned your changes. The trip stays as it was approved; edit it again or leave it.",
   CANCELLED: "This trip was cancelled.",
 };
@@ -81,6 +82,8 @@ export default function CompanyTripDetails({
   const finished = ["COMPLETED", "DONE"].includes(progress);
   const legs = status?.legs ?? [];
   const vehicle = vehicles.find((item) => item.plate === group.vehiclePlate);
+  // Prints once approved, and after the trip with its odometers; not while changes wait for the Admin.
+  const printable = status?.state === "APPROVED";
   const passengers = (status?.passengers ?? []).map((item) =>
     "accountId" in item ? (accounts.find((account) => account.id === item.accountId)?.name ?? "Former account") : `${item.guestName} (guest)`,
   );
@@ -200,14 +203,20 @@ export default function CompanyTripDetails({
                   >
                     Cancel trip
                   </Button>
-                  <Button className="primary" onClick={onEdit}>
+                  <Button className={printable ? "" : "primary"} variant={printable ? "outline" : "default"} onClick={onEdit}>
                     Edit
                   </Button>
                 </>
               )}
+              {printable && (
+                <Button className="primary" onClick={() => window.print()}>
+                  Print Company Trip Form
+                </Button>
+              )}
             </>
           )}
         </DialogFooter>
+        {printable && <CompanyTripPrint data={companyPaperData(group, stops, status, vehicles, accounts)} />}
       </DialogContent>
     </Dialog>
   );
