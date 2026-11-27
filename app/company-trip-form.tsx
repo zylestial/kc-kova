@@ -243,8 +243,10 @@ export default function CompanyTripForm({
   // Passenger search: colleagues not yet on the trip (busy ones greyed, with why), then "add as a guest".
   const term = query.trim().toLowerCase();
   const onTrip = new Set(people);
+  // Truck drivers don't ride on Company trips (owner, 2026-11-27).
+  const truckDriver = (item: Account) => item.role === "Driver" && item.driverType !== "Company car";
   const matches = accounts
-    .filter((item) => item.status === "Active" && !onTrip.has(item.id) && (!term || item.name.toLowerCase().includes(term)))
+    .filter((item) => item.status === "Active" && !truckDriver(item) && !onTrip.has(item.id) && (!term || item.name.toLowerCase().includes(term)))
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, 6);
   const canAddGuest =
