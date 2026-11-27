@@ -4,8 +4,8 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Plus, X } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { BookingOption, BookingOptions, OptionGroup, StopFlexibility } from "@/lib/kova-api";
+import { addBookingOption, type BookingOption, type BookingOptions, type OptionGroup, type StopFlexibility } from "@/lib/kova-api";
+import { SearchSelect } from "@/app/search-select";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { stillNeeded } from "@/lib/missing-fields";
 import { destinationChoices } from "@/lib/choice-lists";
@@ -25,9 +25,6 @@ import {
   type StopDraft,
 } from "@/lib/request-draft";
 
-const OTHER = "__other__";
-const NONE = "__none__";
-
 /** Choices an edit already uses stay offered after they're made Inactive (the server lets an edit keep them). */
 export type KeptChoices = Partial<Record<OptionGroup, Array<{ id: string; name: string }>>> & {
   vehicle?: { id: string; name: string };
@@ -45,7 +42,13 @@ const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
   new Date(value + "T12:00:00").toLocaleDateString("en-US", options);
 const fullDate = (value: string) => dateLabel(value, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
-/** A dropdown that can switch to typing a new name ("Other…") when allowOther is set. */
+/** A name typed under the old "Other…" on a saved request, shown as its choice. */
+const TYPED = "__typed__";
+
+/**
+ * A list choice you type into (app/search-select.tsx). With addTo, a name
+ * that isn't on the list can be added to it for everyone (0098).
+ */
 function ChoiceField({
   label,
   placeholder,
@@ -53,7 +56,7 @@ function ChoiceField({
   id,
   other,
   otherMode,
-  allowOther,
+  addTo,
   error,
   disabled,
   noneLabel,
@@ -66,7 +69,7 @@ function ChoiceField({
   id: string;
   other: string;
   otherMode: boolean;
-  allowOther: boolean;
+  addTo?: "destinations" | "purposes";
   error?: string;
   disabled?: boolean;
   /** An optional field: this first choice clears it. */
@@ -74,59 +77,24 @@ function ChoiceField({
   hint?: string;
   onPick: (change: { id: string; other: string; otherMode: boolean }) => void;
 }) {
+  const typed = otherMode && other.trim() ? [{ id: TYPED, name: other.trim() }] : [];
   return (
-    <label className="field">
+    <div className="field">
       <span>{label}</span>
-      {otherMode ? (
-        <div className="field-other">
-          <Input
-            aria-label={label}
-            aria-invalid={!!error}
-            placeholder={`New ${label.toLowerCase()} (added to the list)`}
-            value={other}
-            maxLength={120}
-            disabled={disabled}
-            autoFocus
-            onChange={(event) => onPick({ id: "", other: event.target.value, otherMode: true })}
-          />
-          <button
-            type="button"
-            className="field-other-back"
-            disabled={disabled}
-            onClick={() => onPick({ id: "", other: "", otherMode: false })}
-          >
-            Choose from list
-          </button>
-        </div>
-      ) : (
-        <Select
-          value={id || (noneLabel ? NONE : "")}
-          disabled={disabled}
-          onValueChange={(value) =>
-            onPick(
-              value === OTHER
-                ? { id: "", other: "", otherMode: true }
-                : { id: value === NONE ? "" : value, other: "", otherMode: false },
-            )
-          }
-        >
-          <SelectTrigger aria-label={label} aria-invalid={!!error}>
-            <SelectValue placeholder={placeholder} />
-          </SelectTrigger>
-          <SelectContent>
-            {noneLabel && <SelectItem value={NONE}>{noneLabel}</SelectItem>}
-            {list.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.name}
-              </SelectItem>
-            ))}
-            {allowOther && <SelectItem value={OTHER}>Other…</SelectItem>}
-          </SelectContent>
-        </Select>
-      )}
+      <SearchSelect
+        label={label}
+        value={otherMode ? TYPED : id}
+        options={[...typed, ...list]}
+        placeholder={placeholder}
+        noneLabel={noneLabel}
+        disabled={disabled}
+        invalid={!!error}
+        onPick={(value) => value !== TYPED && onPick({ id: value, other: "", otherMode: false })}
+        onAdd={addTo ? (name) => addBookingOption(addTo, name) : undefined}
+      />
       {hint && <small className="field-note">{hint}</small>}
       {error && <small className="field-hint">{error}</small>}
-    </label>
+    </div>
   );
 }
 
@@ -177,7 +145,6 @@ export default function RequestForm({
   const [anchor, setAnchor] = useState(() => (draft.date < today && !isAdmin ? today : draft.date));
   // Errors show under each field only after the first Send, as in the prototype.
   const [showErrors, setShowErrors] = useState(false);
-  const allowOther = true;
   const projects = choices(options.projects, kept.projects);
   const destinations = destinationChoices(options.destinations, kept.destinations);
   const purposes = choices(options.purposes, kept.purposes);
@@ -331,12 +298,11 @@ export default function RequestForm({
               <div className="request-project">
                 <ChoiceField
                   label="Project / Site"
-                  placeholder="Choose…"
+                  placeholder="Select"
                   list={projects}
                   id={draft.projectId}
                   other={draft.projectOther}
                   otherMode={draft.projectOtherMode}
-                  allowOther={allowOther}
                   error={showErrors && missing.includes("Project / Site") ? "Pick the project or site." : undefined}
                   onPick={(pick) => onChange({ ...draft, projectId: pick.id, projectOther: pick.other, projectOtherMode: pick.otherMode })}
                 />
@@ -413,7 +379,6 @@ export default function RequestForm({
                         id={stop.urgentReasonId}
                         other=""
                         otherMode={false}
-                        allowOther={false}
                         error={errors.urgentReason}
                         disabled={locked}
                         onPick={(pick) => setStop(stop.key, { urgentReasonId: pick.id })}
@@ -425,12 +390,11 @@ export default function RequestForm({
                   {draft.projectMode === "multi" && (
                     <ChoiceField
                       label="Project / Site"
-                      placeholder="Choose…"
+                      placeholder="Select"
                       list={projects}
                       id={stop.projectId}
                       other={stop.projectOther}
                       otherMode={stop.projectOtherMode}
-                      allowOther={allowOther}
                       error={errors.project}
                       disabled={locked}
                       onPick={(pick) => setStop(stop.key, { projectId: pick.id, projectOther: pick.other, projectOtherMode: pick.otherMode })}
@@ -440,12 +404,12 @@ export default function RequestForm({
                   <div className="request-stop-row">
                     <ChoiceField
                       label="Destination"
-                      placeholder="Choose…"
+                      placeholder="Select"
                       list={destinations}
                       id={stop.destinationId}
                       other={stop.destinationOther}
                       otherMode={stop.destinationOtherMode}
-                      allowOther={allowOther}
+                      addTo="destinations"
                       error={errors.destination}
                       disabled={locked}
                       onPick={(pick) =>
@@ -455,12 +419,12 @@ export default function RequestForm({
                     {!stop.urgent && (
                       <ChoiceField
                         label="Purpose"
-                        placeholder="Choose…"
+                        placeholder="Select"
                         list={purposes}
                         id={stop.purposeId}
                         other={stop.purposeOther}
                         otherMode={stop.purposeOtherMode}
-                        allowOther={allowOther}
+                        addTo="purposes"
                         error={errors.purpose}
                         disabled={locked}
                         onPick={(pick) => setStop(stop.key, { purposeId: pick.id, purposeOther: pick.other, purposeOtherMode: pick.otherMode })}
