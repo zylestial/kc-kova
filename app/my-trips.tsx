@@ -83,7 +83,8 @@ export default function MyTrips({ accountId, initialOpenId }: { accountId: strin
   // The starting reading comes after Start trip, before Arrived (owner, 2026-11-16; 0090), on a vehicle with an odometer (0078).
   const needsReading = (trip: Trip) => {
     const run = runOf(trip);
-    return hasOdometer(trip) && !!run && !run.endAt && run.startOdometer == null;
+    // Not while Start trip is still saved on the phone (no signal, 0077): saving needs signal.
+    return hasOdometer(trip) && !!run && !run.saved && !run.endAt && run.startOdometer == null;
   };
   // End trip asks for the ending reading only if the trip has a starting one.
   const takesOdometer = (trip: Trip, kind: CompanyStep["kind"]) => kind === "END" && typeof runOf(trip)?.startOdometer === "number";

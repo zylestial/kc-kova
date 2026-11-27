@@ -227,9 +227,17 @@ export default function DriverSchedules({ driverId, initialOpenId }: { driverId:
   const lastReading = selected ? lastEndReading(selected.revision.plate, schedules, completions) : null;
   // A vehicle without an odometer (0078) skips the readings: Complete trip is just the final return.
   const hasOdometer = !selected || vehicles.find((vehicle) => vehicle.plate === selected.revision.plate)?.hasOdometer !== false;
-  // After Start trip, the starting reading comes before Arrived (owner, 2026-11-16; 0090).
+  // After Start trip, the starting reading comes before Arrived (owner, 2026-11-16; 0090). Not while
+  // Start trip is still saved on the phone (no signal, 0077): saving a reading needs signal, so the
+  // Driver goes on and is asked once Start trip reaches KOVA, or at Complete trip.
   const needsReading =
-    !!selected && hasOdometer && !selected.completion && !!selected.attendance && !selected.attendance.end && selected.attendance.startOdometer == null;
+    !!selected &&
+    hasOdometer &&
+    !selected.completion &&
+    !!selected.attendance &&
+    !selected.attendance.start.saved &&
+    !selected.attendance.end &&
+    selected.attendance.startOdometer == null;
 
   async function saveReading(reading: number) {
     if (!selected) return;
