@@ -394,3 +394,7 @@ td.c-phone{display:none}
 .ctf .foot{position:absolute;right:10mm;bottom:9mm;font:6pt Arial,sans-serif;color:#333;display:flex;gap:3mm;align-items:center;white-space:nowrap}.ctf .foot svg{width:3mm;height:3mm;vertical-align:-.6mm;margin-right:.6mm}
 @page company-trip{size:A4 portrait;margin:0}
 @media print{.print-form.company-print{page:company-trip;font:inherit;line-height:inherit}.company-print .ctf{box-shadow:none;margin:0;zoom:1}.company-print .ctf *{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+/* Company trip form: room between a field’s notes and the next field. */
+.company-form .request-panel>.field,.company-form .request-panel>.request-stop-row,.company-form .request-panel>.passenger-picker,.company-form .request-panel>.request-note,.company-form .request-panel>.notice,.company-form .request-panel>.request-urgent-box,.company-form .request-panel>.passenger-list{margin-top:16px}
+.company-form .request-panel>.request-choice-cards+.field{margin-top:16px}.company-form .request-panel>.trip-daybar-wrap{margin-top:8px}
+.company-form .request-urgent-box{margin-top:12px}

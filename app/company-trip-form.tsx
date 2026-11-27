@@ -269,7 +269,7 @@ export default function CompanyTripForm({
   const route = [start?.name ?? "Main Office", ...draft.stops.map((stop) => destinationName(stop.destinationId) || "?")].join(" to ");
 
   return (
-    <div className="request-form">
+    <div className="request-form company-form">
       <div className="request-form-grid">
         <div className="request-form-main">
           <section className="request-panel">
