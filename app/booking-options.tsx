@@ -256,6 +256,12 @@ export default function BookingOptions() {
                         <td className="c-title">
                           <b>{item.name}</b>
                           {isDestinations && item.isOtherStop && <small>Other stop (no request needed)</small>}
+                          {item.addedBy && (
+                            <small>
+                              Added by {item.addedBy.name} on{" "}
+                              {new Date(item.addedBy.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" })}
+                            </small>
+                          )}
                         </td>
                         {isDestinations && (
                           <td className="c-labelled">

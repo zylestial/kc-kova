@@ -66,7 +66,7 @@ export const GET = authed(async ({ request, supabase }) => {
   ] = await Promise.all([
     allRows((from, to) => supabase.from("accounts").select("*").order("id").range(from, to)),
     allRows((from, to) => supabase.from("vehicles").select("*").order("plate").range(from, to)),
-    allRows((from, to) => supabase.from("booking_options").select("*").order("group").order("id").range(from, to)),
+    allRows((from, to) => supabase.from("booking_options").select("*, booking_option_additions(account_name, added_at)").order("group").order("id").range(from, to)),
     allRows((from, to) =>
       supabase
         .from("destination_locations")

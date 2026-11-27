@@ -53,7 +53,10 @@ type BookingOptionRow = {
   name: string;
   status: "Active" | "Inactive";
   is_other_stop: boolean;
+  /** Who added it by typing it on a request (0098); one row at most. */
+  booking_option_additions?: AdditionRow | AdditionRow[] | null;
 };
+type AdditionRow = { account_name: string; added_at: string };
 
 /** A destination's saved position (destination_locations, 0044). */
 export type DestinationLocationRow = { destination_id: string; lat: number; lng: number };
@@ -70,6 +73,8 @@ export function toBookingOptions(rows: BookingOptionRow[], locations: Destinatio
 /** One option; a destination's position is added when it has one. */
 export function toBookingOption(row: Omit<BookingOptionRow, "group">, location?: DestinationLocationRow | null): BookingOption {
   const option: BookingOption = { id: row.id, name: row.name, status: row.status, isOtherStop: row.is_other_stop };
+  const added = [row.booking_option_additions ?? []].flat()[0];
+  if (added) option.addedBy = { name: added.account_name, at: added.added_at };
   if (location) option.location = { lat: location.lat, lng: location.lng };
   return option;
 }

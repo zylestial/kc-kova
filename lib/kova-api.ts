@@ -51,6 +51,8 @@ export type BookingOption = {
   isOtherStop?: boolean;
   /** Destinations only: where it is, to check a Driver's Arrived/Leaving taps there (0044). */
   location?: { lat: number; lng: number } | null;
+  /** Typed on a request and added to the list by this person (0098). */
+  addedBy?: { name: string; at: string };
 };
 export type RequestProgress =
   | "NOT_YET_SCHEDULED"
