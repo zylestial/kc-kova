@@ -40,11 +40,11 @@ export function companyTripLabel(state: CompanyTripState | undefined, progress: 
 }
 
 const MEANING: Partial<Record<CompanyTripState, string>> = {
-  WAITING: "Sent to the Admin. You'll be notified when it's approved or returned.",
-  RETURNED: "The Admin returned it. Edit it and send it again.",
-  APPROVED: "Approved. Print the Company Trip Form and bring it on the trip. Its odometer readings fill in once the trip ends.",
-  CHANGES_WAITING: "Your changes are with the Admin. Until they decide, the trip stays as it was approved. Print the form again once they approve.",
-  CHANGES_RETURNED: "The Admin returned your changes. The trip stays as it was approved; edit it again or leave it.",
+  WAITING: "Sent to the Admin for approval. You will be notified once it is approved or returned.",
+  RETURNED: "Returned by the Admin. Please review the comment, revise the request and submit it again.",
+  APPROVED: "Approved. Please print the Company Trip Form and bring it on the trip. The odometer readings are filled in once the trip ends.",
+  CHANGES_WAITING: "Your changes are awaiting the Admin's approval. Until then, the trip remains as approved. Please print the form again once the changes are approved.",
+  CHANGES_RETURNED: "The Admin returned your changes. The trip remains as approved. You may revise it again or keep it as is.",
   CANCELLED: "This trip was cancelled.",
 };
 
@@ -122,8 +122,8 @@ export default function CompanyTripDetails({
           <>
             <p className="helper">
               {status?.state === "WAITING" || status?.state === "RETURNED"
-                ? "The request is cancelled right away. It stays in your list as Cancelled."
-                : "The approved trip is cancelled right away, and the Driver is told."}
+                ? "The request will be cancelled immediately and will remain in your list as Cancelled."
+                : "The approved trip will be cancelled immediately, and the driver will be notified."}
             </p>
             <label className="field">
               <span>Reason (optional)</span>

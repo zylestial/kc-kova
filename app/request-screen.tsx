@@ -28,7 +28,7 @@ import CompanyTripForm, { type CompanyKept } from "./company-trip-form";
 
 const FORMS: Record<FormType, { label: string; hint: string }> = {
   DAILY: { label: "Daily Vehicle Trip", hint: "Regular transport for site and office runs. A Scheduler picks the vehicle." },
-  COMPANY: { label: "Company Trip", hint: "You book the vehicle, who drives and the times. The Admin approves it." },
+  COMPANY: { label: "Company Trip", hint: "The requester books the vehicle, driver and schedule, subject to the Admin's approval." },
 };
 
 /** Not yet in a schedule (or sent back): the requester can still change it. */
@@ -154,11 +154,11 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
       if (groupId && rowVersion !== undefined) {
         await updateCompanyTrip(groupId, rowVersion, input);
         setSent(true);
-        onDone(`Company trip #${group?.number} changed and sent to the Admin again.`);
+        onDone(`Company trip #${group?.number} has been updated and sent to the Admin for approval.`);
       } else {
         const saved = await requestCompanyTrip(input);
         setSent(true);
-        onDone(`Company trip #${saved[0]?.group?.number} sent to the Admin for approval. You can print the form once it's approved.`);
+        onDone(`Company trip #${saved[0]?.group?.number} has been sent to the Admin for approval. The form can be printed once it is approved.`);
       }
     } catch (caught) {
       setError((caught as Error).message);
@@ -214,7 +214,7 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
             Requesting as {account?.name}
             {account?.position ? ` · ${account.position}` : ""}.{" "}
             {form === "COMPANY"
-              ? "You book the vehicle, who drives and the times; the Admin approves it."
+              ? "The vehicle, driver and schedule are booked here, subject to the Admin's approval."
               : "A Scheduler assigns the vehicle, Driver and times."}
           </p>
         </div>

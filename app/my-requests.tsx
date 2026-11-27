@@ -350,7 +350,7 @@ export default function MyRequests({
                       )}
                       {request.cancellationPending && <small>Cancellation requested</small>}
                       {!isCompany && request.status === "ACTIVE" && request.progress === "SENT_BACK" && <small>Fix it and save to resend</small>}
-                      {company?.state === "RETURNED" && <small>Edit it and send it again</small>}
+                      {company?.state === "RETURNED" && <small>Returned for revision</small>}
                     </td>
                     <td className="c-hide">{submittedLabel(request.createdAt)}</td>
                     <td className="c-hide">
