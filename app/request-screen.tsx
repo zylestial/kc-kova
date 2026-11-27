@@ -292,9 +292,6 @@ export default function RequestScreen({ groupId, onDone }: { groupId?: string; o
                   options={options}
                   isAdmin={isAdmin}
                   requestedBy={account?.name ?? ""}
-                  forms={["DAILY"]}
-                  vehicles={vehicles}
-                  accounts={accounts}
                   kept={group ? keptChoices(group, stops) : undefined}
                   usedLetters={stops.length}
                   dateLocked={lockedCount > 0}

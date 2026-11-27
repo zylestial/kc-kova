@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Account, BookingOption, BookingOptions, OptionGroup, RequestForm as FormType, StopFlexibility, Vehicle } from "@/lib/kova-api";
+import type { BookingOption, BookingOptions, OptionGroup, StopFlexibility } from "@/lib/kova-api";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { stillNeeded } from "@/lib/missing-fields";
 import { destinationChoices } from "@/lib/choice-lists";
-import { canDriveCompany } from "@/lib/request-access";
 import {
   DETAILS_MAX,
   FLEXIBILITY,
@@ -20,11 +19,8 @@ import {
   stopErrors,
   stopLetter,
   stopPurpose,
-  tripErrors,
-  type TripField,
   weekLabel,
   whenText,
-  withForm,
   type RequestDraft,
   type StopDraft,
 } from "@/lib/request-draft";
@@ -38,21 +34,11 @@ export type KeptChoices = Partial<Record<OptionGroup, Array<{ id: string; name: 
   driver?: { id: string; name: string };
 };
 
-const FORMS: Record<FormType, { label: string; hint: string }> = {
-  DAILY: { label: "Daily Vehicle Trip", hint: "Regular transport for site and office runs. A Scheduler picks the vehicle." },
-  COMPANY: { label: "Company Trip", hint: "You pick a vehicle that can be requested for company trips, and its Driver." },
-};
-
 function choices(list: BookingOption[], kept: Array<{ id: string; name: string }> = []) {
   const active = list.filter((item) => item.status === "Active").map((item) => ({ id: item.id, name: item.name }));
   for (const item of kept)
     if (item.id && !active.some((option) => option.id === item.id)) active.push({ id: item.id, name: `${item.name} (inactive)` });
   return active;
-}
-
-/** A list plus the saved choice if it has dropped out of it (made Inactive). */
-function withKept(list: Array<{ id: string; name: string }>, kept?: { id: string; name: string }) {
-  return kept && !list.some((item) => item.id === kept.id) ? [...list, { id: kept.id, name: `${kept.name} (inactive)` }] : list;
 }
 
 const dateLabel = (value: string, options: Intl.DateTimeFormatOptions) =>
@@ -145,10 +131,11 @@ function ChoiceField({
 }
 
 /**
- * The New request form (New Request prototype): the date, one or several
- * projects, then a card per stop, with a live summary beside it. Used to
- * create a request and to edit one (stops that are being scheduled are
- * shown but locked).
+ * The Daily Vehicle Trip form (New Request prototype): the date, one or
+ * several projects, then a card per stop, with a live summary beside it.
+ * Used to create a request and to edit one (stops that are being scheduled
+ * are shown but locked). Company trips have their own form
+ * (company-trip-form.tsx).
  */
 export default function RequestForm({
   draft,
@@ -156,9 +143,6 @@ export default function RequestForm({
   options,
   isAdmin,
   requestedBy,
-  forms,
-  vehicles,
-  accounts,
   kept = {},
   usedLetters = 0,
   dateLocked = false,
@@ -175,11 +159,6 @@ export default function RequestForm({
   options: BookingOptions;
   isAdmin: boolean;
   requestedBy: string;
-  /** The requester's Position, printed on a Company Trip Form. */
-  /** The forms this account may use; a choice shows when there are two. */
-  forms: FormType[];
-  vehicles: Vehicle[];
-  accounts: Account[];
   kept?: KeptChoices;
   /** How many stops the saved request has had, cancelled ones included, so new stops get the next letters. */
   usedLetters?: number;
@@ -198,27 +177,11 @@ export default function RequestForm({
   const [anchor, setAnchor] = useState(() => (draft.date < today && !isAdmin ? today : draft.date));
   // Errors show under each field only after the first Send, as in the prototype.
   const [showErrors, setShowErrors] = useState(false);
-  const allowOther = draft.form === "DAILY";
+  const allowOther = true;
   const projects = choices(options.projects, kept.projects);
   const destinations = destinationChoices(options.destinations, kept.destinations);
   const purposes = choices(options.purposes, kept.purposes);
   const urgentReasons = choices(options.urgent_reasons, kept.urgent_reasons);
-  const company = draft.form === "COMPANY";
-  const suppliers = choices(options.suppliers, kept.suppliers);
-  const startingPoints = choices(options.starting_points, kept.starting_points);
-  const supervisors = choices(options.supervisors, kept.supervisors);
-  const heads = choices(options.heads, kept.heads);
-  // Only vehicles that can be requested for company trips, and people who can drive company trips (0079).
-  const tripVehicles = withKept(
-    vehicles.filter((item) => item.status === "Active" && item.companyTrips).map((item) => ({ id: item.plate, name: `${item.name} · ${item.plate}` })),
-    kept.vehicle,
-  );
-  const tripDrivers = withKept(
-    accounts
-      .filter((item) => canDriveCompany(item))
-      .map((item) => ({ id: item.id, name: item.name })),
-    kept.driver,
-  );
   const missing = draftMissing(draft, options, usedLetters);
   const dateError = requestDateError(draft.date, isAdmin);
   const days = Array.from({ length: 14 }, (_, index) => addDays(anchor, index));
@@ -239,30 +202,6 @@ export default function RequestForm({
   const stopDestination = (stop: StopDraft) =>
     stop.destinationOtherMode ? stop.destinationOther.trim() : (destinations.find((item) => item.id === stop.destinationId)?.name ?? "");
   const summaryProjects = [...new Set(draft.stops.map(stopProjectName).filter(Boolean))].join(", ");
-  /** One of a Company Trip's own pickers (list choices only). */
-  const tripChoice = (
-    field: TripField,
-    key: "startingPointId" | "vehiclePlate" | "driverId" | "supervisorId" | "headId",
-    label: string,
-    list: Array<{ id: string; name: string }>,
-    hint?: string,
-  ) => (
-    <ChoiceField
-      key={key}
-      label={label}
-      placeholder="Choose…"
-      list={list}
-      id={draft[key]}
-      other=""
-      otherMode={false}
-      allowOther={false}
-      hint={hint}
-      error={showErrors ? tripErrors(draft)[field] : undefined}
-      disabled={dateLocked}
-      onPick={(pick) => onChange({ ...draft, [key]: pick.id })}
-    />
-  );
-
   function send() {
     setShowErrors(true);
     if (missing.length || dateError) {
@@ -277,27 +216,6 @@ export default function RequestForm({
     <div className="request-form">
       <div className="request-form-grid">
         <div className="request-form-main">
-          {forms.length > 1 && (
-            <section className="request-panel">
-              <h2>Which form is this for?</h2>
-              <div className="request-choice-cards" role="radiogroup" aria-label="Form">
-                {forms.map((value) => (
-                  <label key={value} className={draft.form === value ? "checked" : ""}>
-                    <input
-                      type="radio"
-                      name="request-form"
-                      checked={draft.form === value}
-                      onChange={() => onChange(withForm(draft, value))}
-                    />
-                    <span>
-                      {FORMS[value].label}
-                      <small>{FORMS[value].hint}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </section>
-          )}
           <section className="request-panel">
             <div className="request-step">Step 1</div>
             <h2>Choose date</h2>
@@ -373,10 +291,8 @@ export default function RequestForm({
 
           <section className="request-panel">
             <div className="request-step">Step 2</div>
-            <h2>{company ? "Project / Site, vehicle and Driver" : "Is this for one project/site or several?"}</h2>
-            {/* A Company Trip is for one Project / Site, which is also its Department / Site (0058). */}
-            {!company && (
-              <div className="request-choice-cards" role="radiogroup" aria-label="Projects or sites">
+            <h2>Is this for one project/site or several?</h2>
+            <div className="request-choice-cards" role="radiogroup" aria-label="Projects or sites">
                 {(
                   [
                     ["one", "Single project/site", "Every destination is for the same project or site."],
@@ -411,9 +327,8 @@ export default function RequestForm({
                   </label>
                 ))}
               </div>
-            )}
             {draft.projectMode === "one" && (
-              <div className={company ? "request-trip-fields" : "request-project"}>
+              <div className="request-project">
                 <ChoiceField
                   label="Project / Site"
                   placeholder="Choose…"
@@ -425,8 +340,6 @@ export default function RequestForm({
                   error={showErrors && missing.includes("Project / Site") ? "Pick the project or site." : undefined}
                   onPick={(pick) => onChange({ ...draft, projectId: pick.id, projectOther: pick.other, projectOtherMode: pick.otherMode })}
                 />
-                {company && tripChoice("vehicle", "vehiclePlate", "Vehicle", tripVehicles)}
-                {company && tripChoice("driver", "driverId", "Driver", tripDrivers)}
               </div>
             )}
           </section>
@@ -435,15 +348,6 @@ export default function RequestForm({
             <div className="request-step">Step 3</div>
             <h2>Where should the vehicle go?</h2>
             <p>Add each destination. For each one, pick {draft.projectMode === "multi" ? "its project, " : ""}when you need it, and whether it&apos;s urgent.</p>
-            {/* A Company Trip starts at its starting point: always first, never moved. */}
-            {company && (
-              <div className="request-stop request-start">
-                <div className="request-stop-head">
-                  <b>Start</b>
-                </div>
-                {tripChoice("startingPoint", "startingPointId", "Starting point", startingPoints, "Leg 1 starts here.")}
-              </div>
-            )}
             {draft.stops.map((stop, index) => {
               const errors = showErrors ? stopErrors(draft, stop, options) : {};
               const name = `Stop ${letter(index)}`;
@@ -619,21 +523,6 @@ export default function RequestForm({
                   )}
                   {stop.flexibility === "WEEK" && draft.date && <p className="request-note">Any day {weekLabel(draft.date)}</p>}
 
-                  {company && (
-                    <ChoiceField
-                      label="Supplier / Location (optional)"
-                      placeholder="None"
-                      noneLabel="None"
-                      list={suppliers}
-                      id={stop.supplierId}
-                      other=""
-                      otherMode={false}
-                      allowOther={false}
-                      disabled={locked}
-                      onPick={(pick) => setStop(stop.key, { supplierId: pick.id })}
-                    />
-                  )}
-
                   <label className="field">
                     <span>Contact at this stop (optional)</span>
                     <Input
@@ -656,43 +545,6 @@ export default function RequestForm({
               <Plus size={16} /> Add another destination
             </Button>
           </section>
-
-          {company && (
-            <section className="request-panel">
-              <div className="request-step">Step 4</div>
-              <h2>Trip details</h2>
-              <p>Printed on the Company Trip Form.</p>
-              {dateLocked && (
-                <p className="request-locked-note">Part of this request is being scheduled, so its trip details can no longer change.</p>
-              )}
-              <div className="request-trip-fields">
-                {(
-                  [
-                    ["supervisor", "supervisorId", "Immediate Supervisor", supervisors, undefined],
-                    ["head", "headId", "Project Manager / Construction Manager / Dept. Head", heads, undefined],
-                  ] as const
-                ).map(([field, key, label, list, hint]) => tripChoice(field, key, label, list, hint))}
-                <label className="field">
-                  <span>Site Officer / Supplier (optional)</span>
-                  <Input
-                    value={draft.siteOfficer}
-                    maxLength={100}
-                    placeholder="Who will confirm you at the site"
-                    onChange={(event) => onChange({ ...draft, siteOfficer: event.target.value })}
-                  />
-                </label>
-                <label className="field">
-                  <span>Company / Site (optional)</span>
-                  <Input
-                    value={draft.siteCompany}
-                    maxLength={100}
-                    onChange={(event) => onChange({ ...draft, siteCompany: event.target.value })}
-                  />
-                  <small className="field-note">Leave these blank if you don&apos;t know yet. They can be written on the printed form.</small>
-                </label>
-              </div>
-            </section>
-          )}
 
           {error && (
             <div className="notice" role="alert">
@@ -719,12 +571,6 @@ export default function RequestForm({
           <p>
             {requestedBy} · {draft.date ? fullDate(draft.date) : "No date yet"}
           </p>
-          {company && (
-            <p>
-              Company trip · {nameOf(tripVehicles, draft.vehiclePlate) || "No vehicle yet"} · Driver{" "}
-              {nameOf(tripDrivers, draft.driverId) || "not picked yet"}
-            </p>
-          )}
           <p>{summaryProjects || "No project yet"}</p>
           <ul>
             {draft.stops.map((stop, index) => (
@@ -756,5 +602,3 @@ export default function RequestForm({
     </div>
   );
 }
-
-const nameOf = (list: Array<{ id: string; name: string }>, id: string) => list.find((item) => item.id === id)?.name ?? "";
