@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { addBookingOption, type BookingOption, type BookingOptions, type OptionGroup, type StopFlexibility } from "@/lib/kova-api";
 import { SearchSelect } from "@/app/search-select";
+import RequestConfirmDialog from "@/app/request-confirm-dialog";
 import { addDays, manilaToday, requestDateError } from "@/lib/timezone";
 import { stillNeeded } from "@/lib/missing-fields";
 import { destinationChoices } from "@/lib/choice-lists";
@@ -145,6 +146,8 @@ export default function RequestForm({
   const [anchor, setAnchor] = useState(() => (draft.date < today && !isAdmin ? today : draft.date));
   // Errors show under each field only after the first Send, as in the prototype.
   const [showErrors, setShowErrors] = useState(false);
+  // Send asks first, listing what is being sent.
+  const [confirming, setConfirming] = useState(false);
   const projects = choices(options.projects, kept.projects);
   const destinations = destinationChoices(options.destinations, kept.destinations);
   const purposes = choices(options.purposes, kept.purposes);
@@ -176,8 +179,17 @@ export default function RequestForm({
       requestAnimationFrame(() => document.querySelector<HTMLElement>(".request-form [aria-invalid=true]")?.focus());
       return;
     }
-    onSubmit();
+    setConfirming(true);
   }
+  const confirmRows = [
+    { label: "Date", value: draft.date ? fullDate(draft.date) : "" },
+    { label: draft.projectMode === "one" ? "Project / Site" : "Projects / Sites", value: summaryProjects },
+    ...draft.stops.map((stop, index) => {
+      const urgent = stop.urgent ? `Urgent: ${urgentReasons.find((item) => item.id === stop.urgentReasonId)?.name ?? ""}` : "Regular";
+      const what = [stopDestination(stop), stop.urgent ? "" : stopPurpose(stop, options), urgent, whenText(draft.date, stop.flexibility, stop.fixedTime)];
+      return { label: `Stop ${letter(index)}`, value: what.filter(Boolean).join(" · ") };
+    }),
+  ];
 
   return (
     <div className="request-form">
@@ -563,6 +575,18 @@ export default function RequestForm({
           </p>
         </aside>
       </div>
+      <RequestConfirmDialog
+        open={confirming}
+        title={submitLabel === "Send request" ? "Send this request?" : `${submitLabel}?`}
+        description="Please review the details before they are sent to the Scheduler."
+        rows={confirmRows}
+        confirmLabel={submitLabel}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          onSubmit();
+        }}
+      />
     </div>
   );
 }
