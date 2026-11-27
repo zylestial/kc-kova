@@ -4,8 +4,8 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { companyTripBookings, type Account, type BookingOptions, type CompanyTripBooking, type Vehicle } from "@/lib/kova-api";
+import { SearchSelect } from "@/app/search-select";
+import { addBookingOption, companyTripBookings, type Account, type BookingOptions, type CompanyTripBooking, type Vehicle } from "@/lib/kova-api";
 import { destinationChoices } from "@/lib/choice-lists";
 import { canDriveCompany } from "@/lib/request-access";
 import { manilaToday, requestDateError } from "@/lib/timezone";
@@ -43,11 +43,12 @@ function Pick({
   label,
   value,
   list,
-  placeholder = "Choose…",
+  placeholder = "Select",
   hint,
   error,
   disabled,
   onPick,
+  onAdd,
 }: {
   label: string;
   value: string;
@@ -57,25 +58,16 @@ function Pick({
   error?: string;
   disabled?: boolean;
   onPick: (id: string) => void;
+  /** Lets a typed name be added to the list (destinations, 0098). */
+  onAdd?: (name: string) => Promise<Choice>;
 }) {
   return (
-    <label className="field">
+    <div className="field">
       <span>{label}</span>
-      <Select value={value} disabled={disabled} onValueChange={onPick}>
-        <SelectTrigger aria-label={label} aria-invalid={!!error}>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {list.map((item) => (
-            <SelectItem key={item.id} value={item.id}>
-              {item.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SearchSelect label={label} value={value} options={list} placeholder={placeholder} disabled={disabled} invalid={!!error} onPick={onPick} onAdd={onAdd} />
       {hint && <small className="field-note">{hint}</small>}
       {error && <small className="field-hint">{error}</small>}
-    </label>
+    </div>
   );
 }
 
@@ -455,6 +447,7 @@ export default function CompanyTripForm({
                     placeholder="Select a destination"
                     value={stop.destinationId}
                     list={destinations}
+                    onAdd={(name) => addBookingOption("destinations", name)}
                     error={own.destination}
                     onPick={(id) => setStop(stop.key, { destinationId: id })}
                   />
