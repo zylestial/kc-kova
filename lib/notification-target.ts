@@ -38,9 +38,12 @@ export function notificationTarget(
     case "PROBLEM_REPORTED":
       return relatedScheduleId ? `/finished?open=${encodeURIComponent(relatedScheduleId)}` : "/finished";
     case "SCHEDULE_RETURNED": {
-      // Fixed on Scheduling, opened on the schedule's day and kind.
+      // A Company trip goes back to its requester, who fixes it on My requests
+      // (Company trip v2); they can't see the trip until it's approved.
+      const schedule = relatedScheduleId ? findSchedule(relatedScheduleId) : undefined;
+      if (schedule?.kind === "COMPANY" || (role !== "Scheduler" && role !== "Admin")) return "/requests";
+      // A Daily trip is fixed on Scheduling, opened on the schedule's day.
       if (!relatedScheduleId) return "/schedules";
-      const schedule = findSchedule(relatedScheduleId);
       return schedulingHref(schedule?.date, schedule?.kind, schedule?.id);
     }
     case "TRIP_PUBLISHED": {

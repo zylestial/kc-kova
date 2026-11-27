@@ -15,17 +15,18 @@ describe("notificationTarget", () => {
     expect(notificationTarget({ type: "REQUEST_SCHEDULED", relatedScheduleId: "daily" }, find, "Requester")).toBe("/requests");
   });
 
-  it("opens a returned schedule on Scheduling, on its day and kind", () => {
-    expect(notificationTarget({ type: "SCHEDULE_RETURNED", relatedScheduleId: "s1" }, find, "Scheduler")).toBe(
-      "/scheduling?date=2026-10-20&type=COMPANY&trip=s1",
+  it("opens a returned Daily schedule on Scheduling, and a returned Company trip on My requests", () => {
+    expect(notificationTarget({ type: "SCHEDULE_RETURNED", relatedScheduleId: "daily" }, (id) => ({ id, date: "2026-10-20", kind: "DAILY" }), "Scheduler")).toBe(
+      "/scheduling?date=2026-10-20&type=DAILY&trip=daily",
     );
     expect(notificationTarget({ type: "SCHEDULE_RETURNED", relatedScheduleId: "gone" }, find, "Scheduler")).toBe("/scheduling");
+    expect(notificationTarget({ type: "SCHEDULE_RETURNED", relatedScheduleId: "s1" }, find, "Scheduler")).toBe("/requests");
+    // The requester can't see an unapproved trip, so it isn't found.
+    expect(notificationTarget({ type: "SCHEDULE_RETURNED", relatedScheduleId: "gone" }, find, "Requester")).toBe("/requests");
   });
 
   it("sends a stop report to Scheduling for a Scheduler and Finished Trips for an Admin", () => {
-    expect(notificationTarget({ type: "STOP_REPORTED", relatedScheduleId: "s1" }, find, "Scheduler")).toBe(
-      "/scheduling?date=2026-10-20&type=COMPANY&trip=s1",
-    );
+    expect(notificationTarget({ type: "STOP_REPORTED", relatedScheduleId: "s1" }, find, "Scheduler")).toBe("/schedules?open=s1");
     expect(notificationTarget({ type: "STOP_REPORTED", relatedScheduleId: "s1" }, find, "Admin")).toBe("/finished?open=s1");
   });
 
